@@ -162,7 +162,7 @@ or (b) document a one-off exception.
   - `/games/dinosaurs-game` — 200
   - `/games/solar-system-game` — 200 ✅ (verified 2026-04-24, both extensionless + `.html`)
   - `/games/weather-game` — 200 ✅ (verified 2026-04-24, both extensionless + `.html`; `data-theme="weather"` reaches `<body>` in production, first card SSR renders "Sunny" with `card-pill summer`)
-  - `/games/alphabets-game` — verification pending post-deploy of the `GridLayout` re-port
+  - `/games/alphabets-game` — 200 ✅ (verified 2026-04-24, `<body class="grid" data-theme="alphabets">` reaches production, all 26 `.gl-tile` tiles SSR-rendered, 3 filter pills present, progress counter initialises at `0 / 26`, done overlay markup present, zero `cm-*` / `.top-card` / `.press-btn` contamination)
   - `/manifest.webmanifest`, `/sw.js`, `/.nojekyll` — all 200
 - **Production build sizes (client JS, gzipped):** flashcards **11.28 KB**, weather **3.34 KB**, alphabets **3.07 KB** (+0.23 KB vs the removed card-machine version — extra cost is the progress-tracking + filter-aware navigation), dinosaurs **3.02 KB**, solar-system **2.66 KB**. Total PWA precache: 33 entries, ~182 KB.
 - **Production build sizes (CSS, per page):** card-machine games share `dinosaurs-game.*.css` (17 KB), grid games load `alphabets-game.*.css` (9.2 KB) — isolation verified: zero `gl-*` tokens in the card-machine bundle and zero `cm-*` / `.top-card` / `.press-btn` in the grid bundle.
@@ -171,9 +171,19 @@ or (b) document a one-off exception.
 
 ## What still needs doing
 
+> **▶ Resume here next session:** start on item **1.a (Numbers on GridLayout)** below. `GridLayout` + `grid.css` + the `kids_progress_v1:<gameId>` pattern are all proven by Alphabets, so Numbers is a copy-adapt-theme job. Expected scope: new `src/data/numbers.ts` + new `src/pages/games/numbers-game.astro` + ~35-line `--gl-*` theme block in `grid.css` + home tile + GameNav link. No new infra needed.
+
 Rough order of payoff:
 
-1. **Port the remaining 6 foundational-set games onto `GridLayout`.** In suggested order (simplest first): `numbers`, `colors`, `shapes`, `animals`, `birds`, `hindi`. Each port is now ~35–50 lines of new `--gl-*` theme tokens + ~200–300 lines of page + typed data. The tile-face strategy is per-game: Numbers → big digit on tile, digit+quantity image in detail. Colors → colour-filled tile + object image in detail. Shapes → CSS-drawn shape on both tile and detail. Animals/Birds/Hindi → big emoji/letter on tile, Fluent UI 3D image in detail.
+1. **Port the remaining 6 foundational-set games onto `GridLayout`.** In suggested order (simplest first):
+   1. **Numbers** — 1–20 tiles, big digit on tile, digit + quantity image (Fluent UI apple/star groupings) in detail. Natural filter: `single-digit` / `teens`. ← **pick up here tomorrow**
+   2. **Colors** — ~10 colour-filled tiles, colour-word label, everyday-object image (Fluent UI) in detail. No obvious filter; could group by warm / cool / neutral if we want symmetry.
+   3. **Shapes** — ~10 CSS-drawn shape tiles (circle, square, triangle, star, heart, diamond, etc.), same shape larger + real-world example image in detail. Filter by sides count could be cute (`2d` / `3d` / `curved`).
+   4. **Animals** — big emoji on tile, Fluent UI 3D image + fact in detail. Filter: `mammal` / `bird` / `reptile` / `sea` / `insect`.
+   5. **Birds** — big emoji on tile, Fluent UI 3D image + fact in detail. Filter: `songbird` / `raptor` / `waterbird` / `tropical`.
+   6. **Hindi** — same shape as Alphabets but with the Devanagari script + Hindi word + English gloss; filter: `vowel` (स्वर) / `consonant` (व्यंजन).
+
+   Each port is now ~35–50 lines of new `--gl-*` theme tokens + ~200–300 lines of page + typed data — effectively a copy-adapt of `alphabets-game.astro` with a new data file and a new theme block.
 2. **Decide whether `StoryLayout.astro` is needed** — Woodcutter and Daily Routines have linear-story flows. First attempt: model each story *page* as a card in the card machine, with press-to-read and Prev/Next. Only carve out a separate layout if that collapses.
 3. **Wire the real Stats + Quiz modals.** Currently both are `alert(…)` stubs in the 5 ported games. Extract the `kids_progress_v1:<gameId>` LocalStorage logic from `alphabets-game.astro` into `src/lib/progress.ts` the moment a second game needs it — two consumers is the refactor trigger.
 4. **Add tests.** Playwright smoke test per layout (one for card-machine, one for grid): filter → navigate → completion overlay + confetti. Parameterise over themes inside each test so one suite covers every game.
@@ -287,9 +297,7 @@ Layout responsibilities are now:
   designer had in mind" heuristic. Rule #4 now mentions `global.css`
   as the home for shared chrome primitives across layouts.
 - Build result: `astro check` → 0 errors / 0 warnings / 0 hints.
-- Live: verification pending — push triggers the GitHub Actions
-  deploy; URL is `/games/alphabets-game` on the Pages origin (now
-  rendering `<body class="grid" data-theme="alphabets">`).
+- Live: https://aakash-jain-1.github.io/kids-learning-games-astro/games/alphabets-game — verified 2026-04-24 (commits `27583da` + `29af73d`). Production markup shows `<body class="grid" data-theme="alphabets">`, 26 `.gl-tile` tiles SSR-rendered, 3 filter pills (`all` / `vowel` / `consonant`), progress counter initialises at `0 / 26`, `.gl-done-overlay` markup present. Grep confirms zero `cm-*` / `.top-card` / `.press-btn` / `.machine-screen` classes on the page. Cross-check: the four card-machine games (`dinosaurs`, `flashcards`, `solar-system`, `weather`) still render with `<body class="card-machine">` + their original `data-theme`s — no regressions from the CSS reshuffle.
 
 ### 2026-04-24 — Course correction: Alphabets re-ported on CardMachineLayout
 
