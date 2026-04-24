@@ -1,5 +1,7 @@
 ---
-// Shared shell for card-machine games (flashcards, solar, dinosaurs, weather).
+// Shared shell for card-machine games (flashcards, solar, dinosaurs, weather,
+// alphabets). Every game on this layout follows the same deck / filter /
+// press-to-hear interaction model — see the migration note in PROGRESS.md.
 // Provides head meta, PWA wiring, navigation, settings modal, build info, and
 // service worker auto-update handling. Each game just supplies its content via
 // the default slot plus a handful of props.
@@ -25,7 +27,7 @@ interface Props {
    * properties defined in `card-machine.css` — leave undefined for the
    * default (dinosaur / green) theme.
    */
-  theme?: 'flashcards' | 'dinosaurs' | 'solar-system' | 'weather';
+  theme?: 'flashcards' | 'dinosaurs' | 'solar-system' | 'weather' | 'alphabets';
 }
 
 const {
@@ -133,5 +135,9 @@ const canonicalUrl =
   html.pre-dark body[data-theme='weather'] {
     background: #050a14;
     color: #b8d4f0;
+  }
+  html.pre-dark body[data-theme='alphabets'] {
+    background: #15051a;
+    color: #f8bbd0;
   }
 </style>

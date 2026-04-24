@@ -1,280 +1,290 @@
 ---
-import ClassicLayout from '@/layouts/ClassicLayout.astro';
-import { ALPHABET_CARDS, ALPHABET_COUNT } from '@/data/alphabets';
+import CardMachineLayout from '@/layouts/CardMachineLayout.astro';
+import { ALL_CARDS, FILTERS } from '@/data/alphabets';
 
 const title = 'Alphabets — Kids Learning Games';
 const description =
-  'Learn the ABCs! Tap a letter to see a word, hear it spoken, and meet a colourful friend.';
+  'Learn A-Z with the card machine! Tap a letter card to see its picture, hear the word and a fun fact.';
 ---
 
-<ClassicLayout
+<CardMachineLayout
   title={title}
   description={description}
-  themeColor="#667eea"
+  themeColor="#4a0e4e"
   theme="alphabets"
 >
-  <h1 class="cl-title">🌟 Alphabet Click Game</h1>
+  <div class="cm-layout">
+    <!-- Left pane: card deck -->
+    <div class="left-pane">
+      <div class="left-top">
+        <div class="ctrl-row">
+          <button class="ctrl-pill" id="btnQuiz" type="button">🧠 Quiz</button>
+          <button class="ctrl-pill" id="btnStats" type="button">📊 Stats</button>
+          <button class="ctrl-pill" id="btnSettings" type="button">⚙️ Settings</button>
+        </div>
+      </div>
 
-  <div class="cl-controls" role="group" aria-label="Game controls">
-    <button class="cl-btn primary random" id="btnRandom" type="button">
-      🎲 Random
-    </button>
-    <button class="cl-btn primary speak" id="btnSpeak" type="button">
-      🔊 Speak
-    </button>
-    <button class="cl-btn primary reset" id="btnReset" type="button">
-      🔄 Reset
-    </button>
-    <button class="cl-btn" id="btnQuiz" type="button">🎯 Quiz</button>
-    <button class="cl-btn" id="btnStats" type="button">📊 Stats</button>
-    <button class="cl-btn" id="btnSettings" type="button">⚙️ Settings</button>
-    <div class="cl-progress" aria-live="polite">
-      <span id="progText">0</span> / {ALPHABET_COUNT} learned
-    </div>
-  </div>
-
-  <main class="cl-main">
-    <section class="cl-pane" aria-label="Letter grid">
-      <div class="cl-grid" id="alphabetGrid" role="group" aria-label="Select a letter">
+      <div class="cat-bar" id="catBar" role="group" aria-label="Letter filter">
         {
-          ALPHABET_CARDS.map((card) => (
+          FILTERS.map((f) => (
             <button
-              class="cl-tile"
+              class={`cat-btn${f.key === 'all' ? ' active' : ''}`}
+              data-key={f.key}
               type="button"
-              data-letter={card.letter}
-              aria-label={`Letter ${card.letter}`}
             >
-              {card.letter}
+              {f.label}
             </button>
           ))
         }
       </div>
-    </section>
 
-    <section class="cl-pane right" aria-label="Letter display">
-      <div class="cl-display" id="displayArea">
-        <p class="cl-display-empty" id="displayEmpty">
-          👉 Tap any letter to start learning!
-        </p>
+      <div class="deck-area">
+        <div class="ghost" aria-hidden="true"></div>
+        <div class="ghost" aria-hidden="true"></div>
+        <div class="ghost" aria-hidden="true"></div>
+        <button class="top-card" id="topCard" type="button" aria-label="Play letter">
+          <span class="card-num-badge" id="cardNum">1 / {ALL_CARDS.length}</span>
+          <div id="cardFace"></div>
+          <div class="card-name-big" id="cardName"></div>
+          <div class="card-pill" id="cardPill"></div>
+        </button>
       </div>
-      <p class="cl-display-tip">
-        💡 Tip: Press letter keys A–Z, arrows to navigate, R for random, Space to speak.
-      </p>
-    </section>
-  </main>
 
-  <div
-    class="cl-done"
-    id="doneOverlay"
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="doneTitle"
-  >
-    <div class="cl-done-card">
-      <div style="font-size: 3em" aria-hidden="true">🎉</div>
-      <h2 id="doneTitle">Amazing!</h2>
-      <p id="doneMsg">You learned every letter from A to Z!</p>
-      <button class="cl-done-restart" id="btnRestart" type="button">
-        🔄 Play Again
-      </button>
+      <div class="deck-nav">
+        <button class="nav-btn" id="btnPrev" type="button">◀ Prev</button>
+        <button class="nav-btn" id="btnNext" type="button">Next ▶</button>
+      </div>
+
+      <div class="prog-strip">
+        <div class="prog-bg">
+          <div class="prog-fg" id="progFg" style="width:4%"></div>
+        </div>
+        <div class="prog-txt" id="progTxt">Card 1 of {ALL_CARDS.length}</div>
+      </div>
+    </div>
+
+    <!-- Right pane: the "machine" -->
+    <div class="right-pane">
+      <div class="machine">
+        <div class="machine-plate">🔤 Alphabet Cards 🔤</div>
+        <div class="machine-screen">
+          <div id="screenFace"></div>
+          <div class="scrn-name" id="screenName"></div>
+          <div class="scrn-badge-pill" id="screenBadge"></div>
+          <div class="scrn-fact" id="screenFact"></div>
+        </div>
+        <div class="grille" id="grille" aria-hidden="true"></div>
+        <div class="waves" id="waves" aria-hidden="true">
+          <div class="wv"></div><div class="wv"></div><div class="wv"></div>
+          <div class="wv"></div><div class="wv"></div>
+        </div>
+        <button class="press-btn" id="pressBtn" type="button">
+          TAP TO HEAR!
+          <span class="btn-sub">Press — I will say the letter and its word!</span>
+        </button>
+      </div>
+
+      <div
+        class="done-overlay"
+        id="doneOverlay"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="doneTitle"
+      >
+        <div class="done-card">
+          <div style="font-size:3em" aria-hidden="true">🎉</div>
+          <h2 id="doneTitle">You did it!</h2>
+          <p id="doneMsg"></p>
+          <button class="restart-btn" id="btnRestart" type="button">🔄 Play Again</button>
+        </div>
+      </div>
     </div>
   </div>
-</ClassicLayout>
+</CardMachineLayout>
 
 <script>
   import {
-    ALPHABET_CARDS,
-    ALPHABET_BY_LETTER,
-    ALPHABET_COUNT,
+    ALL_CARDS,
     FLUENT_IMG_BASE,
     type AlphabetCard,
+    type LetterType,
   } from '@/data/alphabets';
-  import { speak } from '@/lib/speech';
   import { playTap } from '@/lib/audio';
+  import { speak } from '@/lib/speech';
   import { launchConfetti } from '@/lib/achievements';
   import { getSettings } from '@/lib/settings';
 
-  const STORAGE_KEY = 'kids_progress_v1:alphabets';
-  const ALPHA_COLORS = ['#667eea', '#764ba2', '#f093fb', '#4caf50', '#ffeb3b', '#ff6b6b'];
+  // Alphabets confetti palette: pinks + limes to match the theme, plus
+  // a few neutrals for contrast.
+  const ALPHABET_COLORS = [
+    '#ec407a', '#f8bbd0', '#c6ff00', '#aeea00', '#26c6da', '#fff176', '#fff',
+  ];
+
+  let cards: readonly AlphabetCard[] = ALL_CARDS;
+  let idx = 0;
 
   const $ = <T extends HTMLElement = HTMLElement>(id: string): T =>
     document.getElementById(id) as T;
 
-  let currentLetter: string | null = null;
-  const learned = loadLearned();
-
-  function loadLearned(): Set<string> {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return new Set();
-      const parsed = JSON.parse(raw) as unknown;
-      if (!Array.isArray(parsed)) return new Set();
-      return new Set(parsed.filter((x): x is string => typeof x === 'string'));
-    } catch {
-      return new Set();
-    }
+  /**
+   * Left-pane card face: the uppercase letter rendered big via the
+   * shared `.card-num-text` style — same visual treatment the numbers
+   * deck uses in Flashcards.
+   */
+  function buildCardFace(card: AlphabetCard): HTMLElement {
+    const el = document.createElement('div');
+    el.className = 'card-num-text pop';
+    el.textContent = card.letter;
+    return el;
   }
 
-  function saveLearned(): void {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify([...learned]));
-    } catch {
-      /* storage full or disabled — state stays in-memory */
-    }
-  }
-
-  function renderDisplay(card: AlphabetCard): void {
-    const area = $('displayArea');
-    area.innerHTML = '';
-
-    const title = document.createElement('div');
-    title.className = 'cl-display-title';
-    title.textContent = `${card.letter} for ${card.word}`;
-    area.appendChild(title);
-
+  /**
+   * Right-pane (OLED screen) face: the Fluent UI 3D PNG for the word,
+   * with emoji fallback on error — mirrors the Flashcards/Weather pattern.
+   */
+  function buildScreenFace(card: AlphabetCard): HTMLElement {
     const img = document.createElement('img');
-    img.className = 'cl-display-image';
+    img.id = 'screenEmojiEl';
+    img.className = 'scrn-img';
     img.src = FLUENT_IMG_BASE + card.img;
-    img.alt = card.word;
+    img.alt = card.n;
     img.loading = 'lazy';
     img.decoding = 'async';
     img.addEventListener('error', () => {
       const fallback = document.createElement('div');
-      fallback.className = 'cl-display-emoji';
+      fallback.id = 'screenEmojiEl';
+      fallback.className = 'scrn-emoji';
       fallback.textContent = card.e;
       img.replaceWith(fallback);
     });
-    area.appendChild(img);
-
-    const fact = document.createElement('p');
-    fact.className = 'cl-display-tip';
-    fact.textContent = card.fact;
-    area.appendChild(fact);
+    return img;
   }
 
-  function showLetter(letter: string, opts: { speakIt?: boolean } = {}): void {
-    const card = ALPHABET_BY_LETTER.get(letter);
-    if (!card) return;
-    currentLetter = letter;
-
-    renderDisplay(card);
-
-    learned.add(letter);
-    saveLearned();
-    updateProgress();
-    updateTiles();
-
-    const shouldSpeak = opts.speakIt ?? getSettings().autoSpeak;
-    if (shouldSpeak) {
-      speak(`${card.letter} for ${card.word}!`);
-    }
-
-    if (learned.size === ALPHABET_COUNT) {
-      showDone();
-    }
-  }
-
-  function updateProgress(): void {
-    $('progText').textContent = String(learned.size);
-  }
-
-  function updateTiles(): void {
-    document.querySelectorAll<HTMLButtonElement>('.cl-tile').forEach((tile) => {
-      const letter = tile.dataset.letter;
-      if (!letter) return;
-      tile.classList.toggle('learned', learned.has(letter));
-      tile.classList.toggle('active', letter === currentLetter);
+  function applyFilter(key: 'all' | LetterType): void {
+    cards = key === 'all' ? ALL_CARDS : ALL_CARDS.filter((c) => c.type === key);
+    idx = 0;
+    document.querySelectorAll<HTMLButtonElement>('.cat-btn').forEach((b) => {
+      b.classList.toggle('active', b.dataset.key === key);
     });
-  }
-
-  function resetDisplay(): void {
-    const area = $('displayArea');
-    area.innerHTML = '';
-    const p = document.createElement('p');
-    p.className = 'cl-display-empty';
-    p.id = 'displayEmpty';
-    p.textContent = '👉 Tap any letter to start learning!';
-    area.appendChild(p);
-  }
-
-  function resetAll(): void {
-    learned.clear();
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-    } catch {
-      /* noop */
-    }
-    currentLetter = null;
-    resetDisplay();
-    updateProgress();
-    updateTiles();
     $('doneOverlay').classList.remove('show');
-    speak('Starting over!');
+    render();
   }
 
-  function showRandom(): void {
-    const idx = Math.floor(Math.random() * ALPHABET_CARDS.length);
-    const card = ALPHABET_CARDS[idx]!;
-    showLetter(card.letter, { speakIt: true });
+  function render(): void {
+    if (!cards.length) return;
+    const card = cards[idx]!;
+    const total = cards.length;
+
+    const cf = $('cardFace');
+    cf.innerHTML = '';
+    cf.appendChild(buildCardFace(card));
+
+    $('cardName').textContent = card.n;
+    $('cardNum').textContent = `${idx + 1} / ${total}`;
+
+    const pill = $('cardPill');
+    pill.textContent = card.label;
+    pill.className = `card-pill ${card.type}`;
+
+    const sf = $('screenFace');
+    sf.innerHTML = '';
+    sf.appendChild(buildScreenFace(card));
+
+    $('screenName').textContent = card.n;
+    const sb = $('screenBadge');
+    sb.textContent = `${card.letter} · ${card.label}`;
+    sb.className = `scrn-badge-pill ${card.type}`;
+
+    $('screenFact').textContent = card.f;
+    ($('progFg') as HTMLDivElement).style.width = `${((idx + 1) / total) * 100}%`;
+    $('progTxt').textContent = `Card ${idx + 1} of ${total}`;
+    buildGrille(false);
+
+    if (getSettings().autoSpeak) speakCurrent();
   }
 
-  function speakCurrent(): void {
-    if (!currentLetter) {
-      speak('Tap a letter first!');
+  function buildGrille(lit: boolean): void {
+    const g = $('grille');
+    g.innerHTML = '';
+    for (let r = 0; r < 4; r++) {
+      const row = document.createElement('div');
+      row.className = 'grille-row';
+      for (let c = 0; c < 14; c++) {
+        const dot = document.createElement('div');
+        dot.className = 'grille-dot' + (lit && Math.random() > 0.35 ? ' lit' : '');
+        row.appendChild(dot);
+      }
+      g.appendChild(row);
+    }
+  }
+
+  function navigate(dir: number): void {
+    const next = idx + dir;
+    if (next < 0) return;
+    if (next >= cards.length) {
+      showDone();
       return;
     }
-    const card = ALPHABET_BY_LETTER.get(currentLetter);
-    if (!card) return;
-    speak(`${card.letter} for ${card.word}. ${card.fact}`);
+    idx = next;
+    render();
   }
 
   function showDone(): void {
     $('doneMsg').textContent =
-      `You learned every letter from A to Z — that's ${ALPHABET_COUNT} letters!`;
+      `You went through all ${cards.length} letter cards!`;
     $('doneOverlay').classList.add('show');
-    launchConfetti(ALPHA_COLORS);
+    launchConfetti(ALPHABET_COLORS);
   }
 
-  function navigate(dir: 1 | -1): void {
-    const letters = ALPHABET_CARDS.map((c) => c.letter);
-    if (!currentLetter) {
-      showLetter(letters[0]!, { speakIt: true });
-      return;
+  function pressMachine(): void {
+    const btn = $('pressBtn');
+    btn.classList.add('pressed');
+    setTimeout(() => btn.classList.remove('pressed'), 180);
+
+    const sel = document.getElementById('screenEmojiEl');
+    if (sel) {
+      sel.classList.remove('flash');
+      void sel.offsetWidth; // restart animation
+      sel.classList.add('flash');
     }
-    const i = letters.indexOf(currentLetter);
-    const next = letters[(i + dir + letters.length) % letters.length];
-    if (next) showLetter(next, { speakIt: true });
+    buildGrille(true);
+    setTimeout(() => buildGrille(false), 1100);
+    $('waves').classList.add('active');
+    playTap();
+    speakCurrent();
   }
 
-  // Wire up events
+  function speakCurrent(): void {
+    const card = cards[idx];
+    if (!card) return;
+    // "A. A for Apple!   Apples come in red..."
+    speak(`${card.letter}.   ${card.letter} for ${card.n}!   ${card.f}`, {
+      onEnd: () => $('waves').classList.remove('active'),
+    });
+  }
 
-  document.querySelectorAll<HTMLButtonElement>('.cl-tile').forEach((tile) => {
-    tile.addEventListener('click', () => {
-      const letter = tile.dataset.letter;
-      if (!letter) return;
-      tile.classList.add('flipping');
-      setTimeout(() => tile.classList.remove('flipping'), 600);
-      playTap();
-      showLetter(letter, { speakIt: true });
+  function restart(): void {
+    idx = 0;
+    cards = ALL_CARDS;
+    $('doneOverlay').classList.remove('show');
+    document.querySelectorAll<HTMLButtonElement>('.cat-btn').forEach((b) => {
+      b.classList.toggle('active', b.dataset.key === 'all');
+    });
+    render();
+  }
+
+  document.querySelectorAll<HTMLButtonElement>('.cat-btn').forEach((b) => {
+    b.addEventListener('click', () => {
+      const key = b.dataset.key as 'all' | LetterType | undefined;
+      if (key) applyFilter(key);
     });
   });
 
-  $('btnRandom').addEventListener('click', () => {
-    playTap();
-    showRandom();
-  });
-  $('btnSpeak').addEventListener('click', () => {
-    playTap();
-    speakCurrent();
-  });
-  $('btnReset').addEventListener('click', () => {
-    playTap();
-    resetAll();
-  });
-  $('btnRestart').addEventListener('click', () => {
-    playTap();
-    resetAll();
-  });
+  $('btnPrev').addEventListener('click', () => navigate(-1));
+  $('btnNext').addEventListener('click', () => navigate(1));
+  $('topCard').addEventListener('click', pressMachine);
+  $('pressBtn').addEventListener('click', pressMachine);
+  $('btnRestart').addEventListener('click', restart);
 
   $('btnSettings').addEventListener('click', () => {
     (window as unknown as { openSettings?: () => void }).openSettings?.();
@@ -287,29 +297,14 @@ const description =
   });
 
   document.addEventListener('keydown', (e) => {
-    if (e.target instanceof HTMLInputElement) return;
-
-    const key = e.key;
-    if (key === 'ArrowRight') {
-      e.preventDefault();
-      navigate(1);
-    } else if (key === 'ArrowLeft') {
-      e.preventDefault();
-      navigate(-1);
-    } else if (key === ' ') {
+    if (e.key === 'ArrowRight') navigate(1);
+    else if (e.key === 'ArrowLeft') navigate(-1);
+    else if (e.key === ' ' || e.key === 'Enter') {
       if (e.target instanceof HTMLButtonElement) return;
       e.preventDefault();
-      speakCurrent();
-    } else if (key.toLowerCase() === 'r') {
-      e.preventDefault();
-      showRandom();
-    } else if (/^[a-zA-Z]$/.test(key)) {
-      e.preventDefault();
-      showLetter(key.toUpperCase(), { speakIt: true });
+      pressMachine();
     }
   });
 
-  // Hydrate "learned" state on first paint
-  updateProgress();
-  updateTiles();
+  render();
 </script>

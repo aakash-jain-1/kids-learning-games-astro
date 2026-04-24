@@ -1,225 +1,132 @@
 /**
- * Data for the Alphabets game — the first "classic two-pane" port.
+ * Data for the Alphabets game — the fifth card-machine port.
  *
- * Each card is a single letter A–Z paired with a representative word and
- * a Fluent UI 3D PNG. `e` is the plain-emoji fallback used when the image
- * fails to load (handled in the page script).
+ * Shape follows the conventions used by the other card-machine games
+ * (`n`, `f`, `e`, `img`). Additional per-game fields:
+ *   - `letter`  — the uppercase letter A–Z, rendered large on the card face
+ *   - `type`    — `'vowel' | 'consonant'`, drives the filter pill colour
+ *   - `label`   — human-readable pill text ("Vowel" / "Consonant")
  *
  * Image source note: the vanilla game used Iconify Noto SVGs. Per the
  * Astro-repo migration principle (Fluent UI 3D PNGs as the single image
- * CDN), all 26 entries have been re-sourced against
- * `cdn.jsdelivr.net/gh/microsoft/fluentui-emoji`. All 26 URLs were
- * verified 200 OK at port time.
+ * CDN, already runtime-cached CacheFirst in `src/sw.ts`), all 26 entries
+ * have been re-sourced against
+ * `cdn.jsdelivr.net/gh/microsoft/fluentui-emoji`. All URLs were verified
+ * 200 OK at port time.
  *
- * Q maps to a Crown instead of Princess — the Princess/3D asset is
- * intentionally missing from the Fluent UI pack (403), and Crown is the
- * closest kid-friendly stand-in for "Queen".
+ * Q maps to a Crown instead of Princess — `Princess/3D/princess_3d.png`
+ * is intentionally missing from the Fluent UI pack (403), and the Queen's
+ * crown is the closest kid-friendly stand-in.
  */
 
 export { FLUENT_IMG_BASE } from './fluent';
 
+export type LetterType = 'vowel' | 'consonant';
+
 export interface AlphabetCard {
-  /** Uppercase letter, A–Z */
+  /** Uppercase letter, A–Z — rendered big on the card face */
   letter: string;
-  /** Word shown with the letter, e.g. "Apple" */
-  word: string;
-  /** Relative path inside fluentui-emoji for the 3D PNG */
-  img: string;
-  /** Plain emoji fallback, used if the PNG 404s in the browser */
+  /** Name shown as the card + screen title (e.g. "Apple") */
+  n: string;
+  /** Fun fact read aloud on press + shown on the OLED screen */
+  f: string;
+  /** Plain emoji fallback, used if the PNG fails in the browser */
   e: string;
-  /** Fun fact read aloud / shown in the right pane tip area */
-  fact: string;
+  /** Relative path inside fluentui-emoji to the 3D PNG for `n` */
+  img: string;
+  /** Vowel vs consonant — drives filter + pill colour */
+  type: LetterType;
+  /** Human-readable pill text ("Vowel" / "Consonant") */
+  label: string;
 }
 
-export const ALPHABET_CARDS: readonly AlphabetCard[] = [
-  {
-    letter: 'A',
-    word: 'Apple',
-    img: 'Red%20apple/3D/red_apple_3d.png',
-    e: '🍎',
-    fact: 'Apples come in red, green, and yellow. They grow on trees!',
-  },
-  {
-    letter: 'B',
-    word: 'Ball',
-    img: 'Soccer%20ball/3D/soccer_ball_3d.png',
-    e: '⚽',
-    fact: 'Balls can bounce, roll, and be kicked. So much fun!',
-  },
-  {
-    letter: 'C',
-    word: 'Cat',
-    img: 'Cat%20face/3D/cat_face_3d.png',
-    e: '🐱',
-    fact: 'Cats are fluffy pets. They love to purr and play!',
-  },
-  {
-    letter: 'D',
-    word: 'Dog',
-    img: 'Dog%20face/3D/dog_face_3d.png',
-    e: '🐶',
-    fact: 'Dogs are loyal friends. They wag their tails when happy!',
-  },
-  {
-    letter: 'E',
-    word: 'Elephant',
-    img: 'Elephant/3D/elephant_3d.png',
-    e: '🐘',
-    fact: 'Elephants are the biggest land animals and love water!',
-  },
-  {
-    letter: 'F',
-    word: 'Fish',
-    img: 'Fish/3D/fish_3d.png',
-    e: '🐟',
-    fact: 'Fish swim in rivers, lakes, and the big blue ocean.',
-  },
-  {
-    letter: 'G',
-    word: 'Giraffe',
-    img: 'Giraffe/3D/giraffe_3d.png',
-    e: '🦒',
-    fact: 'Giraffes have the longest necks of any animal!',
-  },
-  {
-    letter: 'H',
-    word: 'House',
-    img: 'House/3D/house_3d.png',
-    e: '🏠',
-    fact: 'A house is where we live with our family.',
-  },
-  {
-    letter: 'I',
-    word: 'Ice Cream',
-    img: 'Ice%20cream/3D/ice_cream_3d.png',
-    e: '🍨',
-    fact: 'Ice cream is a cold, sweet treat — perfect on a sunny day!',
-  },
-  {
-    letter: 'J',
-    word: 'Juice',
-    img: 'Beverage%20box/3D/beverage_box_3d.png',
-    e: '🧃',
-    fact: 'Juice is a yummy drink made from fruits.',
-  },
-  {
-    letter: 'K',
-    word: 'Kite',
-    img: 'Kite/3D/kite_3d.png',
-    e: '🪁',
-    fact: 'Kites fly high in the sky when the wind is strong!',
-  },
-  {
-    letter: 'L',
-    word: 'Lion',
-    img: 'Lion/3D/lion_3d.png',
-    e: '🦁',
-    fact: 'Lions are called the King of the Jungle. They have a big roar!',
-  },
-  {
-    letter: 'M',
-    word: 'Monkey',
-    img: 'Monkey%20face/3D/monkey_face_3d.png',
-    e: '🐵',
-    fact: 'Monkeys love to climb trees and munch on bananas!',
-  },
-  {
-    letter: 'N',
-    word: 'Notebook',
-    img: 'Notebook/3D/notebook_3d.png',
-    e: '📓',
-    fact: 'Notebooks are where we write and draw our favourite ideas.',
-  },
-  {
-    letter: 'O',
-    word: 'Orange',
-    img: 'Tangerine/3D/tangerine_3d.png',
-    e: '🍊',
-    fact: 'Oranges are juicy fruits full of vitamin C!',
-  },
-  {
-    letter: 'P',
-    word: 'Pizza',
-    img: 'Pizza/3D/pizza_3d.png',
-    e: '🍕',
-    fact: 'Pizza is a round, cheesy favourite with lots of toppings.',
-  },
-  {
-    letter: 'Q',
-    word: 'Queen',
-    img: 'Crown/3D/crown_3d.png',
-    e: '👑',
-    fact: 'A queen wears a crown and rules her kingdom with kindness!',
-  },
-  {
-    letter: 'R',
-    word: 'Rabbit',
-    img: 'Rabbit%20face/3D/rabbit_face_3d.png',
-    e: '🐰',
-    fact: 'Rabbits are soft and fluffy, with long floppy ears!',
-  },
-  {
-    letter: 'S',
-    word: 'Sun',
-    img: 'Sun%20with%20face/3D/sun_with_face_3d.png',
-    e: '🌞',
-    fact: 'The Sun gives us warmth and light every single day.',
-  },
-  {
-    letter: 'T',
-    word: 'Train',
-    img: 'Locomotive/3D/locomotive_3d.png',
-    e: '🚂',
-    fact: 'Trains run on tracks and can carry lots of people and cargo!',
-  },
-  {
-    letter: 'U',
-    word: 'Umbrella',
-    img: 'Umbrella%20with%20rain%20drops/3D/umbrella_with_rain_drops_3d.png',
-    e: '☔',
-    fact: 'An umbrella keeps us dry when it rains.',
-  },
-  {
-    letter: 'V',
-    word: 'Van',
-    img: 'Delivery%20truck/3D/delivery_truck_3d.png',
-    e: '🚚',
-    fact: 'Vans and trucks carry things from one place to another.',
-  },
-  {
-    letter: 'W',
-    word: 'Watermelon',
-    img: 'Watermelon/3D/watermelon_3d.png',
-    e: '🍉',
-    fact: 'Watermelon is a big, sweet fruit full of water. Yum!',
-  },
-  {
-    letter: 'X',
-    word: 'Xylophone',
-    img: 'Musical%20keyboard/3D/musical_keyboard_3d.png',
-    e: '🎹',
-    fact: 'A xylophone makes music when you tap its bars.',
-  },
-  {
-    letter: 'Y',
-    word: 'Yacht',
-    img: 'Sailboat/3D/sailboat_3d.png',
-    e: '⛵',
-    fact: 'A yacht is a boat that sails on the sea.',
-  },
-  {
-    letter: 'Z',
-    word: 'Zebra',
-    img: 'Zebra/3D/zebra_3d.png',
-    e: '🦓',
-    fact: 'Zebras have black-and-white stripes — no two are the same!',
-  },
+const VOWELS = new Set(['A', 'E', 'I', 'O', 'U']);
+
+const typeOf = (letter: string): LetterType =>
+  VOWELS.has(letter) ? 'vowel' : 'consonant';
+
+const labelOf = (letter: string): string =>
+  VOWELS.has(letter) ? 'Vowel' : 'Consonant';
+
+// Helper to declare a card without re-typing `type` + `label`.
+const card = (
+  letter: string,
+  n: string,
+  img: string,
+  e: string,
+  f: string,
+): AlphabetCard => ({
+  letter,
+  n,
+  f,
+  e,
+  img,
+  type: typeOf(letter),
+  label: labelOf(letter),
+});
+
+export const ALL_CARDS: readonly AlphabetCard[] = [
+  card('A', 'Apple', 'Red%20apple/3D/red_apple_3d.png', '🍎',
+    'Apples come in red, green, and yellow. They grow on trees!'),
+  card('B', 'Ball', 'Soccer%20ball/3D/soccer_ball_3d.png', '⚽',
+    'Balls can bounce, roll, and be kicked. So much fun!'),
+  card('C', 'Cat', 'Cat%20face/3D/cat_face_3d.png', '🐱',
+    'Cats are fluffy pets. They love to purr and play!'),
+  card('D', 'Dog', 'Dog%20face/3D/dog_face_3d.png', '🐶',
+    'Dogs are loyal friends. They wag their tails when happy!'),
+  card('E', 'Elephant', 'Elephant/3D/elephant_3d.png', '🐘',
+    'Elephants are the biggest land animals and love water!'),
+  card('F', 'Fish', 'Fish/3D/fish_3d.png', '🐟',
+    'Fish swim in rivers, lakes, and the big blue ocean.'),
+  card('G', 'Giraffe', 'Giraffe/3D/giraffe_3d.png', '🦒',
+    'Giraffes have the longest necks of any animal!'),
+  card('H', 'House', 'House/3D/house_3d.png', '🏠',
+    'A house is where we live with our family.'),
+  card('I', 'Ice Cream', 'Ice%20cream/3D/ice_cream_3d.png', '🍨',
+    'Ice cream is a cold, sweet treat — perfect on a sunny day!'),
+  card('J', 'Juice', 'Beverage%20box/3D/beverage_box_3d.png', '🧃',
+    'Juice is a yummy drink made from fruits.'),
+  card('K', 'Kite', 'Kite/3D/kite_3d.png', '🪁',
+    'Kites fly high in the sky when the wind is strong!'),
+  card('L', 'Lion', 'Lion/3D/lion_3d.png', '🦁',
+    'Lions are called the King of the Jungle. They have a big roar!'),
+  card('M', 'Monkey', 'Monkey%20face/3D/monkey_face_3d.png', '🐵',
+    'Monkeys love to climb trees and munch on bananas!'),
+  card('N', 'Notebook', 'Notebook/3D/notebook_3d.png', '📓',
+    'Notebooks are where we write and draw our favourite ideas.'),
+  card('O', 'Orange', 'Tangerine/3D/tangerine_3d.png', '🍊',
+    'Oranges are juicy fruits full of vitamin C!'),
+  card('P', 'Pizza', 'Pizza/3D/pizza_3d.png', '🍕',
+    'Pizza is a round, cheesy favourite with lots of toppings.'),
+  card('Q', 'Queen', 'Crown/3D/crown_3d.png', '👑',
+    'A queen wears a crown and rules her kingdom with kindness!'),
+  card('R', 'Rabbit', 'Rabbit%20face/3D/rabbit_face_3d.png', '🐰',
+    'Rabbits are soft and fluffy, with long floppy ears!'),
+  card('S', 'Sun', 'Sun%20with%20face/3D/sun_with_face_3d.png', '🌞',
+    'The Sun gives us warmth and light every single day.'),
+  card('T', 'Train', 'Locomotive/3D/locomotive_3d.png', '🚂',
+    'Trains run on tracks and can carry lots of people and cargo!'),
+  card('U', 'Umbrella', 'Umbrella%20with%20rain%20drops/3D/umbrella_with_rain_drops_3d.png', '☔',
+    'An umbrella keeps us dry when it rains.'),
+  card('V', 'Van', 'Delivery%20truck/3D/delivery_truck_3d.png', '🚚',
+    'Vans and trucks carry things from one place to another.'),
+  card('W', 'Watermelon', 'Watermelon/3D/watermelon_3d.png', '🍉',
+    'Watermelon is a big, sweet fruit full of water. Yum!'),
+  card('X', 'Xylophone', 'Musical%20keyboard/3D/musical_keyboard_3d.png', '🎹',
+    'A xylophone makes music when you tap its bars.'),
+  card('Y', 'Yacht', 'Sailboat/3D/sailboat_3d.png', '⛵',
+    'A yacht is a boat that sails on the sea.'),
+  card('Z', 'Zebra', 'Zebra/3D/zebra_3d.png', '🦓',
+    'Zebras have black-and-white stripes — no two are the same!'),
 ];
 
-/** Total number of letters; used for progress counter sizing. */
-export const ALPHABET_COUNT = ALPHABET_CARDS.length;
+export interface AlphabetFilter {
+  key: 'all' | LetterType;
+  label: string;
+}
 
-/** Quick-lookup map — `ALPHABET_BY_LETTER.get('A')` → the Apple card. */
-export const ALPHABET_BY_LETTER: ReadonlyMap<string, AlphabetCard> = new Map(
-  ALPHABET_CARDS.map((c) => [c.letter, c] as const),
-);
+export const FILTERS: readonly AlphabetFilter[] = [
+  { key: 'all',        label: '🔤 All' },
+  { key: 'vowel',      label: '🎵 Vowels' },
+  { key: 'consonant',  label: '🎸 Consonants' },
+];
