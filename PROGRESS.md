@@ -8,18 +8,100 @@ Living log of the Astro + TypeScript + Workbox rewrite of
 
 ---
 
+## Migration principles (the "north star")
+
+**Rule of thumb: this Astro repo is the source of truth.** When the vanilla
+game and the ported version differ in behaviour or design, the Astro version
+wins — the vanilla code is treated as a *specification of intent* (what
+content to show, what interactions to support), not a template to copy
+line-for-line. The vanilla patterns that drove the original audit (per-game
+settings keys, per-game AudioContext, inline ~450-line CSS copies, hand-rolled
+SW, `onclick=` globals) are bugs, not features; we do not carry them forward.
+
+Every port MUST follow these patterns:
+
+1. **Data and view are separate files.** Card / deck / question content lives
+   in `src/data/<game>.ts` as typed, `readonly` arrays (e.g. `ALL_CARDS`,
+   `DECKS`, `FILTERS`). No large inline JS literals in the `.astro` page.
+2. **Reuse the shared primitives in `src/lib/`.** Never re-implement:
+   - Settings → `lib/settings.ts` (single `kids_settings_v1` key, applied
+     via `initSettings()`). **No per-game settings keys.**
+   - Audio → `lib/audio.ts` (singleton `AudioContext`, `playTap()` helpers).
+   - Speech → `lib/speech.ts` (`speak(text, { onEnd })`, auto-cancels
+     overlapping utterances).
+   - Confetti / toasts → `lib/achievements.ts`.
+3. **Reuse the shared layouts.** Every game picks exactly one of:
+   - `CardMachineLayout.astro` — card-machine games (Dinosaurs, Flashcards,
+     Solar System, Weather).
+   - `ClassicLayout.astro` *(TBD)* — two-pane classic games (Alphabets,
+     Numbers, Colors, Shapes, Animals, Birds, Hindi, Vehicles, Transport).
+   - `StoryLayout.astro` *(TBD)* — story games (Woodcutter, Daily Routines).
+   Never build a bespoke HTML shell per game.
+4. **Theme via CSS custom properties.** Palette changes go through
+   `body.card-machine[data-theme='<game>']` blocks in `card-machine.css`
+   (~25 tokens). Never hardcode game-specific colours in layout CSS.
+5. **Game-specific CSS is game-scoped.** Anything truly unique to one game
+   (e.g. the ~320-line CSS planet art for Solar System) lives in its own
+   file (`src/styles/planets.css`) and is imported only from that game's
+   page — Astro emits it as a per-page CSS bundle, so it never leaks into
+   other games.
+6. **Strict TypeScript for data.** Every `src/data/<game>.ts` exports a
+   named interface + `readonly` typed array. TypeScript catches typos in
+   type enums (e.g. `PlanetType`, `Diet`) at build time.
+7. **Base-path aware.** Internal links go through
+   `import.meta.env.BASE_URL`, never a hardcoded `/games/…`. Keeps the
+   site relocatable (matters for our `/kids-learning-games-astro/` prefix).
+8. **Event wiring is TypeScript, not inline HTML.** Use `addEventListener`
+   with a typed `$()` helper. No `onclick="foo()"` globals.
+9. **Meta / OG / icons / SW go through the layout.** Game pages pass only
+   `title`, `description`, `themeColor`, `theme` props. The shared layout
+   handles PWA registration, auto-update, head tags.
+10. **Accessibility defaults come for free from the layout.** Game pages
+    just add game-specific ARIA (e.g. `aria-label` on the top card). Focus
+    handling, `prefers-reduced-motion`, FOUC prevention are the layout's job.
+
+**Pragmatic deviations from vanilla that are already the new norm:**
+
+- Single unified `kids_settings_v1` LocalStorage key (was
+  `flashcards_settings`, `solar_system_settings`, `darkMode`, etc. per game).
+- Singleton `AudioContext` + speech-cancel wrapper (was a fresh context
+  per game page).
+- Workbox-via-`@vite-pwa/astro` service worker with auto-revisioning (was
+  hand-rolled `service-worker.js` + manual cache-name bumps).
+- Cached `BuildInfo` GitHub-API fetch, 1-hour SWR (was N unauthenticated
+  calls per session, hitting the 60/h rate limit).
+- Fluent UI 3D emoji via CDN with per-image CacheFirst (was per-game
+  `<img>` tags with no caching strategy).
+
+**Not yet codified (decisions deferred to the Stats / Quiz pass):**
+
+- Where per-game **learning state** (learned set, quiz history,
+  achievements) lives in LocalStorage. Current proposal: single
+  `kids_progress_v1` key, keyed by `gameId` — but we'll finalise it when
+  we wire the first real quiz modal.
+- Canonical structure for the Stats + Quiz modals (likely two more shared
+  components under `src/components/`).
+
+If a vanilla file contains something these rules don't cover (e.g. an
+interaction that's genuinely unique to that one game), call it out in the
+commit / PR description so we can decide whether to (a) extend the rules
+or (b) document a one-off exception.
+
+---
+
 ## Current status (snapshot)
 
 - **Stack landed:** Astro `5.18.1` + strict TypeScript + `@vite-pwa/astro` `1.2.0` with `injectManifest` + Workbox 7.
-- **Games ported (2 of 13):**
-  - Dinosaurs (card-machine, default green theme)
+- **Games ported (3 of 13):**
+  - Dinosaurs (card-machine, default green theme, 15 cards, diet filter)
   - Flashcards (card-machine, cyan/orange theme, 14 decks, 4 card-face variants)
-- **Vanilla games still to port (11):**
-  `alphabets-game`, `numbers-game`, `colors-game`, `shapes-game`, `animals-game`, `birds-game`, `hindi-game`, `vehicles-game`, `transport-game`, `solar-system-game`, `weather-game`, `woodcutter-story`, `daily-routines-story`.
-  (Solar + Weather reuse the existing `CardMachineLayout` — ~1 hour each.)
+  - Solar System (card-machine, purple/gold theme, 11 cards, pure-CSS planet art, type filter)
+- **Vanilla games still to port (10):**
+  `alphabets-game`, `numbers-game`, `colors-game`, `shapes-game`, `animals-game`, `birds-game`, `hindi-game`, `vehicles-game`, `transport-game`, `weather-game`, `woodcutter-story`, `daily-routines-story`.
+  (Weather reuses the existing `CardMachineLayout` — ~1 hour. The classic two-pane games unblock after `ClassicLayout.astro` lands.)
 - **Shared infra in place:**
-  - `CardMachineLayout.astro` shell (replaces the ~500-line copy-pasted shell per game today).
-  - `card-machine.css` with ~25 theming CSS custom properties, so per-game theming is ~10 lines of CSS.
+  - `CardMachineLayout.astro` shell — used by all 3 ported games.
+  - `card-machine.css` with ~25 theming CSS custom properties, so per-game theming is ~60 lines of CSS (palette + type-pill colours).
   - `src/lib/`: singleton AudioContext, speech wrapper, unified settings, achievement toasts + confetti.
   - Workbox SW (`src/sw.ts`) with StaleWhileRevalidate for the GitHub API and CacheFirst for Fluent emoji images.
 - **Dev ergonomics:**
@@ -29,8 +111,9 @@ Living log of the Astro + TypeScript + Workbox rewrite of
   - `/` (home) — 200
   - `/games/flashcards-game` — 200
   - `/games/dinosaurs-game` — 200
+  - `/games/solar-system-game` — (pending post-push verification)
   - `/manifest.webmanifest`, `/sw.js`, `/.nojekyll` — all 200
-- **Production build size (flashcards, the biggest page):** `31.28 KB / 11.31 KB gzip` of JS, page HTML 11.5 KB.
+- **Production build sizes (client JS, gzipped):** flashcards **11.31 KB**, dinosaurs **3.02 KB**, solar-system **2.66 KB**. Total PWA precache: 25 entries, ~125 KB.
 
 ---
 
@@ -38,17 +121,66 @@ Living log of the Astro + TypeScript + Workbox rewrite of
 
 Rough order of payoff:
 
-1. **Verify the live Pages deploy** once the repo is pushed and Actions runs (this session).
-2. **Port Solar System + Weather** — same `CardMachineLayout`, just new data files + theme overrides.
-3. **Build `ClassicLayout.astro`** — for the two-pane games (`alphabets`, `numbers`, `colors`, `shapes`, `animals`, `birds`, `hindi`, `vehicles`, `transport`). That layout is the second big duplication cluster in the vanilla codebase.
-4. **Build a `StoryLayout.astro`** for Woodcutter and Daily Routines.
-5. **Wire the real Stats + Quiz modals.** Currently both are `alert(…)` stubs in the ported games.
-6. **Add tests.** At minimum, one Playwright smoke test per layout.
-7. **Cut-over plan (only after all 13 games land).** Migrate `kids-learning-games` (the live repo) to serve the Astro build, with a SW handoff strategy so existing PWA installs upgrade cleanly.
+1. **Port Weather** — last of the card-machine games. Reuses `CardMachineLayout` + theme overrides + its own mini CSS (weather icons). ~1 hour.
+2. **Build `ClassicLayout.astro`** — for the 9 two-pane games (`alphabets`, `numbers`, `colors`, `shapes`, `animals`, `birds`, `hindi`, `vehicles`, `transport`). That layout is the second big duplication cluster in the vanilla codebase. Unblocks porting all 9 games.
+3. **Build `StoryLayout.astro`** — for Woodcutter and Daily Routines. Different enough from the other two that it needs its own shell.
+4. **Wire the real Stats + Quiz modals.** Currently both are `alert(…)` stubs in the ported games. While we're in there, finalise the `kids_progress_v1`-keyed-by-gameId LocalStorage pattern (see principle #4 in the "Not yet codified" list above).
+5. **Add tests.** At minimum, one Playwright smoke test per layout (Card / Classic / Story) covering filter → navigate → done-overlay + confetti.
+6. **Cut-over plan (only after all 13 games land).** Migrate `kids-learning-games` (the live repo) to serve the Astro build, with a SW handoff strategy so existing PWA installs upgrade cleanly.
 
 ---
 
 ## Changelog
+
+### 2026-04-24 — Migration principles codified
+
+- Added the **Migration principles ("north star")** section at the top of
+  this file. One-line version: *when vanilla and Astro disagree, Astro
+  wins.*
+- Motivated by the realisation (during the Solar System port) that we were
+  silently making the same "use the new pattern" decision over and over
+  — settings key, AudioContext, speech, confetti, `onclick=`, inline
+  styles, hand-rolled SW. Writing it down means future ports (and future
+  me) don't have to re-derive it each time.
+- Also enumerated the *pragmatic deviations* that are already the new
+  norm, and the two open questions we're deliberately deferring to the
+  Stats / Quiz pass.
+
+### 2026-04-24 — Solar System game ported ✅
+
+Third game ported end-to-end using the shared `CardMachineLayout` — first
+confirmation that adding a new card-machine game is a ~600-line change
+(data + page + theme + CSS art), **not** a 740-line inline rewrite.
+
+- `src/data/solar-system.ts` — 11 typed cards (Sun, 8 planets, Moon,
+  Pluto), 7 filters. `PlanetType` enum drives pill colour + filter.
+- `src/styles/planets.css` — pure-CSS planet art extracted from the
+  vanilla file (~320 lines: Sun corona pulse, Earth continents, Jupiter
+  bands + Great Red Spot, Saturn rings, etc.). Imported only from
+  `solar-system-game.astro`, so it stays out of every other game's
+  bundle. Verified in `dist/_astro/`: `planet-*` classes appear **only**
+  in `solar-system-game.<hash>.css`, zero hits in dinosaurs' or
+  flashcards' CSS.
+- `src/styles/card-machine.css` — new `[data-theme='solar-system']`
+  palette (deep purple left pane, golden OLED screen) + 6 new type
+  pills (`star`, `rocky`, `gas-giant`, `ice-giant`, `satellite`, `dwarf`)
+  for both `.card-pill` and `.scrn-badge-pill`.
+- `src/layouts/CardMachineLayout.astro` — accepts `solar-system` as a
+  `theme` option; pre-dark FOUC rule added for the purple palette.
+- `src/pages/games/solar-system-game.astro` — **~280 lines** vs 739 in
+  the vanilla (-62%). Uses shared layout, `lib/audio`, `lib/speech`,
+  `lib/achievements`, TS-typed event handlers with a typed `$()` helper.
+- `src/components/GameNav.astro` + `src/pages/index.astro` exposed the
+  new game (home card now points to the real page, not `#`).
+- Deviations from vanilla (all match the principles — by design, not
+  accident):
+  - Unified `kids_settings_v1` (vanilla had `solar_system_*` keys).
+  - Singleton `AudioContext` (vanilla built its own in-page).
+  - Shared `launchConfetti()` (vanilla had a local copy).
+  - Event wiring via `addEventListener` (vanilla used `onclick="…"`).
+  - Theme via CSS vars (vanilla had ~100 lines of hardcoded colours).
+- Build result: `astro check` 0 errors / 0 warnings / 0 hints; client
+  bundle **6.20 KB raw / 2.66 KB gzip** (vs vanilla's ~32 KB inline).
 
 ### 2026-04-24 — first live deploy ✅
 

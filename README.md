@@ -1,6 +1,11 @@
 # Kids Learning Games — Astro POC
 
-A proof-of-concept migration of the [kids-learning-games](../kids-learning-games) vanilla HTML/CSS/JS PWA to **Astro + TypeScript + @vite-pwa/astro (Workbox)**. Two games ported end-to-end — **Dinosaurs** (15 cards, diet filter) and **Flashcards** (14 decks, ~280 cards, 4 card-face variants) — to show how the same shared architecture scales across very different games.
+A proof-of-concept migration of the [kids-learning-games](../kids-learning-games) vanilla HTML/CSS/JS PWA to **Astro + TypeScript + @vite-pwa/astro (Workbox)**. Three games ported end-to-end — **Dinosaurs** (15 cards, diet filter), **Flashcards** (14 decks, ~280 cards, 4 card-face variants), and **Solar System** (11 cards with pure-CSS planet art, type filter) — to show how the same shared architecture scales across very different games.
+
+> **Source of truth:** this Astro repo is the authoritative design for
+> every game we port. When the vanilla and Astro versions diverge, the
+> Astro version wins — see **[PROGRESS.md → Migration principles](./PROGRESS.md#migration-principles-the-north-star)**
+> for the full rule set.
 
 ## What this POC demonstrates
 
@@ -30,7 +35,8 @@ A proof-of-concept migration of the [kids-learning-games](../kids-learning-games
 │   │   └── SettingsModal.astro   # unified settings UI (fixes H1)
 │   ├── data/
 │   │   ├── dinosaurs.ts          # typed dinosaur cards + diet filters
-│   │   └── flashcards.ts         # typed flashcard decks (14 × ~20 cards)
+│   │   ├── flashcards.ts         # typed flashcard decks (14 × ~20 cards)
+│   │   └── solar-system.ts       # typed planet cards + type filters
 │   ├── layouts/
 │   │   └── CardMachineLayout.astro  # shared shell for card-machine games
 │   ├── lib/
@@ -41,10 +47,12 @@ A proof-of-concept migration of the [kids-learning-games](../kids-learning-games
 │   ├── pages/
 │   │   ├── games/
 │   │   │   ├── dinosaurs-game.astro
-│   │   │   └── flashcards-game.astro
+│   │   │   ├── flashcards-game.astro
+│   │   │   └── solar-system-game.astro
 │   │   └── index.astro
 │   └── styles/
 │       ├── card-machine.css      # themeable card-machine visual system
+│       ├── planets.css           # solar-system-only CSS planet art
 │       └── global.css
 ```
 
@@ -67,11 +75,11 @@ running from a different repo.
 
 ## What's NOT in scope for this POC
 
-- Other card-machine games (Solar System, Weather) — patterns confirmed, but not ported yet. With themed CSS vars already in place, each is ~1 hour of work.
+- Weather game — last card-machine game, pattern confirmed; ~1 hour of work.
 - Classic two-pane games (Alphabets, Colors, Shapes, Animals, etc.) — would need a separate `ClassicLayout.astro`.
 - Story mode layout (Woodcutter, Daily Routines).
-- Full nav bar (nav points to flashcards + dinosaurs + home only; other links would 404 until those pages are ported).
-- Quiz mode and achievements state — the modals exist as stubs, storage is wired, but the full quiz flow is deferred.
+- Full nav bar (nav points to flashcards + dinosaurs + solar system + home only; other links would 404 until those pages are ported).
+- Quiz mode and achievements state — the modals exist as stubs, settings storage is wired, but the full quiz flow and `kids_progress_v1` LocalStorage schema are deferred until we have at least one real quiz to shape them.
 - Full test suite.
 
 ## Comparison at a glance
@@ -80,11 +88,12 @@ running from a different repo.
 |---|---|---|
 | `dinosaurs-game.html` lines | 544 | ~120 (`dinosaurs-game.astro`) |
 | `flashcards-game.html` lines | 1,193 | ~295 (`flashcards-game.astro`) + typed data file |
-| Reused layout lines | ~0 (copy-pasted per game) | ~130 (`CardMachineLayout.astro`, used by all 4 card games) |
-| Shared card-machine CSS | Duplicated 4× inline (~450 lines each) | 1 themeable file (~700 lines, covers all 4 games) |
-| Shared JS util lines | Duplicated 4× inline | 1 copy under `src/lib/` |
-| Settings storage | `flashcards_settings` vs `darkMode` inconsistency | Single `kids_settings_v1` |
+| `solar-system-game.html` lines | 739 | ~280 (`solar-system-game.astro`) + typed data file + planets.css |
+| Reused layout lines | ~0 (copy-pasted per game) | ~135 (`CardMachineLayout.astro`, used by all 3 ported games) |
+| Shared card-machine CSS | Duplicated 4× inline (~450 lines each) | 1 themeable file (~900 lines, covers all card-machine games) |
+| Shared JS util lines | Duplicated per game inline | 1 copy under `src/lib/` |
+| Settings storage | `flashcards_settings` vs `darkMode` vs `solar_system_settings` | Single `kids_settings_v1` |
 | Service worker | Hand-rolled, manual cache name bumps | Workbox, auto-revisioned |
-| Build-info fetch | 14× per session, no cache | 1× per hour, SWR cached |
+| Build-info fetch | N× per session, no cache | 1× per hour, SWR cached |
 | Type safety | None | Strict TypeScript |
-| Client JS bundle (flashcards) | Inline, unminified, ~32 KB | 31.28 KB / **11.31 KB gzip** |
+| Client JS bundle, gzipped | Inline, unminified | flashcards **11.31 KB**, dinosaurs **3.02 KB**, solar-system **2.66 KB** |
