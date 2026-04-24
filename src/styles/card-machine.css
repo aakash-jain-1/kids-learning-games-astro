@@ -77,6 +77,38 @@ body.card-machine[data-theme='flashcards'] {
   --cm-dm-done-bg: rgba(26, 26, 46, 0.92);
 }
 
+/* Solar System — deep-space purple/navy left pane, golden accents */
+body.card-machine[data-theme='solar-system'] {
+  --cm-screen-color: #f7c948;
+  --cm-screen-glow: rgba(247, 201, 72, 0.4);
+  --cm-screen-glow-strong: rgba(247, 201, 72, 1);
+  --cm-screen-radial: rgba(247, 201, 72, 0.07);
+  --cm-screen-box-glow: rgba(247, 201, 72, 0.08);
+  --cm-screen-name-shadow: rgba(247, 201, 72, 0.5);
+  --cm-screen-fact-color: rgba(247, 201, 72, 0.55);
+
+  --cm-left-bg: linear-gradient(160deg, #0f0c29 0%, #1a1650 50%, #302b63 100%);
+  --cm-left-bg-dark: linear-gradient(160deg, #070618 0%, #0d0b30 50%, #181540 100%);
+  --cm-ghost-bg: linear-gradient(150deg, #1a2a6a 0%, #0d1445 100%);
+  --cm-machine-bg: linear-gradient(170deg, #0f0c29 0%, #1a1650 100%);
+  --cm-plate-bg: linear-gradient(135deg, #22226a, #0f0c29);
+
+  --cm-cat-bg: linear-gradient(135deg, #e8a000, #f7c948);
+  --cm-cat-color: #1a1a2e;
+  --cm-cat-glow: rgba(247, 201, 72, 0.5);
+  --cm-prog-fg: linear-gradient(90deg, #f7c948, #fff176);
+
+  --cm-press-bg: linear-gradient(145deg, #f7c948, #e8a000);
+  --cm-press-bg-hover: linear-gradient(145deg, #ffd060, #f0b000);
+  --cm-press-shadow-deep: #9a6800;
+  --cm-press-glow: rgba(247, 201, 72, 0.5);
+
+  --cm-done-accent: #f7c948;
+  --cm-dm-top-card-bg: rgba(20, 18, 50, 0.85);
+  --cm-dm-name-color: #c8b8f0;
+  --cm-dm-done-bg: rgba(20, 18, 50, 0.9);
+}
+
 .cm-layout {
   display: flex;
   height: calc(100dvh - 36px);
@@ -348,6 +380,32 @@ body.card-machine[data-theme='flashcards'] {
   color: #fff;
 }
 
+/* Solar System card pills */
+.card-pill.star {
+  background: linear-gradient(135deg, #ff9100, #ffcf00);
+  color: #3a1a00;
+}
+.card-pill.rocky {
+  background: linear-gradient(135deg, #b36b2a, #e8943a);
+  color: #fff;
+}
+.card-pill.gas-giant {
+  background: linear-gradient(135deg, #c0522a, #e8864a);
+  color: #fff;
+}
+.card-pill.ice-giant {
+  background: linear-gradient(135deg, #1565c0, #4fc3f7);
+  color: #fff;
+}
+.card-pill.satellite {
+  background: linear-gradient(135deg, #555, #aaa);
+  color: #fff;
+}
+.card-pill.dwarf {
+  background: linear-gradient(135deg, #4a148c, #9c27b0);
+  color: #fff;
+}
+
 /* Navigation buttons */
 .deck-nav {
   display: flex;
@@ -580,6 +638,38 @@ body.card-machine[data-theme='flashcards'] {
   background: rgba(255, 167, 38, 0.25);
   border: 1px solid #ffa726;
   color: #ffcc80;
+}
+
+/* Solar System screen badges */
+.scrn-badge-pill.star {
+  background: rgba(255, 207, 0, 0.2);
+  border: 1px solid #ffcf00;
+  color: #ffd740;
+}
+.scrn-badge-pill.rocky {
+  background: rgba(176, 112, 50, 0.25);
+  border: 1px solid #d4813c;
+  color: #ffb74d;
+}
+.scrn-badge-pill.gas-giant {
+  background: rgba(192, 82, 42, 0.25);
+  border: 1px solid #e8864a;
+  color: #ffcc80;
+}
+.scrn-badge-pill.ice-giant {
+  background: rgba(21, 101, 192, 0.25);
+  border: 1px solid #4fc3f7;
+  color: #80d8ff;
+}
+.scrn-badge-pill.satellite {
+  background: rgba(180, 180, 180, 0.15);
+  border: 1px solid #aaa;
+  color: #e0e0e0;
+}
+.scrn-badge-pill.dwarf {
+  background: rgba(156, 39, 176, 0.25);
+  border: 1px solid #ce93d8;
+  color: #e1bee7;
 }
 
 .scrn-fact {

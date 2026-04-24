@@ -25,7 +25,7 @@ interface Props {
    * properties defined in `card-machine.css` — leave undefined for the
    * default (dinosaur / green) theme.
    */
-  theme?: 'flashcards' | 'dinosaurs';
+  theme?: 'flashcards' | 'dinosaurs' | 'solar-system';
 }
 
 const {
@@ -125,5 +125,9 @@ const canonicalUrl =
   html.pre-dark body[data-theme='flashcards'] {
     background: #05121a;
     color: #d4e8ff;
+  }
+  html.pre-dark body[data-theme='solar-system'] {
+    background: #070618;
+    color: #c8b8f0;
   }
 </style>

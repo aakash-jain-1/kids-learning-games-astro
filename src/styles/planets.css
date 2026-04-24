@@ -1,0 +1,433 @@
+/* Pure-CSS planet art for the Solar System game.
+ *
+ * Every planet is a <div class="planet-art planet-<key> planet-<sz>">.
+ * Saturn is the only special case — it needs an outer wrapper for the ring:
+ *   <div class="planet-saturn-wrap sz-lg">
+ *     <div class="planet-art planet-saturn planet-lg"></div>
+ *     <div class="planet-saturn-ring"></div>
+ *   </div>
+ *
+ * Why CSS and not images/emoji?
+ *   - Zero network cost (no 11 planet images to ship or cache).
+ *   - Looks consistent across OS emoji fonts (🪐 is a crescent on Windows,
+ *     a ringed sphere on Apple — confusing for kids).
+ *   - Scales crisply at any viewport size.
+ */
+
+.planet-art {
+  border-radius: 50%;
+  position: relative;
+  flex-shrink: 0;
+  display: block;
+}
+
+/* Reused emojiPop timing from card-machine.css, applied to the planet div
+   when it enters. `.flash` is the tap-to-hear feedback animation. */
+.planet-art.pop {
+  animation: planetPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes planetPop {
+  0% {
+    transform: scale(0.55) rotate(-8deg);
+  }
+  70% {
+    transform: scale(1.18) rotate(3deg);
+  }
+  100% {
+    transform: scale(1) rotate(0);
+  }
+}
+
+.planet-art.flash {
+  animation: planetFlash 0.6s ease;
+}
+
+@keyframes planetFlash {
+  0% {
+    filter: brightness(1);
+  }
+  35% {
+    filter: brightness(1.65) drop-shadow(0 0 22px rgba(247, 201, 72, 1));
+  }
+  100% {
+    filter: brightness(1);
+  }
+}
+
+/* ── Sizes ── */
+.planet-lg {
+  width: min(160px, 62%);
+  aspect-ratio: 1;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+  margin: 4px auto;
+}
+
+.planet-sm {
+  width: 115px;
+  height: 115px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+
+/* ── Sun ── radial gradient + pulsing corona */
+.planet-sun {
+  background: radial-gradient(circle at 36% 30%, #fff9c4, #ffeb3b 22%, #ff9800 55%, #e65100);
+  overflow: visible;
+  box-shadow: 0 0 36px 16px rgba(255, 155, 0, 0.55), 0 0 72px 38px rgba(255, 90, 0, 0.28);
+  animation: sunPulse 2.5s ease-in-out infinite alternate;
+}
+
+@keyframes sunPulse {
+  from {
+    box-shadow: 0 0 36px 16px rgba(255, 155, 0, 0.55), 0 0 72px 38px rgba(255, 90, 0, 0.28);
+  }
+  to {
+    box-shadow: 0 0 58px 28px rgba(255, 175, 0, 0.75), 0 0 110px 56px rgba(255, 90, 0, 0.42);
+  }
+}
+
+/* ── Mercury ── grey rocky with craters */
+.planet-mercury {
+  background: radial-gradient(circle at 38% 30%, #d8d4cf, #a09890 38%, #736860 68%, #4c413c);
+  overflow: hidden;
+}
+
+.planet-mercury::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle 9% at 26% 36%, rgba(0, 0, 0, 0.22) 0%, rgba(0, 0, 0, 0.05) 55%, transparent 100%),
+    radial-gradient(circle 5% at 64% 24%, rgba(0, 0, 0, 0.18) 0%, rgba(0, 0, 0, 0.04) 55%, transparent 100%),
+    radial-gradient(circle 6% at 72% 65%, rgba(0, 0, 0, 0.14) 0%, rgba(0, 0, 0, 0.03) 55%, transparent 100%),
+    radial-gradient(circle 4% at 50% 72%, rgba(0, 0, 0, 0.12) 0%, transparent 100%),
+    radial-gradient(circle 3% at 38% 55%, rgba(0, 0, 0, 0.1) 0%, transparent 100%);
+}
+
+/* ── Venus ── pale gold with diagonal cloud streaks */
+.planet-venus {
+  background: radial-gradient(circle at 38% 30%, #fffde7, #f9e236 28%, #f0b800 58%, #c48d00);
+  overflow: hidden;
+}
+
+.planet-venus::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: repeating-linear-gradient(
+    -14deg,
+    transparent 0px,
+    transparent 14px,
+    rgba(255, 255, 255, 0.12) 14px,
+    rgba(255, 255, 255, 0.12) 22px,
+    transparent 22px,
+    transparent 32px,
+    rgba(200, 180, 0, 0.09) 32px,
+    rgba(200, 180, 0, 0.09) 40px
+  );
+}
+
+/* ── Earth ── blue oceans + green continents + cloud bands */
+.planet-earth {
+  background: radial-gradient(circle at 35% 28%, #b3e5fc, #1e88e5 25%, #1565c0 55%, #0d47a1);
+  overflow: hidden;
+}
+
+.planet-earth::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 36% 22% at 62% 54%, rgba(46, 125, 50, 0.95) 25%, transparent 72%),
+    radial-gradient(ellipse 16% 13% at 22% 67%, rgba(56, 142, 60, 0.9) 25%, transparent 72%),
+    radial-gradient(ellipse 15% 11% at 76% 28%, rgba(46, 125, 50, 0.88) 25%, transparent 72%),
+    radial-gradient(ellipse 9% 19% at 13% 40%, rgba(76, 175, 80, 0.85) 25%, transparent 72%),
+    radial-gradient(ellipse 7% 11% at 85% 62%, rgba(27, 94, 32, 0.85) 25%, transparent 72%);
+}
+
+.planet-earth::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 58% 10% at 48% 16%, rgba(255, 255, 255, 0.35) 0%, transparent 80%),
+    radial-gradient(ellipse 38% 8% at 68% 74%, rgba(255, 255, 255, 0.25) 0%, transparent 80%),
+    radial-gradient(ellipse 24% 6% at 20% 50%, rgba(255, 255, 255, 0.2) 0%, transparent 80%);
+}
+
+/* ── Mars ── red with polar ice cap + subtle dust bands */
+.planet-mars {
+  background: radial-gradient(circle at 38% 30%, #ffcbb8, #e64a19 38%, #b71c1c 66%, #880e0e);
+  overflow: hidden;
+}
+
+.planet-mars::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    -8deg,
+    transparent 0px,
+    transparent 22px,
+    rgba(180, 60, 15, 0.12) 22px,
+    rgba(180, 60, 15, 0.12) 30px
+  );
+}
+
+.planet-mars::after {
+  content: '';
+  position: absolute;
+  top: 4%;
+  left: 26%;
+  right: 26%;
+  height: 11%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 60%, rgba(255, 255, 255, 0.85), rgba(200, 220, 255, 0.4) 70%, transparent);
+}
+
+/* ── Jupiter ── banded orange-brown + Great Red Spot */
+.planet-jupiter {
+  background: radial-gradient(circle at 38% 30%, #ffe0b2, #ff9800 30%, #e65100 62%, #bf360c);
+  overflow: hidden;
+}
+
+.planet-jupiter::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: repeating-linear-gradient(
+    6deg,
+    transparent 0px,
+    transparent 10px,
+    rgba(120, 45, 5, 0.32) 10px,
+    rgba(120, 45, 5, 0.32) 18px,
+    transparent 18px,
+    transparent 26px,
+    rgba(80, 30, 5, 0.18) 26px,
+    rgba(80, 30, 5, 0.18) 34px,
+    transparent 34px,
+    transparent 44px,
+    rgba(160, 80, 20, 0.22) 44px,
+    rgba(160, 80, 20, 0.22) 52px
+  );
+}
+
+.planet-jupiter::after {
+  content: '';
+  position: absolute;
+  width: 21%;
+  height: 13%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 45%, #ef5350, #b71c1c 60%, #7f0000);
+  top: 52%;
+  left: 61%;
+  box-shadow: 0 0 10px 3px rgba(220, 20, 20, 0.45);
+}
+
+/* ── Saturn body ── */
+.planet-saturn {
+  background: radial-gradient(circle at 38% 30%, #fff9c4, #ffcc02 30%, #f0a500 60%, #c07800);
+}
+
+.planet-saturn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: repeating-linear-gradient(
+    4deg,
+    transparent 0px,
+    transparent 12px,
+    rgba(160, 100, 10, 0.22) 12px,
+    rgba(160, 100, 10, 0.22) 20px,
+    transparent 20px,
+    transparent 28px,
+    rgba(100, 60, 5, 0.12) 28px,
+    rgba(100, 60, 5, 0.12) 36px
+  );
+}
+
+/* ── Saturn ring wrapper ── */
+.planet-saturn-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.planet-saturn-wrap.sz-lg {
+  width: min(270px, 88%);
+  margin: 4px auto;
+}
+
+.planet-saturn-wrap.sz-sm {
+  width: 200px;
+  margin: 0 auto;
+}
+
+/* Scale Saturn itself a bit smaller so the ring has room to breathe.
+   Overrides .planet-lg / .planet-sm sizing inside the wrapper. */
+.planet-saturn-wrap.sz-lg .planet-art {
+  width: 58%;
+}
+
+.planet-saturn-wrap.sz-sm .planet-art {
+  width: 80px;
+  height: 80px;
+}
+
+.planet-saturn-wrap .planet-art {
+  position: relative;
+  z-index: 10;
+}
+
+.planet-saturn-ring {
+  position: absolute;
+  left: 0;
+  right: 0;
+  margin: 0 auto;
+  width: 100%;
+  height: 42%;
+  border-radius: 50%;
+  border-style: solid;
+  transform: rotateX(74deg);
+  pointer-events: none;
+  z-index: 5;
+}
+
+.sz-lg .planet-saturn-ring {
+  border-width: 13px;
+  border-color: rgba(218, 182, 65, 0.78);
+  box-shadow:
+    inset 0 0 0 7px rgba(195, 155, 50, 0.3),
+    0 0 0 7px rgba(190, 150, 45, 0.28),
+    0 0 0 15px rgba(162, 125, 38, 0.16);
+}
+
+.sz-sm .planet-saturn-ring {
+  border-width: 8px;
+  border-color: rgba(218, 182, 65, 0.78);
+  box-shadow:
+    inset 0 0 0 5px rgba(195, 155, 50, 0.3),
+    0 0 0 5px rgba(190, 150, 45, 0.28);
+}
+
+/* ── Uranus ── pale cyan-green with tilted ring hint */
+.planet-uranus {
+  background: radial-gradient(circle at 38% 30%, #e0f7fa, #80deea 33%, #26c6da 62%, #00838f);
+}
+
+.planet-uranus::before {
+  content: '';
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  top: 20%;
+  bottom: 20%;
+  border-radius: 50%;
+  border: 3px solid rgba(180, 240, 248, 0.3);
+  transform: rotate(98deg);
+}
+
+.planet-uranus::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: repeating-linear-gradient(
+    94deg,
+    transparent 0px,
+    transparent 18px,
+    rgba(255, 255, 255, 0.06) 18px,
+    rgba(255, 255, 255, 0.06) 26px
+  );
+}
+
+/* ── Neptune ── deep blue + faint storm spot */
+.planet-neptune {
+  background: radial-gradient(circle at 38% 30%, #b3e5fc, #1e88e5 36%, #0d47a1 66%, #1a237e);
+}
+
+.planet-neptune::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: repeating-linear-gradient(
+    18deg,
+    transparent 0px,
+    transparent 16px,
+    rgba(100, 180, 255, 0.1) 16px,
+    rgba(100, 180, 255, 0.1) 24px
+  );
+}
+
+.planet-neptune::after {
+  content: '';
+  position: absolute;
+  width: 22%;
+  height: 16%;
+  top: 44%;
+  left: 58%;
+  border-radius: 50%;
+  background: rgba(210, 230, 255, 0.22);
+}
+
+/* ── Moon ── grey with impact craters */
+.planet-moon {
+  background: radial-gradient(circle at 38% 30%, #f0f0ee, #c0bdb9 38%, #9e9e9e 64%, #757575);
+}
+
+.planet-moon::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse 80% 30% at 50% 80%, rgba(0, 0, 0, 0.12) 0%, transparent 100%),
+    radial-gradient(ellipse 60% 25% at 35% 70%, rgba(100, 100, 100, 0.08) 0%, transparent 100%);
+}
+
+.planet-moon::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle 8% at 30% 40%, rgba(70, 70, 70, 0.22) 0%, rgba(70, 70, 70, 0.05) 60%, transparent 100%),
+    radial-gradient(circle 5% at 58% 24%, rgba(70, 70, 70, 0.18) 0%, rgba(70, 70, 70, 0.04) 60%, transparent 100%),
+    radial-gradient(circle 7% at 70% 64%, rgba(70, 70, 70, 0.14) 0%, rgba(70, 70, 70, 0.03) 60%, transparent 100%),
+    radial-gradient(circle 4% at 44% 72%, rgba(70, 70, 70, 0.12) 0%, transparent 100%),
+    radial-gradient(circle 3% at 76% 44%, rgba(70, 70, 70, 0.1) 0%, transparent 100%),
+    radial-gradient(circle 5% at 20% 60%, rgba(70, 70, 70, 0.12) 0%, transparent 100%),
+    radial-gradient(circle 3% at 84% 30%, rgba(70, 70, 70, 0.09) 0%, transparent 100%);
+}
+
+/* ── Pluto ── brownish with heart-shaped bright region */
+.planet-pluto {
+  background: radial-gradient(circle at 38% 30%, #d7ccc8, #a1887f 36%, #795548 66%, #4e342e);
+}
+
+.planet-pluto::after {
+  content: '';
+  position: absolute;
+  width: 36%;
+  height: 38%;
+  top: 22%;
+  left: 28%;
+  border-radius: 42% 58% 52% 48% / 46% 44% 56% 54%;
+  background: radial-gradient(ellipse at 50% 55%, rgba(255, 210, 170, 0.48), rgba(220, 180, 130, 0.22) 60%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .planet-sun {
+    animation: none;
+  }
+  .planet-art.pop,
+  .planet-art.flash {
+    animation: none;
+  }
+}
