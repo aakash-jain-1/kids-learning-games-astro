@@ -25,7 +25,11 @@ Living log of the Astro + TypeScript + Workbox rewrite of
 - **Dev ergonomics:**
   - `npm run dev:fresh` — kills any stale dev/preview servers scoped to this project, then starts a clean one on `:4321`.
   - `npm run stop` — standalone kill script.
-- **Deploy:** GitHub Actions workflow at `.github/workflows/deploy.yml`. Live URL will be `https://aakash-jain-1.github.io/kids-learning-games-astro/` once the repo is pushed and Pages is enabled (source: GitHub Actions).
+- **Deploy: LIVE** at https://aakash-jain-1.github.io/kids-learning-games-astro/ via GitHub Actions (`.github/workflows/deploy.yml`). Auto-deploys on every push to `main`.
+  - `/` (home) — 200
+  - `/games/flashcards-game` — 200
+  - `/games/dinosaurs-game` — 200
+  - `/manifest.webmanifest`, `/sw.js`, `/.nojekyll` — all 200
 - **Production build size (flashcards, the biggest page):** `31.28 KB / 11.31 KB gzip` of JS, page HTML 11.5 KB.
 
 ---
@@ -46,6 +50,19 @@ Rough order of payoff:
 
 ## Changelog
 
+### 2026-04-24 — first live deploy ✅
+
+- Repo created: [aakash-jain-1/kids-learning-games-astro](https://github.com/aakash-jain-1/kids-learning-games-astro) (public).
+- First commit pushed (`4328ec2`): `feat: initial Astro + TypeScript + Workbox POC` — 30 files.
+- Pages source set to **GitHub Actions** before first push, so deploy succeeded in one shot.
+- Live at **https://aakash-jain-1.github.io/kids-learning-games-astro/**.
+- Verified end-to-end:
+  - Home, Flashcards, Dinosaurs all 200 OK.
+  - `manifest.webmanifest` served as `application/manifest+json` with correct `scope` / `start_url` / `/kids-learning-games-astro/` paths.
+  - `sw.js` served as `application/javascript`.
+  - `.nojekyll` present (so `_astro/` hashed assets aren't Jekyll-hidden).
+  - Built HTML links to `/kids-learning-games-astro/_astro/…` — `base` path is correctly rewritten everywhere.
+
 ### 2026-04-24 — initial public deploy setup
 
 - Renamed deploy target from `/kids-learning-games` → `/kids-learning-games-astro` so the POC runs at its own Pages URL without colliding with the live vanilla site.
@@ -55,7 +72,6 @@ Rough order of payoff:
   - `.nojekyll` added at deploy time so GH Pages serves the `_astro/` folder (Jekyll hides leading-underscore dirs).
 - Added `.gitignore` entries for `node_modules/`, `dist/`, `.astro/`, logs, `.DS_Store`.
 - `git init`, initial commit.
-- Pushed to `aakash-jain-1/kids-learning-games-astro`, enabled Pages (source: GitHub Actions), verified deploy URL.
 
 ### 2026-04-24 — Flashcards game ported
 
