@@ -1,0 +1,343 @@
+---
+import CardMachineLayout from '@/layouts/CardMachineLayout.astro';
+import { DECKS } from '@/data/flashcards';
+
+const title = 'Flash Cards — Kids Learning Games';
+const description =
+  'Flip cards to learn animals, birds, food, shapes, colors, numbers and more! Interactive flashcard game for kids.';
+
+// Initial deck (animals) and first card — rendered server-side so the page
+// is useful even before the client script hydrates.
+const initialDeck = DECKS[0]!;
+const initialCard = initialDeck.cards[0]!;
+---
+
+<CardMachineLayout
+  title={title}
+  description={description}
+  themeColor="#0f2027"
+  theme="flashcards"
+>
+  <div class="cm-layout">
+    <!-- Left pane: deck + card stack -->
+    <div class="left-pane">
+      <div class="left-top">
+        <div class="ctrl-row">
+          <button class="ctrl-pill" id="btnQuiz" type="button">🧠 Quiz</button>
+          <button class="ctrl-pill" id="btnStats" type="button">📊 Stats</button>
+          <button class="ctrl-pill" id="btnSettings" type="button">⚙️ Settings</button>
+        </div>
+      </div>
+
+      <div class="cat-bar" id="catBar" role="group" aria-label="Deck selector">
+        {
+          DECKS.map((d, i) => (
+            <button
+              class={`cat-btn${i === 0 ? ' active' : ''}`}
+              data-key={d.key}
+              type="button"
+            >
+              {d.label}
+            </button>
+          ))
+        }
+      </div>
+
+      <div class="deck-area">
+        <div class="ghost" aria-hidden="true"></div>
+        <div class="ghost" aria-hidden="true"></div>
+        <div class="ghost" aria-hidden="true"></div>
+        <button class="top-card" id="topCard" type="button" aria-label="Play card">
+          <span class="card-num-badge" id="cardNum">1 / {initialDeck.cards.length}</span>
+          <div id="cardFace"></div>
+          <div class="card-name-big" id="cardName">{initialCard.n}</div>
+          <span class="card-cat-badge" id="cardCatBadge">{initialDeck.label}</span>
+        </button>
+      </div>
+
+      <div class="deck-nav">
+        <button class="nav-btn" id="btnPrev" type="button">◀ Prev</button>
+        <button class="nav-btn" id="btnNext" type="button">Next ▶</button>
+      </div>
+
+      <div class="prog-strip">
+        <div class="prog-bg">
+          <div class="prog-fg" id="progFg" style="width:6%"></div>
+        </div>
+        <div class="prog-txt" id="progTxt">
+          Card 1 of {initialDeck.cards.length}
+        </div>
+      </div>
+    </div>
+
+    <!-- Right pane: the "machine" -->
+    <div class="right-pane">
+      <div class="machine">
+        <div class="machine-plate">FLASH · MACHINE</div>
+        <div class="machine-screen">
+          <div id="screenFace"></div>
+          <div class="scrn-name" id="screenName">{initialCard.n}</div>
+          <div class="scrn-fact" id="screenFact">{initialCard.f}</div>
+        </div>
+        <div class="grille" id="grille" aria-hidden="true"></div>
+        <div class="waves" id="waves" aria-hidden="true">
+          <div class="wv"></div><div class="wv"></div><div class="wv"></div>
+          <div class="wv"></div><div class="wv"></div>
+        </div>
+        <button class="press-btn" id="pressBtn" type="button">
+          TAP TO HEAR!
+          <span class="btn-sub">Press — I'll say this word and a fun fact!</span>
+        </button>
+      </div>
+
+      <div
+        class="done-overlay"
+        id="doneOverlay"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="doneTitle"
+      >
+        <div class="done-card">
+          <div style="font-size:3em" aria-hidden="true">🎉</div>
+          <h2 id="doneTitle">Amazing!</h2>
+          <p id="doneMsg"></p>
+          <button class="restart-btn" id="btnRestart" type="button">🔄 Play Again</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</CardMachineLayout>
+
+<script>
+  import {
+    DECKS,
+    FLUENT_IMG_BASE,
+    getDeck,
+    type FlashCard,
+    type Deck,
+  } from '@/data/flashcards';
+  import { playTap } from '@/lib/audio';
+  import { speak } from '@/lib/speech';
+  import { launchConfetti } from '@/lib/achievements';
+  import { getSettings } from '@/lib/settings';
+
+  const FLASH_COLORS = ['#f7971e', '#ffd200', '#ff6b6b', '#43cea2', '#667eea', '#f093fb', '#84fab0', '#fff'];
+
+  let deck: Deck = DECKS[0]!;
+  let idx = 0;
+
+  const $ = <T extends HTMLElement = HTMLElement>(id: string): T =>
+    document.getElementById(id) as T;
+
+  /** Build a big card face (left pane) for any variant. */
+  function buildCardFace(card: FlashCard): HTMLElement {
+    if (card.num != null) {
+      const el = document.createElement('div');
+      el.className = 'card-num-text pop';
+      el.textContent = card.num;
+      return el;
+    }
+    if (card.img) {
+      const img = document.createElement('img');
+      img.className = 'card-img pop';
+      img.src = FLUENT_IMG_BASE + card.img;
+      img.alt = card.n;
+      img.loading = 'lazy';
+      img.decoding = 'async';
+      if (card.code) img.dataset.code = card.code;
+      img.addEventListener('error', () => {
+        const fallback = document.createElement('div');
+        fallback.className = 'card-emoji-big pop';
+        fallback.textContent = card.e ?? '❓';
+        img.replaceWith(fallback);
+      });
+      return img;
+    }
+    if (card.shape) {
+      const wrap = document.createElement('div');
+      wrap.className = 'css-shape';
+      const inner = document.createElement('div');
+      inner.className = `csh-${card.shape}`;
+      wrap.appendChild(inner);
+      return wrap;
+    }
+    const el = document.createElement('div');
+    el.className = 'card-emoji-big pop';
+    el.textContent = card.e ?? '❓';
+    return el;
+  }
+
+  /** Build the screen face (right pane / OLED) for any variant. */
+  function buildScreenFace(card: FlashCard): HTMLElement {
+    if (card.num != null) {
+      const el = document.createElement('div');
+      el.id = 'screenEmojiEl';
+      el.className = 'scrn-num';
+      el.textContent = card.num;
+      return el;
+    }
+    if (card.img) {
+      const img = document.createElement('img');
+      img.id = 'screenEmojiEl';
+      img.className = 'scrn-img';
+      img.src = FLUENT_IMG_BASE + card.img;
+      img.alt = card.n;
+      img.loading = 'lazy';
+      img.decoding = 'async';
+      if (card.code) img.dataset.code = card.code;
+      img.addEventListener('error', () => {
+        const fallback = document.createElement('div');
+        fallback.id = 'screenEmojiEl';
+        fallback.className = 'scrn-emoji';
+        fallback.textContent = card.e ?? '❓';
+        img.replaceWith(fallback);
+      });
+      return img;
+    }
+    const el = document.createElement('div');
+    el.id = 'screenEmojiEl';
+    el.className = 'scrn-emoji';
+    el.textContent = card.e ?? '❓';
+    return el;
+  }
+
+  function switchDeck(key: string): void {
+    deck = getDeck(key);
+    idx = 0;
+    document.querySelectorAll<HTMLButtonElement>('.cat-btn').forEach((b) => {
+      b.classList.toggle('active', b.dataset.key === key);
+    });
+    $('doneOverlay').classList.remove('show');
+    render();
+  }
+
+  function render(): void {
+    const card = deck.cards[idx];
+    if (!card) return;
+    const total = deck.cards.length;
+
+    const cf = $('cardFace');
+    cf.innerHTML = '';
+    cf.appendChild(buildCardFace(card));
+
+    $('cardName').textContent = card.n;
+    $('cardNum').textContent = `${idx + 1} / ${total}`;
+    $('cardCatBadge').textContent = deck.label;
+
+    const sf = $('screenFace');
+    sf.innerHTML = '';
+    sf.appendChild(buildScreenFace(card));
+
+    $('screenName').textContent = card.n;
+    $('screenFact').textContent = card.f;
+    ($('progFg') as HTMLDivElement).style.width = `${((idx + 1) / total) * 100}%`;
+    $('progTxt').textContent = `Card ${idx + 1} of ${total}`;
+    buildGrille(false);
+
+    if (getSettings().autoSpeak) speakCurrent();
+  }
+
+  function buildGrille(lit: boolean): void {
+    const g = $('grille');
+    g.innerHTML = '';
+    for (let r = 0; r < 4; r++) {
+      const row = document.createElement('div');
+      row.className = 'grille-row';
+      for (let c = 0; c < 14; c++) {
+        const dot = document.createElement('div');
+        dot.className = 'grille-dot' + (lit && Math.random() > 0.35 ? ' lit' : '');
+        row.appendChild(dot);
+      }
+      g.appendChild(row);
+    }
+  }
+
+  function navigate(dir: number): void {
+    const next = idx + dir;
+    if (next < 0) return;
+    if (next >= deck.cards.length) {
+      showDone();
+      return;
+    }
+    idx = next;
+    render();
+  }
+
+  function showDone(): void {
+    // Strip the leading emoji from the deck label (e.g. "🐾 Animals" → "Animals")
+    const plainLabel = deck.label.replace(/^\S+\s+/, '');
+    $('doneMsg').textContent =
+      `You went through all ${deck.cards.length} ${plainLabel} cards!`;
+    $('doneOverlay').classList.add('show');
+    launchConfetti(FLASH_COLORS);
+  }
+
+  function pressMachine(): void {
+    const btn = $('pressBtn');
+    btn.classList.add('pressed');
+    setTimeout(() => btn.classList.remove('pressed'), 180);
+
+    const sel = document.getElementById('screenEmojiEl');
+    if (sel) {
+      sel.classList.remove('flash');
+      void sel.offsetWidth;
+      sel.classList.add('flash');
+    }
+    buildGrille(true);
+    setTimeout(() => buildGrille(false), 1100);
+    $('waves').classList.add('active');
+    playTap();
+    speakCurrent();
+  }
+
+  function speakCurrent(): void {
+    const card = deck.cards[idx];
+    if (!card) return;
+    speak(`${card.n}!   ${card.f}`, {
+      onEnd: () => $('waves').classList.remove('active'),
+    });
+  }
+
+  function restart(): void {
+    idx = 0;
+    $('doneOverlay').classList.remove('show');
+    render();
+  }
+
+  // Wire up events
+  document.querySelectorAll<HTMLButtonElement>('.cat-btn').forEach((b) => {
+    b.addEventListener('click', () => {
+      const key = b.dataset.key;
+      if (key) switchDeck(key);
+    });
+  });
+
+  $('btnPrev').addEventListener('click', () => navigate(-1));
+  $('btnNext').addEventListener('click', () => navigate(1));
+  $('topCard').addEventListener('click', pressMachine);
+  $('pressBtn').addEventListener('click', pressMachine);
+  $('btnRestart').addEventListener('click', restart);
+
+  $('btnSettings').addEventListener('click', () => {
+    (window as unknown as { openSettings?: () => void }).openSettings?.();
+  });
+  $('btnStats').addEventListener('click', () => {
+    alert('Stats modal — not yet implemented in this POC.');
+  });
+  $('btnQuiz').addEventListener('click', () => {
+    alert('Quiz modal — not yet implemented in this POC.');
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight') navigate(1);
+    else if (e.key === 'ArrowLeft') navigate(-1);
+    else if (e.key === ' ' || e.key === 'Enter') {
+      if (e.target instanceof HTMLButtonElement) return;
+      e.preventDefault();
+      pressMachine();
+    }
+  });
+
+  // Initial render
+  render();
+</script>

@@ -1,0 +1,262 @@
+---
+import CardMachineLayout from '@/layouts/CardMachineLayout.astro';
+import { ALL_CARDS, FILTERS } from '@/data/dinosaurs';
+
+const title = 'Dinosaurs Cards — Kids Learning Games';
+const description =
+  'Discover mighty dinosaurs that once roamed the Earth! Interactive dinosaur cards for kids.';
+---
+
+<CardMachineLayout title={title} description={description} themeColor="#0a1a05">
+  <div class="cm-layout">
+    <!-- Left pane: card deck -->
+    <div class="left-pane">
+      <div class="left-top">
+        <div class="ctrl-row">
+          <button class="ctrl-pill" id="btnQuiz" type="button">🧠 Quiz</button>
+          <button class="ctrl-pill" id="btnStats" type="button">📊 Stats</button>
+          <button class="ctrl-pill" id="btnSettings" type="button">⚙️ Settings</button>
+        </div>
+      </div>
+
+      <div class="cat-bar" id="catBar" role="group" aria-label="Diet filter">
+        {
+          FILTERS.map((f) => (
+            <button
+              class={`cat-btn${f.key === 'all' ? ' active' : ''}`}
+              data-key={f.key}
+              type="button"
+            >
+              {f.label}
+            </button>
+          ))
+        }
+      </div>
+
+      <div class="deck-area">
+        <div class="ghost" aria-hidden="true"></div>
+        <div class="ghost" aria-hidden="true"></div>
+        <div class="ghost" aria-hidden="true"></div>
+        <button class="top-card" id="topCard" type="button" aria-label="Play dinosaur">
+          <span class="card-num-badge" id="cardNum">1 / {ALL_CARDS.length}</span>
+          <div id="cardFace"></div>
+          <div class="card-name-big" id="cardName"></div>
+          <div class="card-pill" id="cardPill"></div>
+        </button>
+      </div>
+
+      <div class="deck-nav">
+        <button class="nav-btn" id="btnPrev" type="button">◀ Prev</button>
+        <button class="nav-btn" id="btnNext" type="button">Next ▶</button>
+      </div>
+
+      <div class="prog-strip">
+        <div class="prog-bg"><div class="prog-fg" id="progFg" style="width:6%"></div></div>
+        <div class="prog-txt" id="progTxt">Card 1 of {ALL_CARDS.length}</div>
+      </div>
+    </div>
+
+    <!-- Right pane: the "machine" -->
+    <div class="right-pane">
+      <div class="machine">
+        <div class="machine-plate">DINO · TALKER</div>
+        <div class="machine-screen">
+          <div id="screenFace"></div>
+          <div class="scrn-name" id="screenName"></div>
+          <div class="scrn-badge-pill" id="screenBadge"></div>
+          <div class="scrn-fact" id="screenFact"></div>
+        </div>
+        <div class="grille" id="grille" aria-hidden="true"></div>
+        <div class="waves" id="waves" aria-hidden="true">
+          <div class="wv"></div><div class="wv"></div><div class="wv"></div>
+          <div class="wv"></div><div class="wv"></div>
+        </div>
+        <button class="press-btn" id="pressBtn" type="button">
+          TAP TO HEAR!
+          <span class="btn-sub">Press — I will tell you about this dinosaur!</span>
+        </button>
+      </div>
+
+      <div class="done-overlay" id="doneOverlay" role="dialog" aria-modal="true" aria-labelledby="doneTitle">
+        <div class="done-card">
+          <div style="font-size:3em" aria-hidden="true">🎉</div>
+          <h2 id="doneTitle">Roarsome!</h2>
+          <p id="doneMsg"></p>
+          <button class="restart-btn" id="btnRestart" type="button">🔄 Meet Again</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</CardMachineLayout>
+
+<script>
+  import { ALL_CARDS, type DinosaurCard, type Diet } from '@/data/dinosaurs';
+  import { playTap } from '@/lib/audio';
+  import { speak } from '@/lib/speech';
+  import { launchConfetti } from '@/lib/achievements';
+  import { getSettings } from '@/lib/settings';
+
+  const DINO_COLORS = ['#7ccd42', '#4a9010', '#a8e063', '#ffa726', '#ef5350'];
+
+  let cards: readonly DinosaurCard[] = ALL_CARDS;
+  let idx = 0;
+
+  const $ = <T extends HTMLElement = HTMLElement>(id: string): T =>
+    document.getElementById(id) as T;
+
+  function applyFilter(key: 'all' | Diet): void {
+    cards = key === 'all' ? ALL_CARDS : ALL_CARDS.filter((c) => c.diet === key);
+    idx = 0;
+    document.querySelectorAll<HTMLButtonElement>('.cat-btn').forEach((b) => {
+      b.classList.toggle('active', b.dataset.key === key);
+    });
+    $('doneOverlay').classList.remove('show');
+    render();
+  }
+
+  function render(): void {
+    if (!cards.length) return;
+    const card = cards[idx]!;
+    const total = cards.length;
+
+    const cf = $('cardFace');
+    cf.innerHTML = '';
+    const emoji = document.createElement('div');
+    emoji.className = 'card-emoji-big pop';
+    emoji.textContent = card.e;
+    cf.appendChild(emoji);
+
+    $('cardName').textContent = card.n;
+    $('cardNum').textContent = `${idx + 1} / ${total}`;
+
+    const pill = $('cardPill');
+    pill.textContent = card.diet.charAt(0).toUpperCase() + card.diet.slice(1);
+    pill.className = `card-pill ${card.diet}`;
+
+    const sf = $('screenFace');
+    sf.innerHTML = '';
+    const sEmoji = document.createElement('div');
+    sEmoji.id = 'screenEmojiEl';
+    sEmoji.className = 'scrn-emoji';
+    sEmoji.textContent = card.e;
+    sf.appendChild(sEmoji);
+
+    $('screenName').textContent = card.n;
+    const sb = $('screenBadge');
+    const icon = card.diet === 'carnivore' ? '🥩 ' : card.diet === 'herbivore' ? '🌿 ' : '🍽️ ';
+    sb.textContent = icon + card.diet.charAt(0).toUpperCase() + card.diet.slice(1);
+    sb.className = `scrn-badge-pill ${card.diet}`;
+
+    $('screenFact').textContent = card.f;
+    ($('progFg') as HTMLDivElement).style.width = `${((idx + 1) / total) * 100}%`;
+    $('progTxt').textContent = `Card ${idx + 1} of ${total}`;
+    buildGrille(false);
+
+    if (getSettings().autoSpeak) speakCurrent();
+  }
+
+  function buildGrille(lit: boolean): void {
+    const g = $('grille');
+    g.innerHTML = '';
+    for (let r = 0; r < 4; r++) {
+      const row = document.createElement('div');
+      row.className = 'grille-row';
+      for (let c = 0; c < 14; c++) {
+        const dot = document.createElement('div');
+        dot.className = 'grille-dot' + (lit && Math.random() > 0.35 ? ' lit' : '');
+        row.appendChild(dot);
+      }
+      g.appendChild(row);
+    }
+  }
+
+  function navigate(dir: number): void {
+    const next = idx + dir;
+    if (next < 0) return;
+    if (next >= cards.length) {
+      showDone();
+      return;
+    }
+    idx = next;
+    render();
+  }
+
+  function showDone(): void {
+    $('doneMsg').textContent = `Roarsome! You met all ${cards.length} dinosaurs!`;
+    $('doneOverlay').classList.add('show');
+    launchConfetti(DINO_COLORS);
+  }
+
+  function pressMachine(): void {
+    const btn = $('pressBtn');
+    btn.classList.add('pressed');
+    setTimeout(() => btn.classList.remove('pressed'), 180);
+
+    const sel = document.getElementById('screenEmojiEl');
+    if (sel) {
+      sel.classList.remove('flash');
+      void sel.offsetWidth; // restart animation
+      sel.classList.add('flash');
+    }
+    buildGrille(true);
+    setTimeout(() => buildGrille(false), 1100);
+    $('waves').classList.add('active');
+    playTap();
+    speakCurrent();
+  }
+
+  function speakCurrent(): void {
+    const card = cards[idx];
+    if (!card) return;
+    speak(`${card.n}!   ${card.f}`, {
+      onEnd: () => $('waves').classList.remove('active'),
+    });
+  }
+
+  function restart(): void {
+    idx = 0;
+    cards = ALL_CARDS;
+    $('doneOverlay').classList.remove('show');
+    document.querySelectorAll<HTMLButtonElement>('.cat-btn').forEach((b) => {
+      b.classList.toggle('active', b.dataset.key === 'all');
+    });
+    render();
+  }
+
+  // Wire up events
+  document.querySelectorAll<HTMLButtonElement>('.cat-btn').forEach((b) => {
+    b.addEventListener('click', () => {
+      const key = b.dataset.key as 'all' | Diet | undefined;
+      if (key) applyFilter(key);
+    });
+  });
+
+  $('btnPrev').addEventListener('click', () => navigate(-1));
+  $('btnNext').addEventListener('click', () => navigate(1));
+  $('topCard').addEventListener('click', pressMachine);
+  $('pressBtn').addEventListener('click', pressMachine);
+  $('btnRestart').addEventListener('click', restart);
+
+  $('btnSettings').addEventListener('click', () => {
+    (window as unknown as { openSettings?: () => void }).openSettings?.();
+  });
+  $('btnStats').addEventListener('click', () => {
+    alert('Stats modal — not yet implemented in this POC.');
+  });
+  $('btnQuiz').addEventListener('click', () => {
+    alert('Quiz modal — not yet implemented in this POC.');
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight') navigate(1);
+    else if (e.key === 'ArrowLeft') navigate(-1);
+    else if (e.key === ' ' || e.key === 'Enter') {
+      if (e.target instanceof HTMLButtonElement) return;
+      e.preventDefault();
+      pressMachine();
+    }
+  });
+
+  // Initial render
+  render();
+</script>

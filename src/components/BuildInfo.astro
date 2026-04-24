@@ -1,0 +1,57 @@
+---
+// Displays the latest commit SHA + date in the page footer.
+// Cached in localStorage for 1 hour to avoid hammering the GitHub API
+// (fixes audit H3 — the 14-calls-per-session rate-limit risk).
+---
+
+<div id="build-info" class="build-info">Build: —</div>
+
+<script>
+  interface CachedBuild {
+    text: string;
+    fetchedAt: number;
+  }
+
+  const CACHE_KEY = 'kids_build_info_v1';
+  const TTL_MS = 60 * 60 * 1000; // 1 hour
+
+  const el = document.getElementById('build-info');
+  if (el) {
+    let cached: CachedBuild | null = null;
+    try {
+      const raw = localStorage.getItem(CACHE_KEY);
+      if (raw) cached = JSON.parse(raw) as CachedBuild;
+    } catch {
+      cached = null;
+    }
+
+    const fresh = cached && Date.now() - cached.fetchedAt < TTL_MS;
+    if (cached) el.textContent = cached.text;
+
+    if (!fresh) {
+      fetch('https://api.github.com/repos/aakash-jain-1/kids-learning-games/commits/main')
+        .then((r) => {
+          if (!r.ok) throw new Error(`status ${r.status}`);
+          return r.json();
+        })
+        .then((d) => {
+          const sha = String(d?.sha ?? '').slice(0, 7);
+          const date = String(d?.commit?.committer?.date ?? '').slice(0, 10);
+          if (!sha) return;
+          const text = `Build: ${sha} · ${date}`;
+          el.textContent = text;
+          try {
+            localStorage.setItem(
+              CACHE_KEY,
+              JSON.stringify({ text, fetchedAt: Date.now() } satisfies CachedBuild),
+            );
+          } catch {
+            // ignore quota errors
+          }
+        })
+        .catch(() => {
+          // Silent fail — cached value (if any) is already rendered.
+        });
+    }
+  }
+</script>

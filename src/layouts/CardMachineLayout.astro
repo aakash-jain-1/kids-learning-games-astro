@@ -1,0 +1,129 @@
+---
+// Shared shell for card-machine games (flashcards, solar, dinosaurs, weather).
+// Provides head meta, PWA wiring, navigation, settings modal, build info, and
+// service worker auto-update handling. Each game just supplies its content via
+// the default slot plus a handful of props.
+
+import '@/styles/global.css';
+import '@/styles/card-machine.css';
+
+import BuildInfo from '@/components/BuildInfo.astro';
+import GameNav from '@/components/GameNav.astro';
+import SettingsModal from '@/components/SettingsModal.astro';
+
+interface Props {
+  title: string;
+  description: string;
+  themeColor?: string;
+  ogImage?: string;
+  /** Used in service worker updates to construct the canonical page URL */
+  pageUrl?: string;
+  /** Inline lang attribute */
+  lang?: string;
+  /**
+   * Visual palette for the card-machine shell. Controls the CSS custom
+   * properties defined in `card-machine.css` — leave undefined for the
+   * default (dinosaur / green) theme.
+   */
+  theme?: 'flashcards' | 'dinosaurs';
+}
+
+const {
+  title,
+  description,
+  themeColor = '#0a1a05',
+  ogImage = 'https://aakash-jain-1.github.io/kids-learning-games/assets/icon-512.svg',
+  pageUrl,
+  lang = 'en',
+  theme,
+} = Astro.props;
+
+const canonicalUrl =
+  pageUrl ??
+  new URL(Astro.url.pathname, Astro.site ?? 'https://aakash-jain-1.github.io').href;
+---
+
+<!DOCTYPE html>
+<html lang={lang}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content={themeColor} />
+    <meta name="description" content={description} />
+
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⭐</text></svg>"
+    />
+
+    <title>{title}</title>
+
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:type" content="website" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+
+    <!-- Apply saved dark-mode class before paint to avoid FOUC -->
+    <script is:inline>
+      (function () {
+        try {
+          var raw = localStorage.getItem('kids_settings_v1');
+          if (!raw) return;
+          var s = JSON.parse(raw);
+          if (s && s.dark) document.documentElement.classList.add('pre-dark');
+        } catch (e) {
+          /* noop */
+        }
+      })();
+    </script>
+  </head>
+
+  <body class="card-machine" data-theme={theme}>
+    <GameNav />
+
+    <slot />
+
+    <SettingsModal />
+    <BuildInfo />
+
+    <script>
+      // Apply unified settings on every page load (fixes audit H1).
+      import { initSettings } from '@/lib/settings';
+      initSettings();
+
+      // Clear the pre-dark placeholder class once settings take over.
+      document.documentElement.classList.remove('pre-dark');
+    </script>
+
+    <script>
+      // Service worker auto-update handling via vite-plugin-pwa's virtual module.
+      // Fixes audit H4 (cache-name bump gymnastics) and S7 (asset revisioning).
+      import { registerSW } from 'virtual:pwa-register';
+      registerSW({
+        immediate: true,
+        onRegisteredSW(_scriptUrl, registration) {
+          if (registration) {
+            setInterval(() => registration.update(), 60 * 60 * 1000);
+          }
+        },
+      });
+    </script>
+  </body>
+</html>
+
+<style is:global>
+  html.pre-dark body {
+    background: #0a1a05;
+    color: #d4e8c0;
+  }
+  html.pre-dark body[data-theme='flashcards'] {
+    background: #05121a;
+    color: #d4e8ff;
+  }
+</style>

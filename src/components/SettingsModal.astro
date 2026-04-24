@@ -1,0 +1,87 @@
+---
+// Unified settings modal. Writes to the one source of truth in kids_settings_v1
+// (fixes audit H1). Mountable on any page that wants settings.
+---
+
+<div class="modal-overlay" id="settingsModal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+  <div class="modal-box">
+    <button class="modal-close" id="settingsCloseBtn" aria-label="Close settings">&times;</button>
+    <h2 id="settingsTitle">Settings</h2>
+
+    <div class="settings-row">
+      <span class="settings-label">Dark Mode</span>
+      <label class="toggle">
+        <input type="checkbox" id="togDark" />
+        <span aria-hidden="true"></span>
+      </label>
+    </div>
+
+    <div class="settings-row">
+      <span class="settings-label">Sound Effects</span>
+      <label class="toggle">
+        <input type="checkbox" id="togSound" />
+        <span aria-hidden="true"></span>
+      </label>
+    </div>
+
+    <div class="settings-row">
+      <span class="settings-label">Auto-Speak</span>
+      <label class="toggle">
+        <input type="checkbox" id="togSpeak" />
+        <span aria-hidden="true"></span>
+      </label>
+    </div>
+
+    <div class="settings-row">
+      <span class="settings-label">Font Size</span>
+      <div class="font-btns" role="group" aria-label="Font size">
+        <button class="font-btn" data-size="small">A</button>
+        <button class="font-btn" data-size="medium">A+</button>
+        <button class="font-btn" data-size="large">A++</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  import { getSettings, saveSettings } from '@/lib/settings';
+
+  const modal = document.getElementById('settingsModal');
+  const closeBtn = document.getElementById('settingsCloseBtn');
+  const togDark = document.getElementById('togDark') as HTMLInputElement | null;
+  const togSound = document.getElementById('togSound') as HTMLInputElement | null;
+  const togSpeak = document.getElementById('togSpeak') as HTMLInputElement | null;
+
+  const close = (): void => modal?.classList.remove('show');
+
+  closeBtn?.addEventListener('click', close);
+  modal?.addEventListener('click', (e) => {
+    if (e.target === modal) close();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') close();
+  });
+
+  togDark?.addEventListener('change', () => saveSettings({ dark: togDark.checked }));
+  togSound?.addEventListener('change', () => saveSettings({ sound: togSound.checked }));
+  togSpeak?.addEventListener('change', () => saveSettings({ autoSpeak: togSpeak.checked }));
+
+  document.querySelectorAll<HTMLButtonElement>('.font-btn').forEach((b) => {
+    b.addEventListener('click', () => {
+      const size = b.dataset.size as 'small' | 'medium' | 'large' | undefined;
+      if (size) saveSettings({ fontSize: size });
+    });
+  });
+
+  // Expose a tiny global opener so inline onclick in the game shell works.
+  (window as unknown as { openSettings?: () => void }).openSettings = () => {
+    const s = getSettings();
+    if (togDark) togDark.checked = s.dark;
+    if (togSound) togSound.checked = s.sound;
+    if (togSpeak) togSpeak.checked = s.autoSpeak;
+    document.querySelectorAll<HTMLElement>('.font-btn').forEach((b) => {
+      b.classList.toggle('active', b.dataset.size === s.fontSize);
+    });
+    modal?.classList.add('show');
+  };
+</script>

@@ -1,0 +1,14 @@
+---
+// Shared top navigation bar. In a full migration this would list all 13 games.
+// For the POC we link only to games that exist in this project, plus stubs
+// pointing back at the vanilla HTML versions so nothing 404s.
+
+const base = import.meta.env.BASE_URL;
+const v = (p: string): string => `${base}${base.endsWith('/') ? '' : '/'}${p}`;
+---
+
+<nav class="game-nav" aria-label="Game navigation">
+  <a href={v('')}>Home</a>
+  <a href={v('games/flashcards-game')}>Flashcards</a>
+  <a href={v('games/dinosaurs-game')}>Dinosaurs</a>
+</nav>

@@ -1,0 +1,78 @@
+name: Deploy to GitHub Pages
+
+# Build the Astro POC on every push to `main` and publish the output to
+# GitHub Pages via the official Pages artifact → deploy flow (introduced
+# 2022, replaces the old `gh-pages` branch push pattern).
+#
+# Live URL: https://aakash-jain-1.github.io/kids-learning-games-astro/
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only one Pages deploy should run at a time. Newer runs cancel older
+# in-progress ones so a rapid sequence of pushes doesn't stack up.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build Astro site
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install deps
+        run: npm ci
+        env:
+          ASTRO_TELEMETRY_DISABLED: '1'
+          DO_NOT_TRACK: '1'
+
+      - name: Type-check
+        run: npx astro check
+        env:
+          ASTRO_TELEMETRY_DISABLED: '1'
+          DO_NOT_TRACK: '1'
+
+      - name: Build
+        run: npx astro build
+        env:
+          ASTRO_TELEMETRY_DISABLED: '1'
+          DO_NOT_TRACK: '1'
+
+      # Astro emits hashed assets under `dist/_astro/`. GitHub Pages runs
+      # Jekyll by default, which hides any folder starting with `_` —
+      # touching `.nojekyll` disables that behaviour.
+      - name: Disable Jekyll on Pages
+        run: touch dist/.nojekyll
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

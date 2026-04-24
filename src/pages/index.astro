@@ -1,0 +1,237 @@
+---
+import '@/styles/global.css';
+import BuildInfo from '@/components/BuildInfo.astro';
+import SettingsModal from '@/components/SettingsModal.astro';
+
+const base = import.meta.env.BASE_URL;
+const href = (p: string): string => `${base}${base.endsWith('/') ? '' : '/'}${p}`;
+
+const ogImage = 'https://aakash-jain-1.github.io/kids-learning-games/assets/icon-512.svg';
+
+const games = [
+  {
+    href: href('games/flashcards-game'),
+    emoji: '🃏',
+    title: 'Flashcards',
+    desc: '14 decks, 280+ cards — stress-testing the shared card-machine layout.',
+    ready: true,
+  },
+  {
+    href: href('games/dinosaurs-game'),
+    emoji: '🦕',
+    title: 'Dinosaurs',
+    desc: 'Discover 15 prehistoric creatures with diet filtering.',
+    ready: true,
+  },
+  {
+    href: '#',
+    emoji: '🔤',
+    title: 'Alphabets',
+    desc: 'Classic two-pane game — not yet migrated.',
+    ready: false,
+  },
+  {
+    href: '#',
+    emoji: '🪐',
+    title: 'Solar System',
+    desc: 'Card-machine game — not yet migrated.',
+    ready: false,
+  },
+  {
+    href: '#',
+    emoji: '📖',
+    title: 'Story Mode',
+    desc: 'Woodcutter + Daily Routines — not yet migrated.',
+    ready: false,
+  },
+];
+---
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#667eea" />
+    <meta name="description" content="Astro POC home — proof-of-concept migration of kids-learning-games." />
+    <title>Kids Learning Games — Astro POC</title>
+
+    <meta property="og:title" content="Kids Learning Games — Astro POC" />
+    <meta property="og:description" content="Astro POC home — proof-of-concept migration of kids-learning-games." />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Kids Learning Games — Astro POC" />
+    <meta name="twitter:description" content="Astro POC home — proof-of-concept migration of kids-learning-games." />
+    <meta name="twitter:image" content={ogImage} />
+
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⭐</text></svg>"
+    />
+
+    <script is:inline>
+      (function () {
+        try {
+          var raw = localStorage.getItem('kids_settings_v1');
+          if (!raw) return;
+          var s = JSON.parse(raw);
+          if (s && s.dark) document.documentElement.classList.add('pre-dark');
+        } catch (e) {
+          /* noop */
+        }
+      })();
+    </script>
+  </head>
+
+  <body>
+    <header class="home-hero">
+      <h1>Kids Learning Games</h1>
+      <p class="tagline">Astro + TypeScript + PWA — proof of concept</p>
+      <button class="ctrl-pill" id="btnSettings" type="button" aria-label="Open settings">
+        ⚙️ Settings
+      </button>
+    </header>
+
+    <main class="home-grid">
+      {
+        games.map((g) => (
+          <a
+            class={`home-card${g.ready ? '' : ' disabled'}`}
+            href={g.href}
+            aria-disabled={g.ready ? undefined : 'true'}
+          >
+            <span class="home-emoji" aria-hidden="true">{g.emoji}</span>
+            <span class="home-title">{g.title}</span>
+            <span class="home-desc">{g.desc}</span>
+            {!g.ready && <span class="home-badge">coming soon</span>}
+          </a>
+        ))
+      }
+    </main>
+
+    <SettingsModal />
+    <BuildInfo />
+
+    <script>
+      import { initSettings } from '@/lib/settings';
+      initSettings();
+      document.documentElement.classList.remove('pre-dark');
+
+      document.getElementById('btnSettings')?.addEventListener('click', () => {
+        (window as unknown as { openSettings?: () => void }).openSettings?.();
+      });
+    </script>
+
+    <script>
+      import { registerSW } from 'virtual:pwa-register';
+      registerSW({ immediate: true });
+    </script>
+
+    <style is:global>
+      html.pre-dark body {
+        background: #1a1a2e;
+        color: #e8e4ff;
+      }
+
+      body {
+        min-height: 100dvh;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #fff;
+        padding: 32px 20px 80px;
+      }
+
+      body.dark-mode {
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        color: #e8e4ff;
+      }
+
+      .home-hero {
+        max-width: 960px;
+        margin: 0 auto 32px;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .home-hero h1 {
+        font-size: clamp(2em, 5vw, 3.2em);
+        margin: 0;
+        letter-spacing: 1px;
+        text-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
+      }
+
+      .home-hero .tagline {
+        opacity: 0.85;
+        font-size: 1em;
+      }
+
+      .home-grid {
+        max-width: 960px;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 16px;
+      }
+
+      .home-card {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        padding: 28px 20px;
+        border-radius: 22px;
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        color: #fff;
+        text-decoration: none;
+        text-align: center;
+        transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+      }
+
+      .home-card:hover:not(.disabled) {
+        transform: translateY(-4px);
+        background: rgba(255, 255, 255, 0.18);
+        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.25);
+      }
+
+      .home-card.disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+
+      .home-emoji {
+        font-size: 2.6em;
+        line-height: 1;
+      }
+
+      .home-title {
+        font-weight: bold;
+        font-size: 1.2em;
+      }
+
+      .home-desc {
+        font-size: 0.85em;
+        opacity: 0.85;
+        line-height: 1.45;
+      }
+
+      .home-badge {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        font-size: 0.6em;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        padding: 3px 8px;
+        border-radius: 50px;
+        background: rgba(0, 0, 0, 0.35);
+      }
+    </style>
+  </body>
+</html>
