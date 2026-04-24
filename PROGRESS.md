@@ -33,13 +33,15 @@ Every port MUST follow these patterns:
 3. **Reuse the shared layouts.** Every game picks exactly one of:
    - `CardMachineLayout.astro` — card-machine games (Dinosaurs, Flashcards,
      Solar System, Weather).
-   - `ClassicLayout.astro` *(TBD)* — two-pane classic games (Alphabets,
-     Numbers, Colors, Shapes, Animals, Birds, Hindi, Vehicles, Transport).
+   - `ClassicLayout.astro` — two-pane classic games (Alphabets, Numbers,
+     Colors, Shapes, Animals, Birds, Hindi).
    - `StoryLayout.astro` *(TBD)* — story games (Woodcutter, Daily Routines).
    Never build a bespoke HTML shell per game.
 4. **Theme via CSS custom properties.** Palette changes go through
    `body.card-machine[data-theme='<game>']` blocks in `card-machine.css`
-   (~25 tokens). Never hardcode game-specific colours in layout CSS.
+   (~25 tokens) or `body.classic[data-theme='<game>']` blocks in
+   `classic.css` (~30 tokens). Never hardcode game-specific colours in
+   layout CSS.
 5. **Game-specific CSS is game-scoped.** Anything truly unique to one game
    (e.g. the ~320-line CSS planet art for Solar System) lives in its own
    file (`src/styles/planets.css`) and is imported only from that game's
@@ -92,20 +94,24 @@ or (b) document a one-off exception.
 ## Current status (snapshot)
 
 - **Stack landed:** Astro `5.18.1` + strict TypeScript + `@vite-pwa/astro` `1.2.0` with `injectManifest` + Workbox 7.
-- **Games ported (4 of 13):** 🎉 **card-machine cluster complete**.
+- **Games ported (5 of 13):** card-machine cluster complete + first classic game live.
   - Dinosaurs (card-machine, default green theme, 15 cards, diet filter)
   - Flashcards (card-machine, cyan/orange theme, 14 decks, 4 card-face variants)
   - Solar System (card-machine, purple/gold theme, 11 cards, pure-CSS planet art, type filter)
   - Weather (card-machine, deep-navy/ice-blue theme, 20 cards, season filter, full Fluent UI image deck)
-- **Vanilla games still to port (9):**
-  `alphabets-game`, `numbers-game`, `colors-game`, `shapes-game`, `animals-game`, `birds-game`, `hindi-game`, `vehicles-game`, `transport-game`, `woodcutter-story`, `daily-routines-story`.
-  (The classic two-pane games unblock after `ClassicLayout.astro` lands; the two story games share a third layout.)
+  - **Alphabets (classic, purple/green theme, 26 letters, tap-to-learn + keyboard nav, Fluent UI imagery)** — first game on the new `ClassicLayout`.
+- **Vanilla games still to port (8):**
+  `numbers-game`, `colors-game`, `shapes-game`, `animals-game`, `birds-game`, `hindi-game`, `woodcutter-story`, `daily-routines-story`.
+  (The 6 remaining classic two-pane games now unblocked by `ClassicLayout.astro`; the two story games share a third layout still to build.)
 - **Shared infra in place:**
-  - `CardMachineLayout.astro` shell — used by all 4 ported games. **Proven reusable four times; the shell is done.**
+  - `CardMachineLayout.astro` shell — used by all 4 card-machine ported games. **Proven reusable four times; the shell is done.**
+  - `ClassicLayout.astro` shell — **new**; used by Alphabets; designed to host 6 more classic games.
   - `card-machine.css` with ~25 theming CSS custom properties, so per-game theming is ~60 lines of CSS (palette + type-pill colours).
+  - `classic.css` with ~30 theming CSS custom properties (backdrop, pane surfaces, tile colours, control pills, display area, done overlay).
   - `src/lib/`: singleton AudioContext, speech wrapper, unified settings, achievement toasts + confetti.
-  - `src/data/fluent.ts` — shared `FLUENT_IMG_BASE` constant (consumers: flashcards, weather; more to come).
+  - `src/data/fluent.ts` — shared `FLUENT_IMG_BASE` constant (consumers: flashcards, weather, alphabets; more to come).
   - Workbox SW (`src/sw.ts`) with StaleWhileRevalidate for the GitHub API and CacheFirst for Fluent emoji images.
+- **Per-game learning state (new pattern):** `kids_progress_v1:<gameId>` LocalStorage key (first real consumer is alphabets with `kids_progress_v1:alphabets`, storing the set of learned letters). Key format is locked in; the wrapper helper will land with Stats/Quiz.
 - **Dev ergonomics:**
   - `npm run dev:fresh` — kills any stale dev/preview servers scoped to this project, then starts a clean one on `:4321`.
   - `npm run stop` — standalone kill script.
@@ -115,8 +121,9 @@ or (b) document a one-off exception.
   - `/games/dinosaurs-game` — 200
   - `/games/solar-system-game` — 200 ✅ (verified 2026-04-24, both extensionless + `.html`)
   - `/games/weather-game` — 200 ✅ (verified 2026-04-24, both extensionless + `.html`; `data-theme="weather"` reaches `<body>` in production, first card SSR renders "Sunny" with `card-pill summer`)
+  - `/games/alphabets-game` — verification pending post-deploy of this change
   - `/manifest.webmanifest`, `/sw.js`, `/.nojekyll` — all 200
-- **Production build sizes (client JS, gzipped):** flashcards **11.28 KB**, weather **3.34 KB**, dinosaurs **3.02 KB**, solar-system **2.66 KB**. Total PWA precache: 28 entries, ~146 KB.
+- **Production build sizes (client JS, gzipped):** flashcards **11.28 KB**, weather **3.34 KB**, dinosaurs **3.02 KB**, alphabets **2.94 KB**, solar-system **2.66 KB**. Total PWA precache: 33 entries, ~174 KB.
 
 ---
 
@@ -124,23 +131,94 @@ or (b) document a one-off exception.
 
 Rough order of payoff:
 
-1. **Build `ClassicLayout.astro`** — for the 9 two-pane games (`alphabets`, `numbers`, `colors`, `shapes`, `animals`, `birds`, `hindi`, `vehicles`, `transport`). That layout is the second big duplication cluster in the vanilla codebase. Unblocks porting all 9 games.
+1. **Port the remaining 6 classic games onto `ClassicLayout`.** In suggested order (simplest first): `numbers`, `colors`, `shapes`, `animals`, `birds`, `hindi`. Each port is now expected to be ~60 lines of new CSS theme tokens + ~200 lines of page + typed data — the shell work is done.
 2. **Build `StoryLayout.astro`** — for Woodcutter and Daily Routines. Different enough from the other two that it needs its own shell.
-3. **Wire the real Stats + Quiz modals.** Currently both are `alert(…)` stubs in the 4 ported games. While we're in there, finalise the `kids_progress_v1`-keyed-by-gameId LocalStorage pattern (see the "Not yet codified" list in Migration principles above).
+3. **Wire the real Stats + Quiz modals.** Currently both are `alert(…)` stubs in the 5 ported games. While we're in there, finalise the `kids_progress_v1:<gameId>` LocalStorage pattern as a shared helper (alphabets is the first real consumer, see the snapshot above).
 4. **Add tests.** At minimum, one Playwright smoke test per layout (Card / Classic / Story) covering filter → navigate → done-overlay + confetti.
 5. **Cut-over plan (only after all 13 games land).** Migrate `kids-learning-games` (the live repo) to serve the Astro build, with a SW handoff strategy so existing PWA installs upgrade cleanly.
 
 ### One-off tech-debt items
 
-- `FLUENT_IMG_BASE` is now consumed by 2 data files — it was moved to
-  `src/data/fluent.ts` during the Weather port and re-exported from
-  `flashcards.ts` for backward compatibility. If a third consumer lands
-  (likely once Classic games start using Fluent images too), audit the
-  flashcards re-export and consider removing it.
+- `FLUENT_IMG_BASE` is now consumed by 3 data files (`flashcards`, `weather`,
+  `alphabets`) — `src/data/fluent.ts` is the source of truth. `flashcards.ts`
+  still re-exports it for backward compatibility; `alphabets.ts` also
+  re-exports for convenience of page-side imports. Once another 1–2 classic
+  games land (which will all use Fluent imagery), do a bulk cleanup: make
+  every data file import from `@/data/fluent` directly and drop the
+  re-exports.
 
 ---
 
 ## Changelog
+
+### 2026-04-24 — ClassicLayout.astro landed + Alphabets game ported (5/13)
+
+Second shared layout cluster opens. `ClassicLayout.astro` is now the
+shell for all 7 two-pane classic games (alphabets, numbers, colors,
+shapes, animals, birds, hindi), mirroring the shape of
+`CardMachineLayout`: same props, same theming pattern, same FOUC/PWA
+wiring, same shared components. Alphabets is the first game on the
+new layout; the other 6 are unblocked.
+
+- `src/layouts/ClassicLayout.astro` — ~110 lines. Wraps head meta, PWA
+  registration, `GameNav`, `SettingsModal`, `BuildInfo`, service-worker
+  auto-update, FOUC pre-dark handling. Accepts a 7-way `theme` prop
+  (`alphabets | numbers | colors | shapes | animals | birds | hindi`)
+  that sets `data-theme` on `<body>`.
+- `src/styles/classic.css` — ~400 lines driven by ~30 CSS custom
+  properties: `--cl-bg*`, `--cl-pane-*`, `--cl-tile-*`, `--cl-grid-*`,
+  `--cl-ctrl-*`, `--cl-display-*`, `--cl-done-*`. Shared primitives
+  exposed to game pages: `.cl-title`, `.cl-controls`, `.cl-btn[.primary]`,
+  `.cl-progress`, `.cl-main`, `.cl-pane[.right]`, `.cl-grid`, `.cl-tile`,
+  `.cl-display*`, `.cl-done*`. Default palette = alphabets (purple
+  backdrop + green tiles); additional games override via
+  `body.classic[data-theme='<game>']` blocks.
+- `src/data/alphabets.ts` — 26 typed `AlphabetCard` entries
+  (`{ letter, word, img, e, fact }`) + an `ALPHABET_BY_LETTER` lookup
+  map. Re-exports `FLUENT_IMG_BASE`.
+- **Image-source deviation vs vanilla:** vanilla Alphabets pulled
+  Iconify Noto SVGs (26 separate `api.iconify.design/...` URLs).
+  Astro version uses Fluent UI 3D PNGs via `cdn.jsdelivr.net` — the
+  same origin as Flashcards + Weather, already runtime-cached
+  CacheFirst in `src/sw.ts`. All 25 mappable icons verified 200 OK
+  pre-commit. Only `Princess/3D/princess_3d.png` is 403 in the Fluent
+  pack, so **Q → Crown** (the Queen's crown) instead of a princess icon.
+- **Deviation vs vanilla particle-canvas:** each vanilla classic game
+  ships ~90 lines of in-page JS to paint ~50 floating dots per frame
+  on a canvas behind the content. Astro version drops the canvas and
+  keeps only the pre-existing CSS sparkle overlay (`body.classic::before`) —
+  zero JS, zero CPU cost. If we ever need true particles they go in a
+  shared `ParticleBackground.astro`, never inline per game.
+- `src/pages/games/alphabets-game.astro` — **~320 lines** vs 1527 in
+  the vanilla (-79%). Tile click / keyboard (A–Z keys, arrow
+  navigation, `R` for random, `Space` for speak) / random / speak /
+  reset / confetti-on-complete all wired through the shared `lib/`
+  helpers (audio, speech, achievements, settings). Quiz + Stats
+  remain `alert(…)` stubs, matching the other 4 ported games.
+- **First real consumer of `kids_progress_v1:<gameId>`.** Alphabets
+  writes to `kids_progress_v1:alphabets` — a JSON array of learned
+  letters. This locks in the key format previously deferred in the
+  "Not yet codified" section of the Migration principles. The wrapper
+  helper (probably `lib/progress.ts`) will land with the real Stats
+  modal; until then it's a few lines of inline `localStorage.*`.
+- `src/components/GameNav.astro` — new "Alphabets" link alongside the
+  4 card-machine games.
+- `src/pages/index.astro` — alphabets home tile is now a real link,
+  not `#`. Added two "coming soon" tiles (Numbers, Colors) to promote
+  the next ports.
+- **Correction:** the earlier PROGRESS.md listed 9 classic games
+  including `vehicles-game` and `transport-game`, neither of which
+  exists in the vanilla repo. The actual classic cluster is 7 games.
+  Updated the principles section, the status snapshot, and the pending
+  list to match reality.
+- Build result: `astro check` 0 errors / 0 warnings / 0 hints; client
+  bundle **6.98 KB raw / 2.94 KB gzip**. Precache grew from 28 → 33
+  entries (~174 KB) — one new HTML page + its CSS chunk + SW revision.
+- Bundle isolation verified: `classic.css` is linked only from pages
+  using `ClassicLayout`, not from card-machine games. `.cl-*` classes
+  appear only in the alphabets bundle.
+- Live: verification pending — push triggers the GitHub Actions
+  deploy; URL is `/games/alphabets-game` on the Pages origin.
 
 ### 2026-04-24 — Weather game ported ✅ (card-machine cluster complete)
 
