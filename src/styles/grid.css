@@ -1,0 +1,571 @@
+/* GridLayout — shared styles for foundational-set games (alphabets, numbers,
+   colors, shapes, animals, birds, hindi).
+
+   Layout principle: single column at every viewport.
+   Vertical flow (top → bottom):
+     1. Top game nav (from global.css)
+     2. Header row: title + progress pill + control pills
+     3. Filter bar (optional, per-game)
+     4. Tile deck (responsive auto-fill grid)
+     5. Inline detail card (expands with the selected tile's content)
+     6. Done overlay (absolute, only when all tiles are learned)
+     7. Build info footer
+
+   We do NOT split horizontally into grid + detail panes — the previous
+   attempt at that caused column-squeeze overlap at mid-widths. A single
+   column that simply scrolls works cleanly on phone, tablet, and desktop,
+   and naturally matches how Starfall / Khan Kids / DotIAM lay out their
+   alphabet screens. */
+
+/* -- Default (alphabets) palette -- */
+body.grid {
+  --gl-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --gl-shell-maxw: 860px;
+
+  --gl-title-color: #ffffff;
+  --gl-subtitle-color: rgba(255, 255, 255, 0.85);
+  --gl-progress-bg: rgba(255, 255, 255, 0.18);
+  --gl-progress-color: #ffffff;
+  --gl-progress-fill: linear-gradient(90deg, #4caf50, #8bc34a);
+
+  --gl-tile-bg: linear-gradient(145deg, #ffffff, #f0f0f0);
+  --gl-tile-bg-hover: linear-gradient(145deg, #c8e6c9, #a5d6a7);
+  --gl-tile-bg-learned: linear-gradient(145deg, #a5d6a7, #81c784);
+  --gl-tile-border: #4caf50;
+  --gl-tile-border-active: #ff9800;
+  --gl-tile-color: #2e7d32;
+  --gl-tile-color-learned: #1b5e20;
+  --gl-tile-check-bg: #4caf50;
+  --gl-tile-check-color: #fff;
+
+  --gl-cat-bg: linear-gradient(135deg, #4caf50, #2e7d32);
+  --gl-cat-color: #fff;
+  --gl-cat-glow: rgba(76, 175, 80, 0.45);
+
+  --gl-detail-bg: rgba(255, 255, 255, 0.95);
+  --gl-detail-bg-dark: rgba(26, 18, 40, 0.92);
+  --gl-detail-border: rgba(76, 175, 80, 0.4);
+  --gl-detail-letter-color: #4a0e4e;
+  --gl-detail-text: #2e2e2e;
+  --gl-detail-fact-color: rgba(46, 46, 46, 0.75);
+  --gl-detail-pill-bg: linear-gradient(135deg, #4caf50, #2e7d32);
+  --gl-detail-pill-color: #fff;
+
+  --gl-action-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --gl-action-bg-hover: linear-gradient(135deg, #7b8df3 0%, #8a5fba 100%);
+  --gl-action-color: #fff;
+  --gl-action-glow: rgba(102, 126, 234, 0.45);
+
+  --gl-arrow-bg: rgba(255, 255, 255, 0.22);
+  --gl-arrow-bg-hover: rgba(255, 255, 255, 0.4);
+  --gl-arrow-color: #fff;
+
+  --gl-done-bg: linear-gradient(145deg, #4caf50, #2e7d32);
+  --gl-done-text: #fff;
+
+  background: var(--gl-bg);
+  color: var(--gl-title-color);
+  min-height: 100dvh;
+}
+
+/* -- Shell wrapper -- */
+.gl-shell {
+  max-width: var(--gl-shell-maxw);
+  margin: 0 auto;
+  padding: 18px 16px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  position: relative;
+}
+
+/* -- Header: title + progress + control pills -- */
+.gl-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+
+.gl-title {
+  font-size: clamp(1.35em, 3.6vw, 1.9em);
+  font-weight: 800;
+  color: var(--gl-title-color);
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  letter-spacing: 0.3px;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.gl-title-emoji {
+  margin-right: 6px;
+}
+
+.gl-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.gl-progress-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--gl-progress-bg);
+  color: var(--gl-progress-color);
+  font-weight: 700;
+  font-size: 0.82em;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  white-space: nowrap;
+}
+
+.gl-progress-bar {
+  position: relative;
+  width: 64px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.gl-progress-bar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0%;
+  background: var(--gl-progress-fill);
+  border-radius: 999px;
+  transition: width 0.35s ease;
+}
+
+/* Layout-local override of the shared `.cat-btn.active` rule, using
+   grid-layout theme tokens. Global styles ship the base/hover. */
+body.grid .cat-btn.active {
+  background: var(--gl-cat-bg);
+  color: var(--gl-cat-color);
+  border-color: transparent;
+  box-shadow: 0 4px 14px var(--gl-cat-glow);
+}
+
+/* -- Deck: responsive grid of tiles -- */
+.gl-deck {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 10px;
+  width: 100%;
+}
+
+/* Capped variant for small decks (A-Z = 26 tiles) so desktop doesn't
+   stretch tiles to 110px+. Smaller minmax keeps them kid-sized. */
+.gl-deck.gl-deck--capped {
+  grid-template-columns: repeat(auto-fill, minmax(64px, 96px));
+  justify-content: center;
+}
+
+.gl-tile {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 15px;
+  border: 2px solid var(--gl-tile-border);
+  background: var(--gl-tile-bg);
+  color: var(--gl-tile-color);
+  font-weight: 800;
+  font-size: clamp(1.4em, 4vw, 2.2em);
+  cursor: pointer;
+  font-family: inherit;
+  padding: 0;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
+  overflow: hidden;
+  user-select: none;
+}
+
+.gl-tile:hover {
+  background: var(--gl-tile-bg-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+}
+
+.gl-tile:active {
+  transform: translateY(0) scale(0.97);
+}
+
+.gl-tile.learned {
+  background: var(--gl-tile-bg-learned);
+  color: var(--gl-tile-color-learned);
+  border-color: var(--gl-tile-border);
+}
+
+.gl-tile.active {
+  border-color: var(--gl-tile-border-active);
+  box-shadow:
+    0 0 0 3px var(--gl-tile-border-active),
+    0 6px 18px rgba(0, 0, 0, 0.22);
+  transform: translateY(-2px) scale(1.04);
+}
+
+/* Small corner check for learned tiles (not shown when also active, to
+   avoid visual clash with the outline). */
+.gl-tile-check {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--gl-tile-check-bg);
+  color: var(--gl-tile-check-color);
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transform: scale(0.5);
+  transition: 0.25s ease;
+  pointer-events: none;
+}
+
+.gl-tile.learned .gl-tile-check {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.gl-tile.active .gl-tile-check {
+  opacity: 0;
+  transform: scale(0.5);
+}
+
+/* Brief flip animation when tapping a tile. */
+.gl-tile.just-tapped {
+  animation: gl-tile-flip 0.55s ease;
+}
+
+@keyframes gl-tile-flip {
+  0% {
+    transform: rotateY(0) scale(1);
+  }
+  50% {
+    transform: rotateY(90deg) scale(0.96);
+  }
+  100% {
+    transform: rotateY(0) scale(1);
+  }
+}
+
+/* -- Inline detail card -- */
+.gl-detail {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  scroll-margin-top: 70px;
+}
+
+.gl-detail-inner {
+  width: 100%;
+  max-width: 560px;
+  background: var(--gl-detail-bg);
+  border: 2px solid var(--gl-detail-border);
+  border-radius: 22px;
+  padding: 22px 22px 18px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+  color: var(--gl-detail-text);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+}
+
+.gl-detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.gl-detail-letter {
+  font-size: clamp(2.4em, 7vw, 3.6em);
+  font-weight: 900;
+  color: var(--gl-detail-letter-color);
+  line-height: 1;
+  letter-spacing: 0.5px;
+  min-width: 0;
+}
+
+.gl-detail-word-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  min-width: 0;
+}
+
+.gl-detail-word {
+  font-size: clamp(1.2em, 3.2vw, 1.6em);
+  font-weight: 800;
+  color: var(--gl-detail-letter-color);
+  text-align: right;
+  line-height: 1.15;
+  word-break: break-word;
+  min-width: 0;
+}
+
+.gl-detail-pill {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.68em;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  background: var(--gl-detail-pill-bg);
+  color: var(--gl-detail-pill-color);
+}
+
+.gl-detail-image-wrap {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.gl-detail-image {
+  max-width: min(100%, 260px);
+  max-height: min(44vh, 240px);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.2));
+  display: block;
+}
+
+.gl-detail-image.pop {
+  animation: gl-img-pop 0.45s ease;
+}
+
+@keyframes gl-img-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.7) rotate(-6deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+
+.gl-detail-fact {
+  color: var(--gl-detail-fact-color);
+  font-size: 0.96em;
+  line-height: 1.45;
+  text-align: center;
+  padding: 0 4px;
+}
+
+.gl-detail-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.gl-detail-arrow {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--gl-action-bg);
+  color: var(--gl-action-color);
+  font-size: 1.2em;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px var(--gl-action-glow);
+  transition: 0.2s;
+  flex-shrink: 0;
+}
+
+.gl-detail-arrow:hover {
+  background: var(--gl-action-bg-hover);
+  transform: translateY(-2px);
+}
+
+.gl-detail-arrow:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.gl-detail-hear {
+  flex: 1;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: none;
+  background: var(--gl-action-bg);
+  color: var(--gl-action-color);
+  font-family: inherit;
+  font-size: 1em;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 6px 18px var(--gl-action-glow);
+  transition: 0.2s;
+  letter-spacing: 0.3px;
+}
+
+.gl-detail-hear:hover {
+  background: var(--gl-action-bg-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px var(--gl-action-glow);
+}
+
+.gl-detail-hear:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* -- Empty / placeholder state (before first tile tap) -- */
+.gl-detail.gl-detail--empty .gl-detail-inner {
+  align-items: center;
+  text-align: center;
+  color: var(--gl-detail-fact-color);
+  font-style: italic;
+  padding: 28px 22px;
+}
+
+.gl-detail.gl-detail--empty .gl-detail-head,
+.gl-detail.gl-detail--empty .gl-detail-image-wrap,
+.gl-detail.gl-detail--empty .gl-detail-actions {
+  display: none;
+}
+
+/* -- Done overlay — fires when every tile in the deck is learned -- */
+.gl-done-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(6px);
+  animation: gl-fade 0.25s ease;
+}
+
+.gl-done-overlay.show {
+  display: flex;
+}
+
+.gl-done-card {
+  background: var(--gl-done-bg);
+  color: var(--gl-done-text);
+  padding: 30px 26px;
+  border-radius: 24px;
+  text-align: center;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  animation: gl-pop-in 0.5s cubic-bezier(0.2, 0.9, 0.35, 1.4);
+}
+
+.gl-done-card h2 {
+  font-size: 1.9em;
+  margin-bottom: 12px;
+}
+
+.gl-done-card p {
+  margin-bottom: 18px;
+  font-size: 1.05em;
+  opacity: 0.95;
+  line-height: 1.4;
+}
+
+.gl-done-restart {
+  display: inline-block;
+  padding: 14px 28px;
+  background: #fff;
+  color: var(--gl-detail-letter-color);
+  border: none;
+  border-radius: 14px;
+  font-family: inherit;
+  font-size: 1em;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.25);
+  transition: 0.2s;
+  letter-spacing: 0.4px;
+}
+
+.gl-done-restart:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.3);
+}
+
+@keyframes gl-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes gl-pop-in {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* -- Tight-phone polish -- */
+@media (max-width: 420px) {
+  .gl-shell {
+    padding: 14px 10px 72px;
+    gap: 14px;
+  }
+  .gl-detail-inner {
+    padding: 18px 16px 14px;
+    border-radius: 18px;
+  }
+  .gl-detail-image-wrap {
+    min-height: 150px;
+  }
+}
+
+/* -- Dark mode -- */
+body.dark-mode.grid {
+  --gl-bg: linear-gradient(160deg, #15051a 0%, #2a0a2e 50%, #3a0e3e 100%);
+  --gl-tile-bg: linear-gradient(145deg, #2a1f3a, #1a1328);
+  --gl-tile-bg-hover: linear-gradient(145deg, #3a2f4a, #2a1f3a);
+  --gl-tile-bg-learned: linear-gradient(145deg, #2e7d32, #1b5e20);
+  --gl-tile-color: #c8e6c9;
+  --gl-tile-color-learned: #fff;
+  --gl-detail-bg: rgba(26, 18, 40, 0.95);
+  --gl-detail-border: rgba(198, 255, 0, 0.3);
+  --gl-detail-letter-color: #e8d8f0;
+  --gl-detail-text: #e8d8f0;
+  --gl-detail-fact-color: rgba(232, 216, 240, 0.7);
+}
+
+body.dark-mode.grid .gl-detail-image-wrap {
+  background: rgba(255, 255, 255, 0.05);
+}

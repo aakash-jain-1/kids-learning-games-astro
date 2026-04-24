@@ -109,38 +109,6 @@ body.card-machine[data-theme='weather'] {
   --cm-dm-done-bg: rgba(20, 30, 50, 0.9);
 }
 
-/* Alphabets — deep magenta left pane, lime-green OLED screen, pink press */
-body.card-machine[data-theme='alphabets'] {
-  --cm-screen-color: #c6ff00;
-  --cm-screen-glow: rgba(198, 255, 0, 0.4);
-  --cm-screen-glow-strong: rgba(198, 255, 0, 1);
-  --cm-screen-radial: rgba(198, 255, 0, 0.07);
-  --cm-screen-box-glow: rgba(198, 255, 0, 0.08);
-  --cm-screen-name-shadow: rgba(198, 255, 0, 0.55);
-  --cm-screen-fact-color: rgba(220, 255, 150, 0.6);
-
-  --cm-left-bg: linear-gradient(160deg, #2a0a2e 0%, #4a0e4e 50%, #6a1b6a 100%);
-  --cm-left-bg-dark: linear-gradient(160deg, #15051a 0%, #2a0a2e 50%, #3a0e3e 100%);
-  --cm-ghost-bg: linear-gradient(150deg, #3a0e3e 0%, #1f051f 100%);
-  --cm-machine-bg: linear-gradient(170deg, #1f051f 0%, #3a0e3e 100%);
-  --cm-plate-bg: linear-gradient(135deg, #5a1a5a, #1f051f);
-
-  --cm-cat-bg: linear-gradient(135deg, #ad1457, #ec407a);
-  --cm-cat-color: #fff;
-  --cm-cat-glow: rgba(236, 64, 122, 0.5);
-  --cm-prog-fg: linear-gradient(90deg, #ec407a, #c6ff00);
-
-  --cm-press-bg: linear-gradient(145deg, #ec407a, #ad1457);
-  --cm-press-bg-hover: linear-gradient(145deg, #f06292, #c2185b);
-  --cm-press-shadow-deep: #6a0f3a;
-  --cm-press-glow: rgba(236, 64, 122, 0.5);
-
-  --cm-done-accent: #ec407a;
-  --cm-dm-top-card-bg: rgba(42, 10, 46, 0.85);
-  --cm-dm-name-color: #f8bbd0;
-  --cm-dm-done-bg: rgba(42, 10, 46, 0.92);
-}
-
 /* Solar System — deep-space purple/navy left pane, golden accents */
 body.card-machine[data-theme='solar-system'] {
   --cm-screen-color: #f7c948;
@@ -196,57 +164,8 @@ body.card-machine[data-theme='solar-system'] {
   justify-content: space-between;
 }
 
-.ctrl-row {
-  display: flex;
-  gap: 6px;
-}
-
-.ctrl-pill {
-  color: rgba(255, 255, 255, 0.75);
-  font-size: 0.7em;
-  font-weight: 600;
-  padding: 4px 10px;
-  border-radius: 50px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  cursor: pointer;
-  font-family: inherit;
-  transition: 0.2s;
-  flex-shrink: 0;
-}
-
-.ctrl-pill:hover {
-  background: rgba(255, 255, 255, 0.22);
-  color: #fff;
-}
-
-/* Category filter bar */
-.cat-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-  justify-content: center;
-  width: 100%;
-}
-
-.cat-btn {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  color: rgba(255, 255, 255, 0.75);
-  font-size: 0.78em;
-  font-weight: bold;
-  padding: 6px 13px;
-  border-radius: 50px;
-  cursor: pointer;
-  font-family: inherit;
-  transition: 0.22s;
-}
-
-.cat-btn:hover {
-  background: rgba(255, 255, 255, 0.22);
-  color: #fff;
-}
-
+/* `.ctrl-row`, `.ctrl-pill`, `.cat-bar`, `.cat-btn` live in global.css —
+   shared with GridLayout. Only the theme-aware active state stays here. */
 .cat-btn.active {
   background: var(--cm-cat-bg);
   color: var(--cm-cat-color);
@@ -487,14 +406,6 @@ body.card-machine[data-theme='solar-system'] {
   background: #42a5f5;
   color: #fff;
 }
-/* Alphabets card pills (vowel/consonant) */
-.card-pill.vowel {
-  background: #ec407a;
-}
-.card-pill.consonant {
-  background: #26c6da;
-}
-
 .card-pill.any {
   background: #ab47bc;
   color: #fff;
@@ -793,17 +704,6 @@ body.card-machine[data-theme='solar-system'] {
   color: #e1bee7;
 }
 
-/* Alphabets screen-badge pills */
-.scrn-badge-pill.vowel {
-  background: rgba(236, 64, 122, 0.22);
-  border: 1px solid #ec407a;
-  color: #f8bbd0;
-}
-.scrn-badge-pill.consonant {
-  background: rgba(38, 198, 218, 0.22);
-  border: 1px solid #26c6da;
-  color: #b2ebf2;
-}
 
 .scrn-fact {
   font-size: 0.7em;

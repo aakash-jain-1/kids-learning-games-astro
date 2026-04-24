@@ -1,10 +1,19 @@
 /**
- * Data for the Alphabets game — the fifth card-machine port.
+ * Data for the Alphabets game — the first GridLayout port.
  *
- * Shape follows the conventions used by the other card-machine games
- * (`n`, `f`, `e`, `img`). Additional per-game fields:
- *   - `letter`  — the uppercase letter A–Z, rendered large on the card face
- *   - `type`    — `'vowel' | 'consonant'`, drives the filter pill colour
+ * Foundational-set pedagogy: 26 letters shown as a scannable A–Z grid,
+ * tap a tile to see its word, picture, and fact. We deliberately kept the
+ * card-machine field names (`n`, `f`, `e`, `img`) so the same ALL_CARDS
+ * dataset could power a unified Deck layout later (see the "Option C"
+ * roadmap item in PROGRESS.md).
+ *
+ * Fields:
+ *   - `letter`  — uppercase letter A–Z, rendered on the grid tile + big in detail
+ *   - `n`       — word name, shown in the detail card (e.g. "Apple")
+ *   - `f`       — fun fact read aloud + shown in the detail card
+ *   - `e`       — plain emoji fallback if the PNG fails
+ *   - `img`     — relative fluentui-emoji path (see FLUENT_IMG_BASE)
+ *   - `type`    — `'vowel' | 'consonant'`, drives the filter pill + label
  *   - `label`   — human-readable pill text ("Vowel" / "Consonant")
  *
  * Image source note: the vanilla game used Iconify Noto SVGs. Per the

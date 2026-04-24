@@ -70,6 +70,59 @@ body.dark-mode .game-nav {
   background: rgba(30, 30, 30, 0.95);
 }
 
+/* Control pills (Quiz / Stats / Settings) — shared across every game. */
+.ctrl-row {
+  display: flex;
+  gap: 6px;
+}
+
+.ctrl-pill {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.7em;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 50px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  cursor: pointer;
+  font-family: inherit;
+  transition: 0.2s;
+  flex-shrink: 0;
+}
+
+.ctrl-pill:hover {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+
+/* Category / filter bar — shared across every game. Each layout supplies
+   its own `.cat-btn.active` rule using its own theme tokens. */
+.cat-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  justify-content: center;
+  width: 100%;
+}
+
+.cat-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.78em;
+  font-weight: bold;
+  padding: 6px 13px;
+  border-radius: 50px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: 0.22s;
+}
+
+.cat-btn:hover {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+
 /* Modal chrome */
 .modal-overlay {
   display: none;

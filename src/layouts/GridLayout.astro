@@ -1,14 +1,22 @@
 ---
-// Shared shell for card-machine (reference-catalogue) games: flashcards,
-// solar system, dinosaurs, weather. Games where the pedagogy is "browse a
-// deck of fact cards". Foundational-set games (alphabet, numbers, colors,
-// shapes, animals, birds, hindi) use GridLayout instead.
-// Provides head meta, PWA wiring, navigation, settings modal, build info, and
-// service worker auto-update handling. Each game just supplies its content via
-// the default slot plus a handful of props.
+// Shared shell for foundational-set (grid-first) games: alphabets, numbers,
+// colors, shapes, animals, birds, hindi-alphabets. Games where the pedagogy
+// is "explore a bounded chart of symbols"; contrast with CardMachineLayout
+// (reference-catalogue browser).
+//
+// Provides head meta, PWA wiring, navigation, settings modal, build info,
+// and service worker auto-update handling. Each game supplies:
+//   * the grid of tiles
+//   * the inline detail card
+//   * the per-tile data, per-filter labels, and theme color
+// via the default slot plus a handful of props.
+//
+// Design principle: single-column flow at every viewport. Filters → grid →
+// detail stacked vertically. This avoids the overlap bug the initial
+// two-pane attempt hit at medium widths.
 
 import '@/styles/global.css';
-import '@/styles/card-machine.css';
+import '@/styles/grid.css';
 
 import BuildInfo from '@/components/BuildInfo.astro';
 import GameNav from '@/components/GameNav.astro';
@@ -24,17 +32,24 @@ interface Props {
   /** Inline lang attribute */
   lang?: string;
   /**
-   * Visual palette for the card-machine shell. Controls the CSS custom
-   * properties defined in `card-machine.css` — leave undefined for the
-   * default (dinosaur / green) theme.
+   * Visual palette for the grid shell. Controls the CSS custom properties
+   * defined in `grid.css`. Leave undefined for the default (alphabets /
+   * purple) theme.
    */
-  theme?: 'flashcards' | 'dinosaurs' | 'solar-system' | 'weather';
+  theme?:
+    | 'alphabets'
+    | 'numbers'
+    | 'colors'
+    | 'shapes'
+    | 'animals'
+    | 'birds'
+    | 'hindi';
 }
 
 const {
   title,
   description,
-  themeColor = '#0a1a05',
+  themeColor = '#4a0e4e',
   ogImage = 'https://aakash-jain-1.github.io/kids-learning-games/assets/icon-512.svg',
   pageUrl,
   lang = 'en',
@@ -87,7 +102,7 @@ const canonicalUrl =
     </script>
   </head>
 
-  <body class="card-machine" data-theme={theme}>
+  <body class="grid" data-theme={theme}>
     <GameNav />
 
     <slot />
@@ -121,20 +136,12 @@ const canonicalUrl =
 </html>
 
 <style is:global>
-  html.pre-dark body {
-    background: #0a1a05;
-    color: #d4e8c0;
+  html.pre-dark body.grid {
+    background: #15051a;
+    color: #e8d8f0;
   }
-  html.pre-dark body[data-theme='flashcards'] {
-    background: #05121a;
-    color: #d4e8ff;
-  }
-  html.pre-dark body[data-theme='solar-system'] {
-    background: #070618;
-    color: #c8b8f0;
-  }
-  html.pre-dark body[data-theme='weather'] {
-    background: #050a14;
-    color: #b8d4f0;
+  html.pre-dark body.grid[data-theme='alphabets'] {
+    background: #15051a;
+    color: #e8d8f0;
   }
 </style>

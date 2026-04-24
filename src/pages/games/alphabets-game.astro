@@ -1,310 +1,426 @@
 ---
-import CardMachineLayout from '@/layouts/CardMachineLayout.astro';
+import GridLayout from '@/layouts/GridLayout.astro';
 import { ALL_CARDS, FILTERS } from '@/data/alphabets';
 
 const title = 'Alphabets — Kids Learning Games';
 const description =
-  'Learn A-Z with the card machine! Tap a letter card to see its picture, hear the word and a fun fact.';
+  'Learn the A to Z alphabet with a colourful grid, pictures, and fun facts for kids.';
+
+const totalCards = ALL_CARDS.length;
 ---
 
-<CardMachineLayout
+<GridLayout
   title={title}
   description={description}
   themeColor="#4a0e4e"
   theme="alphabets"
 >
-  <div class="cm-layout">
-    <!-- Left pane: card deck -->
-    <div class="left-pane">
-      <div class="left-top">
+  <main class="gl-shell" aria-label="Alphabets game">
+    <header class="gl-header">
+      <h1 class="gl-title">
+        <span class="gl-title-emoji" aria-hidden="true">🔤</span>
+        Alphabets
+      </h1>
+
+      <div class="gl-header-right">
+        <span
+          class="gl-progress-pill"
+          id="progressPill"
+          aria-label={`Progress: 0 of ${totalCards} letters learned`}
+        >
+          <span id="progressText">0 / {totalCards}</span>
+          <span class="gl-progress-bar" aria-hidden="true">
+            <span class="gl-progress-bar-fill" id="progressFill"></span>
+          </span>
+        </span>
         <div class="ctrl-row">
           <button class="ctrl-pill" id="btnQuiz" type="button">🧠 Quiz</button>
           <button class="ctrl-pill" id="btnStats" type="button">📊 Stats</button>
           <button class="ctrl-pill" id="btnSettings" type="button">⚙️ Settings</button>
         </div>
       </div>
+    </header>
 
-      <div class="cat-bar" id="catBar" role="group" aria-label="Letter filter">
-        {
-          FILTERS.map((f) => (
-            <button
-              class={`cat-btn${f.key === 'all' ? ' active' : ''}`}
-              data-key={f.key}
-              type="button"
-            >
-              {f.label}
-            </button>
-          ))
-        }
-      </div>
-
-      <div class="deck-area">
-        <div class="ghost" aria-hidden="true"></div>
-        <div class="ghost" aria-hidden="true"></div>
-        <div class="ghost" aria-hidden="true"></div>
-        <button class="top-card" id="topCard" type="button" aria-label="Play letter">
-          <span class="card-num-badge" id="cardNum">1 / {ALL_CARDS.length}</span>
-          <div id="cardFace"></div>
-          <div class="card-name-big" id="cardName"></div>
-          <div class="card-pill" id="cardPill"></div>
-        </button>
-      </div>
-
-      <div class="deck-nav">
-        <button class="nav-btn" id="btnPrev" type="button">◀ Prev</button>
-        <button class="nav-btn" id="btnNext" type="button">Next ▶</button>
-      </div>
-
-      <div class="prog-strip">
-        <div class="prog-bg">
-          <div class="prog-fg" id="progFg" style="width:4%"></div>
-        </div>
-        <div class="prog-txt" id="progTxt">Card 1 of {ALL_CARDS.length}</div>
-      </div>
+    <div class="cat-bar" id="catBar" role="group" aria-label="Letter filter">
+      {
+        FILTERS.map((f) => (
+          <button
+            class={`cat-btn${f.key === 'all' ? ' active' : ''}`}
+            data-key={f.key}
+            type="button"
+          >
+            {f.label}
+          </button>
+        ))
+      }
     </div>
 
-    <!-- Right pane: the "machine" -->
-    <div class="right-pane">
-      <div class="machine">
-        <div class="machine-plate">🔤 Alphabet Cards 🔤</div>
-        <div class="machine-screen">
-          <div id="screenFace"></div>
-          <div class="scrn-name" id="screenName"></div>
-          <div class="scrn-badge-pill" id="screenBadge"></div>
-          <div class="scrn-fact" id="screenFact"></div>
-        </div>
-        <div class="grille" id="grille" aria-hidden="true"></div>
-        <div class="waves" id="waves" aria-hidden="true">
-          <div class="wv"></div><div class="wv"></div><div class="wv"></div>
-          <div class="wv"></div><div class="wv"></div>
-        </div>
-        <button class="press-btn" id="pressBtn" type="button">
-          TAP TO HEAR!
-          <span class="btn-sub">Press — I will say the letter and its word!</span>
-        </button>
-      </div>
+    <div class="gl-deck gl-deck--capped" id="deck" role="list" aria-label="Alphabet tiles">
+      {
+        ALL_CARDS.map((c, i) => (
+          <button
+            class="gl-tile"
+            type="button"
+            role="listitem"
+            data-idx={i}
+            data-letter={c.letter}
+            data-type={c.type}
+            aria-label={`Letter ${c.letter} for ${c.n}`}
+          >
+            {c.letter}
+            <span class="gl-tile-check" aria-hidden="true">✓</span>
+          </button>
+        ))
+      }
+    </div>
 
-      <div
-        class="done-overlay"
-        id="doneOverlay"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="doneTitle"
-      >
-        <div class="done-card">
-          <div style="font-size:3em" aria-hidden="true">🎉</div>
-          <h2 id="doneTitle">You did it!</h2>
-          <p id="doneMsg"></p>
-          <button class="restart-btn" id="btnRestart" type="button">🔄 Play Again</button>
+    <section class="gl-detail gl-detail--empty" id="detail" aria-live="polite">
+      <div class="gl-detail-inner">
+        <div class="gl-detail-head">
+          <span class="gl-detail-letter" id="detailLetter">A</span>
+          <div class="gl-detail-word-row">
+            <span class="gl-detail-word" id="detailWord">Apple</span>
+            <span class="gl-detail-pill" id="detailPill">Vowel</span>
+          </div>
+        </div>
+
+        <div class="gl-detail-image-wrap">
+          <img
+            class="gl-detail-image"
+            id="detailImage"
+            alt=""
+            width="260"
+            height="260"
+            loading="eager"
+          />
+        </div>
+
+        <p class="gl-detail-fact" id="detailFact">
+          Tap any letter above to hear it and see a picture!
+        </p>
+
+        <div class="gl-detail-actions">
+          <button
+            class="gl-detail-arrow"
+            id="prevBtn"
+            type="button"
+            aria-label="Previous letter"
+          >
+            ◀
+          </button>
+          <button
+            class="gl-detail-hear"
+            id="hearBtn"
+            type="button"
+            aria-label="Play letter sound"
+          >
+            🔊 Tap to hear
+          </button>
+          <button
+            class="gl-detail-arrow"
+            id="nextBtn"
+            type="button"
+            aria-label="Next letter"
+          >
+            ▶
+          </button>
         </div>
       </div>
+    </section>
+  </main>
+
+  <div class="gl-done-overlay" id="doneOverlay" role="dialog" aria-live="polite" aria-labelledby="doneTitle">
+    <div class="gl-done-card">
+      <h2 id="doneTitle">Amazing! You know the whole alphabet! 🎉</h2>
+      <p>You've explored every letter from A to Z. Want to go again?</p>
+      <button class="gl-done-restart" id="restartBtn" type="button">
+        Start Over
+      </button>
     </div>
   </div>
-</CardMachineLayout>
+</GridLayout>
 
 <script>
-  import {
-    ALL_CARDS,
-    FLUENT_IMG_BASE,
-    type AlphabetCard,
-    type LetterType,
-  } from '@/data/alphabets';
   import { playTap } from '@/lib/audio';
   import { speak } from '@/lib/speech';
   import { launchConfetti } from '@/lib/achievements';
   import { getSettings } from '@/lib/settings';
+  import { ALL_CARDS, FLUENT_IMG_BASE } from '@/data/alphabets';
 
-  // Alphabets confetti palette: pinks + limes to match the theme, plus
-  // a few neutrals for contrast.
-  const ALPHABET_COLORS = [
-    '#ec407a', '#f8bbd0', '#c6ff00', '#aeea00', '#26c6da', '#fff176', '#fff',
-  ];
+  // --- Progress persistence (kids_progress_v1:<gameId>) ---
+  // Alphabets is the first real consumer of the pattern documented in
+  // PROGRESS.md. Value is a sorted JSON array of learned letters. Reads
+  // are forgiving — any parse error resets to empty.
+  const PROGRESS_KEY = 'kids_progress_v1:alphabets';
 
-  let cards: readonly AlphabetCard[] = ALL_CARDS;
-  let idx = 0;
-
-  const $ = <T extends HTMLElement = HTMLElement>(id: string): T =>
-    document.getElementById(id) as T;
-
-  /**
-   * Left-pane card face: the uppercase letter rendered big via the
-   * shared `.card-num-text` style — same visual treatment the numbers
-   * deck uses in Flashcards.
-   */
-  function buildCardFace(card: AlphabetCard): HTMLElement {
-    const el = document.createElement('div');
-    el.className = 'card-num-text pop';
-    el.textContent = card.letter;
-    return el;
-  }
-
-  /**
-   * Right-pane (OLED screen) face: the Fluent UI 3D PNG for the word,
-   * with emoji fallback on error — mirrors the Flashcards/Weather pattern.
-   */
-  function buildScreenFace(card: AlphabetCard): HTMLElement {
-    const img = document.createElement('img');
-    img.id = 'screenEmojiEl';
-    img.className = 'scrn-img';
-    img.src = FLUENT_IMG_BASE + card.img;
-    img.alt = card.n;
-    img.loading = 'lazy';
-    img.decoding = 'async';
-    img.addEventListener('error', () => {
-      const fallback = document.createElement('div');
-      fallback.id = 'screenEmojiEl';
-      fallback.className = 'scrn-emoji';
-      fallback.textContent = card.e;
-      img.replaceWith(fallback);
-    });
-    return img;
-  }
-
-  function applyFilter(key: 'all' | LetterType): void {
-    cards = key === 'all' ? ALL_CARDS : ALL_CARDS.filter((c) => c.type === key);
-    idx = 0;
-    document.querySelectorAll<HTMLButtonElement>('.cat-btn').forEach((b) => {
-      b.classList.toggle('active', b.dataset.key === key);
-    });
-    $('doneOverlay').classList.remove('show');
-    render();
-  }
-
-  function render(): void {
-    if (!cards.length) return;
-    const card = cards[idx]!;
-    const total = cards.length;
-
-    const cf = $('cardFace');
-    cf.innerHTML = '';
-    cf.appendChild(buildCardFace(card));
-
-    $('cardName').textContent = card.n;
-    $('cardNum').textContent = `${idx + 1} / ${total}`;
-
-    const pill = $('cardPill');
-    pill.textContent = card.label;
-    pill.className = `card-pill ${card.type}`;
-
-    const sf = $('screenFace');
-    sf.innerHTML = '';
-    sf.appendChild(buildScreenFace(card));
-
-    $('screenName').textContent = card.n;
-    const sb = $('screenBadge');
-    sb.textContent = `${card.letter} · ${card.label}`;
-    sb.className = `scrn-badge-pill ${card.type}`;
-
-    $('screenFact').textContent = card.f;
-    ($('progFg') as HTMLDivElement).style.width = `${((idx + 1) / total) * 100}%`;
-    $('progTxt').textContent = `Card ${idx + 1} of ${total}`;
-    buildGrille(false);
-
-    if (getSettings().autoSpeak) speakCurrent();
-  }
-
-  function buildGrille(lit: boolean): void {
-    const g = $('grille');
-    g.innerHTML = '';
-    for (let r = 0; r < 4; r++) {
-      const row = document.createElement('div');
-      row.className = 'grille-row';
-      for (let c = 0; c < 14; c++) {
-        const dot = document.createElement('div');
-        dot.className = 'grille-dot' + (lit && Math.random() > 0.35 ? ' lit' : '');
-        row.appendChild(dot);
-      }
-      g.appendChild(row);
+  const loadLearned = (): Set<string> => {
+    try {
+      const raw = localStorage.getItem(PROGRESS_KEY);
+      if (!raw) return new Set();
+      const arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) return new Set();
+      return new Set(arr.filter((x): x is string => typeof x === 'string'));
+    } catch {
+      return new Set();
     }
-  }
+  };
 
-  function navigate(dir: number): void {
-    const next = idx + dir;
-    if (next < 0) return;
-    if (next >= cards.length) {
+  const saveLearned = (learned: Set<string>): void => {
+    try {
+      localStorage.setItem(
+        PROGRESS_KEY,
+        JSON.stringify([...learned].sort()),
+      );
+    } catch {
+      /* Storage quota / private mode — silently continue. */
+    }
+  };
+
+  // --- State ---
+  let learned = loadLearned();
+  let activeIdx: number | null = null;
+  let activeFilter: 'all' | 'vowel' | 'consonant' = 'all';
+
+  // --- DOM refs (assert non-null since template renders them all) ---
+  const deckEl = document.getElementById('deck')!;
+  const detailEl = document.getElementById('detail')!;
+  const detailLetter = document.getElementById('detailLetter')!;
+  const detailWord = document.getElementById('detailWord')!;
+  const detailPill = document.getElementById('detailPill')!;
+  const detailImage = document.getElementById('detailImage') as HTMLImageElement;
+  const detailFact = document.getElementById('detailFact')!;
+  const prevBtn = document.getElementById('prevBtn') as HTMLButtonElement;
+  const nextBtn = document.getElementById('nextBtn') as HTMLButtonElement;
+  const hearBtn = document.getElementById('hearBtn') as HTMLButtonElement;
+  const progressText = document.getElementById('progressText')!;
+  const progressFill = document.getElementById('progressFill')!;
+  const catBar = document.getElementById('catBar')!;
+  const doneOverlay = document.getElementById('doneOverlay')!;
+  const restartBtn = document.getElementById('restartBtn') as HTMLButtonElement;
+
+  const tiles = Array.from(
+    deckEl.querySelectorAll<HTMLButtonElement>('.gl-tile'),
+  );
+
+  // --- Helpers ---
+  const tileVisible = (t: HTMLButtonElement): boolean =>
+    activeFilter === 'all' || t.dataset.type === activeFilter;
+
+  const updateProgressUI = (): void => {
+    const n = learned.size;
+    const total = ALL_CARDS.length;
+    progressText.textContent = `${n} / ${total}`;
+    progressFill.style.width = `${(n / total) * 100}%`;
+    const pill = document.getElementById('progressPill');
+    if (pill) {
+      pill.setAttribute(
+        'aria-label',
+        `Progress: ${n} of ${total} letters learned`,
+      );
+    }
+  };
+
+  const applyTileStates = (): void => {
+    for (const t of tiles) {
+      const letter = t.dataset.letter!;
+      t.classList.toggle('learned', learned.has(letter));
+      t.classList.toggle('active', activeIdx !== null && +t.dataset.idx! === activeIdx);
+      t.hidden = !tileVisible(t);
+    }
+  };
+
+  const applyFilter = (key: 'all' | 'vowel' | 'consonant'): void => {
+    activeFilter = key;
+    for (const b of catBar.querySelectorAll<HTMLButtonElement>('.cat-btn')) {
+      b.classList.toggle('active', b.dataset.key === key);
+    }
+    applyTileStates();
+  };
+
+  const showDetail = (idx: number, opts: { scroll?: boolean } = {}): void => {
+    const c = ALL_CARDS[idx];
+    if (!c) return;
+    activeIdx = idx;
+
+    detailEl.classList.remove('gl-detail--empty');
+    detailLetter.textContent = c.letter;
+    detailWord.textContent = c.n;
+    detailPill.textContent = c.label;
+    detailPill.dataset.type = c.type;
+    detailFact.textContent = c.f;
+    detailImage.alt = c.n;
+    detailImage.src = FLUENT_IMG_BASE + c.img;
+
+    // Pop animation — toggle class to restart it on every update.
+    detailImage.classList.remove('pop');
+    void detailImage.offsetWidth; // eslint-disable-line @typescript-eslint/no-unused-expressions
+    detailImage.classList.add('pop');
+
+    // Navigation button state (linear within the current filter).
+    const visibleIdxs = tiles
+      .filter(tileVisible)
+      .map((t) => +t.dataset.idx!);
+    const posInFiltered = visibleIdxs.indexOf(idx);
+    prevBtn.disabled = posInFiltered <= 0;
+    nextBtn.disabled =
+      posInFiltered === -1 || posInFiltered >= visibleIdxs.length - 1;
+
+    applyTileStates();
+
+    if (opts.scroll) {
+      // On mobile, the detail is below the grid — pull it into view so the
+      // child immediately sees the newly-selected letter.
+      detailEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  };
+
+  const markLearned = (letter: string): void => {
+    if (learned.has(letter)) return;
+    learned.add(letter);
+    saveLearned(learned);
+    updateProgressUI();
+    applyTileStates();
+    if (learned.size === ALL_CARDS.length) {
       showDone();
+    }
+  };
+
+  const speakCard = (idx: number): void => {
+    const c = ALL_CARDS[idx];
+    if (!c) return;
+    const settings = getSettings();
+    if (!settings.autoSpeak) return;
+    speak(`${c.letter}. ${c.letter} for ${c.n}. ${c.f}`);
+  };
+
+  const onTileTap = (t: HTMLButtonElement): void => {
+    const idx = +t.dataset.idx!;
+    const letter = t.dataset.letter!;
+    playTap();
+    t.classList.remove('just-tapped');
+    void t.offsetWidth; // eslint-disable-line @typescript-eslint/no-unused-expressions
+    t.classList.add('just-tapped');
+    showDetail(idx, { scroll: true });
+    markLearned(letter);
+    speakCard(idx);
+  };
+
+  const navigate = (delta: -1 | 1): void => {
+    if (activeIdx === null) {
+      // No tile selected yet — start from the first visible one.
+      const first = tiles.find(tileVisible);
+      if (first) {
+        onTileTap(first);
+      }
       return;
     }
-    idx = next;
-    render();
-  }
+    const visibleIdxs = tiles
+      .filter(tileVisible)
+      .map((t) => +t.dataset.idx!);
+    const pos = visibleIdxs.indexOf(activeIdx);
+    if (pos === -1) return;
+    const nextPos = pos + delta;
+    if (nextPos < 0 || nextPos >= visibleIdxs.length) return;
+    const nextIdx = visibleIdxs[nextPos]!;
+    const target = tiles[nextIdx]!;
+    onTileTap(target);
+  };
 
-  function showDone(): void {
-    $('doneMsg').textContent =
-      `You went through all ${cards.length} letter cards!`;
-    $('doneOverlay').classList.add('show');
-    launchConfetti(ALPHABET_COLORS);
-  }
+  const showDone = (): void => {
+    doneOverlay.classList.add('show');
+    launchConfetti(['#4caf50', '#8bc34a', '#667eea', '#ffd700', '#ff9800']);
+  };
 
-  function pressMachine(): void {
-    const btn = $('pressBtn');
-    btn.classList.add('pressed');
-    setTimeout(() => btn.classList.remove('pressed'), 180);
+  const restart = (): void => {
+    learned = new Set();
+    saveLearned(learned);
+    activeIdx = null;
+    detailEl.classList.add('gl-detail--empty');
+    detailFact.textContent = 'Tap any letter above to hear it and see a picture!';
+    updateProgressUI();
+    applyTileStates();
+    doneOverlay.classList.remove('show');
+  };
 
-    const sel = document.getElementById('screenEmojiEl');
-    if (sel) {
-      sel.classList.remove('flash');
-      void sel.offsetWidth; // restart animation
-      sel.classList.add('flash');
-    }
-    buildGrille(true);
-    setTimeout(() => buildGrille(false), 1100);
-    $('waves').classList.add('active');
-    playTap();
-    speakCurrent();
-  }
-
-  function speakCurrent(): void {
-    const card = cards[idx];
-    if (!card) return;
-    // "A. A for Apple!   Apples come in red..."
-    speak(`${card.letter}.   ${card.letter} for ${card.n}!   ${card.f}`, {
-      onEnd: () => $('waves').classList.remove('active'),
-    });
-  }
-
-  function restart(): void {
-    idx = 0;
-    cards = ALL_CARDS;
-    $('doneOverlay').classList.remove('show');
-    document.querySelectorAll<HTMLButtonElement>('.cat-btn').forEach((b) => {
-      b.classList.toggle('active', b.dataset.key === 'all');
-    });
-    render();
-  }
-
-  document.querySelectorAll<HTMLButtonElement>('.cat-btn').forEach((b) => {
-    b.addEventListener('click', () => {
-      const key = b.dataset.key as 'all' | LetterType | undefined;
-      if (key) applyFilter(key);
-    });
+  // --- Event wiring ---
+  deckEl.addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(
+      '.gl-tile',
+    );
+    if (btn && !btn.hidden) onTileTap(btn);
   });
 
-  $('btnPrev').addEventListener('click', () => navigate(-1));
-  $('btnNext').addEventListener('click', () => navigate(1));
-  $('topCard').addEventListener('click', pressMachine);
-  $('pressBtn').addEventListener('click', pressMachine);
-  $('btnRestart').addEventListener('click', restart);
+  catBar.addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(
+      '.cat-btn',
+    );
+    if (!btn) return;
+    playTap();
+    const key = btn.dataset.key as 'all' | 'vowel' | 'consonant';
+    applyFilter(key);
+    // If current selection is filtered out, clear it.
+    if (activeIdx !== null) {
+      const currentTile = tiles[activeIdx];
+      if (currentTile && !tileVisible(currentTile)) {
+        activeIdx = null;
+        detailEl.classList.add('gl-detail--empty');
+        detailFact.textContent = 'Tap any letter above to hear it and see a picture!';
+      }
+    }
+  });
 
-  $('btnSettings').addEventListener('click', () => {
+  prevBtn.addEventListener('click', () => {
+    playTap();
+    navigate(-1);
+  });
+
+  nextBtn.addEventListener('click', () => {
+    playTap();
+    navigate(1);
+  });
+
+  hearBtn.addEventListener('click', () => {
+    playTap();
+    if (activeIdx === null) {
+      const first = tiles.find(tileVisible);
+      if (first) onTileTap(first);
+      return;
+    }
+    const c = ALL_CARDS[activeIdx];
+    if (!c) return;
+    speak(`${c.letter}. ${c.letter} for ${c.n}. ${c.f}`);
+  });
+
+  restartBtn.addEventListener('click', () => {
+    playTap();
+    restart();
+  });
+
+  document.getElementById('btnSettings')?.addEventListener('click', () => {
+    playTap();
     (window as unknown as { openSettings?: () => void }).openSettings?.();
   });
-  $('btnStats').addEventListener('click', () => {
-    alert('Stats modal — not yet implemented in this POC.');
-  });
-  $('btnQuiz').addEventListener('click', () => {
-    alert('Quiz modal — not yet implemented in this POC.');
+
+  document.getElementById('btnStats')?.addEventListener('click', () => {
+    playTap();
+    alert(
+      `You've learned ${learned.size} out of ${ALL_CARDS.length} letters!\n\nKeep going!`,
+    );
   });
 
+  document.getElementById('btnQuiz')?.addEventListener('click', () => {
+    playTap();
+    alert('Quiz mode is coming soon!');
+  });
+
+  // Keyboard navigation (arrow keys) — helpful for desktop users.
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowRight') navigate(1);
-    else if (e.key === 'ArrowLeft') navigate(-1);
-    else if (e.key === ' ' || e.key === 'Enter') {
-      if (e.target instanceof HTMLButtonElement) return;
-      e.preventDefault();
-      pressMachine();
-    }
+    if (e.target instanceof HTMLInputElement) return;
+    if (e.key === 'ArrowLeft') navigate(-1);
+    else if (e.key === 'ArrowRight') navigate(1);
   });
 
-  render();
+  // --- Initial render ---
+  updateProgressUI();
+  applyTileStates();
 </script>
