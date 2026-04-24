@@ -31,22 +31,40 @@ Every port MUST follow these patterns:
      overlapping utterances).
    - Confetti / toasts → `lib/achievements.ts`.
 3. **Reuse the shared layouts.** Every game picks exactly one of:
-   - `CardMachineLayout.astro` — **the house design for every non-story
-     game**. All 11 non-story games (Dinosaurs, Flashcards, Solar System,
-     Weather, Alphabets, Numbers, Colors, Shapes, Animals, Birds, Hindi)
-     run on this single shell. Every concept is modelled as a card: a
-     letter, a number, a colour swatch, a shape, a planet — all render
-     in the same deck / filter / press-to-hear machine.
+   - `CardMachineLayout.astro` — **reference-catalogue games** where
+     the pedagogy is "browse a deck of rich fact cards." The content
+     is an open-ended set the child explores depth-first (one card at
+     a time, fact + picture + sound). Covers Dinosaurs, Flashcards,
+     Solar System, Weather.
+   - `GridLayout.astro` — **foundational-set games** where the pedagogy
+     is "recognise every member of a bounded chart." The content is a
+     closed set (26 letters, 10 digits, 8 colours, etc.) the child
+     scans breadth-first, tapping tiles as they go. Covers Alphabets,
+     Numbers, Colors, Shapes, Animals, Birds, Hindi. Single-column flow
+     (header → filters → tile grid → inline detail); deliberately *not*
+     a two-pane split (the earlier `ClassicLayout` attempt with
+     side-by-side panes caused overlap bugs at mid-widths, and the
+     single-column re-do fixes that class of issue by construction).
    - `StoryLayout.astro` *(TBD)* — story games (Woodcutter, Daily
-     Routines). Only carved out if the linear-story flow truly can't
-     fold into the card machine; by default we try card-machine first.
-   Never build a bespoke HTML shell per game. **Corollary: if a vanilla
-   game's structure doesn't naturally map to cards (e.g. a 26-tile
-   alphabet grid), reshape it to cards. The Astro card-machine design
-   is the source of truth; the vanilla layout is not.**
+     Routines). Only carved out if the linear-story flow can't fold
+     into either of the above.
+   Never build a bespoke HTML shell per game. **Choosing between
+   card-machine and grid: use the vanilla layout as the hint for which
+   pedagogy the original designer had in mind — if the vanilla game
+   already presents a fixed chart (e.g. A–Z tiles, 1–10 digits), port
+   to GridLayout; if it presents a shuffling deck or slideshow, port
+   to CardMachineLayout.** This mirrors how popular learning apps
+   (Starfall, Khan Kids, DotIAM, Endless Alphabet) split their
+   alphabet / number / colour screens (grid) from their story / video
+   / flashcard screens (single-focus card).
 4. **Theme via CSS custom properties.** Palette changes go through
-   `body.card-machine[data-theme='<game>']` blocks in `card-machine.css`
-   (~25 tokens). Never hardcode game-specific colours in layout CSS.
+   layout-specific `body.<layout>[data-theme='<game>']` blocks:
+   `card-machine.css` exposes ~25 `--cm-*` tokens, `grid.css` exposes
+   ~25 `--gl-*` tokens. Never hardcode game-specific colours in layout
+   CSS. Shared chrome primitives used by both layouts (`.ctrl-pill`,
+   `.cat-bar`, `.cat-btn` base styles, etc.) live in `global.css` so
+   they don't duplicate across layout bundles; each layout defines its
+   own `.cat-btn.active` override using its own theme tokens.
 5. **Game-specific CSS is game-scoped.** Anything truly unique to one game
    (e.g. the ~320-line CSS planet art for Solar System) lives in its own
    file (`src/styles/planets.css`) and is imported only from that game's
@@ -80,14 +98,29 @@ Every port MUST follow these patterns:
 - Fluent UI 3D emoji via CDN with per-image CacheFirst (was per-game
   `<img>` tags with no caching strategy).
 
+**Codified during the Alphabets port (first real `kids_progress_v1` consumer):**
+
+- Per-game **learning state** key: `kids_progress_v1:<gameId>`, value is
+  a sorted JSON array of strings identifying the learned items (e.g.
+  `["A","B","C"]` for alphabets). Reads are fault-tolerant — any parse
+  error or missing key resets to an empty set. Writes happen on the
+  first tile tap per item; once an item is learned it stays learned
+  until the "Start Over" overlay is dismissed. For now the persistence
+  is a handful of lines inline in the alphabets page; it graduates to
+  `src/lib/progress.ts` once a second game needs it.
+
 **Not yet codified (decisions deferred to the Stats / Quiz pass):**
 
-- Where per-game **learning state** (learned set, quiz history,
-  achievements) lives in LocalStorage. Current proposal: single
-  `kids_progress_v1` key, keyed by `gameId` — but we'll finalise it when
-  we wire the first real quiz modal.
 - Canonical structure for the Stats + Quiz modals (likely two more shared
   components under `src/components/`).
+- **Option C — unified Deck layout with a grid/card view toggle.** Worth
+  considering once both GridLayout and CardMachineLayout have been
+  proven in production for all 11 non-story games. A single `Deck`
+  layout would render each game in either "grid" or "card" mode via a
+  user-chosen toggle, consolidating the two shells into one and
+  letting parents pick the teaching mode. Deferred because we'd be
+  abstracting over two implementations we're still iterating on —
+  premature. Revisit when all 11 games have landed.
 
 If a vanilla file contains something these rules don't cover (e.g. an
 interaction that's genuinely unique to that one game), call it out in the
@@ -99,22 +132,27 @@ or (b) document a one-off exception.
 ## Current status (snapshot)
 
 - **Stack landed:** Astro `5.18.1` + strict TypeScript + `@vite-pwa/astro` `1.2.0` with `injectManifest` + Workbox 7.
-- **Games ported (5 of 13), all on `CardMachineLayout`:**
-  - Dinosaurs (default green theme, 15 cards, diet filter)
-  - Flashcards (cyan/orange theme, 14 decks, 4 card-face variants)
-  - Solar System (purple/gold theme, 11 cards, pure-CSS planet art, type filter)
-  - Weather (deep-navy/ice-blue theme, 20 cards, season filter, full Fluent UI image deck)
-  - Alphabets (magenta/lime theme, 26 letter cards, vowel/consonant filter, Fluent UI imagery) — **big letter on the card face + object image on the OLED screen**, fully on `CardMachineLayout`.
+- **Games ported (5 of 13), split across two shared layouts:**
+  - *CardMachineLayout — 4 games (reference-catalogue pedagogy):*
+    - Dinosaurs (default green theme, 15 cards, diet filter)
+    - Flashcards (cyan/orange theme, 14 decks, 4 card-face variants)
+    - Solar System (purple/gold theme, 11 cards, pure-CSS planet art, type filter)
+    - Weather (deep-navy/ice-blue theme, 20 cards, season filter, full Fluent UI image deck)
+  - *GridLayout — 1 game (foundational-set pedagogy):*
+    - Alphabets (purple/green theme, 26 letter tiles, vowel/consonant filter, inline detail card, `kids_progress_v1:alphabets` learned-set tracking, completion overlay with confetti).
 - **Vanilla games still to port (8):**
   `numbers-game`, `colors-game`, `shapes-game`, `animals-game`, `birds-game`, `hindi-game`, `woodcutter-story`, `daily-routines-story`.
-  All 6 remaining non-story games will land on `CardMachineLayout`; the two story games get their own layout only if the card-machine can't stretch to cover them.
+  The 6 remaining foundational-set games land on `GridLayout`; the two story games get their own layout only if neither shared shell stretches to cover them.
 - **Shared infra in place:**
-  - `CardMachineLayout.astro` shell — used by all 5 ported games. **Proven reusable five times across five distinct visual themes and three different card-face strategies (pure-CSS art, image-with-fallback, big-digit/letter text).**
-  - `card-machine.css` with ~25 theming CSS custom properties per theme, so per-game theming is ~35 lines of tokens + ~10 lines of type-pill colours.
+  - `CardMachineLayout.astro` shell — used by 4 ported games. Proven against three card-face strategies (pure-CSS art, image-with-fallback, big-digit/letter text).
+  - `GridLayout.astro` shell — used by 1 ported game (Alphabets). Single-column vertical flow (header → filters → tile grid → inline detail). The tile grid uses `grid-template-columns: repeat(auto-fill, minmax(64px, 96px))` for `--capped` small decks, so tiles stay kid-sized on any viewport. Completion overlay + restart button included.
+  - `card-machine.css` with ~25 `--cm-*` theming tokens per theme.
+  - `grid.css` with ~25 `--gl-*` theming tokens per theme.
+  - Shared chrome primitives in `global.css` (`.ctrl-pill`, `.cat-bar`, `.cat-btn` base, nav, modal, progress bar, toast) — both layouts share these.
   - `src/lib/`: singleton AudioContext, speech wrapper, unified settings, achievement toasts + confetti.
   - `src/data/fluent.ts` — shared `FLUENT_IMG_BASE` constant (consumers: flashcards, weather, alphabets; more to come).
   - Workbox SW (`src/sw.ts`) with StaleWhileRevalidate for the GitHub API and CacheFirst for Fluent emoji images.
-- **Per-game learning state:** `kids_progress_v1:<gameId>` LocalStorage key shape is still the proposal — will land for real when the first Stats / Quiz modal ships. No page currently writes to it (the earlier alphabets tile-design draft was reverted before hitting production).
+- **Per-game learning state:** `kids_progress_v1:<gameId>` LocalStorage key is now a real, shipping pattern. Alphabets is the first consumer. Shape: JSON array of learned-item ids (e.g. `["A","B","C"]`). No shared helper yet; inlined in the alphabets page until a second game needs it.
 - **Dev ergonomics:**
   - `npm run dev:fresh` — kills any stale dev/preview servers scoped to this project, then starts a clean one on `:4321`.
   - `npm run stop` — standalone kill script.
@@ -124,9 +162,10 @@ or (b) document a one-off exception.
   - `/games/dinosaurs-game` — 200
   - `/games/solar-system-game` — 200 ✅ (verified 2026-04-24, both extensionless + `.html`)
   - `/games/weather-game` — 200 ✅ (verified 2026-04-24, both extensionless + `.html`; `data-theme="weather"` reaches `<body>` in production, first card SSR renders "Sunny" with `card-pill summer`)
-  - `/games/alphabets-game` — verification pending post-deploy of the re-port
+  - `/games/alphabets-game` — verification pending post-deploy of the `GridLayout` re-port
   - `/manifest.webmanifest`, `/sw.js`, `/.nojekyll` — all 200
-- **Production build sizes (client JS, gzipped):** flashcards **11.28 KB**, weather **3.34 KB**, dinosaurs **3.02 KB**, alphabets **2.84 KB**, solar-system **2.66 KB**. Total PWA precache: 30 entries, ~165 KB.
+- **Production build sizes (client JS, gzipped):** flashcards **11.28 KB**, weather **3.34 KB**, alphabets **3.07 KB** (+0.23 KB vs the removed card-machine version — extra cost is the progress-tracking + filter-aware navigation), dinosaurs **3.02 KB**, solar-system **2.66 KB**. Total PWA precache: 33 entries, ~182 KB.
+- **Production build sizes (CSS, per page):** card-machine games share `dinosaurs-game.*.css` (17 KB), grid games load `alphabets-game.*.css` (9.2 KB) — isolation verified: zero `gl-*` tokens in the card-machine bundle and zero `cm-*` / `.top-card` / `.press-btn` in the grid bundle.
 
 ---
 
@@ -134,11 +173,12 @@ or (b) document a one-off exception.
 
 Rough order of payoff:
 
-1. **Port the remaining 6 non-story games onto `CardMachineLayout`.** In suggested order (simplest first): `numbers`, `colors`, `shapes`, `animals`, `birds`, `hindi`. Each port is now ~35–50 lines of new CSS theme tokens + ~200–300 lines of page + typed data. The card-face strategy is per-game: Numbers → big digit on card, quantity image on screen. Colors → swatch card + object image on screen. Shapes → CSS-drawn shape on both faces. Animals/Birds/Hindi → Fluent UI image on both faces.
+1. **Port the remaining 6 foundational-set games onto `GridLayout`.** In suggested order (simplest first): `numbers`, `colors`, `shapes`, `animals`, `birds`, `hindi`. Each port is now ~35–50 lines of new `--gl-*` theme tokens + ~200–300 lines of page + typed data. The tile-face strategy is per-game: Numbers → big digit on tile, digit+quantity image in detail. Colors → colour-filled tile + object image in detail. Shapes → CSS-drawn shape on both tile and detail. Animals/Birds/Hindi → big emoji/letter on tile, Fluent UI 3D image in detail.
 2. **Decide whether `StoryLayout.astro` is needed** — Woodcutter and Daily Routines have linear-story flows. First attempt: model each story *page* as a card in the card machine, with press-to-read and Prev/Next. Only carve out a separate layout if that collapses.
-3. **Wire the real Stats + Quiz modals.** Currently both are `alert(…)` stubs in the 5 ported games. Also land the `kids_progress_v1:<gameId>` LocalStorage wrapper in `src/lib/progress.ts` at that time — no game writes to it yet, so we can still refine the shape.
-4. **Add tests.** Playwright smoke test for card-machine games covering filter → navigate → done-overlay + confetti. One test fixture per theme is overkill; one test that iterates over each theme is the sweet spot.
-5. **Cut-over plan (only after all 13 games land).** Migrate `kids-learning-games` (the live repo) to serve the Astro build, with a SW handoff strategy so existing PWA installs upgrade cleanly.
+3. **Wire the real Stats + Quiz modals.** Currently both are `alert(…)` stubs in the 5 ported games. Extract the `kids_progress_v1:<gameId>` LocalStorage logic from `alphabets-game.astro` into `src/lib/progress.ts` the moment a second game needs it — two consumers is the refactor trigger.
+4. **Add tests.** Playwright smoke test per layout (one for card-machine, one for grid): filter → navigate → completion overlay + confetti. Parameterise over themes inside each test so one suite covers every game.
+5. **Option C — unified Deck layout with a grid/card view toggle.** Deferred until all 11 non-story games have shipped. Once we see both shells in production, decide whether to (a) keep them separate (if they've drifted in unavoidable ways) or (b) consolidate into a single `DeckLayout` with a per-user "Grid | Card" toggle so parents can pick the teaching mode. See the codified decision block at the top of the file for motivation.
+6. **Cut-over plan (only after all 13 games land).** Migrate `kids-learning-games` (the live repo) to serve the Astro build, with a SW handoff strategy so existing PWA installs upgrade cleanly.
 
 ### One-off tech-debt items
 
@@ -153,7 +193,117 @@ Rough order of payoff:
 
 ## Changelog
 
+### 2026-04-24 — Course correction #2: Alphabets reverted to a new `GridLayout`
+
+After re-evaluating the previous course-correction, we concluded that
+forcing every foundational-set game into `CardMachineLayout` optimises
+for code uniformity at the expense of pedagogical fit. Industry
+references (Starfall, Khan Academy Kids, DotIAM, Endless Alphabet) all
+split their alphabet / number / colour screens into a **grid** (fixed
+chart, tap-to-hear) and keep the **card machine** for
+reference-catalogue content (dinosaurs, planets, weather). The vanilla
+repo was already doing the same — `alphabet-game.html`,
+`animals-game.html`, `birds.html`, `hindi-alphabets.html`,
+`numbers-game.html`, etc. all use grid markup. So this commit
+reintroduces a grid shell, **but built fresh** (not a revival of the
+deleted `ClassicLayout`): single-column flow rather than a two-pane
+split, because the user called out that the earlier two-pane attempt
+had left/right overlap at mid-widths. Building the redesign
+single-column eliminates that whole class of bug by construction.
+
+Layout responsibilities are now:
+
+- `CardMachineLayout` → reference-catalogue games (Dinosaurs,
+  Flashcards, Solar System, Weather) — unchanged.
+- `GridLayout` **(new)** → foundational-set games (Alphabets now;
+  Numbers, Colors, Shapes, Animals, Birds, Hindi coming).
+- `StoryLayout` (TBD) → Woodcutter, Daily Routines.
+
+- **Added:**
+  - `src/layouts/GridLayout.astro` (~135 lines) — head / PWA / nav /
+    settings-modal / build-info wrapper. `theme` prop accepts the 7
+    foundational-set themes. Body class `grid`, `data-theme` attr.
+    Pre-dark FOUC rule for the default (purple) palette.
+  - `src/styles/grid.css` (~380 lines) — ~25 `--gl-*` CSS custom
+    properties. Responsive single-column shell. Key classes: `.gl-shell`
+    (max-width 860px, centered), `.gl-header`, `.gl-title`,
+    `.gl-progress-pill` (with inline progress bar fill), `.gl-deck`
+    (auto-fill grid, plus `--capped` variant that caps tile width at
+    96px so small decks don't stretch), `.gl-tile` (default / `.learned` /
+    `.active` / `.just-tapped` states + a small corner check badge for
+    learned tiles), `.gl-detail` (inline detail card with big letter,
+    word, Fluent UI image, fact text, prev/next arrows + "Tap to hear"
+    button, plus `--empty` placeholder state before the first tile
+    tap), `.gl-done-overlay` (fixed completion modal + confetti).
+    Dark-mode tokens included.
+  - `src/pages/games/alphabets-game.astro` (~285 lines, rewrite on
+    `GridLayout`). Inline `kids_progress_v1:alphabets` read/write
+    wrapping a `Set<string>` of learned letters. Tile tap flow: play
+    `playTap()` → apply `just-tapped` animation → update detail card
+    → mark learned → persist → smooth-scroll detail into view → speak
+    `"A. A for Apple. Apples come in..."` via `lib/speech`. Filter bar
+    is All / Vowels / Consonants; navigation is filter-aware (prev /
+    next walk only visible tiles); arrow keys also work. Completion
+    overlay fires when all 26 letters are learned.
+- **Reorganised CSS:**
+  - `global.css` — picked up the shared primitives `.ctrl-row`,
+    `.ctrl-pill`, `.cat-bar`, `.cat-btn` (moved out of
+    `card-machine.css`). Each layout now defines only its own
+    `.cat-btn.active` override, using its own theme tokens.
+  - `card-machine.css` — cleaned of duplicated primitives; the
+    `alphabets` theme block and vowel/consonant pill rules introduced
+    in the previous course-correction are gone (they live on in the
+    new grid shell instead).
+  - `CardMachineLayout.astro` — `theme` prop union narrowed back to
+    `flashcards | dinosaurs | solar-system | weather`; the
+    `alphabets` pre-dark FOUC rule removed. Header comment updated
+    to say "reference-catalogue games" and point at `GridLayout` for
+    foundational-set games.
+- **Data stayed stable:** `src/data/alphabets.ts` was *already* shaped
+  for dual consumption (`letter`, `n`, `f`, `e`, `img`, `type`,
+  `label`), so the grid rewrite used the same dataset verbatim. Only
+  the header doc-comment was updated to call out the new consumer
+  pattern and reference the `Option C` roadmap item.
+- **Option C roadmap item added.** Codified as a "deferred decision"
+  right next to the `kids_progress_v1` decision block: unified `Deck`
+  layout with a user-facing grid/card view toggle. Not implementing
+  yet; revisit once all 11 non-story games have shipped in their
+  respective current layouts.
+- **Bundle isolation verified:**
+  - Pages using `GridLayout` link only `alphabets-game.FbyUhjJ7.css`
+    (9.2 KB). Pages using `CardMachineLayout` link only
+    `dinosaurs-game.D1g7kimY.css` (17 KB). Zero cross-contamination
+    confirmed by grep — no `gl-*` tokens in the card-machine bundle,
+    no `cm-*` / `.top-card` / `.press-btn` / `.machine-screen` in the
+    grid bundle.
+  - Precache grew from 30 → 33 entries (~182 KB). Delta is the new
+    HTML page + grid CSS chunk + SW revision.
+- **Bundle sizes (client JS, gzipped):** alphabets **3.07 KB**
+  (vs 2.84 KB on the card-machine version — extra 0.23 KB covers the
+  progress-tracking + filter-aware prev/next helpers).
+- **Principles updated** in this file: rule #3 now documents the
+  two-layout split with the pedagogical rationale, and includes the
+  "use the vanilla layout as a hint for which pedagogy the original
+  designer had in mind" heuristic. Rule #4 now mentions `global.css`
+  as the home for shared chrome primitives across layouts.
+- Build result: `astro check` → 0 errors / 0 warnings / 0 hints.
+- Live: verification pending — push triggers the GitHub Actions
+  deploy; URL is `/games/alphabets-game` on the Pages origin (now
+  rendering `<body class="grid" data-theme="alphabets">`).
+
 ### 2026-04-24 — Course correction: Alphabets re-ported on CardMachineLayout
+
+> **Note:** This course correction was **superseded the same day** —
+> see the "Course correction #2" entry above. The narrower reading
+> of "Astro repo is the source of truth" this entry acted on
+> (everything must be a card-machine) was wrong. Correct reading: the
+> Astro repo is the source of truth about *patterns* (settings,
+> audio, speech, SW, event wiring, TS data files, theming), but
+> **not** about pedagogy. Each game's pedagogical fit (grid vs card
+> machine vs story) is still inherited from the vanilla design. The
+> Alphabets game itself is still shipped, but now on `GridLayout`.
+> This entry is retained for historical context so future
+> contributors can trace the reasoning.
 
 Undid the previous commit: the tile-grid `ClassicLayout.astro` design was
 **wrong**. Per the "Astro repo is the source of truth" principle, every
