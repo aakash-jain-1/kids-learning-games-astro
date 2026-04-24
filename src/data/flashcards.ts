@@ -11,8 +11,10 @@
  * The image CDN base is `FLUENT_IMG_BASE` — compose `${FLUENT_IMG_BASE}${card.img}`.
  */
 
-export const FLUENT_IMG_BASE =
-  'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/';
+// Re-exported so existing `import { FLUENT_IMG_BASE } from '@/data/flashcards'`
+// call sites (e.g. flashcards-game.astro) keep working. The source of truth
+// lives in `@/data/fluent` — new games should import from there directly.
+export { FLUENT_IMG_BASE } from './fluent';
 
 const E = (code: number): string => String.fromCodePoint(code);
 

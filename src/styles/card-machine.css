@@ -77,6 +77,38 @@ body.card-machine[data-theme='flashcards'] {
   --cm-dm-done-bg: rgba(26, 26, 46, 0.92);
 }
 
+/* Weather — deep-navy sky left pane, ice-blue OLED accents */
+body.card-machine[data-theme='weather'] {
+  --cm-screen-color: #64b5f6;
+  --cm-screen-glow: rgba(100, 181, 246, 0.4);
+  --cm-screen-glow-strong: rgba(100, 181, 246, 1);
+  --cm-screen-radial: rgba(100, 181, 246, 0.07);
+  --cm-screen-box-glow: rgba(100, 181, 246, 0.08);
+  --cm-screen-name-shadow: rgba(100, 181, 246, 0.5);
+  --cm-screen-fact-color: rgba(100, 181, 246, 0.55);
+
+  --cm-left-bg: linear-gradient(160deg, #0a1428 0%, #14284e 50%, #1e3c72 100%);
+  --cm-left-bg-dark: linear-gradient(160deg, #050a14 0%, #0a1428 50%, #0f1e3c 100%);
+  --cm-ghost-bg: linear-gradient(150deg, #0a1c3a 0%, #050e1e 100%);
+  --cm-machine-bg: linear-gradient(170deg, #050e1e 0%, #0a1c3a 100%);
+  --cm-plate-bg: linear-gradient(135deg, #0d2050, #050e1e);
+
+  --cm-cat-bg: linear-gradient(135deg, #1565c0, #64b5f6);
+  --cm-cat-color: #fff;
+  --cm-cat-glow: rgba(100, 181, 246, 0.5);
+  --cm-prog-fg: linear-gradient(90deg, #64b5f6, #90caf9);
+
+  --cm-press-bg: linear-gradient(145deg, #64b5f6, #1565c0);
+  --cm-press-bg-hover: linear-gradient(145deg, #80c8ff, #1e7ee0);
+  --cm-press-shadow-deep: #0d47a1;
+  --cm-press-glow: rgba(100, 181, 246, 0.5);
+
+  --cm-done-accent: #64b5f6;
+  --cm-dm-top-card-bg: rgba(20, 30, 50, 0.85);
+  --cm-dm-name-color: #b8d4f0;
+  --cm-dm-done-bg: rgba(20, 30, 50, 0.9);
+}
+
 /* Solar System — deep-space purple/navy left pane, golden accents */
 body.card-machine[data-theme='solar-system'] {
   --cm-screen-color: #f7c948;
@@ -406,6 +438,28 @@ body.card-machine[data-theme='solar-system'] {
   color: #fff;
 }
 
+/* Weather card pills (by season) */
+.card-pill.spring {
+  background: #66bb6a;
+  color: #fff;
+}
+.card-pill.summer {
+  background: #ffa726;
+  color: #1a1a1a;
+}
+.card-pill.autumn {
+  background: #ef6c00;
+  color: #fff;
+}
+.card-pill.winter {
+  background: #42a5f5;
+  color: #fff;
+}
+.card-pill.any {
+  background: #ab47bc;
+  color: #fff;
+}
+
 /* Navigation buttons */
 .deck-nav {
   display: flex;
@@ -669,6 +723,33 @@ body.card-machine[data-theme='solar-system'] {
 .scrn-badge-pill.dwarf {
   background: rgba(156, 39, 176, 0.25);
   border: 1px solid #ce93d8;
+  color: #e1bee7;
+}
+
+/* Weather screen badges (by season) */
+.scrn-badge-pill.spring {
+  background: rgba(102, 187, 106, 0.25);
+  border: 1px solid #66bb6a;
+  color: #a5d6a7;
+}
+.scrn-badge-pill.summer {
+  background: rgba(255, 167, 38, 0.25);
+  border: 1px solid #ffa726;
+  color: #ffcc80;
+}
+.scrn-badge-pill.autumn {
+  background: rgba(239, 108, 0, 0.25);
+  border: 1px solid #ef6c00;
+  color: #ffab40;
+}
+.scrn-badge-pill.winter {
+  background: rgba(66, 165, 245, 0.25);
+  border: 1px solid #42a5f5;
+  color: #bbdefb;
+}
+.scrn-badge-pill.any {
+  background: rgba(171, 71, 188, 0.25);
+  border: 1px solid #ab47bc;
   color: #e1bee7;
 }
 
