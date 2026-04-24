@@ -1,21 +1,23 @@
 # Kids Learning Games — Astro POC
 
-A proof-of-concept migration of the [kids-learning-games](../kids-learning-games) vanilla HTML/CSS/JS PWA to **Astro + TypeScript + @vite-pwa/astro (Workbox)**. **Five games ported end-to-end** across **two shared layouts**: every card-machine game (Dinosaurs, Flashcards, Solar System, Weather) runs through `CardMachineLayout`, and the first classic two-pane game (Alphabets) runs through the new `ClassicLayout`. Together they cover four distinct themes and four different card-face rendering strategies (emoji, pure-CSS art, image-with-fallback, tile-grid).
+A proof-of-concept migration of the [kids-learning-games](../kids-learning-games) vanilla HTML/CSS/JS PWA to **Astro + TypeScript + @vite-pwa/astro (Workbox)**. **Five games ported end-to-end**, all running through one shared shell: `CardMachineLayout`. Dinosaurs, Flashcards, Solar System, Weather, and Alphabets each show a different theme and a different card-face rendering strategy (emoji, pure-CSS art, image-with-fallback, big digit, big letter) — same machine, five coats of paint.
 
 > **Source of truth:** this Astro repo is the authoritative design for
 > every game we port. When the vanilla and Astro versions diverge, the
-> Astro version wins — see **[PROGRESS.md → Migration principles](./PROGRESS.md#migration-principles-the-north-star)**
+> Astro version wins — including *structural* divergence. A vanilla
+> two-pane tile grid (e.g. the old alphabet game) gets reshaped into a
+> card-machine deck, not carried forward as a second layout. See
+> **[PROGRESS.md → Migration principles](./PROGRESS.md#migration-principles-the-north-star)**
 > for the full rule set.
 
 ## What this POC demonstrates
 
 - **Zero-JS-by-default static output**: `astro build` produces plain HTML files. Same deploy target as today (GitHub Pages), same runtime cost. Only the interactive islands (card machine, modals) ship JavaScript.
-- **DRY layouts** (two shells now cover 11 of 13 games):
-  - `CardMachineLayout.astro` replaces the ~500-line shell the vanilla project duplicates across each of its 4 card-machine HTML files. All four of Dinosaurs, Flashcards, Solar System, and Weather render through that single layout — only `data-theme` and the slot content differ.
-  - `ClassicLayout.astro` replaces the ~600-line shell duplicated across each of the 7 classic two-pane HTML files (alphabets, numbers, colors, shapes, animals, birds, hindi). Alphabets is the first game on it; the other 6 are unblocked.
-- **Themeable shared stylesheets**:
-  - `card-machine.css` exposes ~25 CSS custom properties; each card-machine theme is a ~30-line `[data-theme='<game>']` block.
-  - `classic.css` exposes ~30 CSS custom properties for classic games (backdrop, pane surfaces, tile colours, control pills, display area, done overlay).
+- **One shared layout, five games, five themes**:
+  - `CardMachineLayout.astro` replaces the ~500-line shell the vanilla project duplicates across each of its 13 game HTML files. Dinosaurs, Flashcards, Solar System, Weather, and Alphabets all render through that single layout — only `data-theme` and the slot content differ.
+  - Every remaining non-story game in the vanilla repo (Numbers, Colors, Shapes, Animals, Birds, Hindi) will land on this same shell; no second layout is planned.
+- **One themeable shared stylesheet**:
+  - `card-machine.css` exposes ~25 CSS custom properties; each theme is a ~35-line `[data-theme='<game>']` block plus ~10 lines of type-pill colours.
 - **Typed data**: each game's content lives in `src/data/<game>.ts` with named interfaces and `readonly` arrays — TypeScript catches typos in card type/season/diet enums at build time, not at runtime.
 - **Unified settings** (fixes audit H1): a single `kids_settings_v1` LocalStorage key, applied on every page on load.
 - **Shared singleton utilities** (fixes audit H2, M2): one `AudioContext`, one speech wrapper, one achievement toast system.
@@ -45,8 +47,7 @@ A proof-of-concept migration of the [kids-learning-games](../kids-learning-games
 │   │   ├── solar-system.ts       # typed planet cards + type filters
 │   │   └── weather.ts            # typed weather cards + season filters
 │   ├── layouts/
-│   │   ├── CardMachineLayout.astro  # shared shell for card-machine games
-│   │   └── ClassicLayout.astro      # shared shell for classic two-pane games
+│   │   └── CardMachineLayout.astro  # shared shell for every ported game
 │   ├── lib/
 │   │   ├── achievements.ts       # toast + localStorage helper
 │   │   ├── audio.ts              # singleton AudioContext
@@ -62,7 +63,6 @@ A proof-of-concept migration of the [kids-learning-games](../kids-learning-games
 │   │   └── index.astro
 │   └── styles/
 │       ├── card-machine.css      # themeable card-machine visual system
-│       ├── classic.css           # themeable classic two-pane visual system
 │       ├── planets.css           # solar-system-only CSS planet art
 │       └── global.css
 ```
@@ -86,10 +86,10 @@ running from a different repo.
 
 ## What's NOT in scope for this POC
 
-- The remaining 6 classic two-pane games (Numbers, Colors, Shapes, Animals, Birds, Hindi) — `ClassicLayout` is ready; each port is ~60 lines of CSS theme tokens + ~200 lines of page + typed data.
-- Story mode layout (Woodcutter, Daily Routines) — 2 games waiting on `StoryLayout.astro`.
-- Full nav bar (nav lists only the 4 ported card-machine games, Alphabets, and home; other links would 404 until those pages are ported).
-- Quiz mode and full Stats modal — the top-bar buttons exist as `alert(…)` stubs. Settings storage is wired. The `kids_progress_v1:<gameId>` LocalStorage key format is now locked in (alphabets is its first consumer); the shared wrapper helper will land with the real Stats/Quiz modals.
+- The remaining 6 non-story games (Numbers, Colors, Shapes, Animals, Birds, Hindi) — all scheduled to land on `CardMachineLayout`; each port is ~35–50 lines of CSS theme tokens + ~200–300 lines of page + typed data.
+- The 2 story games (Woodcutter, Daily Routines) — we'll first try modelling each story page as a card on the card machine; a separate `StoryLayout.astro` is only carved out if that doesn't fit.
+- Full nav bar (nav lists only the 5 ported games + home; other links would 404 until those pages are ported).
+- Quiz mode and full Stats modal — the top-bar buttons exist as `alert(…)` stubs. Settings storage is wired. The `kids_progress_v1:<gameId>` LocalStorage key shape is still a proposal; the shared wrapper (`src/lib/progress.ts`) will land with the first real Stats/Quiz modal.
 - Full test suite.
 
 ## Comparison at a glance
@@ -100,13 +100,12 @@ running from a different repo.
 | `flashcards-game.html` lines | 1,193 | ~295 (`flashcards-game.astro`) + typed data file |
 | `solar-system-game.html` lines | 739 | ~280 (`solar-system-game.astro`) + typed data file + planets.css |
 | `weather-game.html` lines | 551 | ~280 (`weather-game.astro`) + typed data file |
-| `alphabet-game.html` lines | 1,527 | ~320 (`alphabets-game.astro`) + typed data file |
-| Reused layout lines | ~0 (copy-pasted per game) | ~135 `CardMachineLayout.astro` (4 games) + ~110 `ClassicLayout.astro` (Alphabets + 6 more unblocked) |
-| Shared card-machine CSS | Duplicated 4× inline (~450 lines each) | 1 themeable file (~1000 lines, covers all card-machine games) |
-| Shared classic CSS | Duplicated 7× inline (~600 lines each) | 1 themeable file (~400 lines, covers all classic games) |
+| `alphabet-game.html` lines | 1,527 | ~290 (`alphabets-game.astro`) + typed data file |
+| Reused layout lines | ~0 (copy-pasted per game) | ~140 `CardMachineLayout.astro`, used by all 5 ported games (and every remaining non-story game) |
+| Shared card-machine CSS | Duplicated 4× inline (~450 lines each) | 1 themeable file (~1100 lines, covers every ported game including Alphabets) |
 | Shared JS util lines | Duplicated per game inline | 1 copy under `src/lib/` |
-| Settings storage | `flashcards_settings` vs `darkMode` vs `solar_system_settings` vs `weather_settings` vs `alphabet_learned` | Single `kids_settings_v1` + per-game `kids_progress_v1:<gameId>` |
+| Settings storage | `flashcards_settings` vs `darkMode` vs `solar_system_settings` vs `weather_settings` vs `alphabet_learned` | Single `kids_settings_v1` + per-game `kids_progress_v1:<gameId>` (shape proposed, wrapper lands with Stats/Quiz) |
 | Service worker | Hand-rolled, manual cache name bumps | Workbox, auto-revisioned |
 | Build-info fetch | N× per session, no cache | 1× per hour, SWR cached |
 | Type safety | None | Strict TypeScript |
-| Client JS bundle, gzipped | Inline, unminified | flashcards **11.28 KB**, weather **3.34 KB**, dinosaurs **3.02 KB**, alphabets **2.94 KB**, solar-system **2.66 KB** |
+| Client JS bundle, gzipped | Inline, unminified | flashcards **11.28 KB**, weather **3.34 KB**, dinosaurs **3.02 KB**, alphabets **2.84 KB**, solar-system **2.66 KB** |
