@@ -1,0 +1,315 @@
+---
+import ClassicLayout from '@/layouts/ClassicLayout.astro';
+import { ALPHABET_CARDS, ALPHABET_COUNT } from '@/data/alphabets';
+
+const title = 'Alphabets — Kids Learning Games';
+const description =
+  'Learn the ABCs! Tap a letter to see a word, hear it spoken, and meet a colourful friend.';
+---
+
+<ClassicLayout
+  title={title}
+  description={description}
+  themeColor="#667eea"
+  theme="alphabets"
+>
+  <h1 class="cl-title">🌟 Alphabet Click Game</h1>
+
+  <div class="cl-controls" role="group" aria-label="Game controls">
+    <button class="cl-btn primary random" id="btnRandom" type="button">
+      🎲 Random
+    </button>
+    <button class="cl-btn primary speak" id="btnSpeak" type="button">
+      🔊 Speak
+    </button>
+    <button class="cl-btn primary reset" id="btnReset" type="button">
+      🔄 Reset
+    </button>
+    <button class="cl-btn" id="btnQuiz" type="button">🎯 Quiz</button>
+    <button class="cl-btn" id="btnStats" type="button">📊 Stats</button>
+    <button class="cl-btn" id="btnSettings" type="button">⚙️ Settings</button>
+    <div class="cl-progress" aria-live="polite">
+      <span id="progText">0</span> / {ALPHABET_COUNT} learned
+    </div>
+  </div>
+
+  <main class="cl-main">
+    <section class="cl-pane" aria-label="Letter grid">
+      <div class="cl-grid" id="alphabetGrid" role="group" aria-label="Select a letter">
+        {
+          ALPHABET_CARDS.map((card) => (
+            <button
+              class="cl-tile"
+              type="button"
+              data-letter={card.letter}
+              aria-label={`Letter ${card.letter}`}
+            >
+              {card.letter}
+            </button>
+          ))
+        }
+      </div>
+    </section>
+
+    <section class="cl-pane right" aria-label="Letter display">
+      <div class="cl-display" id="displayArea">
+        <p class="cl-display-empty" id="displayEmpty">
+          👉 Tap any letter to start learning!
+        </p>
+      </div>
+      <p class="cl-display-tip">
+        💡 Tip: Press letter keys A–Z, arrows to navigate, R for random, Space to speak.
+      </p>
+    </section>
+  </main>
+
+  <div
+    class="cl-done"
+    id="doneOverlay"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="doneTitle"
+  >
+    <div class="cl-done-card">
+      <div style="font-size: 3em" aria-hidden="true">🎉</div>
+      <h2 id="doneTitle">Amazing!</h2>
+      <p id="doneMsg">You learned every letter from A to Z!</p>
+      <button class="cl-done-restart" id="btnRestart" type="button">
+        🔄 Play Again
+      </button>
+    </div>
+  </div>
+</ClassicLayout>
+
+<script>
+  import {
+    ALPHABET_CARDS,
+    ALPHABET_BY_LETTER,
+    ALPHABET_COUNT,
+    FLUENT_IMG_BASE,
+    type AlphabetCard,
+  } from '@/data/alphabets';
+  import { speak } from '@/lib/speech';
+  import { playTap } from '@/lib/audio';
+  import { launchConfetti } from '@/lib/achievements';
+  import { getSettings } from '@/lib/settings';
+
+  const STORAGE_KEY = 'kids_progress_v1:alphabets';
+  const ALPHA_COLORS = ['#667eea', '#764ba2', '#f093fb', '#4caf50', '#ffeb3b', '#ff6b6b'];
+
+  const $ = <T extends HTMLElement = HTMLElement>(id: string): T =>
+    document.getElementById(id) as T;
+
+  let currentLetter: string | null = null;
+  const learned = loadLearned();
+
+  function loadLearned(): Set<string> {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return new Set();
+      const parsed = JSON.parse(raw) as unknown;
+      if (!Array.isArray(parsed)) return new Set();
+      return new Set(parsed.filter((x): x is string => typeof x === 'string'));
+    } catch {
+      return new Set();
+    }
+  }
+
+  function saveLearned(): void {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify([...learned]));
+    } catch {
+      /* storage full or disabled — state stays in-memory */
+    }
+  }
+
+  function renderDisplay(card: AlphabetCard): void {
+    const area = $('displayArea');
+    area.innerHTML = '';
+
+    const title = document.createElement('div');
+    title.className = 'cl-display-title';
+    title.textContent = `${card.letter} for ${card.word}`;
+    area.appendChild(title);
+
+    const img = document.createElement('img');
+    img.className = 'cl-display-image';
+    img.src = FLUENT_IMG_BASE + card.img;
+    img.alt = card.word;
+    img.loading = 'lazy';
+    img.decoding = 'async';
+    img.addEventListener('error', () => {
+      const fallback = document.createElement('div');
+      fallback.className = 'cl-display-emoji';
+      fallback.textContent = card.e;
+      img.replaceWith(fallback);
+    });
+    area.appendChild(img);
+
+    const fact = document.createElement('p');
+    fact.className = 'cl-display-tip';
+    fact.textContent = card.fact;
+    area.appendChild(fact);
+  }
+
+  function showLetter(letter: string, opts: { speakIt?: boolean } = {}): void {
+    const card = ALPHABET_BY_LETTER.get(letter);
+    if (!card) return;
+    currentLetter = letter;
+
+    renderDisplay(card);
+
+    learned.add(letter);
+    saveLearned();
+    updateProgress();
+    updateTiles();
+
+    const shouldSpeak = opts.speakIt ?? getSettings().autoSpeak;
+    if (shouldSpeak) {
+      speak(`${card.letter} for ${card.word}!`);
+    }
+
+    if (learned.size === ALPHABET_COUNT) {
+      showDone();
+    }
+  }
+
+  function updateProgress(): void {
+    $('progText').textContent = String(learned.size);
+  }
+
+  function updateTiles(): void {
+    document.querySelectorAll<HTMLButtonElement>('.cl-tile').forEach((tile) => {
+      const letter = tile.dataset.letter;
+      if (!letter) return;
+      tile.classList.toggle('learned', learned.has(letter));
+      tile.classList.toggle('active', letter === currentLetter);
+    });
+  }
+
+  function resetDisplay(): void {
+    const area = $('displayArea');
+    area.innerHTML = '';
+    const p = document.createElement('p');
+    p.className = 'cl-display-empty';
+    p.id = 'displayEmpty';
+    p.textContent = '👉 Tap any letter to start learning!';
+    area.appendChild(p);
+  }
+
+  function resetAll(): void {
+    learned.clear();
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      /* noop */
+    }
+    currentLetter = null;
+    resetDisplay();
+    updateProgress();
+    updateTiles();
+    $('doneOverlay').classList.remove('show');
+    speak('Starting over!');
+  }
+
+  function showRandom(): void {
+    const idx = Math.floor(Math.random() * ALPHABET_CARDS.length);
+    const card = ALPHABET_CARDS[idx]!;
+    showLetter(card.letter, { speakIt: true });
+  }
+
+  function speakCurrent(): void {
+    if (!currentLetter) {
+      speak('Tap a letter first!');
+      return;
+    }
+    const card = ALPHABET_BY_LETTER.get(currentLetter);
+    if (!card) return;
+    speak(`${card.letter} for ${card.word}. ${card.fact}`);
+  }
+
+  function showDone(): void {
+    $('doneMsg').textContent =
+      `You learned every letter from A to Z — that's ${ALPHABET_COUNT} letters!`;
+    $('doneOverlay').classList.add('show');
+    launchConfetti(ALPHA_COLORS);
+  }
+
+  function navigate(dir: 1 | -1): void {
+    const letters = ALPHABET_CARDS.map((c) => c.letter);
+    if (!currentLetter) {
+      showLetter(letters[0]!, { speakIt: true });
+      return;
+    }
+    const i = letters.indexOf(currentLetter);
+    const next = letters[(i + dir + letters.length) % letters.length];
+    if (next) showLetter(next, { speakIt: true });
+  }
+
+  // Wire up events
+
+  document.querySelectorAll<HTMLButtonElement>('.cl-tile').forEach((tile) => {
+    tile.addEventListener('click', () => {
+      const letter = tile.dataset.letter;
+      if (!letter) return;
+      tile.classList.add('flipping');
+      setTimeout(() => tile.classList.remove('flipping'), 600);
+      playTap();
+      showLetter(letter, { speakIt: true });
+    });
+  });
+
+  $('btnRandom').addEventListener('click', () => {
+    playTap();
+    showRandom();
+  });
+  $('btnSpeak').addEventListener('click', () => {
+    playTap();
+    speakCurrent();
+  });
+  $('btnReset').addEventListener('click', () => {
+    playTap();
+    resetAll();
+  });
+  $('btnRestart').addEventListener('click', () => {
+    playTap();
+    resetAll();
+  });
+
+  $('btnSettings').addEventListener('click', () => {
+    (window as unknown as { openSettings?: () => void }).openSettings?.();
+  });
+  $('btnStats').addEventListener('click', () => {
+    alert('Stats modal — not yet implemented in this POC.');
+  });
+  $('btnQuiz').addEventListener('click', () => {
+    alert('Quiz modal — not yet implemented in this POC.');
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.target instanceof HTMLInputElement) return;
+
+    const key = e.key;
+    if (key === 'ArrowRight') {
+      e.preventDefault();
+      navigate(1);
+    } else if (key === 'ArrowLeft') {
+      e.preventDefault();
+      navigate(-1);
+    } else if (key === ' ') {
+      if (e.target instanceof HTMLButtonElement) return;
+      e.preventDefault();
+      speakCurrent();
+    } else if (key.toLowerCase() === 'r') {
+      e.preventDefault();
+      showRandom();
+    } else if (/^[a-zA-Z]$/.test(key)) {
+      e.preventDefault();
+      showLetter(key.toUpperCase(), { speakIt: true });
+    }
+  });
+
+  // Hydrate "learned" state on first paint
+  updateProgress();
+  updateTiles();
+</script>
