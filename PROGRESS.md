@@ -92,17 +92,19 @@ or (b) document a one-off exception.
 ## Current status (snapshot)
 
 - **Stack landed:** Astro `5.18.1` + strict TypeScript + `@vite-pwa/astro` `1.2.0` with `injectManifest` + Workbox 7.
-- **Games ported (3 of 13):**
+- **Games ported (4 of 13):** 🎉 **card-machine cluster complete**.
   - Dinosaurs (card-machine, default green theme, 15 cards, diet filter)
   - Flashcards (card-machine, cyan/orange theme, 14 decks, 4 card-face variants)
   - Solar System (card-machine, purple/gold theme, 11 cards, pure-CSS planet art, type filter)
-- **Vanilla games still to port (10):**
-  `alphabets-game`, `numbers-game`, `colors-game`, `shapes-game`, `animals-game`, `birds-game`, `hindi-game`, `vehicles-game`, `transport-game`, `weather-game`, `woodcutter-story`, `daily-routines-story`.
-  (Weather reuses the existing `CardMachineLayout` — ~1 hour. The classic two-pane games unblock after `ClassicLayout.astro` lands.)
+  - Weather (card-machine, deep-navy/ice-blue theme, 20 cards, season filter, full Fluent UI image deck)
+- **Vanilla games still to port (9):**
+  `alphabets-game`, `numbers-game`, `colors-game`, `shapes-game`, `animals-game`, `birds-game`, `hindi-game`, `vehicles-game`, `transport-game`, `woodcutter-story`, `daily-routines-story`.
+  (The classic two-pane games unblock after `ClassicLayout.astro` lands; the two story games share a third layout.)
 - **Shared infra in place:**
-  - `CardMachineLayout.astro` shell — used by all 3 ported games.
+  - `CardMachineLayout.astro` shell — used by all 4 ported games. **Proven reusable four times; the shell is done.**
   - `card-machine.css` with ~25 theming CSS custom properties, so per-game theming is ~60 lines of CSS (palette + type-pill colours).
   - `src/lib/`: singleton AudioContext, speech wrapper, unified settings, achievement toasts + confetti.
+  - `src/data/fluent.ts` — shared `FLUENT_IMG_BASE` constant (consumers: flashcards, weather; more to come).
   - Workbox SW (`src/sw.ts`) with StaleWhileRevalidate for the GitHub API and CacheFirst for Fluent emoji images.
 - **Dev ergonomics:**
   - `npm run dev:fresh` — kills any stale dev/preview servers scoped to this project, then starts a clean one on `:4321`.
@@ -112,8 +114,9 @@ or (b) document a one-off exception.
   - `/games/flashcards-game` — 200
   - `/games/dinosaurs-game` — 200
   - `/games/solar-system-game` — 200 ✅ (verified 2026-04-24, both extensionless + `.html`)
+  - `/games/weather-game` — 200 ✅ (verified 2026-04-24, both extensionless + `.html`; `data-theme="weather"` reaches `<body>` in production, first card SSR renders "Sunny" with `card-pill summer`)
   - `/manifest.webmanifest`, `/sw.js`, `/.nojekyll` — all 200
-- **Production build sizes (client JS, gzipped):** flashcards **11.31 KB**, dinosaurs **3.02 KB**, solar-system **2.66 KB**. Total PWA precache: 25 entries, ~125 KB.
+- **Production build sizes (client JS, gzipped):** flashcards **11.28 KB**, weather **3.34 KB**, dinosaurs **3.02 KB**, solar-system **2.66 KB**. Total PWA precache: 28 entries, ~146 KB.
 
 ---
 
@@ -121,16 +124,79 @@ or (b) document a one-off exception.
 
 Rough order of payoff:
 
-1. **Port Weather** — last of the card-machine games. Reuses `CardMachineLayout` + theme overrides + its own mini CSS (weather icons). ~1 hour.
-2. **Build `ClassicLayout.astro`** — for the 9 two-pane games (`alphabets`, `numbers`, `colors`, `shapes`, `animals`, `birds`, `hindi`, `vehicles`, `transport`). That layout is the second big duplication cluster in the vanilla codebase. Unblocks porting all 9 games.
-3. **Build `StoryLayout.astro`** — for Woodcutter and Daily Routines. Different enough from the other two that it needs its own shell.
-4. **Wire the real Stats + Quiz modals.** Currently both are `alert(…)` stubs in the ported games. While we're in there, finalise the `kids_progress_v1`-keyed-by-gameId LocalStorage pattern (see principle #4 in the "Not yet codified" list above).
-5. **Add tests.** At minimum, one Playwright smoke test per layout (Card / Classic / Story) covering filter → navigate → done-overlay + confetti.
-6. **Cut-over plan (only after all 13 games land).** Migrate `kids-learning-games` (the live repo) to serve the Astro build, with a SW handoff strategy so existing PWA installs upgrade cleanly.
+1. **Build `ClassicLayout.astro`** — for the 9 two-pane games (`alphabets`, `numbers`, `colors`, `shapes`, `animals`, `birds`, `hindi`, `vehicles`, `transport`). That layout is the second big duplication cluster in the vanilla codebase. Unblocks porting all 9 games.
+2. **Build `StoryLayout.astro`** — for Woodcutter and Daily Routines. Different enough from the other two that it needs its own shell.
+3. **Wire the real Stats + Quiz modals.** Currently both are `alert(…)` stubs in the 4 ported games. While we're in there, finalise the `kids_progress_v1`-keyed-by-gameId LocalStorage pattern (see the "Not yet codified" list in Migration principles above).
+4. **Add tests.** At minimum, one Playwright smoke test per layout (Card / Classic / Story) covering filter → navigate → done-overlay + confetti.
+5. **Cut-over plan (only after all 13 games land).** Migrate `kids-learning-games` (the live repo) to serve the Astro build, with a SW handoff strategy so existing PWA installs upgrade cleanly.
+
+### One-off tech-debt items
+
+- `FLUENT_IMG_BASE` is now consumed by 2 data files — it was moved to
+  `src/data/fluent.ts` during the Weather port and re-exported from
+  `flashcards.ts` for backward compatibility. If a third consumer lands
+  (likely once Classic games start using Fluent images too), audit the
+  flashcards re-export and consider removing it.
 
 ---
 
 ## Changelog
+
+### 2026-04-24 — Weather game ported ✅ (card-machine cluster complete)
+
+Fourth and final card-machine game ported. With Weather landing, every
+card-machine game in the vanilla codebase now runs on the shared
+`CardMachineLayout` shell — the shell has been proven against four
+visually-distinct themes and three different card-face strategies
+(emoji, pure-CSS art, image-with-fallback).
+
+- `src/data/fluent.ts` — **new shared module**: `FLUENT_IMG_BASE`
+  constant for the Fluent UI emoji CDN. `flashcards.ts` still
+  re-exports it so its existing importers are unaffected (see
+  the tech-debt note below for the eventual cleanup).
+- `src/data/weather.ts` — 20 typed `WeatherCard` entries + 6
+  `WeatherFilter`s + a `seasonLabel()` helper. `Season` enum is a
+  strict union of `spring | summer | autumn | winter | any`.
+- **Image-source change vs vanilla:** vanilla Weather pulled its
+  visuals from `api.iconify.design/noto/*.svg`, but no other game
+  in the Astro port uses Iconify. To keep a single runtime-cache
+  origin (already configured as CacheFirst in `src/sw.ts`), we
+  mapped every vanilla card to the closest Fluent UI 3D PNG. All 17
+  distinct asset paths were pre-verified against `cdn.jsdelivr.net`
+  returning 200 OK before committing.
+- `src/styles/card-machine.css` — new `[data-theme='weather']`
+  palette (deep-navy sky left pane, ice-blue OLED screen + glow,
+  cornflower-blue press button) and 5 new season pills for both
+  `.card-pill` and `.scrn-badge-pill` (spring/summer/autumn/winter/
+  any).
+- `src/layouts/CardMachineLayout.astro` — accepts `weather` as a
+  `theme` option; pre-dark FOUC rule added for the deep-navy palette.
+- `src/pages/games/weather-game.astro` — **~280 lines** vs 551 in
+  the vanilla (-49%). Reuses `buildCardFace` / `buildScreenFace`
+  image-variant pattern from flashcards: every card renders as an
+  `<img>` with an emoji fallback on `error`, so the page still
+  works offline before the SW warms up, and on mobile devices that
+  blacklist the CDN.
+- `src/components/GameNav.astro` + `src/pages/index.astro` — expose
+  the new game (home tile now links to the real page, not `#`).
+- Deviations from vanilla (all match the migration principles by
+  design):
+  - Fluent UI 3D PNGs via jsDelivr (vanilla: Iconify Noto SVGs).
+  - Unified `kids_settings_v1` (vanilla had `weather_*` keys).
+  - Singleton `AudioContext` (vanilla built its own in-page).
+  - Shared `launchConfetti()` (vanilla had a local copy).
+  - Event wiring via `addEventListener` (vanilla used `onclick="…"`).
+  - Theme via CSS vars (vanilla had ~120 lines of hardcoded colours).
+  - `FLUENT_IMG_BASE` extracted to `src/data/fluent.ts` so future
+    image-based games (classic `alphabets`, `birds`, `animals`, etc.)
+    can import the same constant without coupling to flashcards.
+- Build result: `astro check` 0 errors / 0 warnings / 0 hints;
+  client bundle **8.17 KB raw / 3.34 KB gzip** (vs vanilla's ~33 KB
+  inline). CSS isolation verified — weather links only the shared
+  card-machine CSS chunk, no `planets.css`.
+- Precache rose from 25 → 28 entries (~125 → ~146 KB) — the delta is
+  the new weather page HTML plus the Fluent image manifest entries.
+- Live: https://aakash-jain-1.github.io/kids-learning-games-astro/games/weather-game — verified 200 OK, `data-theme="weather"` reaches `<body>` in production, home tile links to the real page (no longer `#`), 5 season filters rendered with correct `data-key`s, first card SSR renders "Sunny" with `card-pill summer`. Both `sun_3d.png` and `rainbow_3d.png` spot-checked on jsDelivr → 200.
 
 ### 2026-04-24 — Migration principles codified
 
