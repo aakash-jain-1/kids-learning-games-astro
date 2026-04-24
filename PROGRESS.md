@@ -111,7 +111,7 @@ or (b) document a one-off exception.
   - `/` (home) — 200
   - `/games/flashcards-game` — 200
   - `/games/dinosaurs-game` — 200
-  - `/games/solar-system-game` — (pending post-push verification)
+  - `/games/solar-system-game` — 200 ✅ (verified 2026-04-24, both extensionless + `.html`)
   - `/manifest.webmanifest`, `/sw.js`, `/.nojekyll` — all 200
 - **Production build sizes (client JS, gzipped):** flashcards **11.31 KB**, dinosaurs **3.02 KB**, solar-system **2.66 KB**. Total PWA precache: 25 entries, ~125 KB.
 
@@ -181,6 +181,7 @@ confirmation that adding a new card-machine game is a ~600-line change
   - Theme via CSS vars (vanilla had ~100 lines of hardcoded colours).
 - Build result: `astro check` 0 errors / 0 warnings / 0 hints; client
   bundle **6.20 KB raw / 2.66 KB gzip** (vs vanilla's ~32 KB inline).
+- Live: https://aakash-jain-1.github.io/kids-learning-games-astro/games/solar-system-game — verified 200 OK, `data-theme="solar-system"` reaches `<body>` in production, home tile links to the real page (no longer `#`).
 
 ### 2026-04-24 — first live deploy ✅
 
