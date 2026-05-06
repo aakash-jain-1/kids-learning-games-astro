@@ -164,7 +164,7 @@ or (b) document a one-off exception.
   - `/games/solar-system-game` — 200 ✅ (verified 2026-04-24, both extensionless + `.html`)
   - `/games/weather-game` — 200 ✅ (verified 2026-04-24, both extensionless + `.html`; `data-theme="weather"` reaches `<body>` in production, first card SSR renders "Sunny" with `card-pill summer`)
   - `/games/alphabets-game` — 200 ✅ (verified 2026-04-24, `<body class="grid" data-theme="alphabets">` reaches production, all 26 `.gl-tile` tiles SSR-rendered, 3 filter pills present, progress counter initialises at `0 / 26`, done overlay markup present, zero `cm-*` / `.top-card` / `.press-btn` contamination)
-  - `/games/numbers-game` — verification pending push (verified locally: `<body class="grid" data-theme="numbers">`, all 10 `.gl-tile` tiles SSR-rendered with `data-num` 1–10 + correct `data-group="low"`/`"high"`, 3 filter pills (`all` / `low` / `high`), progress counter initialises at `0 / 10`, `.gl-count-grid` placeholder present, zero `cm-*` / card-machine classes)
+  - `/games/numbers-game` — 200 ✅ (verified 2026-05-06, `<body class="grid" data-theme="numbers">` reaches production, all 10 `.gl-tile` tiles SSR-rendered with `data-num` 1–10 + correct `data-group="low"`/`"high"`, 3 filter pills (`all` / `low` / `high`), progress counter initialises at `0 / 10`, `.gl-count-grid` placeholder + `.gl-deck--numbers` deck variant present, zero `card-machine` / `cm-tile` / `press-btn` / `machine-screen` / `top-card` cross-contamination. **Shared progress chunk verified:** both `alphabets-game.…js` and `numbers-game.…js` reference `/_astro/progress.Czz_LiQd.js` (331 bytes raw) — first browser visit caches it, second game loads it from cache.)
   - `/manifest.webmanifest`, `/sw.js`, `/.nojekyll` — all 200
 - **Production build sizes (client JS, gzipped):** flashcards **11.28 KB**, weather **3.34 KB**, dinosaurs **3.02 KB**, alphabets **2.96 KB** (-0.11 KB vs pre-`progress.ts`-extract — saving is the inlined helper now reused), solar-system **2.66 KB**, numbers **2.08 KB** (cheapest game so far — no image preloading + simpler interactions). Shared `progress.ts` chunk: **0.24 KB**. Total PWA precache: 36 entries, ~203 KB (was 33 / 182 KB).
 - **Production build sizes (CSS, per page):** card-machine games share `dinosaurs-game.*.css` (17 KB), grid games share `alphabets-game.*.css` (12.7 KB, was 9.2 KB pre-numbers — delta is ~35 lines of `--gl-*` numbers theme tokens + count-object styles + `--numbers` deck variant). Isolation verified: zero `gl-*` / `gl-count-*` / `gl-deck--numbers` tokens in the card-machine bundle, zero `cm-*` / `.top-card` / `.press-btn` in the grid bundle.
@@ -332,9 +332,7 @@ sub-day port.
   the new HTML page + larger grid CSS chunk + new shared progress JS
   chunk + SW revision.
 - Build result: `astro check` → 0 errors / 0 warnings / 0 hints.
-- Live: verification pending — push triggers the GitHub Actions
-  deploy; URL is `/games/numbers-game` on the Pages origin (will
-  render `<body class="grid" data-theme="numbers">`).
+- Live: https://aakash-jain-1.github.io/kids-learning-games-astro/games/numbers-game — verified 2026-05-06 (commit `8b5fe96`). Production markup shows `<body class="grid" data-theme="numbers">`, 10 `.gl-tile` tiles SSR-rendered with `data-num` 1–10 and matching `data-group` (`low` for 1–5, `high` for 6–10), 3 filter pills (`all` / `low` / `high`), `0 / 10` initial progress, `.gl-count-grid` placeholder. Cross-check: alphabets still 26 tiles + `data-theme="alphabets"`, dinosaurs still `<body class="card-machine">` + correct title — no regressions from the `progress.ts` extract or the CSS chunk merge. Both alphabets and numbers JS chunks verified to import the same shared `/_astro/progress.Czz_LiQd.js` (331 bytes raw, 0.24 KB gzip) — second-game visit hits the cache.
 
 ### 2026-05-06 — Per-game layout decisions logged + Numbers spec corrected
 
