@@ -101,7 +101,7 @@ running from a different repo.
 
 ## What's NOT in scope for this POC
 
-- The remaining 6 foundational-set games (Numbers, Colors, Shapes, Animals, Birds, Hindi) — all scheduled to land on `GridLayout`; each port is ~35–50 lines of `--gl-*` theme tokens + ~200–300 lines of page + typed data.
+- The remaining 6 foundational-set games (Numbers, Colors, Shapes, Animals, Birds, Hindi) — all scheduled to land on `GridLayout`; each port is ~35–50 lines of `--gl-*` theme tokens + ~200–300 lines of page + typed data. Per-game layout decisions and gotchas are tracked in [`PROGRESS.md → Per-game layout decisions for the 8 pending ports`](./PROGRESS.md#per-game-layout-decisions-for-the-8-pending-ports).
 - The 2 story games (Woodcutter, Daily Routines) — we'll first try modelling each story page as a card on the card machine; a separate `StoryLayout.astro` is only carved out if that doesn't fit.
 - Full nav bar (nav lists only the 5 ported games + home; other links would 404 until those pages are ported).
 - Option C — a unified `DeckLayout` with a per-user grid/card view toggle that would consolidate `CardMachineLayout` + `GridLayout` into one. Deferred until all 11 non-story games have shipped in their respective current layouts; see the "Not yet codified" block in PROGRESS.md.
