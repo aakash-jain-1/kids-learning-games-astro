@@ -1,0 +1,435 @@
+---
+import GridLayout from '@/layouts/GridLayout.astro';
+import { ALL_CARDS, FILTERS } from '@/data/colors';
+
+const title = 'Colors — Kids Learning Games';
+const description =
+  'Learn 12 colours with a tap-to-explore swatch grid, a CSS shape gallery, and warm/cool/neutral filtering for kids.';
+
+const totalCards = ALL_CARDS.length;
+---
+
+<GridLayout
+  title={title}
+  description={description}
+  themeColor="#4b2070"
+  theme="colors"
+>
+  <main class="gl-shell" aria-label="Colors game">
+    <header class="gl-header">
+      <h1 class="gl-title">
+        <span class="gl-title-emoji" aria-hidden="true">🎨</span>
+        Colors
+      </h1>
+
+      <div class="gl-header-right">
+        <span
+          class="gl-progress-pill"
+          id="progressPill"
+          aria-label={`Progress: 0 of ${totalCards} colours learned`}
+        >
+          <span id="progressText">0 / {totalCards}</span>
+          <span class="gl-progress-bar" aria-hidden="true">
+            <span class="gl-progress-bar-fill" id="progressFill"></span>
+          </span>
+        </span>
+        <div class="ctrl-row">
+          <button class="ctrl-pill" id="btnQuiz" type="button">🧠 Quiz</button>
+          <button class="ctrl-pill" id="btnStats" type="button">📊 Stats</button>
+          <button class="ctrl-pill" id="btnSettings" type="button">⚙️ Settings</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="cat-bar" id="catBar" role="group" aria-label="Colour filter">
+      {
+        FILTERS.map((f) => (
+          <button
+            class={`cat-btn${f.key === 'all' ? ' active' : ''}`}
+            data-key={f.key}
+            type="button"
+          >
+            {f.label}
+          </button>
+        ))
+      }
+    </div>
+
+    <div class="gl-deck gl-deck--colors" id="deck" role="list" aria-label="Colour swatches">
+      {
+        ALL_CARDS.map((c, i) => (
+          <button
+            class={`gl-tile gl-tile--swatch${c.light ? ' gl-tile--light' : ''}`}
+            type="button"
+            role="listitem"
+            data-idx={i}
+            data-name={c.name}
+            data-group={c.group}
+            data-light={c.light ? 'true' : 'false'}
+            style={`--swatch: ${c.hex};`}
+            aria-label={`Colour ${c.name}`}
+          >
+            {c.name}
+            <span class="gl-tile-check" aria-hidden="true">✓</span>
+          </button>
+        ))
+      }
+    </div>
+
+    <section class="gl-detail gl-detail--empty" id="detail" aria-live="polite">
+      <div class="gl-detail-inner">
+        <div class="gl-detail-head">
+          <span class="gl-detail-letter" id="detailName">Red</span>
+          <div class="gl-detail-word-row">
+            <span class="gl-detail-word" id="detailHex">#FF0000</span>
+            <span class="gl-detail-pill" id="detailPill">Warm</span>
+          </div>
+        </div>
+
+        <div class="gl-detail-image-wrap">
+          <div
+            class="gl-shape-grid"
+            id="shapeGrid"
+            aria-hidden="true"
+          >
+            <div class="gl-shape gl-shape--circle"></div>
+            <div class="gl-shape gl-shape--square"></div>
+            <div class="gl-shape gl-shape--rounded"></div>
+            <div class="gl-shape gl-shape--diamond"></div>
+            <div class="gl-shape gl-shape--triangle"></div>
+          </div>
+        </div>
+
+        <p class="gl-detail-fact" id="detailFact">
+          Tap any colour above to see it come to life!
+        </p>
+
+        <div class="gl-detail-actions">
+          <button
+            class="gl-detail-arrow"
+            id="prevBtn"
+            type="button"
+            aria-label="Previous colour"
+          >
+            ◀
+          </button>
+          <button
+            class="gl-detail-hear"
+            id="hearBtn"
+            type="button"
+            aria-label="Play colour name"
+          >
+            🔊 Tap to hear
+          </button>
+          <button
+            class="gl-detail-arrow"
+            id="nextBtn"
+            type="button"
+            aria-label="Next colour"
+          >
+            ▶
+          </button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="gl-done-overlay" id="doneOverlay" role="dialog" aria-live="polite" aria-labelledby="doneTitle">
+    <div class="gl-done-card">
+      <h2 id="doneTitle">Colour master! 🎉</h2>
+      <p>You've explored all 12 colours. Want to paint with them again?</p>
+      <button class="gl-done-restart" id="restartBtn" type="button">
+        Start Over
+      </button>
+    </div>
+  </div>
+</GridLayout>
+
+<script>
+  import { playTap } from '@/lib/audio';
+  import { speak } from '@/lib/speech';
+  import { launchConfetti } from '@/lib/achievements';
+  import { getSettings } from '@/lib/settings';
+  import { loadLearned, saveLearned } from '@/lib/progress';
+  import { ALL_CARDS } from '@/data/colors';
+
+  const GAME_ID = 'colors';
+
+  // --- State ---
+  let learned = loadLearned(GAME_ID);
+  let activeIdx: number | null = null;
+  let activeFilter: 'all' | 'warm' | 'cool' | 'neutral' = 'all';
+
+  // --- DOM refs ---
+  const deckEl = document.getElementById('deck')!;
+  const detailEl = document.getElementById('detail')!;
+  const detailName = document.getElementById('detailName')!;
+  const detailHex = document.getElementById('detailHex')!;
+  const detailPill = document.getElementById('detailPill')!;
+  const detailFact = document.getElementById('detailFact')!;
+  const shapeGrid = document.getElementById('shapeGrid')!;
+  const prevBtn = document.getElementById('prevBtn') as HTMLButtonElement;
+  const nextBtn = document.getElementById('nextBtn') as HTMLButtonElement;
+  const hearBtn = document.getElementById('hearBtn') as HTMLButtonElement;
+  const progressText = document.getElementById('progressText')!;
+  const progressFill = document.getElementById('progressFill')!;
+  const catBar = document.getElementById('catBar')!;
+  const doneOverlay = document.getElementById('doneOverlay')!;
+  const restartBtn = document.getElementById('restartBtn') as HTMLButtonElement;
+
+  const tiles = Array.from(
+    deckEl.querySelectorAll<HTMLButtonElement>('.gl-tile'),
+  );
+
+  // --- Helpers ---
+  const tileVisible = (t: HTMLButtonElement): boolean =>
+    activeFilter === 'all' || t.dataset.group === activeFilter;
+
+  const updateProgressUI = (): void => {
+    const n = learned.size;
+    const total = ALL_CARDS.length;
+    progressText.textContent = `${n} / ${total}`;
+    progressFill.style.width = `${(n / total) * 100}%`;
+    document
+      .getElementById('progressPill')
+      ?.setAttribute('aria-label', `Progress: ${n} of ${total} colours learned`);
+  };
+
+  const applyTileStates = (): void => {
+    for (const t of tiles) {
+      const name = t.dataset.name!;
+      t.classList.toggle('learned', learned.has(name));
+      t.classList.toggle(
+        'active',
+        activeIdx !== null && +t.dataset.idx! === activeIdx,
+      );
+      t.hidden = !tileVisible(t);
+    }
+  };
+
+  const applyFilter = (key: 'all' | 'warm' | 'cool' | 'neutral'): void => {
+    activeFilter = key;
+    for (const b of catBar.querySelectorAll<HTMLButtonElement>('.cat-btn')) {
+      b.classList.toggle('active', b.dataset.key === key);
+    }
+    applyTileStates();
+  };
+
+  // Repaint the shape gallery with the active colour. Re-creating the
+  // nodes (rather than just reassigning style) restarts the pop
+  // animation per render — same trick the alphabets `.pop` class uses
+  // for the image fade-in.
+  const renderShapes = (hex: string, light: boolean): void => {
+    shapeGrid.classList.toggle('gl-shape-grid--light', light);
+    shapeGrid.style.setProperty('--gl-shape-color', hex);
+
+    const shapes: ReadonlyArray<string> = [
+      'gl-shape--circle',
+      'gl-shape--square',
+      'gl-shape--rounded',
+      'gl-shape--diamond',
+      'gl-shape--triangle',
+    ];
+    shapeGrid.innerHTML = '';
+    const frag = document.createDocumentFragment();
+    for (const cls of shapes) {
+      const el = document.createElement('div');
+      el.className = `gl-shape ${cls}`;
+      frag.appendChild(el);
+    }
+    shapeGrid.appendChild(frag);
+  };
+
+  const showDetail = (idx: number, opts: { scroll?: boolean } = {}): void => {
+    const c = ALL_CARDS[idx];
+    if (!c) return;
+    activeIdx = idx;
+
+    detailEl.classList.remove('gl-detail--empty');
+    detailName.textContent = c.name;
+    detailHex.textContent = c.hex;
+    detailPill.textContent = c.label;
+    detailPill.dataset.group = c.group;
+    detailFact.textContent = c.fact;
+
+    renderShapes(c.hex, c.light);
+
+    const visibleIdxs = tiles.filter(tileVisible).map((t) => +t.dataset.idx!);
+    const posInFiltered = visibleIdxs.indexOf(idx);
+    prevBtn.disabled = posInFiltered <= 0;
+    nextBtn.disabled =
+      posInFiltered === -1 || posInFiltered >= visibleIdxs.length - 1;
+
+    applyTileStates();
+
+    if (opts.scroll) {
+      detailEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  };
+
+  const markLearned = (name: string): void => {
+    if (learned.has(name)) return;
+    learned.add(name);
+    saveLearned(GAME_ID, learned);
+    updateProgressUI();
+    applyTileStates();
+    if (learned.size === ALL_CARDS.length) {
+      showDone();
+    }
+  };
+
+  const speakCard = (idx: number): void => {
+    const c = ALL_CARDS[idx];
+    if (!c) return;
+    const settings = getSettings();
+    if (!settings.autoSpeak) return;
+    speak(`${c.name}. ${c.fact}`);
+  };
+
+  const onTileTap = (t: HTMLButtonElement): void => {
+    const idx = +t.dataset.idx!;
+    const name = t.dataset.name!;
+    playTap();
+    t.classList.remove('just-tapped');
+    void t.offsetWidth;
+    t.classList.add('just-tapped');
+    showDetail(idx, { scroll: true });
+    markLearned(name);
+    speakCard(idx);
+  };
+
+  const navigate = (delta: -1 | 1): void => {
+    if (activeIdx === null) {
+      const first = tiles.find(tileVisible);
+      if (first) onTileTap(first);
+      return;
+    }
+    const visibleIdxs = tiles.filter(tileVisible).map((t) => +t.dataset.idx!);
+    const pos = visibleIdxs.indexOf(activeIdx);
+    if (pos === -1) return;
+    const nextPos = pos + delta;
+    if (nextPos < 0 || nextPos >= visibleIdxs.length) return;
+    const nextIdx = visibleIdxs[nextPos]!;
+    const target = tiles[nextIdx]!;
+    onTileTap(target);
+  };
+
+  const showDone = (): void => {
+    doneOverlay.classList.add('show');
+    // Confetti uses every learned colour — extra-thematic for this
+    // game, since the player has just demonstrated mastery of them.
+    const colors = ALL_CARDS.map((c) => c.hex);
+    launchConfetti(colors);
+  };
+
+  const restart = (): void => {
+    learned = new Set();
+    saveLearned(GAME_ID, learned);
+    activeIdx = null;
+    detailEl.classList.add('gl-detail--empty');
+    detailFact.textContent = 'Tap any colour above to see it come to life!';
+    shapeGrid.innerHTML = '';
+    updateProgressUI();
+    applyTileStates();
+    doneOverlay.classList.remove('show');
+  };
+
+  // --- Event wiring ---
+  deckEl.addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(
+      '.gl-tile',
+    );
+    if (btn && !btn.hidden) onTileTap(btn);
+  });
+
+  catBar.addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(
+      '.cat-btn',
+    );
+    if (!btn) return;
+    playTap();
+    const key = btn.dataset.key as 'all' | 'warm' | 'cool' | 'neutral';
+    applyFilter(key);
+    if (activeIdx !== null) {
+      const currentTile = tiles[activeIdx];
+      if (currentTile && !tileVisible(currentTile)) {
+        activeIdx = null;
+        detailEl.classList.add('gl-detail--empty');
+        detailFact.textContent = 'Tap any colour above to see it come to life!';
+        shapeGrid.innerHTML = '';
+      }
+    }
+  });
+
+  prevBtn.addEventListener('click', () => {
+    playTap();
+    navigate(-1);
+  });
+
+  nextBtn.addEventListener('click', () => {
+    playTap();
+    navigate(1);
+  });
+
+  hearBtn.addEventListener('click', () => {
+    playTap();
+    if (activeIdx === null) {
+      const first = tiles.find(tileVisible);
+      if (first) onTileTap(first);
+      return;
+    }
+    const c = ALL_CARDS[activeIdx];
+    if (!c) return;
+    speak(`${c.name}. ${c.fact}`);
+  });
+
+  restartBtn.addEventListener('click', () => {
+    playTap();
+    restart();
+  });
+
+  document.getElementById('btnSettings')?.addEventListener('click', () => {
+    playTap();
+    (window as unknown as { openSettings?: () => void }).openSettings?.();
+  });
+
+  document.getElementById('btnStats')?.addEventListener('click', () => {
+    playTap();
+    alert(
+      `You've learned ${learned.size} out of ${ALL_CARDS.length} colours!\n\nKeep exploring!`,
+    );
+  });
+
+  document.getElementById('btnQuiz')?.addEventListener('click', () => {
+    playTap();
+    alert('Quiz mode is coming soon!');
+  });
+
+  // Keyboard: arrow keys for navigation, plus first-letter shortcut
+  // (R=Red, B=Blue, G=Green, Y=Yellow, O=Orange, P=Purple, K=Black,
+  // W=White) — convenience for older kids. P is ambiguous between
+  // Pink and Purple; pick the *first* match in deck order, which is
+  // Pink → Purple per the warm/cool ordering.
+  document.addEventListener('keydown', (e) => {
+    if (e.target instanceof HTMLInputElement) return;
+    if (e.key === 'ArrowLeft') {
+      navigate(-1);
+      return;
+    }
+    if (e.key === 'ArrowRight') {
+      navigate(1);
+      return;
+    }
+    if (/^[a-zA-Z]$/.test(e.key)) {
+      const ch = e.key.toUpperCase();
+      const target = tiles.find(
+        (t) => !t.hidden && t.dataset.name!.charAt(0) === ch,
+      );
+      if (target) onTileTap(target);
+    }
+  });
+
+  // --- Initial render ---
+  updateProgressUI();
+  applyTileStates();
+</script>
