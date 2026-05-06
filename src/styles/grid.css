@@ -536,6 +536,116 @@ body.grid .cat-btn.active {
   }
 }
 
+/* -- Numbers count-objects (used by .gl-deck--numbers detail) --
+   Matches the vanilla `.count-object` pedagogy: N coloured circles with
+   a star glyph inside, cycling through 5 palettes. We render them inside
+   the detail card's image wrap so the same skeleton (`.gl-detail-image-
+   wrap`) drives both image-based games (alphabets) and counting games
+   (numbers) without restructuring `.gl-detail`. */
+.gl-count-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(40px, 1fr));
+  gap: 10px;
+  width: 100%;
+  max-width: 280px;
+  margin: 0 auto;
+  padding: 6px;
+}
+
+.gl-count-object {
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  background: var(--gl-count-bg-1, linear-gradient(145deg, #4caf50, #2e7d32));
+  border: 3px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 1.2em;
+  font-weight: 700;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+  animation: gl-count-pop 0.5s ease-out backwards;
+  user-select: none;
+}
+
+.gl-count-object:nth-child(2n) {
+  background: var(--gl-count-bg-2, linear-gradient(145deg, #ff9800, #f57c00));
+  animation-delay: 0.06s;
+}
+.gl-count-object:nth-child(3n) {
+  background: var(--gl-count-bg-3, linear-gradient(145deg, #e91e63, #c2185b));
+  animation-delay: 0.12s;
+}
+.gl-count-object:nth-child(4n) {
+  background: var(--gl-count-bg-4, linear-gradient(145deg, #2196f3, #1976d2));
+  animation-delay: 0.18s;
+}
+.gl-count-object:nth-child(5n) {
+  background: var(--gl-count-bg-5, linear-gradient(145deg, #9c27b0, #7b1fa2));
+  animation-delay: 0.24s;
+}
+
+@keyframes gl-count-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.4) rotate(-12deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+
+/* Numbers deck: a fixed 5-column grid for the 1–10 deck. Cleaner than
+   `auto-fill` for a small, fixed-size deck — produces a tidy 2×5 grid
+   at every viewport from ~340px up. */
+.gl-deck.gl-deck--numbers {
+  grid-template-columns: repeat(5, minmax(0, 130px));
+  justify-content: center;
+  gap: 12px;
+}
+
+/* -- Numbers theme palette --
+   Sky blue + warm orange — distinct from alphabets (purple/green) so
+   children can tell games apart at a glance. Tile face = warm cream
+   with orange-on-tap; OLED-style detail card stays neutral. */
+body.grid[data-theme='numbers'] {
+  --gl-bg: linear-gradient(135deg, #4facfe 0%, #00d2c4 100%);
+
+  --gl-tile-bg: linear-gradient(145deg, #ffffff, #fff5e6);
+  --gl-tile-bg-hover: linear-gradient(145deg, #ffd9a0, #ffb966);
+  --gl-tile-bg-learned: linear-gradient(145deg, #ffb966, #ff9b3e);
+  --gl-tile-border: #ff9b3e;
+  --gl-tile-border-active: #00d2c4;
+  --gl-tile-color: #b85c00;
+  --gl-tile-color-learned: #ffffff;
+  --gl-tile-check-bg: #00d2c4;
+  --gl-tile-check-color: #ffffff;
+
+  --gl-cat-bg: linear-gradient(135deg, #ff9b3e, #b85c00);
+  --gl-cat-color: #ffffff;
+  --gl-cat-glow: rgba(255, 155, 62, 0.45);
+
+  --gl-progress-fill: linear-gradient(90deg, #ff9b3e, #ffd9a0);
+
+  --gl-detail-letter-color: #003b6f;
+  --gl-detail-pill-bg: linear-gradient(135deg, #ff9b3e, #b85c00);
+  --gl-detail-border: rgba(255, 155, 62, 0.4);
+
+  --gl-action-bg: linear-gradient(135deg, #4facfe 0%, #00d2c4 100%);
+  --gl-action-bg-hover: linear-gradient(135deg, #6abdff 0%, #1ae0d4 100%);
+  --gl-action-glow: rgba(0, 210, 196, 0.45);
+
+  --gl-done-bg: linear-gradient(145deg, #4facfe, #00d2c4);
+
+  --gl-count-bg-1: linear-gradient(145deg, #4caf50, #2e7d32);
+  --gl-count-bg-2: linear-gradient(145deg, #ff9800, #f57c00);
+  --gl-count-bg-3: linear-gradient(145deg, #e91e63, #c2185b);
+  --gl-count-bg-4: linear-gradient(145deg, #2196f3, #1976d2);
+  --gl-count-bg-5: linear-gradient(145deg, #9c27b0, #7b1fa2);
+}
+
 /* -- Tight-phone polish -- */
 @media (max-width: 420px) {
   .gl-shell {
@@ -548,6 +658,10 @@ body.grid .cat-btn.active {
   }
   .gl-detail-image-wrap {
     min-height: 150px;
+  }
+  .gl-deck.gl-deck--numbers {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px;
   }
 }
 
@@ -564,6 +678,20 @@ body.dark-mode.grid {
   --gl-detail-letter-color: #e8d8f0;
   --gl-detail-text: #e8d8f0;
   --gl-detail-fact-color: rgba(232, 216, 240, 0.7);
+}
+
+body.dark-mode.grid[data-theme='numbers'] {
+  --gl-bg: linear-gradient(160deg, #001f3f 0%, #003b6f 50%, #00536b 100%);
+  --gl-tile-bg: linear-gradient(145deg, #1a2e3a, #0d1d28);
+  --gl-tile-bg-hover: linear-gradient(145deg, #2a4050, #1a2e3a);
+  --gl-tile-bg-learned: linear-gradient(145deg, #b85c00, #8f4500);
+  --gl-tile-color: #ffd9a0;
+  --gl-tile-color-learned: #ffffff;
+  --gl-detail-bg: rgba(13, 29, 40, 0.95);
+  --gl-detail-border: rgba(255, 155, 62, 0.35);
+  --gl-detail-letter-color: #ffd9a0;
+  --gl-detail-text: #e0f0ff;
+  --gl-detail-fact-color: rgba(224, 240, 255, 0.7);
 }
 
 body.dark-mode.grid .gl-detail-image-wrap {
