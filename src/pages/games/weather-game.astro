@@ -113,11 +113,11 @@ const initialBadge = seasonLabel(initialCard.season);
 <script>
   import {
     ALL_CARDS,
-    FLUENT_IMG_BASE,
     seasonLabel,
     type Season,
     type WeatherCard,
   } from '@/data/weather';
+  import { FLUENT_IMG_BASE } from '@/data/fluent';
   import { playTap } from '@/lib/audio';
   import { speak } from '@/lib/speech';
   import { launchConfetti } from '@/lib/achievements';

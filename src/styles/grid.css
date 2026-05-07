@@ -962,6 +962,43 @@ body.grid .cat-btn.active {
   --gl-shape-fill: linear-gradient(145deg, #ff9800, #f57c00);
 }
 
+/* -- Animals deck (37 tiles: big emoji + name) --
+   Each tile is a flex column: a large emoji on top, the animal's name
+   underneath in a small uppercase label. Mirrors the structure of the
+   shapes deck (`.gl-tile--shape`) but the visual hero is a unicode
+   emoji rather than a CSS-art figure, so no per-card data attribute
+   has to drive the rendering — the emoji is just text content.
+   Detail-card hero is the Fluent UI 3D PNG (alphabets-style image),
+   not the emoji — we keep the emoji as a fallback in case the CDN
+   path fails. */
+.gl-deck.gl-deck--animals {
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 12px;
+}
+
+.gl-tile.gl-tile--emoji {
+  flex-direction: column;
+  padding: 10px 8px;
+  gap: 6px;
+  font-size: clamp(0.7em, 2.1vw, 0.82em);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.gl-tile-emoji {
+  font-size: clamp(1.8em, 5vw, 2.4em);
+  line-height: 1;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.18));
+  user-select: none;
+}
+
+.gl-tile-emoji-name {
+  display: block;
+  text-align: center;
+  line-height: 1.1;
+  word-break: break-word;
+}
+
 /* -- Colors theme palette --
    Soft pink/lavender gradient — neutral enough that every swatch
    pops, distinct from alphabets (purple) and numbers (sky-blue). */
@@ -1078,6 +1115,42 @@ body.grid[data-theme='shapes'] {
   --gl-done-bg: linear-gradient(145deg, #6a1b9a, #c2185b);
 }
 
+/* -- Animals theme palette --
+   Sea-green to deep-blue gradient, lifted from vanilla
+   `animals-game.html` (`#43cea2 -> #185a9d`). Tile face stays neutral
+   cream so the per-card emoji + name reads cleanly; action/filter
+   pills lean on the deep-navy accent for contrast against both the
+   warm tile interior and the cool background. */
+body.grid[data-theme='animals'] {
+  --gl-bg: linear-gradient(135deg, #43cea2 0%, #185a9d 100%);
+
+  --gl-tile-bg: linear-gradient(145deg, #ffffff, #eaf6f1);
+  --gl-tile-bg-hover: linear-gradient(145deg, #b2f5ea, #81e6d9);
+  --gl-tile-bg-learned: linear-gradient(145deg, #81e6d9, #43cea2);
+  --gl-tile-border: #43cea2;
+  --gl-tile-border-active: #185a9d;
+  --gl-tile-color: #0d4d6e;
+  --gl-tile-color-learned: #052a3d;
+  --gl-tile-check-bg: #185a9d;
+  --gl-tile-check-color: #ffffff;
+
+  --gl-cat-bg: linear-gradient(135deg, #43cea2, #185a9d);
+  --gl-cat-color: #ffffff;
+  --gl-cat-glow: rgba(67, 206, 162, 0.45);
+
+  --gl-progress-fill: linear-gradient(90deg, #43cea2, #185a9d);
+
+  --gl-detail-letter-color: #0d4d6e;
+  --gl-detail-pill-bg: linear-gradient(135deg, #43cea2, #185a9d);
+  --gl-detail-border: rgba(67, 206, 162, 0.4);
+
+  --gl-action-bg: linear-gradient(135deg, #43cea2 0%, #185a9d 100%);
+  --gl-action-bg-hover: linear-gradient(135deg, #5cd9b1 0%, #2a72b5 100%);
+  --gl-action-glow: rgba(24, 90, 157, 0.45);
+
+  --gl-done-bg: linear-gradient(145deg, #43cea2, #185a9d);
+}
+
 /* -- Tight-phone polish -- */
 @media (max-width: 420px) {
   .gl-shell {
@@ -1151,6 +1224,20 @@ body.dark-mode.grid[data-theme='shapes'] {
   --gl-detail-letter-color: #f48fb1;
   --gl-detail-text: #f0d6e3;
   --gl-detail-fact-color: rgba(240, 214, 227, 0.7);
+}
+
+body.dark-mode.grid[data-theme='animals'] {
+  --gl-bg: linear-gradient(160deg, #052a3d 0%, #0d4d6e 50%, #185a9d 100%);
+  --gl-tile-bg: linear-gradient(145deg, #1a3a4a, #0d2530);
+  --gl-tile-bg-hover: linear-gradient(145deg, #2a5060, #1a3a4a);
+  --gl-tile-bg-learned: linear-gradient(145deg, #185a9d, #0d4d6e);
+  --gl-tile-color: #b2f5ea;
+  --gl-tile-color-learned: #ffffff;
+  --gl-detail-bg: rgba(13, 37, 48, 0.95);
+  --gl-detail-border: rgba(67, 206, 162, 0.35);
+  --gl-detail-letter-color: #b2f5ea;
+  --gl-detail-text: #e0f0f5;
+  --gl-detail-fact-color: rgba(224, 240, 245, 0.7);
 }
 
 body.dark-mode.grid .gl-detail-image-wrap {

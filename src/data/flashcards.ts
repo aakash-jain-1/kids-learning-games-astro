@@ -8,13 +8,10 @@
  *   - `shape`       → CSS-drawn shape (for rectangle / oval)
  *   - otherwise     → plain emoji from the `e` field
  *
- * The image CDN base is `FLUENT_IMG_BASE` — compose `${FLUENT_IMG_BASE}${card.img}`.
+ * Consumers compose the full image URL as
+ * `${FLUENT_IMG_BASE}${card.img}`. The base lives in `@/data/fluent` —
+ * import it from there directly.
  */
-
-// Re-exported so existing `import { FLUENT_IMG_BASE } from '@/data/flashcards'`
-// call sites (e.g. flashcards-game.astro) keep working. The source of truth
-// lives in `@/data/fluent` — new games should import from there directly.
-export { FLUENT_IMG_BASE } from './fluent';
 
 const E = (code: number): string => String.fromCodePoint(code);
 

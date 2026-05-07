@@ -26,9 +26,11 @@
  * Q maps to a Crown instead of Princess — `Princess/3D/princess_3d.png`
  * is intentionally missing from the Fluent UI pack (403), and the Queen's
  * crown is the closest kid-friendly stand-in.
+ *
+ * Consumers compose the full image URL as
+ * `${FLUENT_IMG_BASE}${card.img}` — import `FLUENT_IMG_BASE` from
+ * `@/data/fluent` directly.
  */
-
-export { FLUENT_IMG_BASE } from './fluent';
 
 export type LetterType = 'vowel' | 'consonant';
 

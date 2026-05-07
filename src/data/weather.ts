@@ -14,9 +14,9 @@
 // to Fluent UI 3D PNGs for consistency with Flashcards (same CDN origin is
 // already SW-cached) — see principle #9 in PROGRESS.md's "Migration
 // principles" section.
-
-// Re-exported so pages can grab the deck + the CDN base from a single import.
-export { FLUENT_IMG_BASE } from './fluent';
+//
+// Consumers compose the full image URL as `${FLUENT_IMG_BASE}${card.img}`.
+// `FLUENT_IMG_BASE` lives in `@/data/fluent` — import it from there directly.
 
 export type Season = 'spring' | 'summer' | 'autumn' | 'winter' | 'any';
 

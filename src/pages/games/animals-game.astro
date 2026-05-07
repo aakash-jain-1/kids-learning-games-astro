@@ -1,10 +1,10 @@
 ---
 import GridLayout from '@/layouts/GridLayout.astro';
-import { ALL_CARDS, FILTERS } from '@/data/alphabets';
+import { ALL_CARDS, FILTERS } from '@/data/animals';
 
-const title = 'Alphabets — Kids Learning Games';
+const title = 'Animals — Kids Learning Games';
 const description =
-  'Learn the A to Z alphabet with a colourful grid, pictures, and fun facts for kids.';
+  'Meet 37 animals — mammals, birds, reptiles, sea creatures, and insects — with sounds, facts, and group filtering for kids.';
 
 const totalCards = ALL_CARDS.length;
 ---
@@ -12,21 +12,21 @@ const totalCards = ALL_CARDS.length;
 <GridLayout
   title={title}
   description={description}
-  themeColor="#4a0e4e"
-  theme="alphabets"
+  themeColor="#185a9d"
+  theme="animals"
 >
-  <main class="gl-shell" aria-label="Alphabets game">
+  <main class="gl-shell" aria-label="Animals game">
     <header class="gl-header">
       <h1 class="gl-title">
-        <span class="gl-title-emoji" aria-hidden="true">🔤</span>
-        Alphabets
+        <span class="gl-title-emoji" aria-hidden="true">🐾</span>
+        Animals
       </h1>
 
       <div class="gl-header-right">
         <span
           class="gl-progress-pill"
           id="progressPill"
-          aria-label={`Progress: 0 of ${totalCards} letters learned`}
+          aria-label={`Progress: 0 of ${totalCards} animals learned`}
         >
           <span id="progressText">0 / {totalCards}</span>
           <span class="gl-progress-bar" aria-hidden="true">
@@ -41,7 +41,7 @@ const totalCards = ALL_CARDS.length;
       </div>
     </header>
 
-    <div class="cat-bar" id="catBar" role="group" aria-label="Letter filter">
+    <div class="cat-bar" id="catBar" role="group" aria-label="Animal filter">
       {
         FILTERS.map((f) => (
           <button
@@ -55,20 +55,23 @@ const totalCards = ALL_CARDS.length;
       }
     </div>
 
-    <div class="gl-deck gl-deck--capped" id="deck" role="list" aria-label="Alphabet tiles">
+    <div class="gl-deck gl-deck--animals" id="deck" role="list" aria-label="Animal tiles">
       {
         ALL_CARDS.map((c, i) => (
           <button
-            class="gl-tile"
+            class="gl-tile gl-tile--emoji"
             type="button"
             role="listitem"
             data-idx={i}
-            data-letter={c.letter}
-            data-type={c.type}
-            aria-label={`Letter ${c.letter} for ${c.n}`}
+            data-name={c.name}
+            data-group={c.group}
+            aria-label={`Animal ${c.name}`}
           >
-            {c.letter}
-            <span class="gl-tile-check" aria-hidden="true">✓</span>
+            <span class="gl-tile-emoji" aria-hidden="true">{c.e}</span>
+            <span class="gl-tile-emoji-name">{c.name}</span>
+            <span class="gl-tile-check" aria-hidden="true">
+              ✓
+            </span>
           </button>
         ))
       }
@@ -77,10 +80,10 @@ const totalCards = ALL_CARDS.length;
     <section class="gl-detail gl-detail--empty" id="detail" aria-live="polite">
       <div class="gl-detail-inner">
         <div class="gl-detail-head">
-          <span class="gl-detail-letter" id="detailLetter">A</span>
+          <span class="gl-detail-letter" id="detailName">Bear</span>
           <div class="gl-detail-word-row">
-            <span class="gl-detail-word" id="detailWord">Apple</span>
-            <span class="gl-detail-pill" id="detailPill">Vowel</span>
+            <span class="gl-detail-word" id="detailSound">Growl!</span>
+            <span class="gl-detail-pill" id="detailPill">Mammal</span>
           </div>
         </div>
 
@@ -96,7 +99,7 @@ const totalCards = ALL_CARDS.length;
         </div>
 
         <p class="gl-detail-fact" id="detailFact">
-          Tap any letter above to hear it and see a picture!
+          Tap any animal above to meet it!
         </p>
 
         <div class="gl-detail-actions">
@@ -104,7 +107,7 @@ const totalCards = ALL_CARDS.length;
             class="gl-detail-arrow"
             id="prevBtn"
             type="button"
-            aria-label="Previous letter"
+            aria-label="Previous animal"
           >
             ◀
           </button>
@@ -112,7 +115,7 @@ const totalCards = ALL_CARDS.length;
             class="gl-detail-hear"
             id="hearBtn"
             type="button"
-            aria-label="Play letter sound"
+            aria-label="Play animal sound"
           >
             🔊 Tap to hear
           </button>
@@ -120,7 +123,7 @@ const totalCards = ALL_CARDS.length;
             class="gl-detail-arrow"
             id="nextBtn"
             type="button"
-            aria-label="Next letter"
+            aria-label="Next animal"
           >
             ▶
           </button>
@@ -131,8 +134,8 @@ const totalCards = ALL_CARDS.length;
 
   <div class="gl-done-overlay" id="doneOverlay" role="dialog" aria-live="polite" aria-labelledby="doneTitle">
     <div class="gl-done-card">
-      <h2 id="doneTitle">Amazing! You know the whole alphabet! 🎉</h2>
-      <p>You've explored every letter from A to Z. Want to go again?</p>
+      <h2 id="doneTitle">Animal expert! 🐾🎉</h2>
+      <p>You've met all 37 animals. Want to play again?</p>
       <button class="gl-done-restart" id="restartBtn" type="button">
         Start Over
       </button>
@@ -140,33 +143,50 @@ const totalCards = ALL_CARDS.length;
   </div>
 </GridLayout>
 
+<style is:global>
+  /* Long animal names ("Nightingale", "Butterfly") need a slightly
+     smaller hero font than the alphabets clamp() so they don't crowd
+     the detail-card head; capitalize so single-word names match the
+     title-case data file. Same precedent as shapes' page-local
+     override. */
+  body.grid[data-theme='animals'] .gl-detail-letter {
+    font-size: clamp(1.4em, 4vw, 2.2em);
+    text-transform: capitalize;
+    letter-spacing: 0.3px;
+  }
+</style>
+
 <script>
   import { playTap } from '@/lib/audio';
   import { speak } from '@/lib/speech';
   import { launchConfetti } from '@/lib/achievements';
   import { getSettings } from '@/lib/settings';
   import { loadLearned, saveLearned } from '@/lib/progress';
-  import { ALL_CARDS } from '@/data/alphabets';
+  import { ALL_CARDS } from '@/data/animals';
   import { FLUENT_IMG_BASE } from '@/data/fluent';
 
-  // Progress persistence — uses the shared `src/lib/progress.ts` helper
-  // (extracted once Numbers became the second consumer). Game id maps
-  // to `kids_progress_v1:alphabets`.
-  const GAME_ID = 'alphabets';
+  const GAME_ID = 'animals';
+  type AnimalFilterKey =
+    | 'all'
+    | 'mammal'
+    | 'bird'
+    | 'reptile'
+    | 'sea'
+    | 'insect';
 
   // --- State ---
   let learned = loadLearned(GAME_ID);
   let activeIdx: number | null = null;
-  let activeFilter: 'all' | 'vowel' | 'consonant' = 'all';
+  let activeFilter: AnimalFilterKey = 'all';
 
-  // --- DOM refs (assert non-null since template renders them all) ---
+  // --- DOM refs ---
   const deckEl = document.getElementById('deck')!;
   const detailEl = document.getElementById('detail')!;
-  const detailLetter = document.getElementById('detailLetter')!;
-  const detailWord = document.getElementById('detailWord')!;
+  const detailName = document.getElementById('detailName')!;
+  const detailSound = document.getElementById('detailSound')!;
   const detailPill = document.getElementById('detailPill')!;
-  const detailImage = document.getElementById('detailImage') as HTMLImageElement;
   const detailFact = document.getElementById('detailFact')!;
+  const detailImage = document.getElementById('detailImage') as HTMLImageElement;
   const prevBtn = document.getElementById('prevBtn') as HTMLButtonElement;
   const nextBtn = document.getElementById('nextBtn') as HTMLButtonElement;
   const hearBtn = document.getElementById('hearBtn') as HTMLButtonElement;
@@ -182,37 +202,50 @@ const totalCards = ALL_CARDS.length;
 
   // --- Helpers ---
   const tileVisible = (t: HTMLButtonElement): boolean =>
-    activeFilter === 'all' || t.dataset.type === activeFilter;
+    activeFilter === 'all' || t.dataset.group === activeFilter;
 
   const updateProgressUI = (): void => {
     const n = learned.size;
     const total = ALL_CARDS.length;
     progressText.textContent = `${n} / ${total}`;
     progressFill.style.width = `${(n / total) * 100}%`;
-    const pill = document.getElementById('progressPill');
-    if (pill) {
-      pill.setAttribute(
-        'aria-label',
-        `Progress: ${n} of ${total} letters learned`,
-      );
-    }
+    document
+      .getElementById('progressPill')
+      ?.setAttribute('aria-label', `Progress: ${n} of ${total} animals learned`);
   };
 
   const applyTileStates = (): void => {
     for (const t of tiles) {
-      const letter = t.dataset.letter!;
-      t.classList.toggle('learned', learned.has(letter));
-      t.classList.toggle('active', activeIdx !== null && +t.dataset.idx! === activeIdx);
+      const name = t.dataset.name!;
+      t.classList.toggle('learned', learned.has(name));
+      t.classList.toggle(
+        'active',
+        activeIdx !== null && +t.dataset.idx! === activeIdx,
+      );
       t.hidden = !tileVisible(t);
     }
   };
 
-  const applyFilter = (key: 'all' | 'vowel' | 'consonant'): void => {
+  const applyFilter = (key: AnimalFilterKey): void => {
     activeFilter = key;
     for (const b of catBar.querySelectorAll<HTMLButtonElement>('.cat-btn')) {
       b.classList.toggle('active', b.dataset.key === key);
     }
     applyTileStates();
+  };
+
+  // Image fallback: if the Fluent UI 3D PNG path 404s, swap to an
+  // inline SVG painting the per-card emoji at the same size — same
+  // pattern alphabets / vanilla animals use. Reinstalled per render
+  // so the fallback emoji matches the active card. `onerror = null`
+  // inside the handler prevents an infinite loop if the SVG fallback
+  // itself ever fails.
+  const installImageFallback = (img: HTMLImageElement, emoji: string): void => {
+    img.onerror = (): void => {
+      img.onerror = null;
+      img.src =
+        `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90' text-anchor='middle' x='50'>${emoji}</text></svg>`;
+    };
   };
 
   const showDetail = (idx: number, opts: { scroll?: boolean } = {}): void => {
@@ -221,23 +254,20 @@ const totalCards = ALL_CARDS.length;
     activeIdx = idx;
 
     detailEl.classList.remove('gl-detail--empty');
-    detailLetter.textContent = c.letter;
-    detailWord.textContent = c.n;
+    detailName.textContent = c.name;
+    detailSound.textContent = c.sound;
     detailPill.textContent = c.label;
-    detailPill.dataset.type = c.type;
-    detailFact.textContent = c.f;
-    detailImage.alt = c.n;
+    detailPill.dataset.group = c.group;
+    detailFact.textContent = c.fact;
+    detailImage.alt = c.name;
+    installImageFallback(detailImage, c.e);
     detailImage.src = FLUENT_IMG_BASE + c.img;
 
-    // Pop animation — toggle class to restart it on every update.
     detailImage.classList.remove('pop');
-    void detailImage.offsetWidth; // eslint-disable-line @typescript-eslint/no-unused-expressions
+    void detailImage.offsetWidth;
     detailImage.classList.add('pop');
 
-    // Navigation button state (linear within the current filter).
-    const visibleIdxs = tiles
-      .filter(tileVisible)
-      .map((t) => +t.dataset.idx!);
+    const visibleIdxs = tiles.filter(tileVisible).map((t) => +t.dataset.idx!);
     const posInFiltered = visibleIdxs.indexOf(idx);
     prevBtn.disabled = posInFiltered <= 0;
     nextBtn.disabled =
@@ -246,15 +276,13 @@ const totalCards = ALL_CARDS.length;
     applyTileStates();
 
     if (opts.scroll) {
-      // On mobile, the detail is below the grid — pull it into view so the
-      // child immediately sees the newly-selected letter.
       detailEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
   };
 
-  const markLearned = (letter: string): void => {
-    if (learned.has(letter)) return;
-    learned.add(letter);
+  const markLearned = (name: string): void => {
+    if (learned.has(name)) return;
+    learned.add(name);
     saveLearned(GAME_ID, learned);
     updateProgressUI();
     applyTileStates();
@@ -268,45 +296,48 @@ const totalCards = ALL_CARDS.length;
     if (!c) return;
     const settings = getSettings();
     if (!settings.autoSpeak) return;
-    speak(`${c.letter}. ${c.letter} for ${c.n}. ${c.f}`);
+    speak(`${c.name}. ${c.sound}. ${c.fact}`);
   };
 
   const onTileTap = (t: HTMLButtonElement): void => {
     const idx = +t.dataset.idx!;
-    const letter = t.dataset.letter!;
+    const name = t.dataset.name!;
     playTap();
     t.classList.remove('just-tapped');
-    void t.offsetWidth; // eslint-disable-line @typescript-eslint/no-unused-expressions
+    void t.offsetWidth;
     t.classList.add('just-tapped');
     showDetail(idx, { scroll: true });
-    markLearned(letter);
+    markLearned(name);
     speakCard(idx);
   };
 
   const navigate = (delta: -1 | 1): void => {
     if (activeIdx === null) {
-      // No tile selected yet — start from the first visible one.
       const first = tiles.find(tileVisible);
-      if (first) {
-        onTileTap(first);
-      }
+      if (first) onTileTap(first);
       return;
     }
-    const visibleIdxs = tiles
-      .filter(tileVisible)
-      .map((t) => +t.dataset.idx!);
+    const visibleIdxs = tiles.filter(tileVisible).map((t) => +t.dataset.idx!);
     const pos = visibleIdxs.indexOf(activeIdx);
     if (pos === -1) return;
     const nextPos = pos + delta;
     if (nextPos < 0 || nextPos >= visibleIdxs.length) return;
-    const nextIdx = visibleIdxs[nextPos]!;
-    const target = tiles[nextIdx]!;
+    const target = tiles[visibleIdxs[nextPos]!]!;
     onTileTap(target);
   };
 
   const showDone = (): void => {
     doneOverlay.classList.add('show');
-    launchConfetti(['#4caf50', '#8bc34a', '#667eea', '#ffd700', '#ff9800']);
+    // One colour per group — sea-green / deep-blue / earthy-brown /
+    // aqua / butterfly-yellow — so the celebration overlay echoes
+    // the deck's group palette.
+    launchConfetti([
+      '#43cea2',
+      '#185a9d',
+      '#8b6f4e',
+      '#00bcd4',
+      '#ffeb3b',
+    ]);
   };
 
   const restart = (): void => {
@@ -314,7 +345,8 @@ const totalCards = ALL_CARDS.length;
     saveLearned(GAME_ID, learned);
     activeIdx = null;
     detailEl.classList.add('gl-detail--empty');
-    detailFact.textContent = 'Tap any letter above to hear it and see a picture!';
+    detailFact.textContent = 'Tap any animal above to meet it!';
+    detailImage.removeAttribute('src');
     updateProgressUI();
     applyTileStates();
     doneOverlay.classList.remove('show');
@@ -334,15 +366,14 @@ const totalCards = ALL_CARDS.length;
     );
     if (!btn) return;
     playTap();
-    const key = btn.dataset.key as 'all' | 'vowel' | 'consonant';
+    const key = btn.dataset.key as AnimalFilterKey;
     applyFilter(key);
-    // If current selection is filtered out, clear it.
     if (activeIdx !== null) {
       const currentTile = tiles[activeIdx];
       if (currentTile && !tileVisible(currentTile)) {
         activeIdx = null;
         detailEl.classList.add('gl-detail--empty');
-        detailFact.textContent = 'Tap any letter above to hear it and see a picture!';
+        detailFact.textContent = 'Tap any animal above to meet it!';
       }
     }
   });
@@ -366,7 +397,7 @@ const totalCards = ALL_CARDS.length;
     }
     const c = ALL_CARDS[activeIdx];
     if (!c) return;
-    speak(`${c.letter}. ${c.letter} for ${c.n}. ${c.f}`);
+    speak(`${c.name}. ${c.sound}. ${c.fact}`);
   });
 
   restartBtn.addEventListener('click', () => {
@@ -382,7 +413,7 @@ const totalCards = ALL_CARDS.length;
   document.getElementById('btnStats')?.addEventListener('click', () => {
     playTap();
     alert(
-      `You've learned ${learned.size} out of ${ALL_CARDS.length} letters!\n\nKeep going!`,
+      `You've met ${learned.size} out of ${ALL_CARDS.length} animals!\n\nKeep exploring!`,
     );
   });
 
@@ -391,11 +422,28 @@ const totalCards = ALL_CARDS.length;
     alert('Quiz mode is coming soon!');
   });
 
-  // Keyboard navigation (arrow keys) — helpful for desktop users.
+  // Keyboard: arrow keys for navigation, plus first-letter shortcut
+  // (B=Bear, C=Cat, etc.) — first match in deck order wins. Deck is
+  // mammal-first, so B → Bear (mammal), C → Cat (mammal, before
+  // Chicken which is bird), D → Dog (mammal, before Duck), F → Fox
+  // (mammal, before Fish which is sea), and so on.
   document.addEventListener('keydown', (e) => {
     if (e.target instanceof HTMLInputElement) return;
-    if (e.key === 'ArrowLeft') navigate(-1);
-    else if (e.key === 'ArrowRight') navigate(1);
+    if (e.key === 'ArrowLeft') {
+      navigate(-1);
+      return;
+    }
+    if (e.key === 'ArrowRight') {
+      navigate(1);
+      return;
+    }
+    if (/^[a-zA-Z]$/.test(e.key)) {
+      const ch = e.key.toUpperCase();
+      const target = tiles.find(
+        (t) => !t.hidden && t.dataset.name!.charAt(0) === ch,
+      );
+      if (target) onTileTap(target);
+    }
   });
 
   // --- Initial render ---
