@@ -758,6 +758,210 @@ body.grid .cat-btn.active {
   }
 }
 
+/* -- Shape figures (used by Shapes game tiles + detail card) --
+   A single, size-agnostic shape primitive used in TWO places:
+     1. inside `.gl-tile--shape` as a ~36px miniature on each tile, and
+     2. inside the detail card's `.gl-detail-image-wrap` as a ~180px hero.
+   Switch between sizes via the `--mini` / `--big` variant class — every
+   per-shape modifier (`--circle`, `--star`, etc.) uses size-independent
+   transforms (clip-path, border-radius %, mask-image, calc()) so one set
+   of rules drives both renderings. Distinct from `.gl-shape--*` (the
+   Colors gallery primitives) which are size-locked and live inside
+   `.gl-shape-grid` only — those are intentionally left untouched. */
+.gl-shape-figure {
+  flex-shrink: 0;
+  background: var(--gl-shape-fill, linear-gradient(145deg, #ff6b9d, #c2185b));
+  width: var(--gl-figure-w, var(--gl-figure-size, 36px));
+  height: var(--gl-figure-h, var(--gl-figure-size, 36px));
+  border: 2px solid rgba(0, 0, 0, 0.18);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+}
+
+.gl-shape-figure.gl-shape-figure--mini {
+  --gl-figure-size: 36px;
+}
+
+.gl-shape-figure.gl-shape-figure--big {
+  --gl-figure-size: 180px;
+  border-width: 4px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+}
+
+/* Per-shape modifiers — all use clip-path / border-radius (%) / mask
+   so they scale identically at mini and big sizes. Clipped shapes drop
+   the border (clip-path strips it) and fall back to drop-shadow. */
+.gl-shape-figure--circle {
+  border-radius: 50%;
+}
+
+.gl-shape-figure--square {
+  border-radius: 8%;
+}
+
+.gl-shape-figure--rectangle {
+  --gl-figure-w: calc(var(--gl-figure-size) * 1.5);
+  border-radius: 8%;
+}
+
+.gl-shape-figure--oval {
+  --gl-figure-w: calc(var(--gl-figure-size) * 1.5);
+  border-radius: 50%;
+}
+
+.gl-shape-figure--diamond {
+  --gl-figure-w: calc(var(--gl-figure-size) * 0.78);
+  --gl-figure-h: calc(var(--gl-figure-size) * 0.78);
+  transform: rotate(45deg);
+  border-radius: 8%;
+}
+
+.gl-shape-figure--triangle,
+.gl-shape-figure--pentagon,
+.gl-shape-figure--hexagon,
+.gl-shape-figure--octagon,
+.gl-shape-figure--star,
+.gl-shape-figure--heart,
+.gl-shape-figure--parallelogram,
+.gl-shape-figure--trapezoid {
+  border: 0;
+  box-shadow: none;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.18));
+}
+
+.gl-shape-figure--triangle {
+  clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+}
+
+.gl-shape-figure--pentagon {
+  clip-path: polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%);
+}
+
+.gl-shape-figure--hexagon {
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+}
+
+.gl-shape-figure--octagon {
+  clip-path: polygon(
+    30% 0%, 70% 0%, 100% 30%, 100% 70%,
+    70% 100%, 30% 100%, 0% 70%, 0% 30%
+  );
+}
+
+.gl-shape-figure--star {
+  clip-path: polygon(
+    50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%,
+    50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%
+  );
+}
+
+.gl-shape-figure--heart {
+  /* Normalised heart polygon — a 12-vertex approximation that scales
+     correctly at any size (vanilla used a 200x200 absolute clip-path
+     which broke at smaller sizes). */
+  clip-path: polygon(
+    50% 100%,
+    20% 78%, 4% 56%, 0% 36%, 8% 16%, 28% 8%, 50% 26%,
+    72% 8%, 92% 16%, 100% 36%, 96% 56%, 80% 78%
+  );
+}
+
+.gl-shape-figure--parallelogram {
+  --gl-figure-w: calc(var(--gl-figure-size) * 1.4);
+  clip-path: polygon(20% 0%, 100% 0%, 80% 100%, 0% 100%);
+}
+
+.gl-shape-figure--trapezoid {
+  --gl-figure-w: calc(var(--gl-figure-size) * 1.4);
+  clip-path: polygon(20% 0%, 80% 0%, 100% 100%, 0% 100%);
+}
+
+.gl-shape-figure--crescent {
+  border-radius: 50%;
+  -webkit-mask-image: radial-gradient(
+    circle at 70% 50%,
+    transparent 50%,
+    black 51%
+  );
+  mask-image: radial-gradient(
+    circle at 70% 50%,
+    transparent 50%,
+    black 51%
+  );
+}
+
+/* Pop animation for the big detail-card hero shape. The mini tile
+   shape is intentionally static — animating all 14 tiles on first
+   paint would be visually noisy. The diamond gets its own keyframe
+   to preserve the 45deg rotation. */
+.gl-shape-figure.gl-shape-figure--big.pop {
+  animation: gl-shape-figure-pop 0.55s ease-out;
+}
+
+.gl-shape-figure.gl-shape-figure--big.gl-shape-figure--diamond.pop {
+  animation-name: gl-shape-figure-pop-diamond;
+}
+
+@keyframes gl-shape-figure-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.4) rotate(-12deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+
+@keyframes gl-shape-figure-pop-diamond {
+  0% {
+    opacity: 0;
+    transform: rotate(33deg) scale(0.4);
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(45deg) scale(1);
+  }
+}
+
+/* -- Shapes deck (14 tiles: mini shape + name) --
+   Each tile is a flex column: mini-shape on top, name below. The
+   `data-group` rule on the tile sets `--gl-shape-fill`, giving each
+   pedagogical group a distinct fill colour (round = pink, basic = blue,
+   special = orange) so the deck is visually scannable by category. */
+.gl-deck.gl-deck--shapes {
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 12px;
+}
+
+.gl-tile.gl-tile--shape {
+  flex-direction: column;
+  padding: 10px 8px;
+  gap: 8px;
+  font-size: clamp(0.7em, 2.1vw, 0.82em);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.gl-tile-shape-name {
+  display: block;
+  text-align: center;
+  line-height: 1.1;
+  word-break: break-word;
+}
+
+/* Per-group fill colour for the mini shape inside each tile. */
+.gl-tile.gl-tile--shape[data-group='round'] {
+  --gl-shape-fill: linear-gradient(145deg, #ff6b9d, #c2185b);
+}
+
+.gl-tile.gl-tile--shape[data-group='basic'] {
+  --gl-shape-fill: linear-gradient(145deg, #2196f3, #1976d2);
+}
+
+.gl-tile.gl-tile--shape[data-group='special'] {
+  --gl-shape-fill: linear-gradient(145deg, #ff9800, #f57c00);
+}
+
 /* -- Colors theme palette --
    Soft pink/lavender gradient — neutral enough that every swatch
    pops, distinct from alphabets (purple) and numbers (sky-blue). */
@@ -838,6 +1042,42 @@ body.grid[data-theme='numbers'] {
   --gl-count-bg-5: linear-gradient(145deg, #9c27b0, #7b1fa2);
 }
 
+/* -- Shapes theme palette --
+   Pink/coral gradient matching vanilla `shapes-game.html`
+   (`#f093fb` -> `#f5576c`). Tile face stays light so the per-group
+   coloured mini-shape inside each tile pops; action buttons + filter
+   pills lean on a deep purple accent so they're visually distinct
+   from both the warm tile interior and the warm background. */
+body.grid[data-theme='shapes'] {
+  --gl-bg: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+
+  --gl-tile-bg: linear-gradient(145deg, #ffffff, #fff0f7);
+  --gl-tile-bg-hover: linear-gradient(145deg, #ffd6e8, #ffb5d2);
+  --gl-tile-bg-learned: linear-gradient(145deg, #ffb5d2, #f48fb1);
+  --gl-tile-border: #f48fb1;
+  --gl-tile-border-active: #6a1b9a;
+  --gl-tile-color: #6a1b9a;
+  --gl-tile-color-learned: #4a0072;
+  --gl-tile-check-bg: #6a1b9a;
+  --gl-tile-check-color: #ffffff;
+
+  --gl-cat-bg: linear-gradient(135deg, #f48fb1, #c2185b);
+  --gl-cat-color: #ffffff;
+  --gl-cat-glow: rgba(244, 143, 177, 0.45);
+
+  --gl-progress-fill: linear-gradient(90deg, #f48fb1, #c2185b);
+
+  --gl-detail-letter-color: #6a1b9a;
+  --gl-detail-pill-bg: linear-gradient(135deg, #f48fb1, #c2185b);
+  --gl-detail-border: rgba(244, 143, 177, 0.4);
+
+  --gl-action-bg: linear-gradient(135deg, #6a1b9a 0%, #c2185b 100%);
+  --gl-action-bg-hover: linear-gradient(135deg, #7d2cb1 0%, #d4296c 100%);
+  --gl-action-glow: rgba(106, 27, 154, 0.45);
+
+  --gl-done-bg: linear-gradient(145deg, #6a1b9a, #c2185b);
+}
+
 /* -- Tight-phone polish -- */
 @media (max-width: 420px) {
   .gl-shell {
@@ -897,6 +1137,20 @@ body.dark-mode.grid[data-theme='colors'] {
      not shift across themes. Only the gallery-shape default border
      adjusts so light shapes remain visible against the dark card. */
   --gl-shape-border: rgba(255, 255, 255, 0.35);
+}
+
+body.dark-mode.grid[data-theme='shapes'] {
+  --gl-bg: linear-gradient(160deg, #2c003e 0%, #3d0d4d 50%, #4a0072 100%);
+  --gl-tile-bg: linear-gradient(145deg, #2a1f3a, #1a1328);
+  --gl-tile-bg-hover: linear-gradient(145deg, #3d2842, #2a1f3a);
+  --gl-tile-bg-learned: linear-gradient(145deg, #c2185b, #880e4f);
+  --gl-tile-color: #f48fb1;
+  --gl-tile-color-learned: #ffffff;
+  --gl-detail-bg: rgba(28, 8, 40, 0.95);
+  --gl-detail-border: rgba(244, 143, 177, 0.35);
+  --gl-detail-letter-color: #f48fb1;
+  --gl-detail-text: #f0d6e3;
+  --gl-detail-fact-color: rgba(240, 214, 227, 0.7);
 }
 
 body.dark-mode.grid .gl-detail-image-wrap {

@@ -1,0 +1,443 @@
+---
+import GridLayout from '@/layouts/GridLayout.astro';
+import { ALL_CARDS, FILTERS } from '@/data/shapes';
+
+const title = 'Shapes — Kids Learning Games';
+const description =
+  'Learn 14 shapes — circles, squares, stars, and more — with a tap-to-explore mini-shape grid, kid-friendly facts, and round / basic / special filtering.';
+
+const totalCards = ALL_CARDS.length;
+---
+
+<GridLayout
+  title={title}
+  description={description}
+  themeColor="#6a1b9a"
+  theme="shapes"
+>
+  <main class="gl-shell" aria-label="Shapes game">
+    <header class="gl-header">
+      <h1 class="gl-title">
+        <span class="gl-title-emoji" aria-hidden="true">🟪</span>
+        Shapes
+      </h1>
+
+      <div class="gl-header-right">
+        <span
+          class="gl-progress-pill"
+          id="progressPill"
+          aria-label={`Progress: 0 of ${totalCards} shapes learned`}
+        >
+          <span id="progressText">0 / {totalCards}</span>
+          <span class="gl-progress-bar" aria-hidden="true">
+            <span class="gl-progress-bar-fill" id="progressFill"></span>
+          </span>
+        </span>
+        <div class="ctrl-row">
+          <button class="ctrl-pill" id="btnQuiz" type="button">🧠 Quiz</button>
+          <button class="ctrl-pill" id="btnStats" type="button">📊 Stats</button>
+          <button class="ctrl-pill" id="btnSettings" type="button">⚙️ Settings</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="cat-bar" id="catBar" role="group" aria-label="Shape filter">
+      {
+        FILTERS.map((f) => (
+          <button
+            class={`cat-btn${f.key === 'all' ? ' active' : ''}`}
+            data-key={f.key}
+            type="button"
+          >
+            {f.label}
+          </button>
+        ))
+      }
+    </div>
+
+    <div class="gl-deck gl-deck--shapes" id="deck" role="list" aria-label="Shape tiles">
+      {
+        ALL_CARDS.map((c, i) => (
+          <button
+            class="gl-tile gl-tile--shape"
+            type="button"
+            role="listitem"
+            data-idx={i}
+            data-name={c.name}
+            data-class={c.cssClass}
+            data-group={c.group}
+            aria-label={`Shape ${c.name}`}
+          >
+            <span
+              class={`gl-shape-figure gl-shape-figure--mini gl-shape-figure--${c.cssClass}`}
+              aria-hidden="true"
+            />
+            <span class="gl-tile-shape-name">{c.name}</span>
+            <span class="gl-tile-check" aria-hidden="true">
+              ✓
+            </span>
+          </button>
+        ))
+      }
+    </div>
+
+    <section class="gl-detail gl-detail--empty" id="detail" aria-live="polite">
+      <div class="gl-detail-inner">
+        <div class="gl-detail-head">
+          <span class="gl-detail-letter" id="detailName">Circle</span>
+          <span class="gl-detail-pill" id="detailPill">Round</span>
+        </div>
+
+        <div class="gl-detail-image-wrap">
+          <div
+            class="gl-shape-figure gl-shape-figure--big gl-shape-figure--circle"
+            id="shapeFigure"
+            aria-hidden="true"
+          >
+          </div>
+        </div>
+
+        <p class="gl-detail-fact" id="detailFact">
+          Tap any shape above to learn about it!
+        </p>
+
+        <div class="gl-detail-actions">
+          <button
+            class="gl-detail-arrow"
+            id="prevBtn"
+            type="button"
+            aria-label="Previous shape"
+          >
+            ◀
+          </button>
+          <button
+            class="gl-detail-hear"
+            id="hearBtn"
+            type="button"
+            aria-label="Play shape name"
+          >
+            🔊 Tap to hear
+          </button>
+          <button
+            class="gl-detail-arrow"
+            id="nextBtn"
+            type="button"
+            aria-label="Next shape"
+          >
+            ▶
+          </button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="gl-done-overlay" id="doneOverlay" role="dialog" aria-live="polite" aria-labelledby="doneTitle">
+    <div class="gl-done-card">
+      <h2 id="doneTitle">Shape master! 🎉</h2>
+      <p>You've learned all 14 shapes. Ready for a fresh round?</p>
+      <button class="gl-done-restart" id="restartBtn" type="button">
+        Start Over
+      </button>
+    </div>
+  </div>
+</GridLayout>
+
+<style is:global>
+  /* Long shape names ("Parallelogram", "Trapezoid") need a slightly
+     smaller hero font than the alphabets/numbers/colors clamp() so they
+     don't crowd the detail-card head. Also normalise capitalisation
+     since the data file ships title case but the .gl-detail-letter
+     base style doesn't constrain it. */
+  body.grid[data-theme='shapes'] .gl-detail-letter {
+    font-size: clamp(1.4em, 4vw, 2.2em);
+    text-transform: capitalize;
+    letter-spacing: 0.3px;
+  }
+</style>
+
+<script>
+  import { playTap } from '@/lib/audio';
+  import { speak } from '@/lib/speech';
+  import { launchConfetti } from '@/lib/achievements';
+  import { getSettings } from '@/lib/settings';
+  import { loadLearned, saveLearned } from '@/lib/progress';
+  import { ALL_CARDS } from '@/data/shapes';
+
+  const GAME_ID = 'shapes';
+
+  // --- State ---
+  let learned = loadLearned(GAME_ID);
+  let activeIdx: number | null = null;
+  let activeFilter: 'all' | 'round' | 'basic' | 'special' = 'all';
+
+  // --- DOM refs ---
+  const deckEl = document.getElementById('deck')!;
+  const detailEl = document.getElementById('detail')!;
+  const detailName = document.getElementById('detailName')!;
+  const detailPill = document.getElementById('detailPill')!;
+  const detailFact = document.getElementById('detailFact')!;
+  const shapeFigure = document.getElementById('shapeFigure')!;
+  const prevBtn = document.getElementById('prevBtn') as HTMLButtonElement;
+  const nextBtn = document.getElementById('nextBtn') as HTMLButtonElement;
+  const hearBtn = document.getElementById('hearBtn') as HTMLButtonElement;
+  const progressText = document.getElementById('progressText')!;
+  const progressFill = document.getElementById('progressFill')!;
+  const catBar = document.getElementById('catBar')!;
+  const doneOverlay = document.getElementById('doneOverlay')!;
+  const restartBtn = document.getElementById('restartBtn') as HTMLButtonElement;
+
+  const tiles = Array.from(
+    deckEl.querySelectorAll<HTMLButtonElement>('.gl-tile'),
+  );
+
+  // --- Helpers ---
+  const tileVisible = (t: HTMLButtonElement): boolean =>
+    activeFilter === 'all' || t.dataset.group === activeFilter;
+
+  const updateProgressUI = (): void => {
+    const n = learned.size;
+    const total = ALL_CARDS.length;
+    progressText.textContent = `${n} / ${total}`;
+    progressFill.style.width = `${(n / total) * 100}%`;
+    document
+      .getElementById('progressPill')
+      ?.setAttribute('aria-label', `Progress: ${n} of ${total} shapes learned`);
+  };
+
+  const applyTileStates = (): void => {
+    for (const t of tiles) {
+      const name = t.dataset.name!;
+      t.classList.toggle('learned', learned.has(name));
+      t.classList.toggle(
+        'active',
+        activeIdx !== null && +t.dataset.idx! === activeIdx,
+      );
+      t.hidden = !tileVisible(t);
+    }
+  };
+
+  const applyFilter = (key: 'all' | 'round' | 'basic' | 'special'): void => {
+    activeFilter = key;
+    for (const b of catBar.querySelectorAll<HTMLButtonElement>('.cat-btn')) {
+      b.classList.toggle('active', b.dataset.key === key);
+    }
+    applyTileStates();
+  };
+
+  // Per-group fill colour for the BIG shape, mirroring the
+  // `[data-group=…]` rule that lives on `.gl-tile--shape` — keeps the
+  // detail card visually tied to the tapped tile.
+  const FILL_BY_GROUP: Record<string, string> = {
+    round:   'linear-gradient(145deg, #ff6b9d, #c2185b)',
+    basic:   'linear-gradient(145deg, #2196f3, #1976d2)',
+    special: 'linear-gradient(145deg, #ff9800, #f57c00)',
+  };
+
+  // Mirror the Colors `renderShapes` trick: rebuild the figure className
+  // each render so the `.pop` animation restarts every selection. Diamond
+  // gets its own keyframe (preserves the 45deg final rotate); the base
+  // class name `gl-shape-figure--diamond` triggers it via the
+  // `.gl-shape-figure--big.gl-shape-figure--diamond.pop` CSS rule.
+  const renderFigure = (cssClass: string, group: string): void => {
+    shapeFigure.className =
+      `gl-shape-figure gl-shape-figure--big gl-shape-figure--${cssClass} pop`;
+    shapeFigure.setAttribute('data-group', group);
+    const fill = FILL_BY_GROUP[group] ?? FILL_BY_GROUP.round!;
+    shapeFigure.style.setProperty('--gl-shape-fill', fill);
+  };
+
+  const showDetail = (idx: number, opts: { scroll?: boolean } = {}): void => {
+    const c = ALL_CARDS[idx];
+    if (!c) return;
+    activeIdx = idx;
+
+    detailEl.classList.remove('gl-detail--empty');
+    detailName.textContent = c.name;
+    detailPill.textContent = c.label;
+    detailPill.dataset.group = c.group;
+    detailFact.textContent = c.fact;
+
+    renderFigure(c.cssClass, c.group);
+
+    const visibleIdxs = tiles.filter(tileVisible).map((t) => +t.dataset.idx!);
+    const posInFiltered = visibleIdxs.indexOf(idx);
+    prevBtn.disabled = posInFiltered <= 0;
+    nextBtn.disabled =
+      posInFiltered === -1 || posInFiltered >= visibleIdxs.length - 1;
+
+    applyTileStates();
+
+    if (opts.scroll) {
+      detailEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  };
+
+  const markLearned = (name: string): void => {
+    if (learned.has(name)) return;
+    learned.add(name);
+    saveLearned(GAME_ID, learned);
+    updateProgressUI();
+    applyTileStates();
+    if (learned.size === ALL_CARDS.length) {
+      showDone();
+    }
+  };
+
+  const speakCard = (idx: number): void => {
+    const c = ALL_CARDS[idx];
+    if (!c) return;
+    const settings = getSettings();
+    if (!settings.autoSpeak) return;
+    speak(`${c.name}. ${c.fact}`);
+  };
+
+  const onTileTap = (t: HTMLButtonElement): void => {
+    const idx = +t.dataset.idx!;
+    const name = t.dataset.name!;
+    playTap();
+    t.classList.remove('just-tapped');
+    void t.offsetWidth;
+    t.classList.add('just-tapped');
+    showDetail(idx, { scroll: true });
+    markLearned(name);
+    speakCard(idx);
+  };
+
+  const navigate = (delta: -1 | 1): void => {
+    if (activeIdx === null) {
+      const first = tiles.find(tileVisible);
+      if (first) onTileTap(first);
+      return;
+    }
+    const visibleIdxs = tiles.filter(tileVisible).map((t) => +t.dataset.idx!);
+    const pos = visibleIdxs.indexOf(activeIdx);
+    if (pos === -1) return;
+    const nextPos = pos + delta;
+    if (nextPos < 0 || nextPos >= visibleIdxs.length) return;
+    const target = tiles[visibleIdxs[nextPos]!]!;
+    onTileTap(target);
+  };
+
+  const showDone = (): void => {
+    doneOverlay.classList.add('show');
+    // Mixed pink + blue + orange confetti — one colour per group, so the
+    // overlay visually echoes the deck's group palette.
+    launchConfetti([
+      '#ff6b9d', '#c2185b',
+      '#2196f3', '#1976d2',
+      '#ff9800', '#f57c00',
+    ]);
+  };
+
+  const restart = (): void => {
+    learned = new Set();
+    saveLearned(GAME_ID, learned);
+    activeIdx = null;
+    detailEl.classList.add('gl-detail--empty');
+    detailFact.textContent = 'Tap any shape above to learn about it!';
+    shapeFigure.className =
+      'gl-shape-figure gl-shape-figure--big gl-shape-figure--circle';
+    shapeFigure.removeAttribute('data-group');
+    shapeFigure.style.removeProperty('--gl-shape-fill');
+    updateProgressUI();
+    applyTileStates();
+    doneOverlay.classList.remove('show');
+  };
+
+  // --- Event wiring ---
+  deckEl.addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(
+      '.gl-tile',
+    );
+    if (btn && !btn.hidden) onTileTap(btn);
+  });
+
+  catBar.addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(
+      '.cat-btn',
+    );
+    if (!btn) return;
+    playTap();
+    const key = btn.dataset.key as 'all' | 'round' | 'basic' | 'special';
+    applyFilter(key);
+    if (activeIdx !== null) {
+      const currentTile = tiles[activeIdx];
+      if (currentTile && !tileVisible(currentTile)) {
+        activeIdx = null;
+        detailEl.classList.add('gl-detail--empty');
+        detailFact.textContent = 'Tap any shape above to learn about it!';
+      }
+    }
+  });
+
+  prevBtn.addEventListener('click', () => {
+    playTap();
+    navigate(-1);
+  });
+
+  nextBtn.addEventListener('click', () => {
+    playTap();
+    navigate(1);
+  });
+
+  hearBtn.addEventListener('click', () => {
+    playTap();
+    if (activeIdx === null) {
+      const first = tiles.find(tileVisible);
+      if (first) onTileTap(first);
+      return;
+    }
+    const c = ALL_CARDS[activeIdx];
+    if (!c) return;
+    speak(`${c.name}. ${c.fact}`);
+  });
+
+  restartBtn.addEventListener('click', () => {
+    playTap();
+    restart();
+  });
+
+  document.getElementById('btnSettings')?.addEventListener('click', () => {
+    playTap();
+    (window as unknown as { openSettings?: () => void }).openSettings?.();
+  });
+
+  document.getElementById('btnStats')?.addEventListener('click', () => {
+    playTap();
+    alert(
+      `You've learned ${learned.size} out of ${ALL_CARDS.length} shapes!\n\nKeep exploring!`,
+    );
+  });
+
+  document.getElementById('btnQuiz')?.addEventListener('click', () => {
+    playTap();
+    alert('Quiz mode is coming soon!');
+  });
+
+  // Keyboard: arrow keys navigate, first-letter shortcut jumps to the
+  // first matching shape. C=Circle (or Crescent if "round"-filtered,
+  // since deck order is round-first), H=Heart, S=Square (or Star /
+  // Star is later in deck so first-match goes Square first), etc.
+  document.addEventListener('keydown', (e) => {
+    if (e.target instanceof HTMLInputElement) return;
+    if (e.key === 'ArrowLeft') {
+      navigate(-1);
+      return;
+    }
+    if (e.key === 'ArrowRight') {
+      navigate(1);
+      return;
+    }
+    if (/^[a-zA-Z]$/.test(e.key)) {
+      const ch = e.key.toUpperCase();
+      const target = tiles.find(
+        (t) => !t.hidden && t.dataset.name!.charAt(0) === ch,
+      );
+      if (target) onTileTap(target);
+    }
+  });
+
+  // --- Initial render ---
+  updateProgressUI();
+  applyTileStates();
+</script>
