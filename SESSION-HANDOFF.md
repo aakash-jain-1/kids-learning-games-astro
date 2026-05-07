@@ -35,6 +35,35 @@
 > `/Users/aakasjai/.cursor/projects/Users-aakasjai-Documents-GIT-Projects-Github-AJ/agent-transcripts/<uuid>.jsonl`
 > unless investigating a specific historical decision — those docs already
 > capture the architectural conclusions.
+>
+> ⚠️ **Before you run a single shell command, read the PRE-FLIGHT block
+> right below this — it's 5 lines and it'll save ~10 wasted tool calls.**
+
+---
+
+## PRE-FLIGHT — read these 5 lines before running any shell command
+
+> Burned ~15 tool calls in 2026-05-07's session re-discovering these. Don't.
+>
+> 1. **Always `cd` to the project with an absolute path** — chain it into the
+>    command itself (`cd "/Users/aakasjai/Documents/GIT Projects/Github_AJ/kids-learning-games-astro" && …`).
+>    The Shell tool's `working_directory` parameter has dropped silently
+>    multiple times, leaving npm/git looking at the parent directory.
+> 2. **Use the npm scripts, not raw astro/npx.** `npm run check`,
+>    `npm run build`, `npm run dev` all have `ASTRO_TELEMETRY_DISABLED=1`
+>    baked in (since 2026-05-07). They run cleanly in the **default
+>    sandbox** — no `["all"]` needed. Avoid `npx astro …` (registry lookup
+>    can hang) and raw `astro …` (telemetry tries to `mkdir ~/Library/Preferences/astro` → EPERM).
+> 3. **`git push` needs `required_permissions: ["all"]`** — corp TLS
+>    interception blocks the default sandbox's proxy. Any other git command
+>    (status, add, commit, log, diff) runs fine in the default sandbox.
+> 4. **`["all"]` mode starts a FRESH shell** — no preserved CWD, no preserved
+>    env vars from prior calls. Always re-`cd` with the absolute path inside
+>    the same `["all"]` invocation, and prefer absolute binary paths
+>    (`/opt/homebrew/bin/node`, `/usr/bin/curl`) since PATH may differ.
+> 5. **Full gotcha catalog and rationale** lives in **Tool / environment
+>    gotchas** further down — skim it once per session, then refer back as
+>    needed.
 
 ---
 
@@ -392,46 +421,70 @@ should attempt Woodcutter on `CardMachineLayout` and only carve out
 
 ## Tool / environment gotchas (hit during this session)
 
-These tripped me up — bake them in early.
+These tripped me up — bake them in early. The PRE-FLIGHT block at the
+top of this file is the 60-second version; this is the rationale.
 
-- **Astro telemetry blocks the sandbox.** `npx astro check` /
-  `npx astro build` try to write to `~/Library/Preferences/astro` and
-  fail. Always use `ASTRO_TELEMETRY_DISABLED=1` in the shell env.
-- **`npx astro check` can hang on an interactive prompt** (hit during
-  Animals port). With newer npm versions, `npx astro check` may try
-  to install astro@6 from the registry instead of resolving the
-  local astro@5, then `@astrojs/check` may also be missing and astro
-  prompts "Continue? Yes / No" on stdin — invisible behind a `tail`
-  pipe and the command hangs forever. **Fix**: invoke the local
-  binary directly. Build commands that work reliably:
+- **Use `npm run check` / `npm run build` — not raw `astro` or `npx astro`.**
+  As of 2026-05-07 the npm scripts in `package.json` have
+  `ASTRO_TELEMETRY_DISABLED=1` baked in, so they run cleanly in the
+  **default sandbox** (no `["all"]` escalation needed). Why this matters:
+  - **Astro telemetry blocks the sandbox.** Without that env var, astro
+    tries to write to `~/Library/Preferences/astro` (outside the
+    workspace) and fails with `EPERM: operation not permitted, mkdir`.
+  - **`npx astro check` can hang on an interactive prompt.** With newer
+    npm versions, `npx astro check` may try to install astro@6 from the
+    registry instead of resolving the local astro@5, then
+    `@astrojs/check` may also be missing and astro prompts "Continue?
+    Yes / No" on stdin — invisible behind a `tail` pipe and the command
+    hangs forever.
+  - The escape hatch (still works if npm scripts are unavailable):
 
-  ```bash
-  cd "/Users/aakasjai/Documents/GIT Projects/Github_AJ/kids-learning-games-astro"
-  ASTRO_TELEMETRY_DISABLED=1 node ./node_modules/astro/astro.js check
-  ASTRO_TELEMETRY_DISABLED=1 node ./node_modules/astro/astro.js build
-  ```
+    ```bash
+    cd "/Users/aakasjai/Documents/GIT Projects/Github_AJ/kids-learning-games-astro"
+    ASTRO_TELEMETRY_DISABLED=1 node ./node_modules/astro/astro.js check
+    ASTRO_TELEMETRY_DISABLED=1 node ./node_modules/astro/astro.js build
+    ```
 
-  Equivalently, `npm run check` / `npm run build` work because npm
-  scripts add `node_modules/.bin` to PATH. Avoid bare `npx astro …`.
-
+- **The Shell tool's `working_directory` parameter has dropped silently.**
+  Hit this on 2026-05-07 — set `working_directory` to the project
+  absolute path, the shell's reported CWD matched, but `npm run check`
+  then errored saying it couldn't find `package.json` in the **parent**
+  directory. Always chain `cd "<absolute path>" && …` into the command
+  itself; treat `working_directory` as a hint at best.
+- **`["all"]` shell mode = fresh shell, no preserved CWD or env.**
+  Each `["all"]` invocation starts a brand-new zsh that does not
+  inherit the workspace shell's CWD, exports, or PATH hashes. Always:
+  - Re-`cd` with the absolute path inside the same `["all"]` invocation.
+  - Use absolute binary paths if you need fixed tools
+    (`/opt/homebrew/bin/node`, `/usr/bin/curl`, `/bin/echo`).
+  - Re-export any env vars the command depends on.
+- **`["all"]` shell mode also loses some PATH hashes.** Even when PATH
+  is correct, built-ins like `grep` / `sort` / `head` occasionally
+  report `command not found`. Workaround: use the IDE's `Grep` tool
+  for searching instead of spawning shell processes. For `curl`, use
+  full path `/usr/bin/curl`.
+- **`git push` needs `["all"]`.** Corp TLS interception blocks the
+  default sandbox's outbound proxy with "Couldn't establish connection
+  to proxy / Operation not permitted". Any other git command (status,
+  add, commit, log, diff, fetch on small refs) works in the default
+  sandbox.
+- **TLS interception in `["full_network"]` mode.** `curl https://...`
+  returns "self signed certificate in certificate chain" inside the
+  default sandbox. Use `["all"]` to escape (no MITM there).
 - **GitHub Pages trailing-slash quirk.** `/games/<game>/` → 404.
   Canonical extensionless URL `/games/<game>` → 200. Astro defaults to
   `trailingSlash: 'never'` for static GH Pages projects. Sniff with
   the canonical form, or you'll think the deploy is broken. Note: the
   Astro config sets `format: 'file'`, so production paths are
   actually `/games/<game>.html` — both extensionless and `.html` work.
-- **`["all"]` shell mode loses some PATH hashes.** Built-ins like
-  `grep` / `sort` / `head` sometimes report `command not found` even
-  though they're at `/usr/bin/<cmd>` and PATH includes it. Workaround:
-  use the IDE's `Grep` tool for searching instead of spawning shell
-  processes. For `curl`, use full path `/usr/bin/curl`.
-- **TLS interception in `["full_network"]` mode.** `curl https://...`
-  returns "self signed certificate in certificate chain" inside the
-  default sandbox. Use `["all"]` to escape (no MITM there).
 - **Deploy time**: ~30 seconds end-to-end after a push. Pattern:
-  `for i in 1..12; sleep 15; check 200` (Animals took 30 seconds).
-- **Shapes deploy returned 200 within ~25 seconds**, Animals within
-  ~30 seconds — consistent with other grid games.
+  `for i in 1..12; sleep 15; check 200` (Animals + Birds both ~30s,
+  Shapes ~25s — consistent across grid games).
+- **Files in `/tmp/` from one Shell call are NOT guaranteed to persist
+  to the next.** Hit on 2026-05-07 verifying live deploys —
+  `curl -o /tmp/foo.html` followed by a separate `grep /tmp/foo.html`
+  raised "No such file or directory". Either pipe `curl | grep`
+  in one call, or write to a workspace path.
 
 ---
 
@@ -488,23 +541,29 @@ These tripped me up — bake them in early.
 ## Useful commands
 
 ```bash
+# 0. ALWAYS start with this — chain it into every command (working_directory
+#    parameter has dropped silently; see PRE-FLIGHT at the top of this file).
 cd "/Users/aakasjai/Documents/GIT Projects/Github_AJ/kids-learning-games-astro"
 
-# dev (kills any stale dev/preview servers first)
+# 1. dev (kills any stale dev/preview servers first)
 npm run dev:fresh
 # → http://localhost:4321/kids-learning-games-astro/
 
-# build (sandbox-friendly)
-ASTRO_TELEMETRY_DISABLED=1 npx astro check
-ASTRO_TELEMETRY_DISABLED=1 npx astro build
+# 2. type-check + build (default-sandbox-friendly since 2026-05-07 —
+#    ASTRO_TELEMETRY_DISABLED=1 is baked into the npm scripts).
+npm run check    # ~5–15s
+npm run build    # ~12–20s, includes check
 
-# git connectivity diagnostics
+# 3. git connectivity diagnostics (default sandbox is fine for these)
 git remote -v
 git status -sb
 git ls-remote --heads origin main
 ssh -o BatchMode=yes -o ConnectTimeout=8 -T git@github.com   # exits 1 by design
 
-# live deploy verification (use full curl path inside ["all"] shells)
+# 4. git push (NEEDS required_permissions: ["all"] — corp TLS interception)
+git push origin main
+
+# 5. live deploy verification (use full curl path inside ["all"] shells)
 /usr/bin/curl -sS -o /dev/null -w "%{http_code}\n" -L \
   https://aakash-jain-1.github.io/kids-learning-games-astro/games/<game>
 
@@ -599,6 +658,23 @@ agent's high-level response.)
     verified with **6-way GridLayout shared-chunk dedup** + **5-way
     `fluent` shared-chunk dedup**, zero regressions on prior 9 games.
 24. *"Continue"* (this docs commit) → wrote this docs follow-up.
+25. *"Why these issues are coming, previous chat sessions these issues
+    werent there like bash, sandbox, post deployment polling, etc"* +
+    *"Go ahead"* → audited the recurring shell / sandbox / npx / git
+    push issues hit during the Birds port, distinguished documented
+    gotchas from fresh-session quirks, then implemented the agreed
+    fixes: (a) baked `ASTRO_TELEMETRY_DISABLED=1` into all `astro`
+    npm scripts in `package.json` so `npm run check` / `npm run build`
+    now run cleanly in the **default sandbox** with no `["all"]`
+    escalation; (b) added a 5-line **PRE-FLIGHT** block at the top of
+    this file (above the TL;DR) so the next agent sees the
+    operational gotchas before the architectural state; (c) rewrote
+    the **Tool / environment gotchas** section to lead with the npm
+    scripts and added two new gotchas observed this session
+    (`working_directory` parameter dropping silently; `/tmp/` files
+    not persisting across `Shell` calls); (d) refreshed the **Useful
+    commands** list to the new sandbox-friendly invocations, marking
+    which commands need `["all"]` (only `git push`).
 
 ---
 
@@ -642,5 +718,5 @@ agent's high-level response.)
 ---
 
 *Generated 2026-05-07 from a single chat that ran from project audit
-(2026-04-24) through Birds port + docs (2026-05-07). 10/13 games
-ported, all live. Next: Hindi.*
+(2026-04-24) through Birds port + docs + tooling-friction fixes
+(2026-05-07). 10/13 games ported, all live. Next: Hindi.*

@@ -260,6 +260,77 @@ before deciding.
 
 ## Changelog
 
+### 2026-05-07 — Tooling friction fixes (sandbox-friendly npm scripts + PRE-FLIGHT docs)
+
+Tooling change, no code-shipped-to-users diff. Triggered by the user
+asking *"Why these issues are coming, previous chat sessions these
+issues werent there like bash, sandbox, post deployment polling, etc"*
+after the Birds port re-tripped the same `npx astro …` /
+`["all"]`-fresh-shell / `git push` proxy gotchas the Animals port had
+already documented. The agreed fix: lower the cost of the *next* port
+by making the sane invocations the default ones, and surface the
+remaining gotchas before the agent runs its first command.
+
+- **Changed:**
+  - `package.json` — every astro-touching npm script now sets
+    `ASTRO_TELEMETRY_DISABLED=1` inline (`dev`, `dev:fresh` already
+    handled via the bash wrapper, `build`, `preview`, `check`,
+    `astro`). `npm run check` and `npm run build` now run cleanly in
+    the **default Cursor sandbox** (no `["all"]` permission
+    escalation needed). The previous workaround
+    (`ASTRO_TELEMETRY_DISABLED=1 node ./node_modules/astro/astro.js …`)
+    still works as an escape hatch and is documented in
+    `SESSION-HANDOFF.md`.
+  - `SESSION-HANDOFF.md` — added a 5-line **PRE-FLIGHT** callout at
+    the very top of the file (above the TL;DR), listing the
+    operational gotchas the next agent needs *before* running any
+    shell command: (1) chain `cd "<absolute path>" && …` because the
+    Shell tool's `working_directory` parameter has dropped silently;
+    (2) use `npm run check` / `npm run build`, not raw or `npx`
+    invocations; (3) `git push` needs `["all"]` (corp TLS
+    interception); (4) `["all"]` mode = fresh shell, no preserved
+    CWD/env; (5) full gotcha catalog and rationale lives further
+    down. Rewrote the existing **Tool / environment gotchas**
+    section to lead with the npm scripts, added two new gotchas
+    observed this session (`working_directory` parameter dropping
+    silently; `/tmp/` files not persisting across `Shell` calls),
+    and refreshed the **Useful commands** section to match.
+- **Why:**
+  - The **Astro telemetry → `EPERM mkdir ~/Library/Preferences/astro`**
+    failure has now bitten 4 sessions in a row (Animals port,
+    Birds port, twice during Birds verification). Each session paid
+    ~3 tool calls re-discovering it before reaching for `["all"]`.
+    Baking the env var into the script collapses that to 0 — the
+    script Just Works in the default sandbox.
+  - The **`npx astro check` registry-lookup hang** also re-tripped
+    during Animals + Birds. Same fix path applies (npm scripts
+    resolve the local binary directly).
+  - The **`working_directory` parameter dropping** was *new* this
+    session (Birds port; tried `working_directory:
+    "/Users/.../kids-learning-games-astro"`, shell reported the
+    correct CWD, but `npm` then errored looking for `package.json`
+    in the parent directory). Documented as not-trustable; chain
+    `cd` inline.
+  - The **`["all"]` shell starts fresh** behavior was *new* this
+    session too (previous sessions' workarounds assumed CWD
+    persisted across permission boundaries; it does not). Now
+    documented.
+- **Verified:**
+  - `npm run check` — 0 errors, 0 warnings, 35 files type-checked
+    in ~5s, **default sandbox**, no `["all"]`.
+  - `npm run build` — 11 pages built in 7.20s, PWA service-worker
+    generated, 44 precache entries (313.92 KiB), **default
+    sandbox**, no `["all"]`. Both signal that the next port can
+    run check/build/dev without permission escalation.
+  - CI workflow `.github/workflows/deploy.yml` already sets
+    `ASTRO_TELEMETRY_DISABLED: '1'` via job env, so it continues
+    to work unchanged. Left untouched — CI doesn't have the same
+    sandbox issues as the local Cursor agent.
+- **Outcome:** Next port (Hindi) starts with one fewer thing to
+  mis-remember. The PRE-FLIGHT block is the new "first thing the
+  agent reads after the file purpose statement", before the
+  architectural state.
+
 ### 2026-05-07 — Birds game ported (10/13) ✅ + sunset palette + emoji-collision fix
 
 Sixth `GridLayout` port and second consumer of the `.gl-tile--emoji`

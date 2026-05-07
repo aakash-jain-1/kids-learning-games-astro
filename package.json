@@ -5,13 +5,13 @@
   "type": "module",
   "description": "Astro + TypeScript + PWA proof-of-concept migration for kids-learning-games",
   "scripts": {
-    "dev": "astro dev",
+    "dev": "ASTRO_TELEMETRY_DISABLED=1 astro dev",
     "dev:fresh": "bash scripts/dev.sh",
     "stop": "bash scripts/stop-dev.sh",
-    "build": "astro check && astro build",
-    "preview": "astro preview",
-    "check": "astro check",
-    "astro": "astro"
+    "build": "ASTRO_TELEMETRY_DISABLED=1 astro check && ASTRO_TELEMETRY_DISABLED=1 astro build",
+    "preview": "ASTRO_TELEMETRY_DISABLED=1 astro preview",
+    "check": "ASTRO_TELEMETRY_DISABLED=1 astro check",
+    "astro": "ASTRO_TELEMETRY_DISABLED=1 astro"
   },
   "dependencies": {
     "astro": "^5.18.0"
