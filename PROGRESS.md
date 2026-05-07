@@ -132,29 +132,30 @@ or (b) document a one-off exception.
 ## Current status (snapshot)
 
 - **Stack landed:** Astro `5.18.1` + strict TypeScript + `@vite-pwa/astro` `1.2.0` with `injectManifest` + Workbox 7.
-- **Games ported (7 of 13), split across two shared layouts:**
+- **Games ported (8 of 13), split across two shared layouts:**
   - *CardMachineLayout — 4 games (reference-catalogue pedagogy):*
     - Dinosaurs (default green theme, 15 cards, diet filter)
     - Flashcards (cyan/orange theme, 14 decks, 4 card-face variants)
     - Solar System (purple/gold theme, 11 cards, pure-CSS planet art, type filter)
     - Weather (deep-navy/ice-blue theme, 20 cards, season filter, full Fluent UI image deck)
-  - *GridLayout — 3 games (foundational-set pedagogy):*
+  - *GridLayout — 4 games (foundational-set pedagogy):*
     - Alphabets (purple/green theme, 26 letter tiles, vowel/consonant filter, inline detail card with Fluent UI 3D image, completion overlay with confetti). Uses shared `kids_progress_v1` via `src/lib/progress.ts`.
     - Numbers (sky-blue/orange theme, 10 digit tiles, 1–5 / 6–10 filter, inline detail card with N CSS count-objects matching vanilla pedagogy, digit-key + arrow-key shortcuts, completion overlay with confetti). Uses shared `kids_progress_v1` via `src/lib/progress.ts`.
     - Colors (pastel pink/lavender theme, 12 colour-swatch tiles with the swatch *as* the tile face, warm/cool/neutral filter, inline detail card with a 5-shape pure-CSS gallery painted in the active colour, first-letter-key shortcut, full-spectrum confetti on completion). Uses shared `kids_progress_v1` via `src/lib/progress.ts`.
-- **Vanilla games still to port (6):**
-  `shapes-game`, `animals-game`, `birds-game`, `hindi-game`, `woodcutter-story`, `daily-routines-story`.
-  The 4 remaining foundational-set games land on `GridLayout`; the two story games get their own layout only if neither shared shell stretches to cover them. Per-game decisions and gotchas tracked in [Per-game layout decisions](#per-game-layout-decisions-for-the-7-pending-ports) below.
+    - Shapes (pink/coral theme, 14 shape tiles where the tile face is a *miniature pure-CSS rendering of the shape itself* + name label, round/basic/special filter, inline detail card with the *same shape rendered ~180px* + name + group pill + fact, group-coloured confetti on completion). Each pedagogical group gets its own tile-fill colour (round = pink/red, basic = blue, special = orange/gold) so the deck is visually scannable by category. Uses shared `kids_progress_v1` via `src/lib/progress.ts`.
+- **Vanilla games still to port (5):**
+  `animals-game`, `birds-game`, `hindi-game`, `woodcutter-story`, `daily-routines-story`.
+  The 3 remaining foundational-set games land on `GridLayout`; the two story games get their own layout only if neither shared shell stretches to cover them. Per-game decisions and gotchas tracked in [Per-game layout decisions](#per-game-layout-decisions-for-the-5-pending-ports) below.
 - **Shared infra in place:**
   - `CardMachineLayout.astro` shell — used by 4 ported games. Proven against three card-face strategies (pure-CSS art, image-with-fallback, big-digit/letter text).
-  - `GridLayout.astro` shell — used by 3 ported games (Alphabets, Numbers, Colors). Single-column vertical flow (header → filters → tile grid → inline detail). Three deck variants in `grid.css`: `--capped` (auto-fill 64–96px, alphabets), `--numbers` (fixed `repeat(5, …)` for the small 10-tile deck), `--colors` (auto-fill 96px+ for swatch tiles). Three reusable detail-payload patterns: Fluent UI image (alphabets), CSS count-objects (numbers), CSS shape-gallery (colors). Completion overlay + restart button included.
+  - `GridLayout.astro` shell — used by 4 ported games (Alphabets, Numbers, Colors, Shapes). Single-column vertical flow (header → filters → tile grid → inline detail). Four deck variants in `grid.css`: `--capped` (auto-fill 64–96px, alphabets), `--numbers` (fixed `repeat(5, …)` for the small 10-tile deck), `--colors` (auto-fill 96px+ for swatch tiles), `--shapes` (auto-fill 96px+ for shape-tile + name label). Four reusable detail-payload patterns: Fluent UI image (alphabets), CSS count-objects (numbers), CSS shape-gallery (colors), **CSS shape-figure-hero** (shapes — the same `.gl-shape-figure--<shape>` primitive used at ~36px on every tile is rerendered at ~180px in the detail card). Completion overlay + restart button included.
   - `card-machine.css` with ~25 `--cm-*` theming tokens per theme.
-  - `grid.css` with ~25 `--gl-*` theming tokens per theme, 5 `--gl-count-bg-*` tokens for the count-objects palette (used by numbers), and `--gl-shape-color` / `--gl-shape-border` for the colour shape gallery (used by colors). Each detail-payload type is opt-in: a game uses `.gl-detail-image` *or* `.gl-count-grid` *or* `.gl-shape-grid`, never two at once.
+  - `grid.css` with ~25 `--gl-*` theming tokens per theme, 5 `--gl-count-bg-*` tokens for the count-objects palette (used by numbers), `--gl-shape-color` / `--gl-shape-border` for the colour shape gallery (used by colors), and `--gl-shape-fill` for the shape-figure namespace (used by shapes — driven by `[data-group=…]` rule on `.gl-tile--shape` so each pedagogical group gets a distinct fill colour). Each detail-payload type is opt-in: a game uses `.gl-detail-image` *or* `.gl-count-grid` *or* `.gl-shape-grid` *or* `.gl-shape-figure`, never two at once.
   - Shared chrome primitives in `global.css` (`.ctrl-pill`, `.cat-bar`, `.cat-btn` base, nav, modal, progress bar, toast) — both layouts share these.
-  - `src/lib/`: singleton AudioContext, speech wrapper, unified settings, achievement toasts + confetti, **`progress.ts`** (extracted now that Numbers is the second consumer of `kids_progress_v1:<gameId>`).
+  - `src/lib/`: singleton AudioContext, speech wrapper, unified settings, achievement toasts + confetti, **`progress.ts`** (consumed by **all 4 grid games** — alphabets, numbers, colors, shapes — via the shared `kids_progress_v1:<gameId>` LocalStorage key).
   - `src/data/fluent.ts` — shared `FLUENT_IMG_BASE` constant (consumers: flashcards, weather, alphabets; more to come).
   - Workbox SW (`src/sw.ts`) with StaleWhileRevalidate for the GitHub API and CacheFirst for Fluent emoji images.
-- **Per-game learning state:** `kids_progress_v1:<gameId>` LocalStorage key is the canonical pattern. Alphabets writes to `kids_progress_v1:alphabets`, Numbers writes to `kids_progress_v1:numbers`, Colors writes to `kids_progress_v1:colors`. Read/write/clear is `src/lib/progress.ts` — all three games share the implementation.
+- **Per-game learning state:** `kids_progress_v1:<gameId>` LocalStorage key is the canonical pattern. Alphabets writes to `kids_progress_v1:alphabets`, Numbers writes to `kids_progress_v1:numbers`, Colors writes to `kids_progress_v1:colors`, Shapes writes to `kids_progress_v1:shapes`. Read/write/clear is `src/lib/progress.ts` — all four games share the implementation.
 - **Dev ergonomics:**
   - `npm run dev:fresh` — kills any stale dev/preview servers scoped to this project, then starts a clean one on `:4321`.
   - `npm run stop` — standalone kill script.
@@ -167,17 +168,18 @@ or (b) document a one-off exception.
   - `/games/alphabets-game` — 200 ✅ (verified 2026-04-24, `<body class="grid" data-theme="alphabets">` reaches production, all 26 `.gl-tile` tiles SSR-rendered, 3 filter pills present, progress counter initialises at `0 / 26`, done overlay markup present, zero `cm-*` / `.top-card` / `.press-btn` contamination)
   - `/games/numbers-game` — 200 ✅ (verified 2026-05-06, `<body class="grid" data-theme="numbers">` reaches production, all 10 `.gl-tile` tiles SSR-rendered with `data-num` 1–10 + correct `data-group="low"`/`"high"`, 3 filter pills (`all` / `low` / `high`), progress counter initialises at `0 / 10`, `.gl-count-grid` placeholder + `.gl-deck--numbers` deck variant present, zero `card-machine` / `cm-tile` / `press-btn` / `machine-screen` / `top-card` cross-contamination. **Shared progress chunk verified:** both `alphabets-game.…js` and `numbers-game.…js` reference `/_astro/progress.Czz_LiQd.js` (331 bytes raw) — first browser visit caches it, second game loads it from cache.)
   - `/games/colors-game` — 200 ✅ (verified 2026-05-06, `<body class="grid" data-theme="colors">` reaches production, all 12 `.gl-tile.gl-tile--swatch` tiles SSR-rendered with inline `style="--swatch: #...;"` matching vanilla hex values verbatim (`#FF0000` Red, `#FFA500` Orange, `#FFFF00` Yellow, `#FFC0CB` Pink, etc.), 2 tiles flagged `gl-tile--light` (Yellow + White), 4 filter pills (`all` / `warm` / `cool` / `neutral`), progress counter `0 / 12`, `.gl-shape-grid` with all 5 SSR-rendered shape divs (circle, square, rounded, diamond, triangle), zero `card-machine` / `cm-tile` / `press-btn` / `machine-screen` / `top-card` cross-contamination, zero swatch-styling leakage into alphabets / numbers HTML. **All 3 grid games verified to share `progress.Czz_LiQd.js` + `achievements.CySDez3r.js` + `settings.zS6XEbod.js` shared chunks** — colors-game.…js imports the same set as alphabets-game.…js and numbers-game.…js.)
+  - `/games/shapes-game` — 200 ✅ (verified 2026-05-07, `<body class="grid" data-theme="shapes">` reaches production, all 14 `.gl-tile.gl-tile--shape` tiles SSR-rendered with `data-class` + `data-group` + child `<span class="gl-shape-figure gl-shape-figure--mini gl-shape-figure--<class>">` mini-figure + `<span class="gl-tile-shape-name">` name label, all 14 unique shape modifier classes present (circle, oval, heart, crescent, square, rectangle, triangle, diamond, parallelogram, trapezoid, pentagon, hexagon, octagon, star), data-group counts: round 4 / basic 6 / special 4, 4 filter pills (`all` / `round` / `basic` / `special`), progress counter `0 / 14`, single big `.gl-shape-figure--big` placeholder + `.gl-deck--shapes` deck variant present in detail card, zero `card-machine` / `cm-*` / `top-card` / `press-btn` / `machine-screen` / `cm-cell` cross-contamination, zero shape-figure markup in alphabets / numbers / colors HTML. **4-way shared-chunk dedup verified at the chunk level:** alphabets, numbers, colors, **and shapes** page-chunks all import the *exact same* `/_astro/progress.Czz_LiQd.js` + `/_astro/achievements.CySDez3r.js` + `/_astro/settings.zS6XEbod.js` — three shared modules served once and cached for every grid game.)
   - `/manifest.webmanifest`, `/sw.js`, `/.nojekyll` — all 200
-- **Production build sizes (client JS, gzipped):** flashcards **11.28 KB**, weather **3.34 KB**, dinosaurs **3.02 KB**, alphabets **2.96 KB** (-0.11 KB vs pre-`progress.ts`-extract — saving is the inlined helper now reused), solar-system **2.66 KB**, colors **2.25 KB**, numbers **2.08 KB**. Shared `progress.ts` chunk: **0.24 KB**, loaded once per session and cached by the SW for all three grid games. Total PWA precache: 38 entries, ~227 KB (was 36 / 203 KB).
-- **Production build sizes (CSS, per page):** card-machine games share `dinosaurs-game.*.css` (17 KB), grid games share `alphabets-game.*.css` (16.6 KB, was 12.7 KB pre-colors — delta is ~150 lines of `--gl-*` colors theme tokens + `.gl-tile--swatch` swatch tile + `.gl-shape-grid` 5-shape gallery + `--colors` deck variant + colors dark mode). Isolation verified: zero `gl-shape-*` / `gl-tile--swatch` / `gl-deck--colors` tokens in the card-machine bundle, zero `cm-*` / `.top-card` / `.press-btn` in the grid bundle, zero swatch-styling leakage into alphabets / numbers HTML.
+- **Production build sizes (client JS, gzipped):** flashcards **11.28 KB**, weather **3.34 KB**, dinosaurs **3.02 KB**, alphabets **2.96 KB**, solar-system **2.66 KB**, colors **2.25 KB**, **shapes 2.11 KB**, numbers **2.08 KB**. Shared `progress.ts` chunk: **0.24 KB**, loaded once per session and cached by the SW for **all four grid games** (alphabets, numbers, colors, shapes — all reference `/_astro/progress.Czz_LiQd.js` verbatim). Total PWA precache: **40 entries, ~255 KB** (was 38 / 227 KB).
+- **Production build sizes (CSS, per page):** card-machine games share `dinosaurs-game.*.css` (17.8 KB, +0.8 KB vs the previous build is purely Vite re-hash churn — verified zero new selectors in the chunk), grid games share `alphabets-game.*.css` (**21.6 KB**, was 16.6 KB pre-shapes — delta is ~165 lines of `.gl-shape-figure` namespace + 14 per-shape modifiers + `--shapes` theme block + `.gl-deck--shapes` deck variant + shapes dark-mode override). Isolation verified bidirectionally: zero `gl-shape-figure` / `gl-tile--shape` / `gl-deck--shapes` / `data-theme="shapes"` selectors in the card-machine bundle, zero `cm-*` / `.top-card` / `.press-btn` / `.machine-screen` / `.cm-cell` in the grid bundle, zero shape-figure markup in alphabets / numbers / colors HTML.
 
 ---
 
 ## What still needs doing
 
-> **▶ Resume here next session:** start on item **1.a (Shapes on GridLayout)** below. The `GridLayout` shell now hosts 3 games and 3 detail-payload patterns (image, count-objects, shape-gallery). Shapes is the easiest next pick — like Colors but the tile *is* the shape (CSS-drawn) and the detail card shows the same shape larger plus a real-world example sentence. Expected scope: new `src/data/shapes.ts` + new `src/pages/games/shapes-game.astro` + ~35-line `--gl-*` theme block in `grid.css` + per-shape CSS classes (`.gl-shape--*` already exist for 5 shapes from the colors port — Shapes will need a few more like heart / star / pentagon, plus a *bigger* size for the detail) + home tile + GameNav link. No new infra needed.
+> **▶ Resume here next session:** start on item **1.a (Animals on GridLayout)** below. The `GridLayout` shell now hosts **4 games** (Alphabets, Numbers, Colors, Shapes) and **4 detail-payload patterns** (Fluent UI image, count-objects, shape-gallery, **shape-figure-hero** — the new namespace shipped with Shapes). Animals introduces a 5th tile-face strategy (big emoji on the tile face, Fluent UI 3D image inside the detail card) — closer to the Alphabets pattern than the Colors / Shapes ones, since the tile face is text/emoji and the detail is image-driven. Expected scope: new `src/data/animals.ts` (~20 entries, mammal / bird / reptile / sea / insect filter) + new `src/pages/games/animals-game.astro` (copy-adapt from `alphabets-game.astro`) + ~35-line `--gl-*` theme block in `grid.css` + emoji-fallback handling for animals without Fluent UI 3D PNGs (apply the alphabets `Q → Crown` precedent) + home tile + GameNav link. No new infra needed.
 
-### Per-game layout decisions for the 6 pending ports
+### Per-game layout decisions for the 5 pending ports
 
 Audited every remaining vanilla file and decided which shared layout each
 should land on. The principle from rule #3 — *"use the vanilla layout as
@@ -188,17 +190,16 @@ as Alphabets (`~3.0 KB gzip`) plus the per-game CSS theme block
 
 | # | Game | Vanilla shape | Deck size | Layout | Open questions |
 |---|---|---|---|---|---|
-| 1 | **Shapes** | `left-pane + shapes-grid` (two-pane) | **~10** (circle, square, triangle, rectangle, star, heart, diamond, oval, hexagon, pentagon) | **`GridLayout`** | Tile face is a **pure-CSS shape** drawn at the centre. The 5 `.gl-shape--*` classes shipped with Colors (circle / square / rounded / diamond / triangle) are reusable — Shapes will add heart / star / pentagon / hexagon / oval to that vocabulary, plus a `--detail` size variant for the bigger render in the detail card. No image CDN dependency. Filter: `polygon` / `curved` / `compound`. Probably wants the existing `.gl-deck--numbers` 5-column variant since deck size is similar. |
-| 2 | **Animals** | `left-pane + animals-grid` (two-pane) | **~20** | **`GridLayout`** | Tile face = big emoji, detail = Fluent UI 3D image + sound + fact. Filter: `mammal` / `bird` / `reptile` / `sea` / `insect`. Some animals don't have Fluent UI 3D PNGs — emoji-only tiles + emoji fallback in detail are acceptable per the alphabets `Q → Crown` precedent. |
-| 3 | **Birds** | `left-pane + birds-grid` (two-pane) | **~15** | **`GridLayout`** | Same shape as Animals (emoji tile + Fluent image detail). Filter: `songbird` / `raptor` / `waterbird` / `tropical`. Could share the animals theme palette unchanged — decide at port time. |
-| 4 | **Hindi** | `left-pane` with **two separate grids** (vowels + consonants) | **~46** (13 vowels + ~33 consonants) | **`GridLayout`** | Vanilla shows two visually-distinct grids stacked. **Open**: do we (a) collapse into one filter-able deck (current Alphabets pattern), or (b) extend `GridLayout` with a sectioned-grid variant that renders `<h3>` group headings + grouped `.gl-deck` blocks? Lean (a) for symmetry; (b) only if the visual flatness genuinely confuses learners. ~46 tiles is a stretch for `--capped` (96px max) — may need an uncapped variant or a smaller tile size. Decide at port time. |
-| 5 | **Woodcutter** | `story-container + scene` (linear narrative) | n/a (linear pages) | **`StoryLayout` (TBD)** | Fundamentally different pedagogy — *ordered, paginated, prev/next-only*, no "explore freely". Neither `GridLayout` (no chart) nor `CardMachineLayout` (no shuffle / random / filter) fits without distortion. First attempt remains "model each story page as a card", but expect to carve out `StoryLayout` for real. |
-| 6 | **Daily Routines** | `scene-box + slide` (paginated) | n/a (linear pages) | **`StoryLayout` (TBD)** | Same shape as Woodcutter — would share the same shell once it exists. |
+| 1 | **Animals** | `left-pane + animals-grid` (two-pane) | **~20** | **`GridLayout`** | Tile face = big emoji, detail = Fluent UI 3D image + sound + fact. Filter: `mammal` / `bird` / `reptile` / `sea` / `insect`. Some animals don't have Fluent UI 3D PNGs — emoji-only tiles + emoji fallback in detail are acceptable per the alphabets `Q → Crown` precedent. |
+| 2 | **Birds** | `left-pane + birds-grid` (two-pane) | **~15** | **`GridLayout`** | Same shape as Animals (emoji tile + Fluent image detail). Filter: `songbird` / `raptor` / `waterbird` / `tropical`. Could share the animals theme palette unchanged — decide at port time. |
+| 3 | **Hindi** | `left-pane` with **two separate grids** (vowels + consonants) | **~46** (13 vowels + ~33 consonants) | **`GridLayout`** | Vanilla shows two visually-distinct grids stacked. **Open**: do we (a) collapse into one filter-able deck (current Alphabets pattern), or (b) extend `GridLayout` with a sectioned-grid variant that renders `<h3>` group headings + grouped `.gl-deck` blocks? Lean (a) for symmetry; (b) only if the visual flatness genuinely confuses learners. ~46 tiles is a stretch for `--capped` (96px max) — may need an uncapped variant or a smaller tile size. Decide at port time. |
+| 4 | **Woodcutter** | `story-container + scene` (linear narrative) | n/a (linear pages) | **`StoryLayout` (TBD)** | Fundamentally different pedagogy — *ordered, paginated, prev/next-only*, no "explore freely". Neither `GridLayout` (no chart) nor `CardMachineLayout` (no shuffle / random / filter) fits without distortion. First attempt remains "model each story page as a card", but expect to carve out `StoryLayout` for real. |
+| 5 | **Daily Routines** | `scene-box + slide` (paginated) | n/a (linear pages) | **`StoryLayout` (TBD)** | Same shape as Woodcutter — would share the same shell once it exists. |
 
 **Net layout split for the 13 vanilla games:**
 
 - `CardMachineLayout` — 4 games (Dinosaurs, Flashcards, Solar System, Weather) — *shipped*.
-- `GridLayout` — 7 games (Alphabets ✅, Numbers ✅, Colors ✅; Shapes, Animals, Birds, Hindi pending).
+- `GridLayout` — 7 games (Alphabets ✅, Numbers ✅, Colors ✅, Shapes ✅; Animals, Birds, Hindi pending).
 - `StoryLayout` (TBD) — 2 games (Woodcutter, Daily Routines pending).
 
 **Per-port "is GridLayout still the right call?" checklist** — run this
@@ -224,13 +225,12 @@ before deciding.
 
 ### Rough order of payoff
 
-1. **Port the remaining 4 foundational-set games onto `GridLayout`.** In suggested order (simplest first):
-   1. **Shapes** — ~10 CSS-drawn shape tiles (circle, square, triangle, star, heart, diamond, etc.), same shape *larger* + real-world example in detail. Filter: `polygon` / `curved` / `compound`. ← **pick up here next session**
-   2. **Animals** — big emoji on tile, Fluent UI 3D image + fact in detail. Filter: `mammal` / `bird` / `reptile` / `sea` / `insect`.
-   3. **Birds** — big emoji on tile, Fluent UI 3D image + fact in detail. Filter: `songbird` / `raptor` / `waterbird` / `tropical`.
-   4. **Hindi** — same shape as Alphabets but with the Devanagari script + Hindi word + English gloss; filter: `vowel` (स्वर) / `consonant` (व्यंजन). May need a sectioned-grid variant of `GridLayout` (decision deferred to port time).
+1. **Port the remaining 3 foundational-set games onto `GridLayout`.** In suggested order (simplest first):
+   1. **Animals** — big emoji on tile, Fluent UI 3D image + fact in detail. Filter: `mammal` / `bird` / `reptile` / `sea` / `insect`. ← **pick up here next session**
+   2. **Birds** — big emoji on tile, Fluent UI 3D image + fact in detail. Filter: `songbird` / `raptor` / `waterbird` / `tropical`.
+   3. **Hindi** — same shape as Alphabets but with the Devanagari script + Hindi word + English gloss; filter: `vowel` (स्वर) / `consonant` (व्यंजन). May need a sectioned-grid variant of `GridLayout` (decision deferred to port time).
 
-   Each port is now ~35–50 lines of new `--gl-*` theme tokens + ~200–300 lines of page + typed data — effectively a copy-adapt of `colors-game.astro` (for shape-gallery games), `numbers-game.astro` (for count-objects games), or `alphabets-game.astro` (for image-based games) with a new data file and a new theme block.
+   Each port is now ~35–50 lines of new `--gl-*` theme tokens + ~200–300 lines of page + typed data — effectively a copy-adapt of `colors-game.astro` / `shapes-game.astro` (for shape-gallery / shape-figure games), `numbers-game.astro` (for count-objects games), or `alphabets-game.astro` (for image-based games) with a new data file and a new theme block.
 2. **Decide whether `StoryLayout.astro` is needed** — Woodcutter and Daily Routines have linear-story flows. First attempt: model each story *page* as a card in the card machine, with press-to-read and Prev/Next. Only carve out a separate layout if that collapses.
 3. **Wire the real Stats + Quiz modals.** Currently both are `alert(…)` stubs in the 6 ported games. The progress helper is now in `src/lib/progress.ts` (extracted with the Numbers port); the Stats modal can read from it directly — next consumer that lands probably wants to wire that up properly so we get real "12 / 26 letters learned" / "5 / 10 numbers learned" rather than stub alerts.
 4. **Add tests.** Playwright smoke test per layout (one for card-machine, one for grid): filter → navigate → completion overlay + confetti. Parameterise over themes inside each test so one suite covers every game.
@@ -249,6 +249,142 @@ before deciding.
 ---
 
 ## Changelog
+
+### 2026-05-07 — Shapes game ported (8/13) ✅
+
+Fourth `GridLayout` port. With Shapes landing, the grid shell has been
+proven against four different tile-face strategies (text letter for
+alphabets, text digit for numbers, fully-coloured swatch for colors,
+**miniature pure-CSS shape figure + name label** for shapes) and four
+different detail-card payloads (Fluent UI image for alphabets,
+runtime-rendered CSS count-objects for numbers, runtime-rendered CSS
+shape-gallery for colors, **runtime-rendered single big CSS shape**
+for shapes). The `.gl-shape-figure` namespace shipped here is *the*
+reusable visual primitive — same per-shape modifier classes drive
+both the ~36px tile miniature and the ~180px detail hero, switched
+purely via a `--mini` / `--big` variant class.
+
+- **Added:**
+  - `src/data/shapes.ts` — 14 typed `ShapeCard` entries (`name`,
+    `cssClass`, `group`, `label`, `fact`). Vanilla parity on shape set
+    (Circle, Oval, Heart, Crescent, Square, Rectangle, Triangle,
+    Diamond, Parallelogram, Trapezoid, Pentagon, Hexagon, Octagon,
+    Star) and on `info` strings (treated as the `fact` field
+    verbatim, just trimmed of trailing emoji where present so
+    speechSynthesis sounds clean). **Synthesized 3-group filter**
+    (vanilla had none — codified as a deliberate deviation in the data
+    file's header comment): `round` (Circle, Oval, Heart, Crescent —
+    4), `basic` (Square, Rectangle, Triangle, Diamond, Parallelogram,
+    Trapezoid — 6), `special` (Pentagon, Hexagon, Octagon, Star — 4).
+    Deck order is group-sorted (round → basic → special) — same
+    precedent as Colors's warm → cool → neutral reflow of the vanilla
+    flat list.
+  - `src/pages/games/shapes-game.astro` — **~370 lines**. Same shape
+    as the alphabets / numbers / colors ports but the deck uses the
+    new `.gl-tile--shape` flex-column layout: `<button class="gl-tile
+    gl-tile--shape" data-class="circle" data-group="round"><span
+    class="gl-shape-figure gl-shape-figure--mini gl-shape-figure
+    --circle"></span><span class="gl-tile-shape-name">Circle</span>
+    </button>`. Detail card holds a single `.gl-shape-figure
+    --big.gl-shape-figure--<class>` element rerendered (className
+    rebuild) on every selection so the `.pop` keyframe restarts —
+    same trick Colors uses to repaint the shape gallery. First-letter
+    keyboard shortcut + arrow keys; group-coloured confetti on
+    completion (one colour per group: pink/red/blue/blue/orange/
+    orange).
+  - **Page-local override** — `body.grid[data-theme='shapes']
+    .gl-detail-letter { font-size: clamp(1.4em, 4vw, 2.2em); text-
+    transform: capitalize; }` so long shape names ("Parallelogram",
+    "Trapezoid") don't crowd the detail-card head at the default
+    clamp ceiling of 3.6em.
+- **Reorganised CSS:**
+  - `src/styles/grid.css` — added the `.gl-shape-figure` namespace
+    (~165 lines): one size-agnostic shape primitive driving BOTH the
+    ~36px tile miniatures AND the ~180px detail-card hero. Variant
+    classes (`--mini` / `--big`) flip the size; per-shape modifiers
+    (`--circle`, `--square`, `--rectangle`, `--oval`, `--diamond`,
+    `--triangle`, `--pentagon`, `--hexagon`, `--octagon`, `--star`,
+    `--heart`, `--parallelogram`, `--trapezoid`, `--crescent`) use
+    `clip-path` (polygon coords in viewport %) / `border-radius` (%)
+    / `mask-image` (radial-gradient) so a single rule scales to both
+    sizes. Heart polygon is normalised to viewport % coords (vanilla
+    used a 200x200 absolute path that broke at smaller sizes);
+    crescent uses radial-gradient mask (vanilla used a hardcoded
+    60px box-shadow inset that didn't scale). Pop animation on the
+    big detail figure with a separate keyframe for diamond (preserves
+    the 45° final rotate). Also added the `.gl-deck.gl-deck--shapes`
+    deck variant (auto-fill 96px+, gap 12px), `.gl-tile.gl-tile
+    --shape` flex-column rule for the tile, `[data-group=…]` rules
+    that push `--gl-shape-fill` onto each tile so each pedagogical
+    group gets a distinct fill colour (round = pink/red gradient,
+    basic = blue gradient, special = orange/gold gradient), the
+    `--gl-*` shapes theme block (~32 lines, pink/coral background +
+    purple action buttons), and the dark-mode override (deep
+    aubergine background). Distinct from `.gl-shape--*` (the Colors
+    gallery primitives) which are size-locked and live inside `.gl-
+    shape-grid` only — those are intentionally left untouched.
+  - `src/layouts/GridLayout.astro` — extra FOUC pre-dark rule for
+    `[data-theme='shapes']` (deep aubergine background + light
+    pink-rose text).
+- **Wired:**
+  - `src/components/GameNav.astro` — added Shapes link.
+  - `src/pages/index.astro` — Shapes home tile flipped to `ready:
+    true`, pointing at the real game; description summarises the
+    14-tile pure-CSS deck + 3-group filter pedagogy.
+- **Deviations from vanilla (per migration principle #1):**
+  - **Synthesized 3-group filter** (round / basic / special) added
+    to give the deck a meaningful filter row consistent with the
+    other GridLayout games (alphabets vowel/consonant, numbers
+    low/high, colors warm/cool/neutral). Vanilla had no grouping.
+  - **Deck order** reflowed from vanilla's flat list to group-sorted
+    (round → basic → special). Same precedent as Colors (warm →
+    cool → neutral). Shape *content* unchanged.
+  - **Per-tile group fill colour** (round=pink, basic=blue,
+    special=orange) so the deck is visually scannable by category.
+    Vanilla cycled through 14 random colours per click; Astro pins
+    each shape to its group colour and uses the same colour at the
+    detail card for visual continuity.
+  - Heart clip-path normalised to viewport % coords (vanilla used a
+    200x200 absolute path); crescent uses mask-image instead of
+    box-shadow inset. Both rewrites are pure visual fidelity wins
+    (now scales correctly at both 36px and 180px).
+  - Particle canvas dropped (vanilla had ~80 lines of `request
+    AnimationFrame` painting).
+  - Single unified `kids_settings_v1` (vanilla used `shapes_*` keys).
+  - Singleton `AudioContext` (vanilla built its own).
+- **Bundle isolation verified:**
+  - All 4 grid pages share `alphabets-game.HFiiPH-v.css` (21.6 KB,
+    was 16.6 KB pre-shapes). Delta is ~165 lines of `.gl-shape-
+    figure` namespace + 14 per-shape modifiers + `--shapes` theme +
+    `.gl-deck--shapes` deck variant + shapes dark mode. Card-machine
+    pages still link only `dinosaurs-game.D1g7kimY.css` (17.8 KB —
+    +0.8 KB rebuild churn, *not* added selectors; verified via
+    grep).
+  - 0 `gl-shape-figure` / `gl-tile--shape` / `gl-deck--shapes` /
+    `data-theme="shapes"` in card-machine CSS chunk.
+  - 0 `cm-*` / `.top-card` / `.press-btn` / `.machine-screen` /
+    `.cm-cell` in grid CSS chunk.
+  - 0 shape-figure markup in alphabets / numbers / colors HTML
+    pages.
+  - Shapes HTML grep confirms `<body class="grid"
+    data-theme="shapes">`, all 14 `.gl-tile.gl-tile--shape` tiles
+    SSR-rendered with all 14 unique shape modifier classes,
+    data-group counts: round 4 / basic 6 / special 4 = 14, 4 filter
+    pills (`all` / `round` / `basic` / `special`), `0 / 14` initial
+    progress, single big `.gl-shape-figure--big` placeholder in the
+    detail card.
+  - **4-way shared-chunk dedup** at the chunk level: `alphabets-
+    game.…js`, `numbers-game.…js`, `colors-game.…js`, and `shapes-
+    game.…js` all import the *exact same* `progress.Czz_LiQd.js`,
+    `achievements.CySDez3r.js`, and `settings.zS6XEbod.js` —
+    confirmed by grepping import statements in each page-chunk.
+- **Bundle sizes (client JS, gzipped):** shapes **2.11 KB** — sits
+  between numbers (2.08 KB) and colors (2.25 KB), thanks to the
+  small `renderFigure()` helper and first-letter-key shortcut.
+  Precache: 38 → **40 entries** (~227 → ~255 KB) — delta is the new
+  HTML page + larger grid CSS chunk + SW revision.
+- Build result: `astro check` → 0 errors / 0 warnings / 0 hints.
+- Live: https://aakash-jain-1.github.io/kids-learning-games-astro/games/shapes-game — verified 2026-05-07 (commit `db11e4c`). Production HTTP 200, 17,336 bytes. Markup confirms `<body class="grid" data-theme="shapes">`, all 14 `.gl-tile.gl-tile--shape` tiles SSR-rendered with `data-class` (circle, oval, heart, crescent, square, rectangle, triangle, diamond, parallelogram, trapezoid, pentagon, hexagon, octagon, star — all 14 unique modifier classes present), `data-group` counts of round 4 / basic 6 / special 4, and the per-tile mini-figure markup (`<span class="gl-shape-figure gl-shape-figure--mini gl-shape-figure--<class>">`). 4 filter pills (`all` / `round` / `basic` / `special`). `0 / 14` initial progress. Single big `.gl-shape-figure--big` placeholder + `.gl-deck--shapes` deck variant present. Cross-checks: alphabets still 26 tiles + `data-theme="alphabets"`, numbers still 10 tiles + `data-theme="numbers"`, colors still 12 tiles + `data-theme="colors"`, dinosaurs still `<body class="card-machine">` — no regressions. **4-way shared-chunk dedup verified at the chunk level:** all 4 grid pages' page-chunks (`alphabets-game.…js`, `numbers-game.…js`, `colors-game.…js`, `shapes-game.…js`) import the *exact same* `/_astro/progress.Czz_LiQd.js` + `/_astro/achievements.CySDez3r.js` + `/_astro/settings.zS6XEbod.js` — three shared modules served once and cached for every grid game.
 
 ### 2026-05-06 — Colors game ported (7/13) ✅
 
