@@ -1,0 +1,455 @@
+---
+import GridLayout from '@/layouts/GridLayout.astro';
+import { ALL_CARDS, FILTERS } from '@/data/birds';
+
+const title = 'Birds — Kids Learning Games';
+const description =
+  'Discover 15 birds — songbirds, raptors, waterbirds, tropical and ground birds — with calls, fun facts, and group filtering for kids.';
+
+const totalCards = ALL_CARDS.length;
+---
+
+<GridLayout
+  title={title}
+  description={description}
+  themeColor="#c41e58"
+  theme="birds"
+>
+  <main class="gl-shell" aria-label="Birds game">
+    <header class="gl-header">
+      <h1 class="gl-title">
+        <span class="gl-title-emoji" aria-hidden="true">🦜</span>
+        Birds
+      </h1>
+
+      <div class="gl-header-right">
+        <span
+          class="gl-progress-pill"
+          id="progressPill"
+          aria-label={`Progress: 0 of ${totalCards} birds learned`}
+        >
+          <span id="progressText">0 / {totalCards}</span>
+          <span class="gl-progress-bar" aria-hidden="true">
+            <span class="gl-progress-bar-fill" id="progressFill"></span>
+          </span>
+        </span>
+        <div class="ctrl-row">
+          <button class="ctrl-pill" id="btnQuiz" type="button">🧠 Quiz</button>
+          <button class="ctrl-pill" id="btnStats" type="button">📊 Stats</button>
+          <button class="ctrl-pill" id="btnSettings" type="button">⚙️ Settings</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="cat-bar" id="catBar" role="group" aria-label="Bird filter">
+      {
+        FILTERS.map((f) => (
+          <button
+            class={`cat-btn${f.key === 'all' ? ' active' : ''}`}
+            data-key={f.key}
+            type="button"
+          >
+            {f.label}
+          </button>
+        ))
+      }
+    </div>
+
+    <div class="gl-deck gl-deck--birds" id="deck" role="list" aria-label="Bird tiles">
+      {
+        ALL_CARDS.map((c, i) => (
+          <button
+            class="gl-tile gl-tile--emoji"
+            type="button"
+            role="listitem"
+            data-idx={i}
+            data-name={c.name}
+            data-group={c.group}
+            aria-label={`Bird ${c.name}`}
+          >
+            <span class="gl-tile-emoji" aria-hidden="true">{c.e}</span>
+            <span class="gl-tile-emoji-name">{c.name}</span>
+            <span class="gl-tile-check" aria-hidden="true">
+              ✓
+            </span>
+          </button>
+        ))
+      }
+    </div>
+
+    <section class="gl-detail gl-detail--empty" id="detail" aria-live="polite">
+      <div class="gl-detail-inner">
+        <div class="gl-detail-head">
+          <span class="gl-detail-letter" id="detailName">Sparrow</span>
+          <div class="gl-detail-word-row">
+            <span class="gl-detail-word" id="detailSound">Cheep!</span>
+            <span class="gl-detail-pill" id="detailPill">Songbird</span>
+          </div>
+        </div>
+
+        <div class="gl-detail-image-wrap">
+          <img
+            class="gl-detail-image"
+            id="detailImage"
+            alt=""
+            width="260"
+            height="260"
+            loading="eager"
+          />
+        </div>
+
+        <p class="gl-detail-fact" id="detailFact">
+          Tap any bird above to meet it!
+        </p>
+
+        <div class="gl-detail-actions">
+          <button
+            class="gl-detail-arrow"
+            id="prevBtn"
+            type="button"
+            aria-label="Previous bird"
+          >
+            ◀
+          </button>
+          <button
+            class="gl-detail-hear"
+            id="hearBtn"
+            type="button"
+            aria-label="Play bird call"
+          >
+            🔊 Tap to hear
+          </button>
+          <button
+            class="gl-detail-arrow"
+            id="nextBtn"
+            type="button"
+            aria-label="Next bird"
+          >
+            ▶
+          </button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="gl-done-overlay" id="doneOverlay" role="dialog" aria-live="polite" aria-labelledby="doneTitle">
+    <div class="gl-done-card">
+      <h2 id="doneTitle">Bird expert! 🦜🎉</h2>
+      <p>You've met all 15 birds. Want to play again?</p>
+      <button class="gl-done-restart" id="restartBtn" type="button">
+        Start Over
+      </button>
+    </div>
+  </div>
+</GridLayout>
+
+<style is:global>
+  /* Bird names are short ("Sparrow", "Woodpecker") but we match the
+     animals page-local override so the hero font sits at a comfortable
+     mid-size that doesn't dominate the detail card. Same precedent
+     as Animals + Shapes. */
+  body.grid[data-theme='birds'] .gl-detail-letter {
+    font-size: clamp(1.4em, 4vw, 2.2em);
+    text-transform: capitalize;
+    letter-spacing: 0.3px;
+  }
+</style>
+
+<script>
+  import { playTap } from '@/lib/audio';
+  import { speak } from '@/lib/speech';
+  import { launchConfetti } from '@/lib/achievements';
+  import { getSettings } from '@/lib/settings';
+  import { loadLearned, saveLearned } from '@/lib/progress';
+  import { ALL_CARDS } from '@/data/birds';
+  import { FLUENT_IMG_BASE } from '@/data/fluent';
+
+  const GAME_ID = 'birds';
+  type BirdFilterKey =
+    | 'all'
+    | 'songbird'
+    | 'raptor'
+    | 'waterbird'
+    | 'tropical'
+    | 'ground';
+
+  // --- State ---
+  let learned = loadLearned(GAME_ID);
+  let activeIdx: number | null = null;
+  let activeFilter: BirdFilterKey = 'all';
+
+  // --- DOM refs ---
+  const deckEl = document.getElementById('deck')!;
+  const detailEl = document.getElementById('detail')!;
+  const detailName = document.getElementById('detailName')!;
+  const detailSound = document.getElementById('detailSound')!;
+  const detailPill = document.getElementById('detailPill')!;
+  const detailFact = document.getElementById('detailFact')!;
+  const detailImage = document.getElementById('detailImage') as HTMLImageElement;
+  const prevBtn = document.getElementById('prevBtn') as HTMLButtonElement;
+  const nextBtn = document.getElementById('nextBtn') as HTMLButtonElement;
+  const hearBtn = document.getElementById('hearBtn') as HTMLButtonElement;
+  const progressText = document.getElementById('progressText')!;
+  const progressFill = document.getElementById('progressFill')!;
+  const catBar = document.getElementById('catBar')!;
+  const doneOverlay = document.getElementById('doneOverlay')!;
+  const restartBtn = document.getElementById('restartBtn') as HTMLButtonElement;
+
+  const tiles = Array.from(
+    deckEl.querySelectorAll<HTMLButtonElement>('.gl-tile'),
+  );
+
+  // --- Helpers ---
+  const tileVisible = (t: HTMLButtonElement): boolean =>
+    activeFilter === 'all' || t.dataset.group === activeFilter;
+
+  const updateProgressUI = (): void => {
+    const n = learned.size;
+    const total = ALL_CARDS.length;
+    progressText.textContent = `${n} / ${total}`;
+    progressFill.style.width = `${(n / total) * 100}%`;
+    document
+      .getElementById('progressPill')
+      ?.setAttribute('aria-label', `Progress: ${n} of ${total} birds learned`);
+  };
+
+  const applyTileStates = (): void => {
+    for (const t of tiles) {
+      const name = t.dataset.name!;
+      t.classList.toggle('learned', learned.has(name));
+      t.classList.toggle(
+        'active',
+        activeIdx !== null && +t.dataset.idx! === activeIdx,
+      );
+      t.hidden = !tileVisible(t);
+    }
+  };
+
+  const applyFilter = (key: BirdFilterKey): void => {
+    activeFilter = key;
+    for (const b of catBar.querySelectorAll<HTMLButtonElement>('.cat-btn')) {
+      b.classList.toggle('active', b.dataset.key === key);
+    }
+    applyTileStates();
+  };
+
+  // Image fallback: if the Fluent UI 3D PNG path 404s, swap to an
+  // inline SVG painting the per-card emoji at the same size — same
+  // pattern alphabets / animals use. Reinstalled per render so the
+  // fallback emoji matches the active card. `onerror = null` inside
+  // the handler prevents an infinite loop if the SVG fallback itself
+  // ever fails. Particularly relevant here: Sparrow, Woodpecker and
+  // Ostrich are all served by closest-match Fluent assets (generic
+  // Bird / Dodo) — if any of those 404 in the future, the fallback
+  // keeps the tile visually correct.
+  const installImageFallback = (img: HTMLImageElement, emoji: string): void => {
+    img.onerror = (): void => {
+      img.onerror = null;
+      img.src =
+        `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90' text-anchor='middle' x='50'>${emoji}</text></svg>`;
+    };
+  };
+
+  const showDetail = (idx: number, opts: { scroll?: boolean } = {}): void => {
+    const c = ALL_CARDS[idx];
+    if (!c) return;
+    activeIdx = idx;
+
+    detailEl.classList.remove('gl-detail--empty');
+    detailName.textContent = c.name;
+    detailSound.textContent = c.sound;
+    detailPill.textContent = c.label;
+    detailPill.dataset.group = c.group;
+    detailFact.textContent = c.fact;
+    detailImage.alt = c.name;
+    installImageFallback(detailImage, c.e);
+    detailImage.src = FLUENT_IMG_BASE + c.img;
+
+    detailImage.classList.remove('pop');
+    void detailImage.offsetWidth;
+    detailImage.classList.add('pop');
+
+    const visibleIdxs = tiles.filter(tileVisible).map((t) => +t.dataset.idx!);
+    const posInFiltered = visibleIdxs.indexOf(idx);
+    prevBtn.disabled = posInFiltered <= 0;
+    nextBtn.disabled =
+      posInFiltered === -1 || posInFiltered >= visibleIdxs.length - 1;
+
+    applyTileStates();
+
+    if (opts.scroll) {
+      detailEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  };
+
+  const markLearned = (name: string): void => {
+    if (learned.has(name)) return;
+    learned.add(name);
+    saveLearned(GAME_ID, learned);
+    updateProgressUI();
+    applyTileStates();
+    if (learned.size === ALL_CARDS.length) {
+      showDone();
+    }
+  };
+
+  const speakCard = (idx: number): void => {
+    const c = ALL_CARDS[idx];
+    if (!c) return;
+    const settings = getSettings();
+    if (!settings.autoSpeak) return;
+    speak(`${c.name}. ${c.sound}. ${c.fact}`);
+  };
+
+  const onTileTap = (t: HTMLButtonElement): void => {
+    const idx = +t.dataset.idx!;
+    const name = t.dataset.name!;
+    playTap();
+    t.classList.remove('just-tapped');
+    void t.offsetWidth;
+    t.classList.add('just-tapped');
+    showDetail(idx, { scroll: true });
+    markLearned(name);
+    speakCard(idx);
+  };
+
+  const navigate = (delta: -1 | 1): void => {
+    if (activeIdx === null) {
+      const first = tiles.find(tileVisible);
+      if (first) onTileTap(first);
+      return;
+    }
+    const visibleIdxs = tiles.filter(tileVisible).map((t) => +t.dataset.idx!);
+    const pos = visibleIdxs.indexOf(activeIdx);
+    if (pos === -1) return;
+    const nextPos = pos + delta;
+    if (nextPos < 0 || nextPos >= visibleIdxs.length) return;
+    const target = tiles[visibleIdxs[nextPos]!]!;
+    onTileTap(target);
+  };
+
+  const showDone = (): void => {
+    doneOverlay.classList.add('show');
+    // One colour per group — orange / coral / sky-blue / peacock-green
+    // / sunshine-yellow — so the celebration overlay reflects the
+    // sunset palette while echoing each pedagogical group.
+    launchConfetti([
+      '#ff9a56',
+      '#ff6a88',
+      '#c41e58',
+      '#43cea2',
+      '#ffd54f',
+    ]);
+  };
+
+  const restart = (): void => {
+    learned = new Set();
+    saveLearned(GAME_ID, learned);
+    activeIdx = null;
+    detailEl.classList.add('gl-detail--empty');
+    detailFact.textContent = 'Tap any bird above to meet it!';
+    detailImage.removeAttribute('src');
+    updateProgressUI();
+    applyTileStates();
+    doneOverlay.classList.remove('show');
+  };
+
+  // --- Event wiring ---
+  deckEl.addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(
+      '.gl-tile',
+    );
+    if (btn && !btn.hidden) onTileTap(btn);
+  });
+
+  catBar.addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(
+      '.cat-btn',
+    );
+    if (!btn) return;
+    playTap();
+    const key = btn.dataset.key as BirdFilterKey;
+    applyFilter(key);
+    if (activeIdx !== null) {
+      const currentTile = tiles[activeIdx];
+      if (currentTile && !tileVisible(currentTile)) {
+        activeIdx = null;
+        detailEl.classList.add('gl-detail--empty');
+        detailFact.textContent = 'Tap any bird above to meet it!';
+      }
+    }
+  });
+
+  prevBtn.addEventListener('click', () => {
+    playTap();
+    navigate(-1);
+  });
+
+  nextBtn.addEventListener('click', () => {
+    playTap();
+    navigate(1);
+  });
+
+  hearBtn.addEventListener('click', () => {
+    playTap();
+    if (activeIdx === null) {
+      const first = tiles.find(tileVisible);
+      if (first) onTileTap(first);
+      return;
+    }
+    const c = ALL_CARDS[activeIdx];
+    if (!c) return;
+    speak(`${c.name}. ${c.sound}. ${c.fact}`);
+  });
+
+  restartBtn.addEventListener('click', () => {
+    playTap();
+    restart();
+  });
+
+  document.getElementById('btnSettings')?.addEventListener('click', () => {
+    playTap();
+    (window as unknown as { openSettings?: () => void }).openSettings?.();
+  });
+
+  document.getElementById('btnStats')?.addEventListener('click', () => {
+    playTap();
+    alert(
+      `You've met ${learned.size} out of ${ALL_CARDS.length} birds!\n\nKeep exploring!`,
+    );
+  });
+
+  document.getElementById('btnQuiz')?.addEventListener('click', () => {
+    playTap();
+    alert('Quiz mode is coming soon!');
+  });
+
+  // Keyboard: arrow keys for navigation, plus first-letter shortcut
+  // (S=Sparrow, E=Eagle, etc.) — first match in deck order wins. Deck
+  // is songbird-first, so D → Dove (songbird, before Duck), E → Eagle
+  // (raptor), O → Owl (raptor, before Ostrich), P → Penguin (water,
+  // before Peacock/Parrot), S → Swan (water, before Sparrow), T →
+  // Turkey, W → Woodpecker.
+  document.addEventListener('keydown', (e) => {
+    if (e.target instanceof HTMLInputElement) return;
+    if (e.key === 'ArrowLeft') {
+      navigate(-1);
+      return;
+    }
+    if (e.key === 'ArrowRight') {
+      navigate(1);
+      return;
+    }
+    if (/^[a-zA-Z]$/.test(e.key)) {
+      const ch = e.key.toUpperCase();
+      const target = tiles.find(
+        (t) => !t.hidden && t.dataset.name!.charAt(0) === ch,
+      );
+      if (target) onTileTap(target);
+    }
+  });
+
+  // --- Initial render ---
+  updateProgressUI();
+  applyTileStates();
+</script>

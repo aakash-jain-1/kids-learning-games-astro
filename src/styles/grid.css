@@ -962,16 +962,19 @@ body.grid .cat-btn.active {
   --gl-shape-fill: linear-gradient(145deg, #ff9800, #f57c00);
 }
 
-/* -- Animals deck (37 tiles: big emoji + name) --
-   Each tile is a flex column: a large emoji on top, the animal's name
+/* -- Emoji-tile decks (Animals: 37 tiles, Birds: 15 tiles) --
+   Each tile is a flex column: a large emoji on top, the species name
    underneath in a small uppercase label. Mirrors the structure of the
    shapes deck (`.gl-tile--shape`) but the visual hero is a unicode
    emoji rather than a CSS-art figure, so no per-card data attribute
    has to drive the rendering — the emoji is just text content.
    Detail-card hero is the Fluent UI 3D PNG (alphabets-style image),
    not the emoji — we keep the emoji as a fallback in case the CDN
-   path fails. */
-.gl-deck.gl-deck--animals {
+   path fails. Both Animals and Birds share the same auto-fill grid
+   density (96px min) and gap (12px); Birds simply has fewer cards
+   so its grid stays loose at desktop widths. */
+.gl-deck.gl-deck--animals,
+.gl-deck.gl-deck--birds {
   grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
   gap: 12px;
 }
@@ -1151,6 +1154,45 @@ body.grid[data-theme='animals'] {
   --gl-done-bg: linear-gradient(145deg, #43cea2, #185a9d);
 }
 
+/* -- Birds theme palette --
+   Orange-to-coral sunset, lifted from vanilla `birds.html`
+   (`#ff9a56 -> #ff6a88`). Deliberately distinct from Animals
+   (sea-green/deep-blue) so the sister "creature" games feel like
+   their own places, and from Shapes (pink/coral, more pink) by
+   leaning warmer-orange. Tile face stays warm-cream so the per-card
+   emoji + name reads cleanly; action/filter pills lean on a
+   deep-coral accent (`#c41e58`) for strong contrast against both
+   the warm tile interior and the warm gradient background. */
+body.grid[data-theme='birds'] {
+  --gl-bg: linear-gradient(135deg, #ff9a56 0%, #ff6a88 100%);
+
+  --gl-tile-bg: linear-gradient(145deg, #ffffff, #fff5ed);
+  --gl-tile-bg-hover: linear-gradient(145deg, #ffe1cf, #ffc7a8);
+  --gl-tile-bg-learned: linear-gradient(145deg, #ffc7a8, #ff9a56);
+  --gl-tile-border: #ff9a56;
+  --gl-tile-border-active: #c41e58;
+  --gl-tile-color: #9a3057;
+  --gl-tile-color-learned: #5a1b30;
+  --gl-tile-check-bg: #c41e58;
+  --gl-tile-check-color: #ffffff;
+
+  --gl-cat-bg: linear-gradient(135deg, #ff9a56, #c41e58);
+  --gl-cat-color: #ffffff;
+  --gl-cat-glow: rgba(196, 30, 88, 0.45);
+
+  --gl-progress-fill: linear-gradient(90deg, #ff9a56, #c41e58);
+
+  --gl-detail-letter-color: #9a3057;
+  --gl-detail-pill-bg: linear-gradient(135deg, #ff9a56, #c41e58);
+  --gl-detail-border: rgba(255, 154, 86, 0.4);
+
+  --gl-action-bg: linear-gradient(135deg, #9a3057 0%, #c41e58 100%);
+  --gl-action-bg-hover: linear-gradient(135deg, #b03b67 0%, #d62a6b 100%);
+  --gl-action-glow: rgba(196, 30, 88, 0.45);
+
+  --gl-done-bg: linear-gradient(145deg, #ff9a56, #c41e58);
+}
+
 /* -- Tight-phone polish -- */
 @media (max-width: 420px) {
   .gl-shell {
@@ -1238,6 +1280,20 @@ body.dark-mode.grid[data-theme='animals'] {
   --gl-detail-letter-color: #b2f5ea;
   --gl-detail-text: #e0f0f5;
   --gl-detail-fact-color: rgba(224, 240, 245, 0.7);
+}
+
+body.dark-mode.grid[data-theme='birds'] {
+  --gl-bg: linear-gradient(160deg, #3d0d24 0%, #5e1a3c 50%, #7a2747 100%);
+  --gl-tile-bg: linear-gradient(145deg, #3a1f2e, #2a1322);
+  --gl-tile-bg-hover: linear-gradient(145deg, #4a2f3e, #3a1f2e);
+  --gl-tile-bg-learned: linear-gradient(145deg, #c41e58, #8a0e3a);
+  --gl-tile-color: #ffc7a8;
+  --gl-tile-color-learned: #ffffff;
+  --gl-detail-bg: rgba(40, 13, 28, 0.95);
+  --gl-detail-border: rgba(255, 154, 86, 0.35);
+  --gl-detail-letter-color: #ffc7a8;
+  --gl-detail-text: #f0e0d8;
+  --gl-detail-fact-color: rgba(240, 224, 216, 0.7);
 }
 
 body.dark-mode.grid .gl-detail-image-wrap {
