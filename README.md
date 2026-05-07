@@ -1,9 +1,9 @@
 # Kids Learning Games — Astro POC
 
-A proof-of-concept migration of the [kids-learning-games](../kids-learning-games) vanilla HTML/CSS/JS PWA to **Astro + TypeScript + @vite-pwa/astro (Workbox)**. **Eight games ported end-to-end**, across **two shared layouts** that together cover every non-story game in the vanilla repo:
+A proof-of-concept migration of the [kids-learning-games](../kids-learning-games) vanilla HTML/CSS/JS PWA to **Astro + TypeScript + @vite-pwa/astro (Workbox)**. **Nine games ported end-to-end**, across **two shared layouts** that together cover every non-story game in the vanilla repo:
 
 - `CardMachineLayout.astro` — **reference-catalogue games** (browse a deck of fact cards). Hosts Dinosaurs, Flashcards, Solar System, Weather.
-- `GridLayout.astro` — **foundational-set games** (scan a fixed chart, tap to hear). Hosts Alphabets, Numbers, Colors, and Shapes today; Animals, Birds, and Hindi all land here next.
+- `GridLayout.astro` — **foundational-set games** (scan a fixed chart, tap to hear). Hosts Alphabets, Numbers, Colors, Shapes, and Animals today; Birds and Hindi all land here next.
 
 Both layouts share the same head/meta, PWA wiring, nav, settings modal, build-info footer, and TS/lib utilities — only the core interaction surface differs.
 
@@ -22,18 +22,19 @@ Both layouts share the same head/meta, PWA wiring, nav, settings modal, build-in
 ## What this POC demonstrates
 
 - **Zero-JS-by-default static output**: `astro build` produces plain HTML files. Same deploy target as today (GitHub Pages), same runtime cost. Only the interactive islands (card machine, grid, modals) ship JavaScript.
-- **Two shared layouts, eight games, eight themes**:
+- **Two shared layouts, nine games, nine themes**:
   - `CardMachineLayout.astro` hosts Dinosaurs, Flashcards, Solar System, Weather — a reference-catalogue deck with filter + press-to-hear.
-  - `GridLayout.astro` hosts Alphabets (image detail), Numbers (CSS count-objects detail), Colors (CSS shape-gallery detail), and Shapes (CSS shape-figure-hero detail) — a foundational-set tile chart with filter + inline detail card + per-tile learned-state tracking via `kids_progress_v1:<gameId>`. Four deck variants in `grid.css`: `--capped` for medium decks, `--numbers` 5-column fixed for small decks, `--colors` auto-fill for swatch tiles, `--shapes` auto-fill for shape-tile + name label.
+  - `GridLayout.astro` hosts Alphabets (image detail), Numbers (CSS count-objects detail), Colors (CSS shape-gallery detail), Shapes (CSS shape-figure-hero detail), and Animals (Fluent UI 3D image detail with emoji-tile face) — a foundational-set tile chart with filter + inline detail card + per-tile learned-state tracking via `kids_progress_v1:<gameId>`. Five deck variants in `grid.css`: `--capped` for medium decks, `--numbers` 5-column fixed for small decks, `--colors` auto-fill for swatch tiles, `--shapes` auto-fill for shape-tile + name label, `--animals` auto-fill for emoji-tile + name label.
   - Together they replace the ~500-line shell the vanilla project copy-pastes across each of its 13 game HTML files.
 - **Two themeable shared stylesheets**:
   - `card-machine.css` exposes ~25 `--cm-*` CSS custom properties; each theme is a ~35-line `body.card-machine[data-theme='<game>']` block plus ~10 lines of type-pill colours.
   - `grid.css` exposes ~25 `--gl-*` CSS custom properties; each theme is a ~35-line `body.grid[data-theme='<game>']` block.
   - Shared chrome primitives (`.ctrl-pill`, `.cat-bar`, `.cat-btn` base, progress bar, nav, modal) live in `global.css`, so both layouts share them without cross-importing. Each layout provides its own `.cat-btn.active` override from its own theme tokens.
-- **Typed data**: each game's content lives in `src/data/<game>.ts` with named interfaces and `readonly` arrays — TypeScript catches typos in card type/season/diet enums at build time, not at runtime.
+- **Typed data**: each game's content lives in `src/data/<game>.ts` with named interfaces and `readonly` arrays — TypeScript catches typos in card type/season/diet/group enums at build time, not at runtime.
 - **Unified settings** (fixes audit H1): a single `kids_settings_v1` LocalStorage key, applied on every page on load.
-- **Per-game learning state**: `kids_progress_v1:<gameId>` LocalStorage key with a JSON array of learned-item ids. All four grid games (Alphabets, Numbers, Colors, Shapes) consume the shared `src/lib/progress.ts` helper (`loadLearned` / `saveLearned` / `clearLearned`), extracted on the second consumer per the "two-consumers triggers a refactor" rule.
+- **Per-game learning state**: `kids_progress_v1:<gameId>` LocalStorage key with a JSON array of learned-item ids. All five grid games (Alphabets, Numbers, Colors, Shapes, Animals) consume the shared `src/lib/progress.ts` helper (`loadLearned` / `saveLearned` / `clearLearned`), extracted on the second consumer per the "two-consumers triggers a refactor" rule.
 - **Shared singleton utilities** (fixes audit H2, M2): one `AudioContext`, one speech wrapper, one achievement toast system.
+- **Shared Fluent UI image base** (`src/data/fluent.ts`): single `FLUENT_IMG_BASE` constant, imported directly by every consumer (alphabets, flashcards, weather, animals). Build emits a single 0.09 KB shared chunk used by all four image-driven games.
 - **Workbox-based service worker** (fixes audit H4, S7): precaching with automatic revisioning, `StaleWhileRevalidate` for the GitHub API (fixes audit H3), offline fallback.
 - **Strict TypeScript**: catches typos in card data and refactor errors at build time.
 
@@ -54,10 +55,11 @@ Both layouts share the same head/meta, PWA wiring, nav, settings modal, build-in
 │   │   └── SettingsModal.astro   # unified settings UI (fixes H1)
 │   ├── data/
 │   │   ├── alphabets.ts          # typed 26-letter A–Z deck
+│   │   ├── animals.ts            # typed 37-animal deck (mammal/bird/reptile/sea/insect filter)
 │   │   ├── colors.ts             # typed 12-colour deck (warm/cool/neutral filter)
 │   │   ├── dinosaurs.ts          # typed dinosaur cards + diet filters
 │   │   ├── flashcards.ts         # typed flashcard decks (14 × ~20 cards)
-│   │   ├── fluent.ts             # shared Fluent UI emoji CDN base
+│   │   ├── fluent.ts             # shared Fluent UI emoji CDN base (consumed directly by every image-driven data file + page)
 │   │   ├── numbers.ts            # typed 1–10 number deck (low/high filter)
 │   │   ├── shapes.ts             # typed 14-shape deck (round/basic/special filter)
 │   │   ├── solar-system.ts       # typed planet cards + type filters
@@ -68,12 +70,13 @@ Both layouts share the same head/meta, PWA wiring, nav, settings modal, build-in
 │   ├── lib/
 │   │   ├── achievements.ts       # toast + localStorage helper
 │   │   ├── audio.ts              # singleton AudioContext
-│   │   ├── progress.ts           # kids_progress_v1:<gameId> store (alphabets, numbers, colors, shapes)
+│   │   ├── progress.ts           # kids_progress_v1:<gameId> store (alphabets, numbers, colors, shapes, animals)
 │   │   ├── settings.ts           # unified settings store
 │   │   └── speech.ts             # Web Speech wrapper
 │   ├── pages/
 │   │   ├── games/
 │   │   │   ├── alphabets-game.astro     # GridLayout
+│   │   │   ├── animals-game.astro       # GridLayout
 │   │   │   ├── colors-game.astro        # GridLayout
 │   │   │   ├── dinosaurs-game.astro     # CardMachineLayout
 │   │   │   ├── flashcards-game.astro    # CardMachineLayout
@@ -108,11 +111,11 @@ running from a different repo.
 
 ## What's NOT in scope for this POC
 
-- The remaining 3 foundational-set games (Animals, Birds, Hindi) — all scheduled to land on `GridLayout`; each port is ~35–50 lines of `--gl-*` theme tokens + ~200–300 lines of page + typed data. Per-game layout decisions and gotchas are tracked in [`PROGRESS.md → Per-game layout decisions`](./PROGRESS.md#per-game-layout-decisions-for-the-5-pending-ports).
+- The remaining 2 foundational-set games (Birds, Hindi) — both scheduled to land on `GridLayout`; each port is ~35–50 lines of `--gl-*` theme tokens + ~200–300 lines of page + typed data. Per-game layout decisions and gotchas are tracked in [`PROGRESS.md → Per-game layout decisions`](./PROGRESS.md#per-game-layout-decisions-for-the-5-pending-ports).
 - The 2 story games (Woodcutter, Daily Routines) — we'll first try modelling each story page as a card on the card machine; a separate `StoryLayout.astro` is only carved out if that doesn't fit.
-- Full nav bar (nav lists only the 8 ported games + home; other links would 404 until those pages are ported).
+- Full nav bar (nav lists only the 9 ported games + home; other links would 404 until those pages are ported).
 - Option C — a unified `DeckLayout` with a per-user grid/card view toggle that would consolidate `CardMachineLayout` + `GridLayout` into one. Deferred until all 11 non-story games have shipped in their respective current layouts; see the "Not yet codified" block in PROGRESS.md.
-- Quiz mode and full Stats modal — the top-bar buttons exist as `alert(…)` stubs in all 8 ported games. Settings storage is wired. `kids_progress_v1:<gameId>` is a real shipping pattern: alphabets, numbers, colors, **and shapes** all consume `src/lib/progress.ts`. The Stats modal can read from it directly when wired.
+- Quiz mode and full Stats modal — the top-bar buttons exist as `alert(…)` stubs in all 9 ported games. Settings storage is wired. `kids_progress_v1:<gameId>` is a real shipping pattern: alphabets, numbers, colors, shapes, **and animals** all consume `src/lib/progress.ts`. The Stats modal can read from it directly when wired.
 - Full test suite.
 
 ## Comparison at a glance
@@ -127,11 +130,12 @@ running from a different repo.
 | `numbers-game.html` lines | 1,389 | ~300 (`numbers-game.astro`) + typed data file |
 | `colors-game.html` lines | 1,400 | ~370 (`colors-game.astro`) + typed data file |
 | `shapes-game.html` lines | 1,557 | ~370 (`shapes-game.astro`) + typed data file |
-| Reused layout lines | ~0 (copy-pasted per game) | ~140 `CardMachineLayout.astro` (4 games) + ~155 `GridLayout.astro` (alphabets + numbers + colors + shapes + 3 upcoming) — two shells cover all 11 non-story games |
-| Shared CSS | Duplicated 4× inline (~450 lines each) | `card-machine.css` (~1050 lines, 4 games) + `grid.css` (~1160 lines, 7 games) + shared primitives in `global.css` |
+| `animals-game.html` lines | 1,461 | ~395 (`animals-game.astro`) + typed data file |
+| Reused layout lines | ~0 (copy-pasted per game) | ~140 `CardMachineLayout.astro` (4 games) + ~155 `GridLayout.astro` (alphabets + numbers + colors + shapes + animals + 2 upcoming) — two shells cover all 11 non-story games |
+| Shared CSS | Duplicated 4× inline (~450 lines each) | `card-machine.css` (~1050 lines, 4 games) + `grid.css` (~1220 lines, 7 games) + shared primitives in `global.css` |
 | Shared JS util lines | Duplicated per game inline | 1 copy under `src/lib/` |
-| Settings storage | `flashcards_settings` vs `darkMode` vs `solar_system_settings` vs `weather_settings` vs `alphabet_learned` vs `numbers_learned` vs `colors_learned` vs `shapes_learned` | Single `kids_settings_v1` + per-game `kids_progress_v1:<gameId>` (alphabets, numbers, colors, shapes; shared `src/lib/progress.ts` helper) |
+| Settings storage | `flashcards_settings` vs `darkMode` vs `solar_system_settings` vs `weather_settings` vs `alphabet_learned` vs `numbers_learned` vs `colors_learned` vs `shapes_learned` vs `animals_learned` | Single `kids_settings_v1` + per-game `kids_progress_v1:<gameId>` (alphabets, numbers, colors, shapes, animals; shared `src/lib/progress.ts` helper) |
 | Service worker | Hand-rolled, manual cache name bumps | Workbox, auto-revisioned |
 | Build-info fetch | N× per session, no cache | 1× per hour, SWR cached |
 | Type safety | None | Strict TypeScript |
-| Client JS bundle, gzipped | Inline, unminified | flashcards **11.28 KB**, weather **3.34 KB**, dinosaurs **3.02 KB**, alphabets **2.96 KB**, solar-system **2.66 KB**, colors **2.25 KB**, **shapes 2.11 KB**, numbers **2.08 KB** |
+| Client JS bundle, gzipped | Inline, unminified | flashcards **11.28 KB**, weather **3.34 KB**, **animals 3.30 KB**, dinosaurs **3.02 KB**, alphabets **2.96 KB**, solar-system **2.66 KB**, colors **2.25 KB**, shapes **2.11 KB**, numbers **2.08 KB** |
