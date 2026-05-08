@@ -1,18 +1,19 @@
-/* Shared visual system for story-flow games. First consumer is Daily
-   Routines (2026-05-08); Woodcutter will be the second consumer once
-   its layout shape is settled.
+/* Shared visual system for story-flow games. Two consumers as of
+   2026-05-08: Daily Routines (10-scene paginated narrative) and the
+   Honest Woodcutter (single hero-scene tale + prose + moral + quiz).
 
    Per-game theming is driven by ~20 CSS custom properties on the
    `body.story[data-theme='<game>']` selector. The defaults below are
-   the routines (warm sunrise) palette; other story games override them
-   via `body.story[data-theme='woodcutter']` etc.
+   the Routines (warm sunrise) palette; other story games override
+   them via `body.story[data-theme='woodcutter']` etc.
 
    Design rules vs CardMachineLayout:
    - Centered single-column layout (no two-pane split).
    - Body is scrollable (story prose + N-question quiz won't fit in 100 vh).
    - Page background is themed AND animatable per scene via the
      `--st-bg` custom property. The Routines page updates `--st-bg` on
-     each scene transition; the body's `background` rule reads it. */
+     each scene transition; Woodcutter sets it once at load (no
+     pagination). Both read it through the body's `background` rule. */
 
 body.story {
   /* Scene-paint tokens (`scene-box` is the white-ish reading panel). */
@@ -84,16 +85,33 @@ body.story[data-theme='routines'] {
   --st-done-accent: #ff9a56;
 }
 
-/* ── Woodcutter theme — placeholder (deep navy, gold accents) ──── */
+/* ── Woodcutter theme — deep navy → purple sky with gold accents ─ */
 body.story[data-theme='woodcutter'] {
-  --st-prog-fg: linear-gradient(90deg, #1e3c72, #ffd740);
-  --st-btn-next-bg: linear-gradient(145deg, #1e3c72, #2a5298);
-  --st-quiz-heading: #1e3c72;
-  --st-quiz-opt-bg: #e8f0fe;
-  --st-quiz-opt-border: #c5cae9;
-  --st-quiz-opt-hover-bg: #c5cae9;
-  --st-done-accent: #ffd740;
+  /* Page bg matches vanilla `body { background: linear-gradient(...) }`
+     verbatim — a moody twilight gradient that reads as "fairytale". */
   --st-bg: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #7e22ce 100%);
+
+  /* The hero scene panel is a daytime forest; quiz + prose panels are
+     bright cards floating on the twilight body. Default --st-card-* is
+     fine — only the accent / interactive colours are themed below. */
+
+  /* Action buttons. Play Animation is the primary CTA (`--next`);
+     Reset is the quieter secondary (`--prev`). */
+  --st-btn-next-bg: linear-gradient(145deg, #2a5298, #1e3c72);
+  --st-btn-next-color: #fff;
+  --st-btn-prev-bg: linear-gradient(145deg, #d8d8e0, #b8b8c8);
+  --st-btn-prev-color: #2a2a3a;
+  --st-btn-restart-bg: linear-gradient(145deg, #7e22ce, #5b1a99);
+  --st-btn-restart-color: #fff;
+
+  /* Quiz palette — soft blue-violet against the white quiz card. */
+  --st-quiz-heading: #1e3c72;
+  --st-quiz-opt-bg: #eef1fa;
+  --st-quiz-opt-border: #c5cae9;
+  --st-quiz-opt-hover-bg: #d3d8ee;
+  --st-quiz-opt-text: #1e3c72;
+
+  --st-done-accent: #ffd740;
 }
 
 /* ── Dark mode (theme-agnostic) ─────────────────────────────────── */
@@ -118,6 +136,17 @@ body.dark-mode.story[data-theme='routines'] {
   /* Per-scene `--st-bg` overrides still apply (page bg morphs per
      scene), so the theme block only needs button/accent tweaks. */
   --st-quiz-heading: #ffb74d;
+}
+
+body.dark-mode.story[data-theme='woodcutter'] {
+  /* Darker night-sky body bg; quiz + prose cards keep the theme-agnostic
+     dark surface from the parent block. */
+  --st-bg: linear-gradient(135deg, #0a0f1f 0%, #14213d 50%, #2a1145 100%);
+  --st-quiz-heading: #b8c5ff;
+  --st-quiz-opt-bg: rgba(40, 50, 75, 0.85);
+  --st-quiz-opt-border: rgba(120, 140, 200, 0.35);
+  --st-quiz-opt-hover-bg: rgba(60, 75, 110, 0.95);
+  --st-quiz-opt-text: #d4d8f0;
 }
 
 /* ── Layout shell ───────────────────────────────────────────────── */

@@ -145,47 +145,14 @@ const totalScenes = SCENES.length;
   import { launchConfetti } from '@/lib/achievements';
   import { getSettings } from '@/lib/settings';
   import { loadLearned, saveLearned } from '@/lib/progress';
+  import { mountQuiz } from '@/lib/quiz';
   import { SCENES, BODY_BGS, QUIZ } from '@/data/routines';
 
   const GAME_ID = 'routines';
-  const QUIZ_KEY = 'routines_quiz_v1';
-
-  /** Quiz state shape persisted to LocalStorage between sessions. */
-  interface QuizState {
-    attempts: number;
-    bestScore: number;
-    lastPlayed: string;
-  }
-
-  const loadQuizState = (): QuizState => {
-    try {
-      const raw = localStorage.getItem(QUIZ_KEY);
-      if (!raw) return { attempts: 0, bestScore: 0, lastPlayed: '' };
-      const parsed = JSON.parse(raw) as Partial<QuizState>;
-      return {
-        attempts: typeof parsed.attempts === 'number' ? parsed.attempts : 0,
-        bestScore: typeof parsed.bestScore === 'number' ? parsed.bestScore : 0,
-        lastPlayed: typeof parsed.lastPlayed === 'string' ? parsed.lastPlayed : '',
-      };
-    } catch {
-      return { attempts: 0, bestScore: 0, lastPlayed: '' };
-    }
-  };
-
-  const saveQuizState = (s: QuizState): void => {
-    try {
-      localStorage.setItem(QUIZ_KEY, JSON.stringify(s));
-    } catch {
-      /* noop */
-    }
-  };
 
   // --- State ---
   let sceneIdx = 0;
-  let quizIdx = 0;
-  let quizCorrect = 0;
   let learned = loadLearned(GAME_ID);
-  let quizState = loadQuizState();
 
   // --- DOM refs ---
   const $ = <T extends HTMLElement = HTMLElement>(id: string): T =>
@@ -202,12 +169,33 @@ const totalScenes = SCENES.length;
   const nextBtn = $<HTMLButtonElement>('nextBtn');
   const speakBtn = $<HTMLButtonElement>('speakBtn');
   const quizBox = $('quizBox');
-  const quizBody = $('quizBody');
-  const quizResult = $('quizResult');
-  const quizResEmoji = $('quizResEmoji');
-  const quizResText = $('quizResText');
   const quizRetryBtn = $<HTMLButtonElement>('quizRetryBtn');
   const quizReadAgainBtn = $<HTMLButtonElement>('quizReadAgainBtn');
+
+  // --- Shared quiz controller (`src/lib/quiz.ts`) ---
+  // Handles question rendering, scoring, state persistence
+  // (`routines_quiz_v1` LocalStorage key), and confetti on perfect.
+  // Page-local responsibility: showing / hiding the quiz box, the
+  // `data-mode='quiz'` body-class toggle, and the Routines-specific
+  // "Read Again" button (which has no equivalent in single-scene
+  // story games like Woodcutter).
+  const ROUTINES_CONFETTI = ['#ff9a56', '#ffd740', '#ff6f20', '#42a5f5', '#66bb6a', '#fff'];
+
+  const quiz = mountQuiz({
+    gameId: GAME_ID,
+    questions: QUIZ,
+    bodyEl: $('quizBody'),
+    resultEl: $('quizResult'),
+    resultEmojiEl: $('quizResEmoji'),
+    resultTextEl: $('quizResText'),
+    messages: {
+      perfect: 'Perfect! You know your daily routines!',
+      great: 'Great job!',
+      keepReading: 'Read the story again and try once more!',
+    },
+    onPerfect: () => launchConfetti(ROUTINES_CONFETTI),
+    playTap,
+  });
 
   // --- Helpers ---
   const isLastScene = (): boolean => sceneIdx === SCENES.length - 1;
@@ -274,91 +262,19 @@ const totalScenes = SCENES.length;
     renderScene(next);
   };
 
-  // --- Quiz flow ---
-  const ROUTINES_CONFETTI = [
-    '#ff9a56', '#ffd740', '#ff6f20', '#42a5f5', '#66bb6a', '#fff',
-  ];
-
+  // --- Quiz visibility ---
+  // The Routines page hides the progress bar + scene-box + nav controls
+  // when the quiz is showing; we toggle `data-mode='quiz'` on `<body>`
+  // and `story.css` (page-local block in this file) reads it.
   const showQuiz = (): void => {
     document.body.dataset.mode = 'quiz';
     quizBox.hidden = false;
-    startQuiz();
+    quiz.start();
   };
 
   const hideQuiz = (): void => {
     delete document.body.dataset.mode;
     quizBox.hidden = true;
-  };
-
-  const startQuiz = (): void => {
-    quizIdx = 0;
-    quizCorrect = 0;
-    quizResult.hidden = true;
-    quizBody.style.removeProperty('display');
-    renderQuestion();
-  };
-
-  const renderQuestion = (): void => {
-    if (quizIdx >= QUIZ.length) {
-      showQuizResult();
-      return;
-    }
-    const q = QUIZ[quizIdx]!;
-    const total = QUIZ.length;
-    const headHtml =
-      `<div class="quiz-question">${quizIdx + 1}/${total}: ${escapeHtml(q.q)}</div>`;
-    const optsHtml = q.opts
-      .map(
-        (o, i) =>
-          `<button type="button" class="quiz-opt" data-i="${i}">${escapeHtml(o)}</button>`,
-      )
-      .join('');
-    quizBody.innerHTML = headHtml + optsHtml;
-  };
-
-  const escapeHtml = (s: string): string =>
-    s
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-
-  const onQuizAnswer = (i: number): void => {
-    const q = QUIZ[quizIdx];
-    if (!q) return;
-    if (i === q.ans) quizCorrect++;
-    quizIdx++;
-    renderQuestion();
-  };
-
-  const showQuizResult = (): void => {
-    quizBody.style.display = 'none';
-    const total = QUIZ.length;
-    const pct = Math.round((quizCorrect / total) * 100);
-
-    const emoji = pct === 100 ? '🌟' : pct >= 63 ? '👏' : '📚';
-    const message =
-      pct === 100
-        ? 'Perfect! You know your daily routines!'
-        : pct >= 63
-          ? 'Great job!'
-          : 'Read the story again and try once more!';
-
-    quizResEmoji.textContent = emoji;
-    quizResText.textContent = `${quizCorrect}/${total} correct (${pct}%) — ${message}`;
-    quizResult.hidden = false;
-
-    quizState = {
-      attempts: quizState.attempts + 1,
-      bestScore: Math.max(quizState.bestScore, pct),
-      lastPlayed: new Date().toISOString().slice(0, 10),
-    };
-    saveQuizState(quizState);
-
-    if (pct === 100) {
-      launchConfetti(ROUTINES_CONFETTI);
-    }
   };
 
   // --- Event wiring ---
@@ -379,18 +295,9 @@ const totalScenes = SCENES.length;
     speak(`${s.title}. ${s.text}`, { rate: 0.85, pitch: 1.15 });
   });
 
-  quizBody.addEventListener('click', (e) => {
-    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('.quiz-opt');
-    if (!btn) return;
-    playTap();
-    const i = Number(btn.dataset.i);
-    if (Number.isNaN(i)) return;
-    onQuizAnswer(i);
-  });
-
   quizRetryBtn.addEventListener('click', () => {
     playTap();
-    startQuiz();
+    quiz.start();
   });
 
   quizReadAgainBtn.addEventListener('click', () => {
@@ -408,12 +315,13 @@ const totalScenes = SCENES.length;
     playTap();
     const visited = learned.size;
     const total = SCENES.length;
+    const state = quiz.getState();
     const lines = [
       `📖 Scenes visited: ${visited} / ${total}`,
       '',
-      `🧠 Quiz attempts: ${quizState.attempts}`,
-      `🏆 Best score: ${quizState.bestScore}%`,
-      quizState.lastPlayed ? `📅 Last played: ${quizState.lastPlayed}` : '📅 Last played: never',
+      `🧠 Quiz attempts: ${state.attempts}`,
+      `🏆 Best score: ${state.bestScore}%`,
+      state.lastPlayed ? `📅 Last played: ${state.lastPlayed}` : '📅 Last played: never',
     ];
     alert(lines.join('\n'));
   });

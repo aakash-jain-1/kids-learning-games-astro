@@ -357,7 +357,7 @@ export const DECKS: readonly Deck[] = [
       { img: 'Piano%20Keys/3D/piano_keys_3d.png', code: '1F3B9', e: E(0x1f3b9), n: 'Piano', f: 'A piano has black and white keys that play different notes!' },
       { img: 'Banjo/3D/banjo_3d.png', code: '1FA95', e: E(0x1fa95), n: 'Banjo', f: 'A banjo has a round body and strings that make a twangy sound!' },
       { img: 'Accordion/3D/accordion_3d.png', code: '1FA97', e: E(0x1fa97), n: 'Accordion', f: 'An accordion is squeezed in and out to push air through reeds!' },
-      { img: 'Long%20Drum/3D/long_drum_3d.png', code: '1FA98', e: E(0x1fa98), n: 'Bongo', f: 'Bongos are small drums you play with your hands!' },
+      { img: 'Long%20drum/3D/long_drum_3d.png', code: '1FA98', e: E(0x1fa98), n: 'Bongo', f: 'Bongos are small drums you play with your hands!' },
       { img: 'Maracas/3D/maracas_3d.png', code: '1FA87', e: E(0x1fa87), n: 'Maracas', f: 'Maracas are shakers filled with tiny beads that rattle!' },
       { img: 'Flute/3D/flute_3d.png', code: '1FA88', e: E(0x1fa88), n: 'Flute', f: 'A flute is a long thin pipe you blow across to make gentle music!' },
       { e: E(0x1f514), n: 'Bell', f: 'Bells ring with a clear ding-dong sound when you shake them!' },

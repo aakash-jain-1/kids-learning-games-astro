@@ -41,10 +41,13 @@
  *     `progress.ts` consumers — alphabets, numbers, colors, shapes,
  *     animals, birds, hindi).
  *   - **Quiz state** lives in a separate `routines_quiz_v1` JSON
- *     object (`{ attempts, bestScore, lastPlayed }`). Stays page-inline
- *     for now per the migration principle "refactor trigger = second
- *     consumer". When Woodcutter ships its quiz, the shape will get
- *     extracted to `src/lib/quiz.ts`.
+ *     object (`{ attempts, bestScore, lastPlayed }`). Originally
+ *     page-inline at the Routines port, then extracted to
+ *     `src/lib/quiz.ts` when Woodcutter (the second story consumer)
+ *     landed (2026-05-08), per the migration principle "refactor
+ *     trigger = second consumer". This data file now imports the
+ *     `QuizQuestion` type from `src/lib/quiz.ts`; the page mounts a
+ *     shared `mountQuiz()` controller against this `QUIZ` array.
  *
  * Per-scene art is kid-friendly CSS art (vanilla approach preserved
  * verbatim). Vanilla used short flat class names like `.sun`, `.bed`,
@@ -70,6 +73,8 @@
  *     `artBg` (room-interior gradient). All other scenes use only
  *     `bg`.
  */
+
+import type { QuizQuestion } from '@/lib/quiz';
 
 export type SkyBg =
   | 'sky-morning'
@@ -117,15 +122,6 @@ export interface RoutineScene {
   artBg?: string;
   /** innerHTML for the `.scene-art` container — all selectors are scoped under `.routines-art` in `routines.css` */
   artHtml: string;
-}
-
-export interface QuizQuestion {
-  /** Question text */
-  q: string;
-  /** 4 multiple-choice options (vanilla uses 4 per question; we preserve that shape) */
-  opts: readonly string[];
-  /** Index of the correct option in `opts` */
-  ans: number;
 }
 
 export const SCENES: readonly RoutineScene[] = [
