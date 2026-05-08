@@ -1193,6 +1193,46 @@ body.grid[data-theme='birds'] {
   --gl-done-bg: linear-gradient(145deg, #ff9a56, #c41e58);
 }
 
+/* -- Hindi theme palette -- saffron / cream / green tricolor lifted
+   from vanilla `hindi-alphabets.html` (`#ff9933 → #ffffff → #138808`),
+   softened slightly to `#fff4e6` cream in the middle for legibility
+   with 48 tiles + filter pills + detail card layered on top. The
+   tricolor is culturally meaningful — these are the colours of the
+   Indian flag and the canonical "Hindi" colour identity in vanilla.
+   Tile interior is a cream-saffron gradient so the bold Devanagari
+   character on the face has high contrast; learned-tile state uses
+   a saffron→green diagonal that echoes the flag without dominating
+   the grid. Action / pill accent is deep saffron `#cc5500`. */
+body.grid[data-theme='hindi'] {
+  --gl-bg: linear-gradient(135deg, #ff9933 0%, #fff4e6 50%, #138808 100%);
+
+  --gl-tile-bg: linear-gradient(145deg, #ffffff, #fff4e6);
+  --gl-tile-bg-hover: linear-gradient(145deg, #ffe5cc, #ffd9b3);
+  --gl-tile-bg-learned: linear-gradient(145deg, #ff9933, #138808);
+  --gl-tile-border: #ff9933;
+  --gl-tile-border-active: #cc5500;
+  --gl-tile-color: #0d3d18;
+  --gl-tile-color-learned: #ffffff;
+  --gl-tile-check-bg: #138808;
+  --gl-tile-check-color: #ffffff;
+
+  --gl-cat-bg: linear-gradient(135deg, #ff9933, #138808);
+  --gl-cat-color: #ffffff;
+  --gl-cat-glow: rgba(204, 85, 0, 0.45);
+
+  --gl-progress-fill: linear-gradient(90deg, #ff9933, #138808);
+
+  --gl-detail-letter-color: #cc5500;
+  --gl-detail-pill-bg: linear-gradient(135deg, #ff9933, #138808);
+  --gl-detail-border: rgba(255, 153, 51, 0.4);
+
+  --gl-action-bg: linear-gradient(135deg, #cc5500 0%, #138808 100%);
+  --gl-action-bg-hover: linear-gradient(135deg, #e06400 0%, #1ba80b 100%);
+  --gl-action-glow: rgba(204, 85, 0, 0.45);
+
+  --gl-done-bg: linear-gradient(145deg, #ff9933, #138808);
+}
+
 /* -- Tight-phone polish -- */
 @media (max-width: 420px) {
   .gl-shell {
@@ -1294,6 +1334,24 @@ body.dark-mode.grid[data-theme='birds'] {
   --gl-detail-letter-color: #ffc7a8;
   --gl-detail-text: #f0e0d8;
   --gl-detail-fact-color: rgba(240, 224, 216, 0.7);
+}
+
+/* -- Hindi dark mode -- earthy "after-dark" reading of the saffron
+   / green tricolor: deep clay-saffron at the top fades through warm
+   wood-brown to forest green at the bottom, with warm-gold tile text
+   for the Devanagari script glow. */
+body.dark-mode.grid[data-theme='hindi'] {
+  --gl-bg: linear-gradient(160deg, #2a1500 0%, #3d2510 50%, #0d2510 100%);
+  --gl-tile-bg: linear-gradient(145deg, #3a2a1a, #2a1f10);
+  --gl-tile-bg-hover: linear-gradient(145deg, #4a3a2a, #3a2a1a);
+  --gl-tile-bg-learned: linear-gradient(145deg, #b85c00, #1b5e20);
+  --gl-tile-color: #ffd9a0;
+  --gl-tile-color-learned: #ffffff;
+  --gl-detail-bg: rgba(42, 21, 0, 0.95);
+  --gl-detail-border: rgba(255, 153, 51, 0.35);
+  --gl-detail-letter-color: #ffd9a0;
+  --gl-detail-text: #f0e0c8;
+  --gl-detail-fact-color: rgba(240, 224, 200, 0.7);
 }
 
 body.dark-mode.grid .gl-detail-image-wrap {
