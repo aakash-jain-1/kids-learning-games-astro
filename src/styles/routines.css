@@ -1,0 +1,576 @@
+/* Per-scene CSS-art primitives for Daily Routines.
+ *
+ * Imported by `src/pages/games/daily-routines-game.astro` only.
+ * NOT picked up by any other layout — the file isn't imported by
+ * `StoryLayout.astro` because future story games (Woodcutter) won't
+ * share these specific primitives.
+ *
+ * Every selector is scoped under `.routines-art` (a marker class on
+ * the `.scene-art` container in the routines page). Keeps the
+ * `artHtml` strings in `src/data/routines.ts` readable (vanilla short
+ * class names) while guaranteeing zero CSS leakage to any other page.
+ *
+ * Vanilla precedent: this is a near-1:1 port of the per-scene art
+ * styles in `kids-learning-games/games/daily-routines.html`. Only
+ * deviations:
+ *   1. Every selector prefixed with `.routines-art ` for isolation.
+ *   2. Keyframes prefixed `routines-*` (vs vanilla globals
+ *      `sunRise` / `twinkle` / `swingMotion` / `bubFloat`) to avoid
+ *      collisions with other pages or the `stFadeInDown` /
+ *      `stSceneIn` keyframes in `story.css`.
+ */
+
+/* ── Sky background classes (applied to .scene-art container) ───── */
+.routines-art.sky-morning {
+  background: linear-gradient(180deg, #87ceeb 0%, #ffecd2 80%, #fcb69f 100%);
+}
+
+.routines-art.sky-day {
+  background: linear-gradient(180deg, #56ccf2 0%, #87ceeb 60%, #a8e6cf 100%);
+}
+
+.routines-art.sky-evening {
+  background: linear-gradient(180deg, #f093fb 0%, #f5576c 40%, #ffecd2 100%);
+}
+
+.routines-art.sky-night {
+  background: linear-gradient(180deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+}
+
+.routines-art.sky-indoor {
+  background: linear-gradient(180deg, #ffecd2 0%, #fcb69f 100%);
+}
+
+/* ── Sky elements (sun, moon, stars, clouds) ────────────────────── */
+.routines-art .sun {
+  position: absolute;
+  width: 80px;
+  height: 80px;
+  background: radial-gradient(circle, #ffd740, #ff9800);
+  border-radius: 50%;
+  box-shadow: 0 0 40px rgba(255, 215, 0, 0.6);
+}
+
+.routines-art .sun-rise {
+  top: 60%;
+  right: 15%;
+  animation: routines-sunRise 2s ease-out forwards;
+}
+
+@keyframes routines-sunRise {
+  from {
+    top: 80%;
+    opacity: 0.3;
+  }
+  to {
+    top: 15%;
+    opacity: 1;
+  }
+}
+
+.routines-art .sun-high {
+  top: 10%;
+  right: 20%;
+}
+
+.routines-art .sun-set {
+  top: 50%;
+  right: 10%;
+  background: radial-gradient(circle, #ff6f20, #e65100);
+  box-shadow: 0 0 50px rgba(255, 111, 32, 0.5);
+}
+
+.routines-art .moon {
+  position: absolute;
+  top: 12%;
+  right: 18%;
+  width: 60px;
+  height: 60px;
+  background: #ffd740;
+  border-radius: 50%;
+  box-shadow: 0 0 30px rgba(255, 215, 64, 0.4);
+}
+
+.routines-art .moon::after {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: 12px;
+  width: 50px;
+  height: 50px;
+  background: #24243e;
+  border-radius: 50%;
+}
+
+.routines-art .stars-bg .s {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  background: #fff;
+  border-radius: 50%;
+  animation: routines-twinkle 2s infinite;
+}
+
+@keyframes routines-twinkle {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* ── Ground bands (grass, floor, bed-floor) ─────────────────────── */
+.routines-art .ground {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 80px;
+  border-radius: 0 0 16px 16px;
+}
+
+.routines-art .grass {
+  background: linear-gradient(180deg, #66bb6a, #388e3c);
+}
+
+.routines-art .floor {
+  background: linear-gradient(180deg, #d7ccc8, #bcaaa4);
+}
+
+.routines-art .bed-floor {
+  background: linear-gradient(180deg, #5d4037, #3e2723);
+}
+
+/* ── Child character ────────────────────────────────────────────── */
+.routines-art .child {
+  position: absolute;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.routines-art .child-head {
+  width: 50px;
+  height: 50px;
+  background: #fdbcb4;
+  border-radius: 50%;
+  position: relative;
+  margin: 0 auto;
+}
+
+.routines-art .child-hair {
+  position: absolute;
+  top: -5px;
+  left: 5px;
+  right: 5px;
+  height: 25px;
+  background: #4a2c2a;
+  border-radius: 25px 25px 0 0;
+}
+
+.routines-art .child-eyes {
+  position: absolute;
+  top: 20px;
+  display: flex;
+  gap: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.routines-art .child-eye {
+  width: 6px;
+  height: 6px;
+  background: #333;
+  border-radius: 50%;
+}
+
+.routines-art .child-smile {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 16px;
+  height: 8px;
+  border: 2px solid #c0392b;
+  border-top: none;
+  border-radius: 0 0 16px 16px;
+}
+
+.routines-art .child-body {
+  width: 36px;
+  height: 45px;
+  background: #42a5f5;
+  border-radius: 10px 10px 0 0;
+  margin: 0 auto;
+  position: relative;
+}
+
+.routines-art .child-legs {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+}
+
+.routines-art .child-leg {
+  width: 12px;
+  height: 30px;
+  background: #1565c0;
+  border-radius: 0 0 6px 6px;
+}
+
+.routines-art .child-arms {
+  position: absolute;
+  top: 5px;
+  left: -10px;
+  right: -10px;
+  height: 8px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.routines-art .child-arm {
+  width: 14px;
+  height: 8px;
+  background: #fdbcb4;
+  border-radius: 4px;
+}
+
+/* ── Bed (used in wake-up and bedtime scenes) ───────────────────── */
+.routines-art .bed {
+  position: absolute;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+}
+
+.routines-art .mattress {
+  width: 200px;
+  height: 40px;
+  background: linear-gradient(145deg, #e8f5e9, #c8e6c9);
+  border-radius: 10px;
+  position: relative;
+}
+
+.routines-art .pillow {
+  position: absolute;
+  top: -15px;
+  left: 10px;
+  width: 50px;
+  height: 25px;
+  background: #fff;
+  border-radius: 12px;
+  border: 2px solid #e0e0e0;
+}
+
+.routines-art .blanket {
+  position: absolute;
+  top: 5px;
+  left: 20px;
+  right: 10px;
+  height: 30px;
+  background: linear-gradient(145deg, #ffcc80, #ffb74d);
+  border-radius: 8px;
+}
+
+.routines-art .bed-frame {
+  width: 210px;
+  height: 15px;
+  background: #5d4037;
+  border-radius: 6px;
+  margin-top: -2px;
+  margin-left: -5px;
+}
+
+/* ── Toothbrush (brush-teeth scene) ─────────────────────────────── */
+.routines-art .toothbrush {
+  position: absolute;
+  bottom: 150px;
+  right: 25%;
+  width: 12px;
+  height: 80px;
+  background: linear-gradient(180deg, #42a5f5, #1e88e5);
+  border-radius: 6px;
+}
+
+.routines-art .brush-head {
+  position: absolute;
+  top: -10px;
+  left: -2px;
+  width: 16px;
+  height: 20px;
+  background: #fff;
+  border-radius: 4px;
+}
+
+.routines-art .bubbles .bub {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  animation: routines-bubFloat 2s ease-out infinite;
+}
+
+@keyframes routines-bubFloat {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-40px) scale(0.5);
+  }
+}
+
+/* ── Table & plate (breakfast / lunch / dinner scenes) ──────────── */
+.routines-art .table {
+  position: absolute;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 220px;
+  height: 10px;
+  background: #8d6e63;
+  border-radius: 4px;
+}
+
+.routines-art .table-leg {
+  position: absolute;
+  bottom: -40px;
+  width: 8px;
+  height: 40px;
+  background: #6d4c41;
+  border-radius: 2px;
+}
+
+.routines-art .table-leg.l {
+  left: 15px;
+}
+
+.routines-art .table-leg.r {
+  right: 15px;
+}
+
+.routines-art .plate {
+  position: absolute;
+  top: -25px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80px;
+  height: 20px;
+  background: #fff;
+  border-radius: 50%;
+  border: 2px solid #e0e0e0;
+}
+
+.routines-art .food-emoji {
+  position: absolute;
+  top: -38px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 2em;
+}
+
+/* ── School bag (get-dressed scene) ─────────────────────────────── */
+.routines-art .bag {
+  position: absolute;
+  bottom: 100px;
+  right: 30%;
+  width: 50px;
+  height: 60px;
+  background: linear-gradient(145deg, #ef5350, #c62828);
+  border-radius: 12px 12px 8px 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.routines-art .bag-strap {
+  position: absolute;
+  top: -10px;
+  left: 10px;
+  right: 10px;
+  height: 15px;
+  border: 3px solid #b71c1c;
+  border-bottom: none;
+  border-radius: 10px 10px 0 0;
+}
+
+.routines-art .bag-pocket {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  right: 8px;
+  height: 20px;
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+}
+
+/* ── Book (school scene) ────────────────────────────────────────── */
+.routines-art .book {
+  position: absolute;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80px;
+  height: 100px;
+  background: linear-gradient(145deg, #7e57c2, #512da8);
+  border-radius: 4px 12px 12px 4px;
+  box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.2);
+}
+
+.routines-art .book-line {
+  position: absolute;
+  left: 8px;
+  top: 15px;
+  bottom: 15px;
+  width: 2px;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.routines-art .book-title {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #fff;
+  font-size: 0.6em;
+  font-weight: bold;
+  text-align: center;
+  line-height: 1.3;
+}
+
+/* ── Playground swing + slide (playtime scene) ──────────────────── */
+.routines-art .swing {
+  position: absolute;
+  bottom: 80px;
+  left: 35%;
+}
+
+.routines-art .swing-frame {
+  width: 4px;
+  height: 120px;
+  background: #795548;
+  position: absolute;
+  bottom: 0;
+}
+
+.routines-art .swing-frame.lf {
+  left: 0;
+}
+
+.routines-art .swing-frame.rf {
+  left: 80px;
+}
+
+.routines-art .swing-top {
+  position: absolute;
+  top: 0;
+  left: -5px;
+  width: 90px;
+  height: 4px;
+  background: #795548;
+}
+
+.routines-art .swing-rope {
+  position: absolute;
+  top: 4px;
+  left: 35px;
+  width: 2px;
+  height: 80px;
+  background: #9e9e9e;
+  animation: routines-swingMotion 2s ease-in-out infinite;
+  transform-origin: top;
+}
+
+.routines-art .swing-seat {
+  position: absolute;
+  bottom: -8px;
+  left: -12px;
+  width: 26px;
+  height: 6px;
+  background: #5d4037;
+  border-radius: 3px;
+}
+
+@keyframes routines-swingMotion {
+  0%,
+  100% {
+    transform: rotate(-15deg);
+  }
+  50% {
+    transform: rotate(15deg);
+  }
+}
+
+.routines-art .slide {
+  position: absolute;
+  bottom: 80px;
+  right: 25%;
+  width: 60px;
+  height: 120px;
+}
+
+.routines-art .slide-body {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 60px;
+  height: 120px;
+  background: linear-gradient(145deg, #fdd835, #f9a825);
+  border-radius: 30px 30px 10px 10px;
+  transform: rotate(-15deg);
+  transform-origin: bottom center;
+}
+
+/* ── Bathtub (bath-time scene) ──────────────────────────────────── */
+.routines-art .tub {
+  position: absolute;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  height: 70px;
+  background: #e3f2fd;
+  border: 4px solid #90caf9;
+  border-radius: 0 0 40px 40px;
+  overflow: hidden;
+}
+
+.routines-art .tub-water {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 45px;
+  background: linear-gradient(180deg, rgba(66, 165, 245, 0.4), rgba(25, 118, 210, 0.5));
+}
+
+.routines-art .tub-bubbles {
+  position: absolute;
+  top: -8px;
+  left: 10px;
+  right: 10px;
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+}
+
+.routines-art .tub-b {
+  width: 20px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 50%;
+  border: 1px solid rgba(200, 200, 200, 0.4);
+}
+
+/* ── Reduced-motion override ────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .routines-art *,
+  .routines-art *::before,
+  .routines-art *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

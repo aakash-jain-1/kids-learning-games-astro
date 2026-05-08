@@ -1,0 +1,415 @@
+/* Shared visual system for story-flow games. First consumer is Daily
+   Routines (2026-05-08); Woodcutter will be the second consumer once
+   its layout shape is settled.
+
+   Per-game theming is driven by ~20 CSS custom properties on the
+   `body.story[data-theme='<game>']` selector. The defaults below are
+   the routines (warm sunrise) palette; other story games override them
+   via `body.story[data-theme='woodcutter']` etc.
+
+   Design rules vs CardMachineLayout:
+   - Centered single-column layout (no two-pane split).
+   - Body is scrollable (story prose + N-question quiz won't fit in 100 vh).
+   - Page background is themed AND animatable per scene via the
+     `--st-bg` custom property. The Routines page updates `--st-bg` on
+     each scene transition; the body's `background` rule reads it. */
+
+body.story {
+  /* Scene-paint tokens (`scene-box` is the white-ish reading panel). */
+  --st-card-bg: rgba(255, 255, 255, 0.95);
+  --st-card-text: #333;
+  --st-card-shadow: 0 15px 50px rgba(0, 0, 0, 0.25);
+  --st-card-time-color: #888;
+
+  /* Title / heading colours. The default for `body.story` is white
+     text against a deep gradient; per-theme overrides below adjust
+     when the page bg is light. */
+  --st-title-color: #fff;
+  --st-title-shadow: 2px 2px 8px rgba(0, 0, 0, 0.4);
+
+  /* Progress bar */
+  --st-prog-bg: rgba(255, 255, 255, 0.3);
+  --st-prog-fg: linear-gradient(90deg, #ff9a56, #ffd740);
+  --st-prog-text: rgba(255, 255, 255, 0.8);
+
+  /* Story buttons — `--st-btn-*` per role */
+  --st-btn-prev-bg: linear-gradient(145deg, #e0e0e0, #bdbdbd);
+  --st-btn-prev-color: #555;
+  --st-btn-next-bg: linear-gradient(145deg, #ff9a56, #ff6f20);
+  --st-btn-next-color: #fff;
+  --st-btn-speak-bg: linear-gradient(145deg, #66bb6a, #43a047);
+  --st-btn-speak-color: #fff;
+  --st-btn-restart-bg: linear-gradient(145deg, #42a5f5, #1976d2);
+  --st-btn-restart-color: #fff;
+
+  /* Quiz */
+  --st-quiz-bg: rgba(255, 255, 255, 0.95);
+  --st-quiz-text: #333;
+  --st-quiz-heading: #e65100;
+  --st-quiz-opt-bg: #fff8e1;
+  --st-quiz-opt-border: #ffe0b2;
+  --st-quiz-opt-hover-bg: #ffe0b2;
+  --st-quiz-opt-text: #333;
+  --st-quiz-correct: #2e7d32;
+
+  /* Done / completion overlay accent */
+  --st-done-accent: #ff9a56;
+
+  /* Page background — starts in the warm-cream/sunrise default and
+     can be morphed per scene by the page script setting `--st-bg`. */
+  --st-bg: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+
+  font-family: 'Comic Sans MS', 'Chalkboard SE', cursive, Arial, sans-serif;
+  background: var(--st-bg);
+  color: var(--st-title-color);
+  min-height: 100vh;
+  overflow-x: hidden;
+  padding-top: 36px;
+  transition: background 1s ease;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+/* ── Routines theme — warm sunrise/coral palette ───────────────── */
+body.story[data-theme='routines'] {
+  /* The body bg is morphed per scene by the page script via `--st-bg`,
+     so the theme block leaves it at the default. */
+  --st-prog-fg: linear-gradient(90deg, #ff9a56, #ffd740);
+  --st-btn-next-bg: linear-gradient(145deg, #ff9a56, #ff6f20);
+  --st-quiz-heading: #e65100;
+  --st-quiz-opt-bg: #fff8e1;
+  --st-quiz-opt-border: #ffe0b2;
+  --st-quiz-opt-hover-bg: #ffe0b2;
+  --st-done-accent: #ff9a56;
+}
+
+/* ── Woodcutter theme — placeholder (deep navy, gold accents) ──── */
+body.story[data-theme='woodcutter'] {
+  --st-prog-fg: linear-gradient(90deg, #1e3c72, #ffd740);
+  --st-btn-next-bg: linear-gradient(145deg, #1e3c72, #2a5298);
+  --st-quiz-heading: #1e3c72;
+  --st-quiz-opt-bg: #e8f0fe;
+  --st-quiz-opt-border: #c5cae9;
+  --st-quiz-opt-hover-bg: #c5cae9;
+  --st-done-accent: #ffd740;
+  --st-bg: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #7e22ce 100%);
+}
+
+/* ── Dark mode (theme-agnostic) ─────────────────────────────────── */
+body.dark-mode.story {
+  --st-card-bg: rgba(30, 25, 20, 0.92);
+  --st-card-text: #f0e6dc;
+  --st-card-shadow: 0 15px 50px rgba(0, 0, 0, 0.5);
+  --st-card-time-color: #b8a890;
+
+  --st-prog-bg: rgba(255, 255, 255, 0.15);
+  --st-prog-text: rgba(255, 224, 192, 0.85);
+
+  --st-quiz-bg: rgba(30, 25, 20, 0.92);
+  --st-quiz-text: #f0e6dc;
+  --st-quiz-opt-bg: rgba(60, 50, 40, 0.85);
+  --st-quiz-opt-border: rgba(255, 224, 192, 0.3);
+  --st-quiz-opt-hover-bg: rgba(80, 65, 50, 0.95);
+  --st-quiz-opt-text: #f0e6dc;
+}
+
+body.dark-mode.story[data-theme='routines'] {
+  /* Per-scene `--st-bg` overrides still apply (page bg morphs per
+     scene), so the theme block only needs button/accent tweaks. */
+  --st-quiz-heading: #ffb74d;
+}
+
+/* ── Layout shell ───────────────────────────────────────────────── */
+.story-shell {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 20px;
+  position: relative;
+  z-index: 1;
+}
+
+.story-title {
+  text-align: center;
+  color: var(--st-title-color);
+  font-size: 2.5em;
+  margin: 20px 0 10px;
+  text-shadow: var(--st-title-shadow);
+  animation: stFadeInDown 0.8s ease-out;
+}
+
+@keyframes stFadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Top control row (Quiz / Stats / Settings) ──────────────────── */
+.story-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.story-header .ctrl-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* ── Progress bar ───────────────────────────────────────────────── */
+.story-progress {
+  margin: 6px 0 16px;
+}
+
+.story-progress-text {
+  text-align: center;
+  color: var(--st-prog-text);
+  font-size: 0.85em;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.story-progress-bar {
+  width: 100%;
+  height: 8px;
+  background: var(--st-prog-bg);
+  border-radius: 50px;
+  overflow: hidden;
+}
+
+.story-progress-fill {
+  height: 100%;
+  background: var(--st-prog-fg);
+  border-radius: 50px;
+  transition: width 0.5s ease;
+  width: 10%;
+}
+
+/* ── Scene panel ────────────────────────────────────────────────── */
+.scene-box {
+  background: var(--st-card-bg);
+  color: var(--st-card-text);
+  border-radius: 24px;
+  padding: 30px;
+  box-shadow: var(--st-card-shadow);
+  margin-bottom: 24px;
+  animation: stSceneIn 0.6s ease-out;
+}
+
+@keyframes stSceneIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.scene-art {
+  position: relative;
+  width: 100%;
+  height: 340px;
+  border-radius: 16px;
+  overflow: hidden;
+  margin-bottom: 20px;
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.08);
+}
+
+.scene-time {
+  text-align: center;
+  font-size: 0.85em;
+  color: var(--st-card-time-color);
+  font-weight: bold;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.scene-emoji {
+  text-align: center;
+  font-size: 3.5em;
+  margin-bottom: 6px;
+}
+
+.scene-title {
+  text-align: center;
+  font-size: 2em;
+  color: var(--st-card-text);
+  margin-bottom: 12px;
+  font-weight: 700;
+}
+
+.scene-text {
+  font-size: 1.2em;
+  color: var(--st-card-text);
+  line-height: 1.7;
+  text-align: center;
+  max-width: 600px;
+  margin: 0 auto 6px;
+  font-weight: 600;
+}
+
+/* ── Story controls (Prev / Listen / Next) ──────────────────────── */
+.story-controls {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.story-btn {
+  padding: 14px 36px;
+  border-radius: 50px;
+  border: none;
+  font-size: 1.1em;
+  font-weight: bold;
+  cursor: pointer;
+  font-family: inherit;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  color: #fff;
+  background: linear-gradient(145deg, #888, #666);
+}
+
+.story-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.story-btn:active {
+  transform: translateY(0);
+}
+
+.story-btn--prev {
+  background: var(--st-btn-prev-bg);
+  color: var(--st-btn-prev-color);
+}
+
+.story-btn--next {
+  background: var(--st-btn-next-bg);
+  color: var(--st-btn-next-color);
+}
+
+.story-btn--speak {
+  background: var(--st-btn-speak-bg);
+  color: var(--st-btn-speak-color);
+}
+
+.story-btn--restart {
+  background: var(--st-btn-restart-bg);
+  color: var(--st-btn-restart-color);
+}
+
+.story-btn[hidden] {
+  display: none !important;
+}
+
+/* ── Quiz panel ─────────────────────────────────────────────────── */
+.quiz-box {
+  background: var(--st-quiz-bg);
+  color: var(--st-quiz-text);
+  border-radius: 20px;
+  padding: 25px;
+  margin-top: 20px;
+  box-shadow: var(--st-card-shadow);
+}
+
+.quiz-box[hidden] {
+  display: none !important;
+}
+
+.quiz-heading {
+  color: var(--st-quiz-heading);
+  text-align: center;
+  margin-bottom: 18px;
+  font-size: 1.6em;
+}
+
+.quiz-question {
+  font-weight: bold;
+  font-size: 1.1em;
+  margin-bottom: 12px;
+  color: var(--st-quiz-text);
+}
+
+.quiz-opt {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 12px 16px;
+  margin: 6px 0;
+  border-radius: 12px;
+  border: 2px solid var(--st-quiz-opt-border);
+  background: var(--st-quiz-opt-bg);
+  color: var(--st-quiz-opt-text);
+  font-size: 1em;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 600;
+  transition: background 0.2s ease, transform 0.15s ease;
+}
+
+.quiz-opt:hover {
+  background: var(--st-quiz-opt-hover-bg);
+  transform: translateY(-1px);
+}
+
+.quiz-opt:active {
+  transform: translateY(0);
+}
+
+.quiz-result {
+  text-align: center;
+  padding: 20px;
+}
+
+.quiz-result-emoji {
+  font-size: 3em;
+}
+
+.quiz-result-text {
+  font-size: 1.3em;
+  font-weight: bold;
+  margin: 10px 0;
+  color: var(--st-quiz-text);
+}
+
+.quiz-result-actions {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+/* ── Mobile tightening ──────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .story-title {
+    font-size: 1.8em !important;
+  }
+  .scene-art {
+    height: 240px !important;
+  }
+  .scene-title {
+    font-size: 1.5em !important;
+  }
+  .scene-text {
+    font-size: 1em !important;
+  }
+  .story-btn {
+    padding: 12px 24px;
+    font-size: 0.95em;
+  }
+}

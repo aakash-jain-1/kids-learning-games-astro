@@ -1,0 +1,144 @@
+---
+// Shared shell for paginated story-flow games — Daily Routines today,
+// Woodcutter (in some form) eventually. Games where the pedagogy is
+// "follow a linear narrative one chapter at a time, then take a quick
+// quiz on what you read". Sister to:
+//   - `CardMachineLayout` (reference-catalogue browser, deck of facts).
+//   - `GridLayout` (foundational-set grid, scan a bounded chart).
+//
+// Carved out at the Routines port (2026-05-08) after `CardMachineLayout`
+// failed the first-fit gate: viewport-locked overflow, two-pane layout,
+// stacked deck DOM, and OLED-look right pane all collapse for a
+// scrollable story page with a quiz at the end. See
+// `src/data/routines.ts` header for the full decision rationale.
+//
+// Provides head meta, PWA wiring, navigation, settings modal, build
+// info, and service worker auto-update handling. Each story game
+// supplies its scene markup, controls, and inline quiz via the default
+// slot plus a handful of props. Scrolling is allowed on `body.story`
+// because story prose + an N-question quiz won't fit on a phone in
+// 100 vh.
+
+import '@/styles/global.css';
+import '@/styles/story.css';
+
+import BuildInfo from '@/components/BuildInfo.astro';
+import GameNav from '@/components/GameNav.astro';
+import SettingsModal from '@/components/SettingsModal.astro';
+
+interface Props {
+  title: string;
+  description: string;
+  themeColor?: string;
+  ogImage?: string;
+  /** Used in service worker updates to construct the canonical page URL */
+  pageUrl?: string;
+  /** Inline lang attribute */
+  lang?: string;
+  /**
+   * Visual palette for the story shell. Controls the CSS custom
+   * properties defined in `story.css`. Leave undefined for the
+   * default theme. Add new keys here as more story games land.
+   */
+  theme?: 'routines' | 'woodcutter';
+}
+
+const {
+  title,
+  description,
+  themeColor = '#ff9a56',
+  ogImage = 'https://aakash-jain-1.github.io/kids-learning-games/assets/icon-512.svg',
+  pageUrl,
+  lang = 'en',
+  theme,
+} = Astro.props;
+
+const canonicalUrl =
+  pageUrl ??
+  new URL(Astro.url.pathname, Astro.site ?? 'https://aakash-jain-1.github.io').href;
+---
+
+<!DOCTYPE html>
+<html lang={lang}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content={themeColor} />
+    <meta name="description" content={description} />
+
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📖</text></svg>"
+    />
+
+    <title>{title}</title>
+
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:type" content="website" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+
+    <!-- Apply saved dark-mode class before paint to avoid FOUC -->
+    <script is:inline>
+      (function () {
+        try {
+          var raw = localStorage.getItem('kids_settings_v1');
+          if (!raw) return;
+          var s = JSON.parse(raw);
+          if (s && s.dark) document.documentElement.classList.add('pre-dark');
+        } catch (e) {
+          /* noop */
+        }
+      })();
+    </script>
+  </head>
+
+  <body class="story" data-theme={theme}>
+    <GameNav />
+
+    <slot />
+
+    <SettingsModal />
+    <BuildInfo />
+
+    <script>
+      import { initSettings } from '@/lib/settings';
+      initSettings();
+
+      document.documentElement.classList.remove('pre-dark');
+    </script>
+
+    <script>
+      import { registerSW } from 'virtual:pwa-register';
+      registerSW({
+        immediate: true,
+        onRegisteredSW(_scriptUrl, registration) {
+          if (registration) {
+            setInterval(() => registration.update(), 60 * 60 * 1000);
+          }
+        },
+      });
+    </script>
+  </body>
+</html>
+
+<style is:global>
+  html.pre-dark body.story {
+    background: #2a1505;
+    color: #ffe0c0;
+  }
+  html.pre-dark body.story[data-theme='routines'] {
+    background: #2a1505;
+    color: #ffe0c0;
+  }
+  html.pre-dark body.story[data-theme='woodcutter'] {
+    background: #0a0f1f;
+    color: #d4d8f0;
+  }
+</style>

@@ -1,0 +1,446 @@
+---
+import StoryLayout from '@/layouts/StoryLayout.astro';
+import '@/styles/routines.css';
+import { SCENES, BODY_BGS } from '@/data/routines';
+
+const title = 'Daily Routines — Kids Learning Games';
+const description =
+  "Follow a child's day from sunrise to bedtime — wake up, brush teeth, breakfast, school, lunch, playtime, bath, dinner, bedtime — through 10 illustrated scenes plus an 8-question comprehension quiz.";
+
+// Render the first scene server-side so the page is meaningful before
+// the client script hydrates (matches the SSR-first pattern used by
+// every other ported game). The client script re-renders the
+// `.scene-box` on every navigate.
+const initialScene = SCENES[0]!;
+const initialBodyBg = BODY_BGS[0]!;
+const totalScenes = SCENES.length;
+---
+
+<StoryLayout
+  title={title}
+  description={description}
+  themeColor="#ff9a56"
+  theme="routines"
+>
+  <main class="story-shell" aria-label="Daily Routines story">
+    <header class="story-header">
+      <h1 class="story-title">
+        <span aria-hidden="true">🌅</span>
+        My Daily Routines
+        <span aria-hidden="true">🌙</span>
+      </h1>
+      <div class="ctrl-row">
+        <button class="ctrl-pill" id="btnQuiz" type="button">🧠 Quiz</button>
+        <button class="ctrl-pill" id="btnStats" type="button">📊 Stats</button>
+        <button class="ctrl-pill" id="btnSettings" type="button">⚙️ Settings</button>
+      </div>
+    </header>
+
+    <div class="story-progress" aria-label="Story progress">
+      <div class="story-progress-text" id="progText">Scene 1 of {totalScenes}</div>
+      <div class="story-progress-bar">
+        <div
+          class="story-progress-fill"
+          id="progFill"
+          style={`width:${(1 / totalScenes) * 100}%`}
+        >
+        </div>
+      </div>
+    </div>
+
+    <section class="scene-box" id="sceneBox" aria-live="polite">
+      <div
+        class={`scene-art routines-art ${initialScene.bg}`}
+        id="sceneArt"
+        style={initialScene.artBg ? `background:${initialScene.artBg}` : undefined}
+        aria-hidden="true"
+        set:html={initialScene.artHtml}
+      />
+      <div class="scene-time" id="sceneTime">{initialScene.time}</div>
+      <div class="scene-emoji" id="sceneEmoji" aria-hidden="true">{initialScene.emoji}</div>
+      <h2 class="scene-title" id="sceneTitle">{initialScene.title}</h2>
+      <p class="scene-text" id="sceneText">{initialScene.text}</p>
+    </section>
+
+    <div class="story-controls">
+      <button
+        class="story-btn story-btn--prev"
+        id="prevBtn"
+        type="button"
+        aria-label="Previous scene"
+        hidden
+      >
+        ◀ Back
+      </button>
+      <button
+        class="story-btn story-btn--speak"
+        id="speakBtn"
+        type="button"
+        aria-label="Listen to this scene"
+      >
+        🔊 Listen
+      </button>
+      <button
+        class="story-btn story-btn--next"
+        id="nextBtn"
+        type="button"
+        aria-label="Next scene"
+      >
+        Next ▶
+      </button>
+    </div>
+
+    <section
+      class="quiz-box"
+      id="quizBox"
+      aria-labelledby="quizTitle"
+      aria-live="polite"
+      hidden
+    >
+      <h2 class="quiz-heading" id="quizTitle">📝 Daily Routines Quiz</h2>
+      <div id="quizBody"></div>
+      <div class="quiz-result" id="quizResult" hidden>
+        <div class="quiz-result-emoji" id="quizResEmoji" aria-hidden="true"></div>
+        <div class="quiz-result-text" id="quizResText"></div>
+        <div class="quiz-result-actions">
+          <button class="story-btn story-btn--restart" id="quizRetryBtn" type="button">
+            🔄 Try Again
+          </button>
+          <button class="story-btn story-btn--prev" id="quizReadAgainBtn" type="button">
+            📖 Read Again
+          </button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script is:inline define:vars={{ initialBodyBg }}>
+    document.body.style.setProperty('--st-bg', initialBodyBg);
+  </script>
+</StoryLayout>
+
+<style is:global>
+  /* Page-local font-stack lock — vanilla locks routines on the
+     Comic-Sans/Chalkboard family for kid-handwriting feel. story.css
+     sets the same family at body level, but page-local rule keeps it
+     locked even if a future theme override changes the body family. */
+  body.story[data-theme='routines'] .story-title,
+  body.story[data-theme='routines'] .scene-title {
+    font-family: 'Comic Sans MS', 'Chalkboard SE', cursive, Arial, sans-serif;
+  }
+
+  /* Hide the progress bar + scene-box when the quiz is showing —
+     keeps the page focused. The script sets/removes `data-mode="quiz"`
+     on `<body>`. */
+  body.story[data-theme='routines'][data-mode='quiz'] .story-progress,
+  body.story[data-theme='routines'][data-mode='quiz'] .scene-box,
+  body.story[data-theme='routines'][data-mode='quiz'] .story-controls {
+    display: none;
+  }
+</style>
+
+<script>
+  import { playTap } from '@/lib/audio';
+  import { speak } from '@/lib/speech';
+  import { launchConfetti } from '@/lib/achievements';
+  import { getSettings } from '@/lib/settings';
+  import { loadLearned, saveLearned } from '@/lib/progress';
+  import { SCENES, BODY_BGS, QUIZ } from '@/data/routines';
+
+  const GAME_ID = 'routines';
+  const QUIZ_KEY = 'routines_quiz_v1';
+
+  /** Quiz state shape persisted to LocalStorage between sessions. */
+  interface QuizState {
+    attempts: number;
+    bestScore: number;
+    lastPlayed: string;
+  }
+
+  const loadQuizState = (): QuizState => {
+    try {
+      const raw = localStorage.getItem(QUIZ_KEY);
+      if (!raw) return { attempts: 0, bestScore: 0, lastPlayed: '' };
+      const parsed = JSON.parse(raw) as Partial<QuizState>;
+      return {
+        attempts: typeof parsed.attempts === 'number' ? parsed.attempts : 0,
+        bestScore: typeof parsed.bestScore === 'number' ? parsed.bestScore : 0,
+        lastPlayed: typeof parsed.lastPlayed === 'string' ? parsed.lastPlayed : '',
+      };
+    } catch {
+      return { attempts: 0, bestScore: 0, lastPlayed: '' };
+    }
+  };
+
+  const saveQuizState = (s: QuizState): void => {
+    try {
+      localStorage.setItem(QUIZ_KEY, JSON.stringify(s));
+    } catch {
+      /* noop */
+    }
+  };
+
+  // --- State ---
+  let sceneIdx = 0;
+  let quizIdx = 0;
+  let quizCorrect = 0;
+  let learned = loadLearned(GAME_ID);
+  let quizState = loadQuizState();
+
+  // --- DOM refs ---
+  const $ = <T extends HTMLElement = HTMLElement>(id: string): T =>
+    document.getElementById(id) as T;
+
+  const sceneArt = $('sceneArt');
+  const sceneTime = $('sceneTime');
+  const sceneEmoji = $('sceneEmoji');
+  const sceneTitle = $('sceneTitle');
+  const sceneText = $('sceneText');
+  const progText = $('progText');
+  const progFill = $('progFill');
+  const prevBtn = $<HTMLButtonElement>('prevBtn');
+  const nextBtn = $<HTMLButtonElement>('nextBtn');
+  const speakBtn = $<HTMLButtonElement>('speakBtn');
+  const quizBox = $('quizBox');
+  const quizBody = $('quizBody');
+  const quizResult = $('quizResult');
+  const quizResEmoji = $('quizResEmoji');
+  const quizResText = $('quizResText');
+  const quizRetryBtn = $<HTMLButtonElement>('quizRetryBtn');
+  const quizReadAgainBtn = $<HTMLButtonElement>('quizReadAgainBtn');
+
+  // --- Helpers ---
+  const isLastScene = (): boolean => sceneIdx === SCENES.length - 1;
+
+  const markVisited = (id: string): void => {
+    if (learned.has(id)) return;
+    learned.add(id);
+    saveLearned(GAME_ID, learned);
+  };
+
+  const renderScene = (idx: number): void => {
+    const s = SCENES[idx];
+    if (!s) return;
+    sceneIdx = idx;
+
+    // Re-trigger the scene-box entrance animation by clearing and
+    // re-applying the keyframe-bound class via a class swap.
+    const box = $('sceneBox');
+    box.style.animation = 'none';
+    void box.offsetWidth;
+    box.style.animation = 'stSceneIn 0.6s ease-out';
+
+    sceneArt.className = `scene-art routines-art ${s.bg}`;
+    if (s.artBg) {
+      sceneArt.style.background = s.artBg;
+    } else {
+      sceneArt.style.removeProperty('background');
+    }
+    sceneArt.innerHTML = s.artHtml;
+
+    sceneTime.textContent = s.time;
+    sceneEmoji.textContent = s.emoji;
+    sceneTitle.textContent = s.title;
+    sceneText.textContent = s.text;
+
+    progText.textContent = `Scene ${idx + 1} of ${SCENES.length}`;
+    progFill.style.width = `${((idx + 1) / SCENES.length) * 100}%`;
+
+    document.body.style.setProperty('--st-bg', BODY_BGS[idx] ?? '');
+
+    prevBtn.hidden = idx === 0;
+    nextBtn.textContent = isLastScene() ? 'Quiz ✔' : 'Next ▶';
+    nextBtn.setAttribute(
+      'aria-label',
+      isLastScene() ? 'Take the quiz' : 'Next scene',
+    );
+
+    markVisited(s.id);
+
+    // Auto-speak the scene if the user has the global setting on.
+    const settings = getSettings();
+    if (settings.autoSpeak) {
+      speak(`${s.title}. ${s.text}`, { rate: 0.85, pitch: 1.15 });
+    }
+  };
+
+  const navigate = (delta: -1 | 1): void => {
+    const next = sceneIdx + delta;
+    if (next < 0) return;
+    if (next >= SCENES.length) {
+      showQuiz();
+      return;
+    }
+    renderScene(next);
+  };
+
+  // --- Quiz flow ---
+  const ROUTINES_CONFETTI = [
+    '#ff9a56', '#ffd740', '#ff6f20', '#42a5f5', '#66bb6a', '#fff',
+  ];
+
+  const showQuiz = (): void => {
+    document.body.dataset.mode = 'quiz';
+    quizBox.hidden = false;
+    startQuiz();
+  };
+
+  const hideQuiz = (): void => {
+    delete document.body.dataset.mode;
+    quizBox.hidden = true;
+  };
+
+  const startQuiz = (): void => {
+    quizIdx = 0;
+    quizCorrect = 0;
+    quizResult.hidden = true;
+    quizBody.style.removeProperty('display');
+    renderQuestion();
+  };
+
+  const renderQuestion = (): void => {
+    if (quizIdx >= QUIZ.length) {
+      showQuizResult();
+      return;
+    }
+    const q = QUIZ[quizIdx]!;
+    const total = QUIZ.length;
+    const headHtml =
+      `<div class="quiz-question">${quizIdx + 1}/${total}: ${escapeHtml(q.q)}</div>`;
+    const optsHtml = q.opts
+      .map(
+        (o, i) =>
+          `<button type="button" class="quiz-opt" data-i="${i}">${escapeHtml(o)}</button>`,
+      )
+      .join('');
+    quizBody.innerHTML = headHtml + optsHtml;
+  };
+
+  const escapeHtml = (s: string): string =>
+    s
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+
+  const onQuizAnswer = (i: number): void => {
+    const q = QUIZ[quizIdx];
+    if (!q) return;
+    if (i === q.ans) quizCorrect++;
+    quizIdx++;
+    renderQuestion();
+  };
+
+  const showQuizResult = (): void => {
+    quizBody.style.display = 'none';
+    const total = QUIZ.length;
+    const pct = Math.round((quizCorrect / total) * 100);
+
+    const emoji = pct === 100 ? '🌟' : pct >= 63 ? '👏' : '📚';
+    const message =
+      pct === 100
+        ? 'Perfect! You know your daily routines!'
+        : pct >= 63
+          ? 'Great job!'
+          : 'Read the story again and try once more!';
+
+    quizResEmoji.textContent = emoji;
+    quizResText.textContent = `${quizCorrect}/${total} correct (${pct}%) — ${message}`;
+    quizResult.hidden = false;
+
+    quizState = {
+      attempts: quizState.attempts + 1,
+      bestScore: Math.max(quizState.bestScore, pct),
+      lastPlayed: new Date().toISOString().slice(0, 10),
+    };
+    saveQuizState(quizState);
+
+    if (pct === 100) {
+      launchConfetti(ROUTINES_CONFETTI);
+    }
+  };
+
+  // --- Event wiring ---
+  prevBtn.addEventListener('click', () => {
+    playTap();
+    navigate(-1);
+  });
+
+  nextBtn.addEventListener('click', () => {
+    playTap();
+    navigate(1);
+  });
+
+  speakBtn.addEventListener('click', () => {
+    playTap();
+    const s = SCENES[sceneIdx];
+    if (!s) return;
+    speak(`${s.title}. ${s.text}`, { rate: 0.85, pitch: 1.15 });
+  });
+
+  quizBody.addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('.quiz-opt');
+    if (!btn) return;
+    playTap();
+    const i = Number(btn.dataset.i);
+    if (Number.isNaN(i)) return;
+    onQuizAnswer(i);
+  });
+
+  quizRetryBtn.addEventListener('click', () => {
+    playTap();
+    startQuiz();
+  });
+
+  quizReadAgainBtn.addEventListener('click', () => {
+    playTap();
+    hideQuiz();
+    renderScene(0);
+  });
+
+  document.getElementById('btnSettings')?.addEventListener('click', () => {
+    playTap();
+    (window as unknown as { openSettings?: () => void }).openSettings?.();
+  });
+
+  document.getElementById('btnStats')?.addEventListener('click', () => {
+    playTap();
+    const visited = learned.size;
+    const total = SCENES.length;
+    const lines = [
+      `📖 Scenes visited: ${visited} / ${total}`,
+      '',
+      `🧠 Quiz attempts: ${quizState.attempts}`,
+      `🏆 Best score: ${quizState.bestScore}%`,
+      quizState.lastPlayed ? `📅 Last played: ${quizState.lastPlayed}` : '📅 Last played: never',
+    ];
+    alert(lines.join('\n'));
+  });
+
+  document.getElementById('btnQuiz')?.addEventListener('click', () => {
+    playTap();
+    showQuiz();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.target instanceof HTMLInputElement) return;
+    if (document.body.dataset.mode === 'quiz') return;
+    if (e.key === 'ArrowLeft') {
+      navigate(-1);
+      return;
+    }
+    if (e.key === 'ArrowRight') {
+      navigate(1);
+      return;
+    }
+  });
+
+  // --- Initial setup ---
+  // Mark scene 0 as visited and ensure progress fill is correct.
+  markVisited(SCENES[0]!.id);
+  progText.textContent = `Scene 1 of ${SCENES.length}`;
+  progFill.style.width = `${(1 / SCENES.length) * 100}%`;
+  prevBtn.hidden = true;
+  nextBtn.textContent = isLastScene() ? 'Quiz ✔' : 'Next ▶';
+</script>
