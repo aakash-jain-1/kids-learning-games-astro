@@ -72,40 +72,54 @@
 - **Project**: Migrate vanilla HTML/CSS/JS PWA `kids-learning-games`
   (13 games, ~500–1500 lines each, copy-pasted shells) to a typed
   Astro + `@vite-pwa/astro` (Workbox) project `kids-learning-games-astro`.
-- **State (2026-05-07)**: **10 of 13 games ported and live** at
+- **State (2026-05-08)**: **11 of 13 games ported and live** at
   https://aakash-jain-1.github.io/kids-learning-games-astro/.
+  *Foundational-set chapter closed* — every grid-eligible vanilla
+  game now ships on `GridLayout`. Only the 2 story games remain.
 - **Two shared layouts** in production:
   - `CardMachineLayout` (4 games — Dinosaurs, Flashcards, Solar System, Weather).
-  - `GridLayout` (6 games — Alphabets, Numbers, Colors, Shapes, Animals, **Birds** ← shipped this session).
-- **Just shipped**: Birds game on `GridLayout`. Second consumer of the
-  `.gl-tile--emoji` namespace (big emoji + name label tile face,
-  Fluent UI 3D PNG inside the detail card) — clean copy-adapt of the
-  Animals page. Decided at port time to ship a *distinct* sunset
-  palette (vanilla `birds.html`'s `#ff9a56 → #ff6a88` orange-coral
-  gradient lifted unchanged) rather than reuse the Animals palette,
-  for visual differentiation between sister "creature" games. Two
-  vanilla bugs caught and fixed: (a) emoji-key collision (vanilla
-  `🦢` used for both Swan and Woodpecker, second wins, only 14 of
-  15 birds rendered — Astro splits via the Unicode-15.0 `🐦‍⬛` for
-  Woodpecker so all 15 render), (b) emoji-name mismatch noted
-  (vanilla `🦤` is Dodo per Unicode but labelled "Ostrich" — Astro
-  preserves vanilla content + emoji, accepts the visual mismatch).
-  Synthesized 5-group filter (`songbird` / `raptor` / `waterbird`
-  / `tropical` / `ground` — vanilla had none); synthesized bird-call
-  onomatopoeia (vanilla had none). Image source migrated from
-  Pixabay JPGs → Fluent UI 3D PNGs (jsDelivr, runtime-cached). All
-  13 unique image paths verified 200 OK pre-commit.
-- **Resume here**: **Hindi** game next — last remaining
-  foundational-set game. The only port with an *open layout question*:
-  vanilla `hindi-alphabets.html` shows two visually-distinct grids
-  stacked (~13 vowels + ~33 consonants) and the choice between (a)
-  collapsing into one filter-able deck (current Alphabets pattern)
-  vs (b) extending `GridLayout` with a sectioned-grid variant that
-  renders `<h3>` group headings + grouped `.gl-deck` blocks needs
-  to be made at port time. Lean (a) for symmetry; (b) only if the
-  visual flatness genuinely confuses learners. ~46 tiles is also a
-  stretch for `--capped` (96px max) — may need an uncapped variant
-  or a smaller tile size.
+  - `GridLayout` (7 games — Alphabets, Numbers, Colors, Shapes, Animals, Birds, **Hindi** ← shipped this session).
+- **Just shipped**: Hindi varnamala on `GridLayout` — last
+  foundational-set port. Largest grid game so far at 48 tiles
+  (12 vowels + 36 consonants — corrects the docs' "~46" estimate).
+  Settled the long-parked open layout question at port time: shipped
+  **option (a)** — single filter-able deck, mirror of the Alphabets
+  pattern, with a 3-pill bilingual filter (`🇮🇳 All` / `स्वर Vowels`
+  / `व्यंजन Consonants`). The sectioned-grid `<h3>`-headings variant
+  was the alternative; remains parked, *never built*. Tricolor theme
+  lifted from vanilla `hindi-alphabets.html` (`#ff9933 → #fff4e6 →
+  #138808` saffron/cream/green flag palette) — culturally meaningful
+  and visually distinct. Image source migrated from vanilla
+  `img.icons8.com` JPGs → Fluent UI 3D PNGs (jsDelivr, runtime-cached).
+  46 unique image paths verified 200 OK pre-commit. Five characters
+  got the alphabets `Q → Crown` substitution treatment: Anar/Pomegranate
+  → Cherries, **Aurat/Woman → Sari** *(culturally on-point upgrade —
+  Fluent has the Indian dress but not the generic Woman emoji,
+  same human-emoji 403-class as Princess)*, Okhli/Mortar →
+  Bowl-with-spoon, Thathera/Craftsman → Hammer-and-wrench (Construction
+  Worker also in the human-emoji 403-class), Visarga → Lotus.
+  Plus 6 case-fixes on Fluent paths (lowercase second-words: `Long
+  drum` not `Long Drum`, `Red apple` not `Red Apple`, etc.). Speech
+  uses `hi-IN` voice at rate 0.75 for the Hindi letter+word; the
+  English fact stays in the default voice. Confetti is the tricolor
+  + a gold accent. Devanagari renders with a +12 % Hindi-only
+  page-local font-size override (akshara renders smaller than Latin
+  caps in most system fonts; `क्ष` and `ज्ञ` need the bump). Pre-existing
+  `flashcards.ts` bug surfaced (Bongo card uses a 403-returning
+  `Long%20Drum` path with capital D — flagged for follow-up, not
+  fixed in this commit).
+- **Resume here**: **`StoryLayout` decision** — only 2 vanilla
+  games remain (Woodcutter, Daily Routines), both linear-narrative
+  story flows. The long-deferred decision is back on the table.
+  Per the migration plan, *first try* modelling each story page as
+  a card on `CardMachineLayout` (with press-to-read + Prev/Next),
+  and only carve out a separate `StoryLayout.astro` if that
+  collapses. See "Next session: Story games" below for the full
+  scope. **No more open layout questions in the foundational-set
+  chapter** — every grid game is shipped, every shared chunk is
+  deduped at the level it should be (7-way `progress`, 6-way
+  `fluent`), every theme block is in `grid.css`, every
+  data-driven decision is documented in the data file headers.
 
 ---
 
@@ -220,202 +234,300 @@ used the "cards / card-machine" interpretation of "use Astro patterns":
   it. Fixed a left/right pane overlap bug from an earlier two-pane
   attempt by going single-column-everywhere.
 - **Option C (unified `Deck` layout with grid/card view toggle)** is
-  parked until all 11 non-story games ship.
+  parked until all 11 non-story games ship — *now unblocked* as of
+  2026-05-08 (the foundational-set chapter is closed). Decision still
+  open: keep `CardMachineLayout` and `GridLayout` separate, or
+  consolidate into a single `DeckLayout` with a per-user "Grid | Card"
+  toggle. Worth deciding *after* the 2 story games land, in case
+  story-flow breaks the toggle premise.
 
 Take-away: *when the user pushes back on an architectural choice,
 treat it as a signal to investigate, not just implement the opposite.*
 
 ---
 
-## Current state snapshot (commit `7db2bfc` for the feat; docs commit will follow)
+## Current state snapshot (commit `0cebf69` for the feat; docs commit will follow)
 
-**10 of 13 games ported.** Live URLs all return 200.
+**11 of 13 games ported. Foundational-set chapter closed.** Live URLs all return 200.
 
 | Game | Layout | Theme | Bundle (gzip) | Notes |
 |---|---|---|---|---|
 | Flashcards | CardMachine | cyan/orange | 11.28 KB | 14 decks, 4 card-face variants |
+| **Hindi** | **Grid** | **saffron/cream/green tricolor** | **~3.5 KB** | **48 Devanagari tiles (12 vowels + 36 consonants), Devanagari-script tile face + Fluent UI 3D detail, bilingual `स्वर` / `व्यंजन` filter, `hi-IN` speech, 5 Q→Crown substitutions incl. *Sari* for Aurat/Woman** |
 | Weather | CardMachine | navy/ice-blue | 3.34 KB | 20 cards, full Fluent UI deck |
 | Animals | Grid | sea-green/deep-blue | 3.30 KB | 37 tiles, big-emoji tile + Fluent UI 3D detail, 5-group filter |
 | Dinosaurs | CardMachine | green | 3.02 KB | first POC game, 15 cards |
 | Alphabets | Grid | purple/green | 2.96 KB | first GridLayout, 26 letters |
 | Solar System | CardMachine | purple/gold | 2.66 KB | pure-CSS planet art |
-| **Birds** | **Grid** | **orange-coral sunset** | **2.53 KB** | **15 tiles, big-emoji tile + Fluent UI 3D detail, 5-group filter, vanilla emoji-collision bug fixed** |
+| Birds | Grid | orange-coral sunset | 2.53 KB | 15 tiles, big-emoji tile + Fluent UI 3D detail, 5-group filter, vanilla emoji-collision bug fixed |
 | Colors | Grid | pink/lavender | 2.25 KB | swatch tiles + shape gallery detail |
 | Shapes | Grid | pink/coral | 2.11 KB | mini shape on tile, big shape detail |
 | Numbers | Grid | sky-blue/orange | 2.08 KB | CSS count-objects detail |
 
-**Pending (3)**: `hindi-game` (→ `GridLayout`), `woodcutter-story`,
-`daily-routines-story` (→ `StoryLayout` TBD).
+**Pending (2 — both story-flow)**: `woodcutter-story`,
+`daily-routines-story` (→ `StoryLayout` TBD; first attempt is to
+model each story page as a card on `CardMachineLayout`).
 
-**6-way GridLayout shared chunk dedup verified** — alphabets, numbers,
-colors, shapes, animals, **and birds** page-chunks all import the
+**7-way GridLayout shared chunk dedup verified** — alphabets, numbers,
+colors, shapes, animals, birds, **and hindi** page-chunks all import the
 *exact same*:
 
 - `_astro/progress.Czz_LiQd.js` (0.24 KB gzip)
 - `_astro/achievements.CySDez3r.js`
 - `_astro/settings.zS6XEbod.js`
 
-Plus a **clean 5-way `fluent` dedup** (the only 5 image-driven games:
-alphabets, flashcards, weather, animals, **birds**; numbers / colors
-/ shapes correctly do *not* import it because they use CSS art):
+Plus a **clean 6-way `fluent` dedup** (the only 6 image-driven games:
+alphabets, flashcards, weather, animals, birds, **hindi**; numbers /
+colors / shapes correctly do *not* import it because they use CSS art):
 
 - `_astro/fluent.rTHKURu4.js` (89 bytes raw, 0.09 KB)
 
 **CSS chunks**:
 
-- `alphabets-game.dL4LgLJJ.css` — **~25.6 KB**, used by all 6 grid games.
-- `dinosaurs-game.D1g7kimY.css` — 17.8 KB, used by all 4 card-machine games (unchanged from pre-birds).
+- `alphabets-game.*.css` — **~27.5 KB** (was 25.6 pre-hindi), used by all 7 grid games. Delta is ~60 lines of `--hindi` theme block + dark-mode override + FOUC pre-dark rule + a Hindi-only Devanagari font-size override.
+- `dinosaurs-game.*.css` — 17.8 KB, used by all 4 card-machine games (unchanged from pre-hindi).
 - `solar-system-game.*.css` — solar-system-only.
+
+**PWA precache**: 46 entries / 352.45 KiB (was 44 / 313.92 pre-hindi).
 
 **Recent commits** (newest first):
 
 ```
+0cebf69 feat(hindi): port Hindi varnamala on GridLayout (11/13) + tricolor palette + Sari/Bowl-with-spoon substitutions
+9803dbc chore(tooling): bake ASTRO_TELEMETRY_DISABLED=1 into npm scripts + add PRE-FLIGHT docs
+15b6c4f docs: confirm Birds grid deploy is live + 6-way shared chunk verified
 7db2bfc feat(birds): port Birds on GridLayout (10/13) + sunset palette + emoji collision fix
 df1b627 docs: confirm Animals grid deploy is live + 5-way shared chunk verified
 2b2c2a9 feat(animals): port Animals on GridLayout (9/13) + drop FLUENT_IMG_BASE re-exports
 669d616 docs: confirm Shapes grid deploy is live + 4-way shared chunk verified
 db11e4c feat(shapes): port Shapes on GridLayout (8/13) + new gl-shape-figure namespace
-9fb3328 docs: confirm Colors grid deploy is live + 3-way shared chunk verified
-99f22fe feat(colors): port Colors on GridLayout (7/13)
 ```
 
 ---
 
-## What just shipped this session (Birds port)
+## What just shipped this session (Hindi port)
 
-Followed the established "ship a grid game" process:
+Followed the established "ship a grid game" process — settled the
+long-parked open layout question, then ran the standard 12-step
+sequence cleanly:
 
-1. Audit `kids-learning-games/games/birds.html` — 15 birds (well,
-   *intended* 15; vanilla bug drops one), no groups, no `sound`
-   field, just `info` strings + Pixabay JPGs, `birds_learned`
-   LocalStorage key. Caught the vanilla emoji-key collision: both
-   Swan and Woodpecker keyed on `🦢`, so the `birdsData = { ... }`
-   object literal silently dropped Swan (only 14 of 15 rendered).
-2. Build `src/data/birds.ts` — 15 typed entries with synthesized
-   5-group filter (`songbird` / `raptor` / `waterbird` / `tropical`
-   / `ground` — vanilla had none, documented deviation).
-   **Vanilla bug fixed**: Sparrow gets `🐦`, Woodpecker gets
-   the distinct `🐦‍⬛` (Unicode 15.0 / 2022 black bird emoji,
-   supported on every target browser <3 years old). Three birds
-   not in the Fluent pack got the alphabets `Q → Crown` substitution:
-   Sparrow → Bird, Ostrich → Dodo, Woodpecker → Bird. **Synthesized
-   bird-call onomatopoeia** (vanilla had none): "Aaah!" / "Screech!"
-   / "Cock-a-doodle-doo!" / "Tap tap!" etc. Image source migrated
-   from vanilla Pixabay JPGs to Fluent UI 3D PNGs (jsDelivr,
-   runtime-cached). All 13 unique paths verified 200 OK pre-commit
-   via curl.
-3. Extend `src/styles/grid.css` — extended the existing
-   `.gl-deck--animals` rule to be a comma-separated group also
-   covering `.gl-deck--birds` (single shared rule, both decks share
-   the auto-fill 96px+ density). Added the `--gl-*` birds theme
-   block (~32 lines, orange-to-coral sunset gradient `#ff9a56 →
-   #ff6a88` lifted unchanged from vanilla `birds.html`; deep-coral
-   `#c41e58` action/filter pill accents), dark-mode override (deep
-   wine/maroon background, peach tile colour). Total CSS delta ~60
-   lines.
-4. Add FOUC pre-dark rule for `[data-theme='birds']` to
-   `GridLayout.astro`.
-5. Build `src/pages/games/birds-game.astro` — **clean copy-adapt of
-   `animals-game.astro`** (the closest precedent: same tile-face
-   strategy, same image-driven detail card, same emoji-fallback
-   pattern). Tile face uses the existing `.gl-tile--emoji`
-   flex-column layout; detail card holds a Fluent UI 3D PNG with
-   the per-card emoji as fallback. Group-coloured confetti on
-   completion (5 colours: orange / coral / deep-coral / sea-green
-   / sun-yellow — sunset palette mirrored across the celebration
-   overlay).
-6. Wire `GameNav.astro` + `index.astro` home tile.
-7. Build verification: `astro check` 0/0/0 across 35 files;
-   `astro build` 11 pages emitted; live deploy verified within
-   ~50 seconds with 6-way GridLayout + 5-way `fluent` shared chunk
-   dedup confirmed; all 9 prior games still 200 with markup intact.
+1. **Audit `kids-learning-games/games/hindi-alphabets.html`** — 12
+   vowels (`अ`–`अः` including Anusvara `अं` and Visarga `अः`) + 36
+   consonants (`क`–`ज्ञ` including the three compound consonants
+   `क्ष` / `त्र` / `ज्ञ`) = **48 letters** (corrects the docs'
+   "~46" estimate; vanilla's progress counter literally says
+   "0 / 48 learned"). Each entry has Devanagari script + Hindi word
+   + English transliteration + meaning + pronunciation + image
+   (vanilla used `img.icons8.com` JPGs/PNGs — a mix of "color" and
+   "emoji" packs). Vanilla quirks noted: `अः` and `ङ`/`ञ` reuse the
+   script char as their own "word" (they're phonetic markers, not
+   true letters with example words); `ण`/`त`/`थ` share romanised
+   pronunciations with `न`/`ट`/`ठ` (dental/retroflex distinction —
+   preserved verbatim).
+2. **Settle the open layout question** — went with **option (a),
+   single filter-able deck** (mirror of Alphabets). The 3-pill
+   bilingual filter (`🇮🇳 All` / `स्वर Vowels` / `व्यंजन Consonants`)
+   replaces vanilla's "scroll past 12 vowels to find consonants"
+   pattern with a tap-to-show-only-this affordance. Sectioned-grid
+   `<h3>`-headings variant (option b) parked indefinitely — never
+   built. Validated `--capped` (auto-fill 64–96 px) handles 48 tiles
+   cleanly on phone with one Hindi-only page-local CSS override:
+   `body.grid[data-theme='hindi'] .gl-tile { font-size: clamp(1.55em,
+   4.4vw, 2.4em); }` (+12 % bump on the alphabets baseline because
+   Devanagari aksharas render a touch smaller than Latin caps).
+3. **Build `src/data/hindi.ts`** — 48 typed `HindiCard` entries
+   with `vowel` / `consonant` filter. Field shape: `letter`
+   (Devanagari char) + `pron` (romanised) + `word` (Hindi script
+   word) + `trans` (transliteration) + `n` (English meaning) + `f`
+   (kid-friendly fact in English) + `e` (emoji fallback) + `img`
+   (Fluent path) + `type` + `label` (bilingual pill text — `स्वर
+   Vowel` / `व्यंजन Consonant`). 75-line header doc covering layout
+   decision rationale, all 17 substitutions with reasoning, vanilla
+   quirks preserved with notes, consumer instructions.
+4. **Bulk-verify Fluent UI image paths** — single curl pass over
+   46 unique candidates (including known-good ones for safety).
+   Found:
+   - **5 missing-from-pack substitutions** (Q→Crown precedent):
+     - Anar/Pomegranate → Cherries (red clustered fruit).
+     - Aurat/Woman → **Sari** (*culturally on-point upgrade!* —
+       Fluent has the Indian woman's traditional dress but not the
+       generic Woman emoji; same human-emoji 403-class as Alphabets's
+       Princess back-substitute).
+     - Okhli/Mortar → Bowl-with-spoon (kitchen-tool family — Cooking
+       Pot also missing in either case).
+     - Thathera/Craftsman → Hammer-and-Wrench (craftsman's tools —
+       Construction Worker is in the same human-emoji 403-class as
+       Woman).
+     - Visarga → Lotus (sacred Indian symbol — vanilla used Om
+       emoji, also not in Fluent).
+   - **6 case-fixes on Fluent paths** — Fluent UI uses lowercase
+     second-words on multi-word emojis: `Long drum` not `Long Drum`,
+     `Red apple` not `Red Apple`, `Trident emblem` not
+     `Trident Emblem`, `Musical notes` not `Musical Notes`,
+     `Potable water` not `Potable Water`, `Crossed swords` not
+     `Crossed Swords`. My first draft shipped capital-cased
+     variants (copy-pasted from `flashcards.ts`'s Bongo card —
+     which has the same path bug, see tech-debt note below); curl
+     batch returned 403 on all 9, lowercase alternates returned
+     200, fixed in-place pre-commit.
+   - **All 46 unique paths returned 200 OK after substitutions
+     applied** — verification pass took ~60 s for the initial batch
+     + ~25 s for the substitute candidates.
+   - **Class-of-bug surfaced in Fluent UI pack**: every "raw human"
+     emoji we tested returned 403 (`Woman`, `Man`, `Person`,
+     `Adult`, `Princess`, `Mrs.%20Claus`, `Bride%20with%20veil`,
+     `Dancer`, `Construction%20worker`), but accessory/clothing
+     emojis (`Sari`, `Kimono`, `High-heeled%20shoe`, `Lipstick`)
+     all returned 200. Future image-driven ports should plan to
+     substitute on humans, not pivot.
+5. **Extend `src/styles/grid.css`** — added the `--gl-*` hindi
+   theme block (~30 lines, tricolor `#ff9933 → #fff4e6 → #138808`
+   saffron/cream/green flag palette lifted from vanilla
+   `hindi-alphabets.html` with the white middle-band softened to
+   cream for legibility; deep-saffron `#cc5500` action/filter pill
+   accents) + dark-mode override (~17 lines, "earthy after-dark
+   tricolor": clay-saffron → warm-wood-brown → forest-green) + a
+   Hindi-only Devanagari font-size bump on `.gl-tile` and
+   `.gl-detail-letter`. Total CSS delta ~60 lines. The
+   `body.grid[data-theme='hindi']` block is the *seventh* such
+   per-game theme block in `grid.css`, all sharing the same ~25
+   `--gl-*` token contract.
+6. **Add FOUC pre-dark rule** for `[data-theme='hindi']` to
+   `GridLayout.astro`. The `theme?: 'hindi'` enum was already in
+   place from earlier session forward-thinking — no type-union
+   update needed.
+7. **Build `src/pages/games/hindi-game.astro`** — **clean copy-adapt
+   of `alphabets-game.astro`** (the closest precedent: letter on
+   tile face, Fluent UI image in detail card). Page-local stacking
+   of the Hindi word + transliteration inside the `.gl-detail-word`
+   slot — wraps in a `flex-direction: column; align-items: flex-end;`
+   override scoped to `body.grid[data-theme='hindi'] .gl-detail-word`.
+   Bilingual title (`🇮🇳 हिंदी · Hindi`), bilingual "Hear" button
+   (`🔊 सुनें · Hear`), bilingual completion overlay (`शाबाश! You
+   learned every Hindi letter! 🎉`). Speech: `speak(\`${c.letter}.
+   ${c.word}.\`, { lang: 'hi-IN', rate: 0.75 })` — slower rate so
+   young learners can match the akshara to its syllable; English
+   fact stays in the default voice (vanilla precedent). Tricolor
+   confetti on completion (saffron / white / green / deep-saffron /
+   gold).
+8. **Wire** `GameNav.astro` + `index.astro` home tile.
+9. **Build verification:** `npm run check` 0/0/0 across 36 files,
+   default sandbox; `npm run build` 12 pages emitted in 7.45 s,
+   default sandbox (validating the 2026-05-07 tooling-friction
+   fix's payoff on its first real port — no `["all"]` permission
+   escalation needed).
+10. **Live deploy verified within ~45 s** of push: `/games/hindi-game`
+    HTTP 200, all 4 prior live URLs (birds, animals, alphabets,
+    home) still 200, **7-way GridLayout shared-chunk dedup confirmed
+    at the chunk level** (alphabets + numbers + colors + shapes +
+    animals + birds + hindi all import the *exact same*
+    `progress.Czz_LiQd.js` + `achievements.CySDez3r.js` +
+    `settings.zS6XEbod.js`), **6-way `fluent` dedup confirmed**
+    (alphabets + flashcards + weather + animals + birds + hindi
+    all import `fluent.rTHKURu4.js`; numbers / colors / shapes
+    correctly do *not* import it), zero `card-machine` / `cm-*` /
+    `top-card` / `press-btn` / `machine-screen` cross-contamination
+    in the hindi page chunk or HTML, 48 unique `data-letter` values
+    in the SSR'd HTML with `data-type` split exactly 12 vowels +
+    36 consonants.
 
-**Theme decision codified at port time**: ship a *distinct* sunset
-palette rather than reuse the Animals palette. The +60-line CSS cost
-is worth visual differentiation between sister "creature" games.
+**Layout decision codified at port time**: ship option (a) — single
+filter-able deck. The +60-line CSS cost vs reusing the Alphabets
+deck variant is purely the theme block + a Hindi-only Devanagari
+font-size override; *zero new layout primitives*.
 
-**Vanilla emoji-name mismatch preserved**: vanilla's `🦤` (Dodo per
-Unicode) labelled "Ostrich" — Astro keeps the vanilla content + emoji,
-swaps in `Dodo/3D/dodo_3d.png` as the closest emoji-compatible Fluent
-asset.
+**Pre-existing bug surfaced (not fixed in this commit)**:
+`flashcards.ts` line 360 uses `Long%20Drum/3D/long_drum_3d.png`
+(capital D) for the Bongo card — that path returns 403 in
+production (Fluent UI uses lowercase `Long%20drum`). Bongo's image
+has been broken on the live flashcards page for as long as
+flashcards has shipped Fluent UI imagery. Hindi's Dhol consonant
+uses the lowercase path. **Filed as one-off tech-debt** in
+`PROGRESS.md` for the next session that touches flashcards data —
+the fix is one character.
 
-Full changelog entry: `PROGRESS.md` → "2026-05-07 — Birds game ported (10/13) + sunset palette + emoji-collision fix".
+Full changelog entry: `PROGRESS.md` → "2026-05-08 — Hindi varnamala on GridLayout (11/13 games — foundational-set chapter closed)".
 
 ---
 
-## Next session: Hindi port
+## Next session: Story games
 
 The "Resume here next session" marker in `PROGRESS.md` points at
-**Hindi** — the last remaining foundational-set game and the only
-remaining port with an *open layout question*.
+**StoryLayout decision** — only 2 vanilla games remain, both
+linear-narrative story flows (Woodcutter, Daily Routines), and the
+long-deferred `StoryLayout` decision is back on the table.
 
-**Open question to settle at port time**: vanilla
-`hindi-alphabets.html` shows two visually-distinct grids stacked
-(~13 vowels + ~33 consonants). Two paths:
+**Per the migration plan, *first try* modelling story pages as
+cards on `CardMachineLayout`** — push-to-read + Prev/Next button
+pair, no shuffle / random. If that collapses (e.g. story narrative
+needs a different visual rhythm than the card-machine fact-card
+pattern, or the press-to-flip animation conflicts with paginated
+story flow), carve out `src/layouts/StoryLayout.astro` as a third
+shared shell.
 
-- (a) Collapse into one filter-able deck (current Alphabets pattern,
-  with `vowel` / `consonant` filter pills). Symmetric with the other
-  grid games — one `.gl-deck`, filter row controls visibility.
-- (b) Extend `GridLayout` with a sectioned-grid variant that renders
-  `<h3>` group headings + grouped `.gl-deck` blocks. More faithful
-  to vanilla but adds a new layout primitive.
+**Reading order for the next agent**:
 
-Lean (a) for symmetry; (b) only if the visual flatness genuinely
-confuses learners. Worth prototyping (a) first and seeing if
-~46 tiles in one auto-fill grid works on phone — that's the upper
-edge of what `--capped` (96px max) was designed for. May need a
-smaller tile size or an uncapped variant.
+1. Vanilla source: `kids-learning-games/games/woodcutter-story.html`
+   (and `daily-routines.html` for cross-reference).
+2. Closest Astro precedent: there *is* none yet — story flows are
+   genuinely new. Read `src/layouts/CardMachineLayout.astro` to
+   understand what it currently bakes in (shuffle/random buttons,
+   filter pills, press-to-flip animation), and *prototype* by
+   trying to fit Woodcutter into it before touching the layout.
+3. Reference Stats + Quiz wiring scope (see "Pending broader work"
+   below) — natural follow-up once both story games land.
 
-**Expected scope** (assuming option a):
+**Expected first-attempt scope** (model as card-machine):
 
-- New `src/data/hindi.ts` — ~46 entries (13 vowels + 33 consonants)
-  with `vowel` (स्वर) / `consonant` (व्यंजन) filter. Per character:
-  Devanagari script (e.g. `अ`), Hindi word (e.g. `अनार`), English
-  gloss (e.g. `pomegranate`), and image. Source vanilla content
-  from `hindi-alphabets.html` verbatim.
-- New `src/pages/games/hindi-game.astro` — **copy-adapt of
-  `alphabets-game.astro`** (closest precedent: letter on tile face,
-  Fluent UI image in detail card). Or `animals-game.astro` if we
-  use emoji-tile instead of script-tile.
-- ~35-line `--gl-*` hindi theme block in `grid.css` + dark-mode
-  override + FOUC pre-dark rule.
-- Apply the alphabets `Q → Crown` precedent for any Hindi character
-  whose target image isn't in the Fluent UI pack.
-- Wire `GameNav.astro` + `index.astro` home tile.
+- New `src/data/woodcutter.ts` — N typed entries, one per story
+  page. Field shape probably: `n` (page heading) + `f` (page body
+  text) + `img` (page illustration) + `e` (emoji fallback). No
+  filter (linear story).
+- New `src/pages/games/woodcutter-story.astro` — copy-adapt of an
+  existing card-machine page (e.g. `weather-game.astro` for the
+  full Fluent UI image pattern). Suppress shuffle/random buttons
+  via a layout prop or a CSS hide on the page.
+- ~30-line `--cm-*` woodcutter theme block in `card-machine.css`
+  + dark-mode override + FOUC pre-dark rule.
+- Wire `GameNav.astro` + `index.astro` home tile, mark `ready: true`.
 
-**No new infra needed** unless option (b) wins — `GridLayout`,
-`progress.ts`, `settings.ts`, `achievements.ts`, `fluent.ts` all
-stay as-is. The `fluent` chunk will pick up Hindi as its sixth
-consumer automatically.
+**If `CardMachineLayout` turns out to be the wrong shell**:
 
-**Standard ship sequence** (proven 6× now):
+- Carve out `src/layouts/StoryLayout.astro` modelled on the card
+  machine but stripped to "page card + Prev/Next + speech" — no
+  filters, no shuffle, no random. Decide whether the press-to-flip
+  animation comes too.
+- Move story-game-specific tokens to `src/styles/story.css`.
 
-1. Read vanilla `kids-learning-games/games/hindi-alphabets.html`.
-   Note exact data, vowel/consonant split, character-to-word
-   mapping, image set, LocalStorage key.
-2. **Decide layout question (a) vs (b) above.** If (b), design the
-   sectioned-grid variant *first* before writing any data — it's a
-   new layout primitive that the data file's shape will depend on.
-3. Build `src/data/hindi.ts` with header comment per migration
+**Standard ship sequence** (proven 7× now — alphabets / numbers /
+colors / shapes / animals / birds / hindi):
+
+1. Read vanilla `kids-learning-games/games/<game>.html`. Note
+   exact data, page count, image set, narrative flow.
+2. Decide layout: `CardMachineLayout` first (per the plan), only
+   carve out `StoryLayout` if it collapses.
+3. Build `src/data/<game>.ts` with header comment per migration
    principle #4.
-4. Add the relevant CSS to `grid.css` (theme block + any sectioned-
-   grid additions).
-5. Add FOUC pre-dark rule to `GridLayout.astro`.
-6. Write `src/pages/games/hindi-game.astro`.
+4. Add the relevant CSS to the chosen layout's stylesheet.
+5. Add FOUC pre-dark rule to the chosen layout component.
+6. Write `src/pages/games/<game>.astro`.
 7. Wire `GameNav.astro` + `index.astro`.
-8. Verify all Fluent UI image paths return 200 OK (curl smoke test).
-9. Run the build (see "Build commands" below — `npx astro check`
-   has a known interactive-prompt gotcha).
-10. Commit + push: `feat(hindi): port Hindi on GridLayout (11/13)`.
-11. Verify live deploy (poll for HTTP 200, sniff SSR markup).
+8. **Bulk-verify all Fluent UI image paths** (curl smoke test) —
+   the Hindi port confirmed Fluent has class-of-bug 403s on humans
+   + lowercase-second-word casing surprises. Fix any 404s
+   pre-commit.
+9. Run `npm run check` + `npm run build` (default sandbox — the
+   2026-05-07 tooling fixes mean no `["all"]` needed for either).
+10. Commit + push: `feat(<game>): port <game> on <layout> (12/13)`.
+11. Verify live deploy (poll ~45 s, then HTTP 200 + SSR markup
+    sniff via `curl + grep`).
 12. Update `PROGRESS.md` + `README.md` + this file, add changelog
     entry, commit `docs:` follow-up.
 
-After Hindi, only the 2 story games remain — and the long-deferred
-`StoryLayout` decision is back on the table. Per the "first try
-modelling story pages as cards" plan, the next session after Hindi
-should attempt Woodcutter on `CardMachineLayout` and only carve out
-`StoryLayout` if that doesn't fit.
+After both story games land, the migration is **13/13 done** —
+time to revisit Option C (unified Deck layout with grid/card view
+toggle) and plan the cut-over of the vanilla `kids-learning-games`
+repo to serve the Astro build.
 
 ---
 
@@ -497,19 +609,27 @@ top of this file is the 60-second version; this is the rationale.
   `flashcards.ts` / `alphabets.ts` / `weather.ts`; consumer pages
   updated to import from `@/data/fluent` directly. Build now ships a
   single 0.09 KB `fluent.rTHKURu4.js` shared chunk.
-- **Stats + Quiz modals**. Currently `alert(…)` stubs in all 10 ported
+- **Stats + Quiz modals**. Currently `alert(…)` stubs in all 11 ported
   games. The `progress.ts` helper exposes `loadLearned` — Stats modal
-  should read from it directly. With 6 grid games now sharing the
-  same pattern, the modal's value is clear; this is a natural next
-  task once Hindi lands (or before, if a session falls long enough
-  to do both).
+  should read from it directly. With 7 grid games now sharing the
+  same pattern, the modal's value is clear; natural next task to
+  pair with the story-game ports (or do as a standalone session).
+- **`flashcards.ts` Bongo image is broken in production.** Line 360
+  uses `Long%20Drum/3D/long_drum_3d.png` (capital D) — that path
+  returns 403; Fluent UI uses lowercase `Long%20drum/...`. Surfaced
+  during the Hindi port's bulk Fluent-path verification (Hindi's
+  Dhol consonant uses the same emoji and ships the lowercase
+  path correctly). Fix is one character on one line. Easy follow-up
+  for the next session that touches flashcards.
 - **Playwright smoke tests**. One suite per layout. Filter → navigate
   → completion overlay. Parameterise over themes. Not started.
-- **`StoryLayout` decision**. First try modelling story pages as
-  cards on `CardMachineLayout`. Only carve out a new layout if that
-  doesn't fit. Don't pre-emptively design.
+- **`StoryLayout` decision**. *Now the active item* — first try
+  modelling story pages as cards on `CardMachineLayout`. Only carve
+  out a new layout if that doesn't fit. See "Next session: Story
+  games" above.
 - **Option C — unified `Deck` layout with grid/card view toggle.**
-  Parked until all 11 non-story games ship.
+  *Now unblocked* as of 2026-05-08 — all 11 non-story games shipped.
+  Best decided after the 2 story games land.
 - **Cut-over plan.** Only after all 13 games land. Migrate the
   vanilla repo to serve the Astro build. SW handoff strategy needed
   for existing PWA installs.
@@ -522,7 +642,7 @@ top of this file is the 60-second version; this is the rationale.
   These mean: continue the documented plan / proceed with the next item
   on the active todo list / commit + push the queued work.
 - **Standing delegation** for the ship → verify → docs cycle. The
-  pattern (across 4 grid ports now): commit feat → push → verify live
+  pattern (across 7 grid ports now): commit feat → push → verify live
   deploy → commit docs → push. The user delegates this cycle.
 - **Concise wins.** Show numbers, tables, before/after. Skip
   re-explaining things the user already knows. When something fails,
@@ -675,6 +795,40 @@ agent's high-level response.)
     not persisting across `Shell` calls); (d) refreshed the **Useful
     commands** list to the new sandbox-friendly invocations, marking
     which commands need `["all"]` (only `git push`).
+26. *"Continue"* (next session) → ported **Hindi (11/13 — foundational-set
+    chapter closed)** following the standard ship sequence: settled
+    the long-parked open layout question by shipping option (a) — single
+    filter-able deck on `--capped`, mirror of Alphabets — rather than
+    extending `GridLayout` with a sectioned-grid variant; built
+    `src/data/hindi.ts` with 48 typed `HindiCard` entries (12 vowels +
+    36 consonants, corrects the docs' "~46" estimate) + 3-key bilingual
+    filter (`स्वर` / `व्यंजन`); shipped a tricolor saffron/cream/green
+    flag palette (lifted from vanilla, white→cream for legibility) +
+    Devanagari font-size override (+12 % on the alphabets baseline so
+    `क्ष` and `ज्ञ` read as clearly as A and B); 5 Q→Crown
+    substitutions including the *culturally on-point* Aurat/Woman →
+    Sari (raw human emojis are a 403-class in the Fluent UI pack —
+    documented as a class-of-bug in `PROGRESS.md`); 6 case-fixes on
+    Fluent paths (`Long%20drum` not `Long%20Drum`, etc.); `hi-IN` voice
+    at rate 0.75 for the Hindi letter+word, English fact in default
+    voice; bilingual UI strings throughout (first grid game whose UI
+    strings reach SSR'd HTML in non-Latin script); 36-file
+    `astro check` clean in the default sandbox + 7.45s build (validating
+    the 2026-05-07 tooling fixes' payoff); live deploy verified with
+    **7-way GridLayout shared-chunk dedup** + **6-way `fluent`
+    shared-chunk dedup**, zero regressions on prior 10 games. Pre-existing
+    `flashcards.ts` Bongo image-path bug surfaced during the bulk Fluent
+    verification (capital `Long%20Drum` vs lowercase `Long%20drum`) —
+    flagged as one-off tech-debt for the next session that touches
+    flashcards.
+27. *"Continue"* (this docs commit) → wrote this docs follow-up,
+    rolling the Hindi port into PROGRESS.md (changelog entry +
+    "11 of 13 ported" snapshot updates + per-game layout decisions
+    table + tech-debt section + "Resume here next session" pointer
+    moved to StoryLayout decision), README.md (game count +
+    `GridLayout` description + file tree + comparison table +
+    shared-module list), and this file (TL;DR + current state +
+    "What just shipped" + "Next session: Story games" + tech debt).
 
 ---
 
@@ -707,16 +861,20 @@ agent's high-level response.)
    - The shared CSS: `src/styles/grid.css` or `src/styles/card-machine.css`.
    - The shared libs in `src/lib/` (`progress.ts`, `audio.ts`,
      `speech.ts`, `settings.ts`, `achievements.ts`).
-4. The next likely task is the **Hindi** port — full scope under
-   "Next session: Hindi port" above. Note the open layout question
-   (one filter-able deck vs sectioned-grid variant) needs to be
-   settled at port time before writing the data file.
+4. The next likely task is the **`StoryLayout` decision** — only
+   2 vanilla games remain (Woodcutter, Daily Routines), both
+   linear-narrative story flows. Per the migration plan, *first try*
+   modelling each story page as a card on `CardMachineLayout` (with
+   press-to-read + Prev/Next, no shuffle/random); only carve out a
+   separate `StoryLayout.astro` if that collapses. Full scope under
+   "Next session: Story games" above.
 5. **Do not** re-read the full chat transcript unless investigating a
    specific historical decision — the docs already capture the
    architectural conclusions.
 
 ---
 
-*Generated 2026-05-07 from a single chat that ran from project audit
-(2026-04-24) through Birds port + docs + tooling-friction fixes
-(2026-05-07). 10/13 games ported, all live. Next: Hindi.*
+*Last updated 2026-05-08 with Hindi varnamala port + docs follow-up.
+11/13 games ported, all live, foundational-set chapter closed.
+Next: 2 story games + `StoryLayout` decision (try `CardMachineLayout`
+first, only carve out new layout if it collapses).*
