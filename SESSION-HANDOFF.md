@@ -72,92 +72,105 @@
 - **Project**: Migrate vanilla HTML/CSS/JS PWA `kids-learning-games`
   (13 games, ~500–1500 lines each, copy-pasted shells) to a typed
   Astro + `@vite-pwa/astro` (Workbox) project `kids-learning-games-astro`.
-- **State (2026-05-08, end of day)**: **12 of 13 games ported and live** at
-  https://aakash-jain-1.github.io/kids-learning-games-astro/.
-  *Foundational-set chapter closed*; *story-flow chapter open with
-  one of two games shipped*. Only **Woodcutter** remains.
-- **Three shared layouts** in production (one new this session):
+- **State (2026-05-08, end of day): all 13 games ported and live —
+  migration complete** at https://aakash-jain-1.github.io/kids-learning-games-astro/.
+  *Foundational-set chapter closed*; *story-flow chapter closed*;
+  *no vanilla games remaining*.
+- **Three shared layouts** in production:
   - `CardMachineLayout` (4 games — Dinosaurs, Flashcards, Solar System, Weather).
   - `GridLayout` (7 games — Alphabets, Numbers, Colors, Shapes, Animals, Birds, Hindi).
-  - **`StoryLayout`** *(new — carved out 2026-05-08)* (1 game — **Daily Routines** ← shipped this session).
-- **Just shipped**: Daily Routines on a brand-new `StoryLayout`
-  shell — first story-flow port. **First port that required new
-  layout infrastructure** since the Numbers port (six weeks ago).
-  10 paginated scenes (sunrise wake-up → toothbrush → breakfast →
-  school-bag → school-bell → reading → playground → bath → dinner →
-  bedtime moon-window) with per-scene CSS art + ⬅️ Previous / 🔊
-  Listen / Next ➡️ controls + an inline 8-question multiple-choice
-  quiz with score tracking, retry, restart, and golden-confetti
-  flourish on perfect score.
-- **Layout decision settled at port time:**
-  - First attempt: fit it into `CardMachineLayout` (the documented
-    plan since the very first audit — "first try modelling story
-    pages as cards"). **Outcome: collapsed**, exactly as the audit
-    predicted. `CardMachineLayout` bakes in (1) viewport-locked
-    `overflow:hidden` + `100vh` body, (2) a flex two-pane layout
-    with a left deck + right detail pane, (3) a hardcoded
-    deck-of-cards DOM (`.deck` / `.top-card` / `.ghost` + the
-    press-to-flip semantics), and (4) an OLED `.machine-screen`
-    aesthetic on the right pane — all four crash into a paginated
-    narrative that wants to scroll, animate per scene, and end in
-    a quiz.
-  - Carved out **`src/layouts/StoryLayout.astro`** instead, plus
-    two new shared CSS files: **`src/styles/story.css`** (`--st-*`
-    theme tokens — page background, scene-card surface, title
-    color, body color, progress-bar fill, button states, quiz
-    panel surface, quiz option states for default / selected /
-    correct / incorrect — with the page rewriting `--st-bg` per
-    scene to morph the body gradient between sunrise / midday /
-    evening / night) and **`src/styles/routines.css`** (per-scene
-    art primitives: sun, bed, toothbrush, table, school-bag, book,
-    swing+slide, bathtub, moon-window — *all selectors scoped
-    under `.routines-art`* with `routines-*`-prefixed keyframes so
-    short class names like `.bed` / `.tub` / `.swing` stay
-    collision-free with future story games).
-- **Quiz state ships *page-local*, not in `src/lib/`.** Per the
-  rule-#5 *"refactor trigger = second consumer"* migration
-  principle, the quiz logic lives inline in the Routines page with
-  its own `routines_quiz_v1` LocalStorage key (~100 lines of TS;
-  `{ attempts, bestScore, lastPlayed }` shape that doesn't fit the
-  `Set<string>` `progress.ts` exposes). Woodcutter is the second
-  consumer that triggers extraction to `src/lib/quiz.ts`.
-  Routines uses `progress.ts` for the *other* state shape — scenes
-  visited as a `Set<string>`, exactly the right fit, same pattern
-  as the seven grid games.
-- **Build & verification.** `npm run check` clean (0 errors,
-  0 warnings, 0 hints). `npm run build` clean (13 pages, ~7.96 s).
-  **`progress.ts` shared chunk now 8-way deduped** (alphabets,
-  numbers, colors, shapes, animals, birds, hindi, *and routines*
-  page-chunks all reference the *exact same*
-  `/_astro/progress.Czz_LiQd.js` hash — three shared modules served
-  once and cached for every consumer, now spanning *all three
-  layouts*). Routines correctly opts out of the `fluent.ts` chunk
-  (its scene art is pure CSS — no Fluent UI assets). Bidirectional
-  CSS isolation verified: zero `cm-*` / `gl-*` leakage into the
-  routines bundle, zero `.routines-art` / `.story-shell` leakage
-  into card-machine or grid bundles. All three layout pre-paint
-  scripts (`CardMachineLayout/GridLayout/StoryLayout.astro_astro_type_script_index_*_lang.*.js`)
-  ship byte-for-byte identical content (same hash from the same
-  Astro-generated FOUC handler in the layout component). Live: SSR
-  markup confirmed via curl; `<body class="story" data-theme="routines">`
-  reaches production with the inline `--st-bg` setter, all 10
-  scene IDs SSR-renderable, all 8 quiz questions + 32 option
-  buttons + score panel pre-rendered (hidden until completion).
-- **Resume here**: **Woodcutter port** — the last vanilla game.
-  Per the 2026-05-08 vanilla audit, Woodcutter is **not paginated
-  like Routines** (the historical "paginated story" assumption was
-  wrong) — it's a *single* CSS-animated hero scene + 4 paragraphs
-  of continuous prose + a moral panel + a 6-question multiple-choice
-  quiz + Play-Animation/Reset buttons. Decision call needed at port
-  time: reuse `StoryLayout.astro` with a new `pagination={false}`
-  prop (hide the prev/next chrome + progress bar) *or* carve out a
-  small `StoryLayout--single` variant. **Quiz extraction to
-  `src/lib/quiz.ts` is non-negotiable** — both games share the
-  `{ attempts, bestScore, lastPlayed }` shape + `<gameId>_quiz_v1`
-  storage key + retry / restart UI, so the rule-#5 trigger is
-  finally satisfied. See "Next session: Woodcutter port" below for
-  the full scope. **One vanilla game left** — and one shared lib
-  to extract.
+  - `StoryLayout` (2 games — Daily Routines paginated, **Honest Woodcutter** ← shipped this session as the 13th and final port).
+- **Just shipped**: the Honest Woodcutter — **last vanilla game,
+  closes the migration**. Single CSS-animated hero scene
+  (woodcutter chopping → drops axe → fairy appears → golden axe
+  rises → silver axe rises, on the vanilla 1s/3s/6s/9s timeline)
+  + 4-paragraph linear prose + moral panel ("Honesty is always
+  rewarded") + 6-question multiple-choice comprehension quiz with
+  score tracking, retry, and navy/gold/silver confetti on perfect
+  score.
+- **Layout decision settled at port time — no new prop, no new
+  variant.** Pre-port docs flagged "reuse `StoryLayout` with a
+  `pagination={false}` prop *or* carve out `StoryLayout--single`
+  variant". Audit at port time went one level deeper: the layout
+  shell never *enforced* the progress bar / Prev / Next chrome —
+  those elements live in the consuming page's slot content, not
+  in `StoryLayout.astro` itself. So Daily Routines includes them,
+  the Woodcutter page omits them, and the layout stays neutral.
+  Cleanest possible reuse pattern.
+- **`src/lib/quiz.ts` extracted (the long-deferred second-consumer
+  refactor).** Both story games share an identical
+  `{ attempts, bestScore, lastPlayed }` quiz state + `<gameId>_quiz_v1`
+  LocalStorage key + multiple-choice question rendering / scoring
+  / retry / confetti flow. The lib exposes:
+  - **Types**: `QuizQuestion` (now imported from the lib by both
+    `src/data/routines.ts` and `src/data/woodcutter.ts` instead of
+    each declaring their own) + `QuizState`.
+  - **Helpers**: `loadQuizState(gameId)` / `saveQuizState(gameId, s)` /
+    `clearQuizState(gameId)` (defensive add for a future "Start
+    Over" button) / `escapeQuizHtml(s)` (was inline in Routines).
+  - **Controller**: `mountQuiz(config)` → `{ start, getState }`.
+    Wires a single delegated click listener on the body element;
+    supports per-game `messages` overrides, configurable
+    `greatGteThreshold` (default 63 %), `onPerfect` callback for
+    the per-game confetti palette, `playTap` SFX hook.
+  Bundle: 1.80 KB raw / 0.98 KB gzip — 2-way dedup'd across
+  `daily-routines-game.*.js` + `woodcutter-story.*.js`. The same
+  commit refactored Daily Routines to consume `mountQuiz` (~80
+  lines of inline page-local quiz code removed; functional
+  behaviour identical).
+- **Hero scene art lives in `src/styles/woodcutter.css`** with
+  every selector scoped under `.woodcutter-art` and every keyframe
+  prefixed `woodcutter-*` (twinkle / sun-glow / cloud-move / sway
+  / wave / chop / drop / splash / fairy-appear / float / wing-flap
+  / axe-rise) — bidirectional collision-freeness with `routines.css`
+  enforced. Build-time grep confirms 0 woodcutter selectors in the
+  routines CSS bundle and 0 routines selectors in the woodcutter
+  CSS bundle. Both story pages share `daily-routines-game.Cgea29N_.css`
+  (the story.css + global.css base bundle) — 2-way CSS dedup.
+- **Animation choreography preserved verbatim** via CSS
+  animation-delay (no JS choreography). **Play Animation / Reset
+  buttons replay the entire timeline by re-setting `.scene-art`'s
+  innerHTML** — cleaner than vanilla's per-element
+  `style.animation = 'none'` reset. Reset additionally restarts
+  the quiz from question 1.
+- **60 deterministic background stars pre-rendered server-side**
+  (vanilla generated 100 with `Math.random()` per page load).
+  Visually equivalent to a child; SSR markup is byte-for-byte
+  stable.
+- **Bongo flashcard fix folded in** (`src/data/flashcards.ts`):
+  `Long%20Drum/3D/long_drum_3d.png` (capital D, returned 403) →
+  `Long%20drum/3D/long_drum_3d.png` (lowercase d, returns 200).
+  Single-character fix, surfaced during the Hindi port and parked
+  as tech-debt at that commit; cleaned up here.
+- **Build & verification.** `npm run check` clean (0 errors / 0
+  warnings / 0 hints across 43 files). `npm run build` clean (14
+  pages, 8.2 s). Chunk-dedup invariants:
+  - `quiz.h5Df3D_T.js` — **2-way dedup** (routines + woodcutter).
+  - `progress.Czz_LiQd.js` — **still 8-way** (7 grid games +
+    Routines; Woodcutter correctly does *not* import it — single
+    scene, no per-item state).
+  - `fluent.rTHKURu4.js` — **still 6-way** (alphabets, animals,
+    birds, flashcards, hindi, weather; both story games correctly
+    opt out — pure CSS art).
+  - `achievements.DT2pP3cz.js` — **13-way** (every game).
+  - Layout pre-paint scripts (`CXGnnBDI.js` + `CMRSRHTE.js`) —
+    **3-way dedup** across all three layouts.
+  Live HTTP 200 from `/games/woodcutter-story` plus a regression
+  sweep across `/`, `/games/daily-routines-game`, `/games/hindi-game`,
+  `/games/flashcards-game`, `/games/alphabets-game` — all 200 ✅.
+  SSR markup verified live: 60 stars + 4 prose paragraphs + golden
+  axe + silver axe + moral text + comprehension quiz heading all
+  rendered server-side.
+- **Resume here**: the migration is complete. The remaining backlog
+  is **post-migration polish**: (a) wire `mountQuiz` against the
+  11 non-story games (today they show an `alert(…)` Quiz/Stats
+  stub — the lib now exists), (b) Playwright smoke tests per
+  layout, (c) Option C revisit (unified `DeckLayout` with view
+  toggle — now unblocked since both shared libs exist; current
+  evidence still leans against), (d) cut-over plan to migrate the
+  live `kids-learning-games` repo to serve the Astro `dist/` build.
+  See "Next session: post-migration polish" below for the full
+  scope.
 
 ---
 
@@ -195,9 +208,9 @@ have read each at least once before making decisions. Most are small
 
 | File | Lines | Purpose |
 |---|---|---|
-| `SESSION-HANDOFF.md` | ~605 | **This file.** Compact bootstrap for new chat sessions. |
-| `PROGRESS.md` | ~1410 | **Primary status doc.** Migration principles, per-game decisions, ports completed, full dated changelog, "Resume here next session" marker. |
-| `README.md` | ~145 | Architecture overview, full file structure tree, vanilla-vs-Astro comparison table, shared-module list. |
+| `SESSION-HANDOFF.md` | ~1260 | **This file.** Compact bootstrap for new chat sessions. |
+| `PROGRESS.md` | ~2040 | **Primary status doc.** Migration principles, per-game decisions, ports completed, full dated changelog, "Resume here next session" marker. |
+| `README.md` | ~165 | Architecture overview, full file structure tree, vanilla-vs-Astro comparison table, shared-module list. |
 
 ### Vanilla repo (`kids-learning-games/`)
 
@@ -242,8 +255,10 @@ most often:
    - `StoryLayout` — *story-flow* games (follow a linear narrative
      one chapter at a time, then take a quick quiz). Carved out at
      the Routines port (2026-05-08) when `CardMachineLayout` failed
-     the first-fit gate; now hosts Daily Routines, Woodcutter is
-     pending.
+     the first-fit gate; now hosts both Daily Routines (paginated)
+     and Honest Woodcutter (single-scene) — same shell, the page
+     decides whether to render the progress bar / Prev / Next
+     chrome in its slot content.
    - Decision was non-trivial — see "Layout debate history" below.
 3. **Refactor trigger = second consumer.** Don't extract a helper
    into `src/lib/` until a second game wants it. Example:
@@ -277,88 +292,89 @@ used the "cards / card-machine" interpretation of "use Astro patterns":
   it. Fixed a left/right pane overlap bug from an earlier two-pane
   attempt by going single-column-everywhere.
 - **Option C (unified `Deck` layout with grid/card/story view toggle)** is
-  parked until all 13 vanilla games ship — *partly unblocked* as of
-  2026-05-08 (12/13 ported; foundational-set chapter closed and
-  story-flow chapter open with Daily Routines live). Decision still
-  open: keep `CardMachineLayout`, `GridLayout`, and `StoryLayout`
-  separate, or consolidate into a single `DeckLayout` with a per-user
-  "Grid | Card | Story" toggle. Three pieces of evidence now lean
-  *separate* (different detail-payload shapes, different filter bars,
-  different storage shapes — `Set<string>` for grid progress vs
-  `{ attempts, bestScore, lastPlayed }` for story quiz state). Worth
-  finalising *after* Woodcutter lands and `src/lib/quiz.ts` exists,
-  since that's the moment we'll have the fullest picture of what
-  state shapes the layouts actually share.
+  *fully unblocked* as of 2026-05-08 (13/13 ported; both shared libs
+  `progress.ts` + `quiz.ts` exist). Decision still open: keep
+  `CardMachineLayout`, `GridLayout`, and `StoryLayout` separate, or
+  consolidate into a single `DeckLayout` with a per-user "Grid | Card
+  | Story" toggle. Three pieces of evidence now lean *separate*:
+  (a) different detail-payload shapes (Fluent image vs CSS shape gallery
+  vs CSS count grid vs scene art vs hero scene + prose + moral panel),
+  (b) different filter bars (Animals's 6-pill filter vs Hindi's bilingual
+  3-pill vs Routines's no-filter vs Woodcutter's no-filter), (c)
+  different state shapes (`Set<string>` for grid progress vs
+  `{ attempts, bestScore, lastPlayed }` for story quiz state vs no
+  per-item state at all for Woodcutter). Best revisited *after* the
+  real Stats + Quiz modals land across all 13 games (current backlog
+  item 3 in PROGRESS.md) — that's the cleanest signal of how much DOM
+  / CSS the three layouts truly share.
 
 Take-away: *when the user pushes back on an architectural choice,
 treat it as a signal to investigate, not just implement the opposite.*
 
 ---
 
-## Current state snapshot (commit `9813cbc` for the feat; docs commit will follow)
+## Current state snapshot (commit `ca2fa2d` for the feat; docs commit will follow)
 
-**12 of 13 games ported. Foundational-set chapter closed; story-flow chapter open with 1 of 2 games live.** Live URLs all return 200.
+**13 of 13 games ported — migration complete. All three chapters closed.** Live URLs all return 200.
 
 | Game | Layout | Theme | Bundle (gzip) | Notes |
 |---|---|---|---|---|
-| Flashcards | CardMachine | cyan/orange | 11.28 KB | 14 decks, 4 card-face variants |
-| **Daily Routines** | **Story** | **sunrise/coral (morphs per scene)** | **~5.0 KB** | **First StoryLayout game; 10 paginated scenes with per-scene CSS art (sun, bed, toothbrush, etc., scoped under `.routines-art`); inline 8-question quiz with score tracking via `routines_quiz_v1`; `--st-bg` driven body-gradient transitions** |
-| Hindi | Grid | saffron/cream/green tricolor | ~3.5 KB | 48 Devanagari tiles (12 vowels + 36 consonants), Devanagari-script tile face + Fluent UI 3D detail, bilingual `स्वर` / `व्यंजन` filter, `hi-IN` speech, 5 Q→Crown substitutions incl. *Sari* for Aurat/Woman |
-| Weather | CardMachine | navy/ice-blue | 3.34 KB | 20 cards, full Fluent UI deck |
-| Animals | Grid | sea-green/deep-blue | 3.30 KB | 37 tiles, big-emoji tile + Fluent UI 3D detail, 5-group filter |
-| Dinosaurs | CardMachine | green | 3.02 KB | first POC game, 15 cards |
-| Alphabets | Grid | purple/green | 2.96 KB | first GridLayout, 26 letters |
-| Solar System | CardMachine | purple/gold | 2.66 KB | pure-CSS planet art |
-| Birds | Grid | orange-coral sunset | 2.53 KB | 15 tiles, big-emoji tile + Fluent UI 3D detail, 5-group filter, vanilla emoji-collision bug fixed |
-| Colors | Grid | pink/lavender | 2.25 KB | swatch tiles + shape gallery detail |
-| Shapes | Grid | pink/coral | 2.11 KB | mini shape on tile, big shape detail |
-| Numbers | Grid | sky-blue/orange | 2.08 KB | CSS count-objects detail |
+| Flashcards | CardMachine | cyan/orange | 11.30 KB | 14 decks, 4 card-face variants |
+| Hindi | Grid | saffron/cream/green tricolor | ~5.25 KB | 48 Devanagari tiles (12 vowels + 36 consonants), Devanagari-script tile face + Fluent UI 3D detail, bilingual `स्वर` / `व्यंजन` filter, `hi-IN` speech, 5 Q→Crown substitutions incl. *Sari* for Aurat/Woman |
+| **Daily Routines** | **Story** | **sunrise/coral (morphs per scene)** | **~4.10 KB** | 10 paginated scenes with per-scene CSS art (sun, bed, toothbrush, etc., scoped under `.routines-art`); 8-question quiz on shared `mountQuiz` from `src/lib/quiz.ts` (refactored at the Woodcutter port — was inline ~5 KB pre-extraction); `--st-bg` driven body-gradient transitions per scene |
+| Weather | CardMachine | navy/ice-blue | 3.36 KB | 20 cards, full Fluent UI deck |
+| Animals | Grid | sea-green/deep-blue | 3.31 KB | 37 tiles, big-emoji tile + Fluent UI 3D detail, 5-group filter |
+| Dinosaurs | CardMachine | green | 3.04 KB | first POC game, 15 cards |
+| Alphabets | Grid | purple/green | 2.98 KB | first GridLayout, 26 letters |
+| Solar System | CardMachine | purple/gold | 2.68 KB | pure-CSS planet art |
+| Birds | Grid | orange-coral sunset | 2.55 KB | 15 tiles, big-emoji tile + Fluent UI 3D detail, 5-group filter, vanilla emoji-collision bug fixed |
+| Colors | Grid | pink/lavender | 2.27 KB | swatch tiles + shape gallery detail |
+| Shapes | Grid | pink/coral | 2.13 KB | mini shape on tile, big shape detail |
+| Numbers | Grid | sky-blue/orange | 2.09 KB | CSS count-objects detail |
+| **Honest Woodcutter** | **Story** | **deep navy → purple twilight + gold accents** | **1.46 KB** | **13th and final port. Single CSS-animated hero scene (woodcutter chops → drops axe at 1s → fairy at 3s → golden axe at 6s → silver axe at 9s) + 4-para prose + moral panel + 6-question quiz on shared `mountQuiz`. Pure CSS art under `.woodcutter-art` with `woodcutter-*` keyframes for collision-freeness with `routines.css`. Smallest game by JS — pre-rendered scene art string + ~50 LoC of glue.** |
 
-**Pending (1 — story-flow)**: `woodcutter-story`. Vanilla audit
-(2026-05-08) corrects the historical "paginated" assumption — it's a
-*single* CSS-animated hero scene + 4 paragraphs of continuous prose +
-moral panel + 6-question quiz. Decision call needed at port time:
-reuse `StoryLayout.astro` with `pagination={false}` *or* carve out a
-small `StoryLayout--single` variant. **Quiz extraction to
-`src/lib/quiz.ts` is the second-consumer trigger** — both Routines
-and Woodcutter end with a quiz that has the same shape; the rule-#5
-trigger is finally satisfied.
+**Pending: 0. Migration complete.**
 
-**8-way `progress.ts` shared chunk dedup verified across all three
-layouts** — alphabets, numbers, colors, shapes, animals, birds, hindi
-(all GridLayout), **and routines** (StoryLayout) page-chunks all
-import the *exact same*:
+**Chunk dedup invariants (verified at the bundle level — `grep -l` on
+the production page-chunks):**
 
-- `_astro/progress.Czz_LiQd.js` (0.24 KB gzip)
-- `_astro/achievements.CySDez3r.js`
-- `_astro/settings.zS6XEbod.js`
-
-Plus a **clean 6-way `fluent` dedup** (the only 6 image-driven games:
-alphabets, flashcards, weather, animals, birds, hindi; numbers /
-colors / shapes / **routines** correctly do *not* import it because
-they use CSS art):
-
-- `_astro/fluent.rTHKURu4.js` (89 bytes raw, 0.09 KB)
-
-Plus all three layout pre-paint scripts share **byte-for-byte
-identical content** — the `CardMachineLayout` / `GridLayout` /
-`StoryLayout.astro_astro_type_script_index_*_lang.*.js` pair is
-generated from the same Astro-internal FOUC handler in the layout
-component, so the same hash is reused across all three (1 hash for
-`_index_0_lang`, 1 hash for `_index_1_lang`).
+- `quiz.h5Df3D_T.js` (1.80 KB raw / 0.98 KB gzip) — **2-way dedup**
+  (routines + woodcutter). Second-consumer refactor delivered.
+- `progress.Czz_LiQd.js` (0.24 KB gzip) — **8-way dedup** (7 grid
+  games + Routines; Woodcutter correctly does *not* import it).
+- `fluent.rTHKURu4.js` (89 bytes raw / 0.09 KB gzip) — **6-way**
+  (alphabets, animals, birds, flashcards, hindi, weather; both story
+  games correctly opt out — pure CSS art).
+- `achievements.DT2pP3cz.js` — **13-way** (every game).
+- `speech.CM0jYrqL.js` — **12-way** (every game except Weather).
+- `settings.zS6XEbod.js` — **13-way** + index page (loaded by every
+  page incl. home).
+- Layout pre-paint scripts (`CXGnnBDI.js` + `CMRSRHTE.js`) — **3-way
+  dedup** across all three layouts (CardMachineLayout + GridLayout +
+  StoryLayout). Astro hashes them per layout file but the chunk
+  content is byte-for-byte identical (same auto-generated FOUC
+  handler).
 
 **CSS chunks**:
 
-- `alphabets-game.*.css` — ~27.5 KB, used by all 7 grid games (unchanged from pre-routines).
-- `dinosaurs-game.*.css` — 17.8 KB, used by all 4 card-machine games (unchanged from pre-routines).
-- `daily-routines-game.BtooriIC.css` — **14.5 KB** (new — `body.story` + `.story-*` + `.scene-*` + `.routines-art *` selectors, plus the `--routines` theme block + dark-mode override + FOUC pre-dark rule).
+- `alphabets-game.*.css` — ~26 KB, used by all 7 grid games.
+- `dinosaurs-game.*.css` — 17 KB, used by all 4 card-machine games.
+- `daily-routines-game.Cgea29N_.css` — **6.9 KB shared** (the
+  story.css + global.css base bundle). Loaded by *both* story pages
+  — 2-way CSS dedup.
+- `daily-routines-game.CxrRS3LH.css` — 7.7 KB (routines per-scene art
+  under `.routines-art`).
+- `woodcutter-story.BLoeGVIr.css` — 7.4 KB (woodcutter hero-scene art
+  + prose + moral panel under `.woodcutter-art`).
 - `solar-system-game.*.css` — solar-system-only.
 
-**PWA precache**: 48 entries / ~390 KiB (was 46 / 352.45 KiB pre-routines).
+**PWA precache**: 57 entries / ~425 KiB (was 48 / 390 KiB pre-Woodcutter).
 
 **Recent commits** (newest first):
 
 ```
+ca2fa2d feat(woodcutter): port Honest Woodcutter on StoryLayout (13/13 — migration complete) + extract src/lib/quiz.ts
+bcacab4 docs: roll Daily Routines port (12/13) + StoryLayout shell into PROGRESS / README / SESSION-HANDOFF
 9813cbc feat(routines): port Daily Routines on new StoryLayout (12/13) + first story-flow shell + scoped routines.css art
 <docs-commit-pending> docs: confirm Hindi grid deploy is live + 7-way GridLayout / 6-way fluent dedup verified
 0cebf69 feat(hindi): port Hindi varnamala on GridLayout (11/13) + tricolor palette + Sari/Bowl-with-spoon substitutions
@@ -371,321 +387,334 @@ df1b627 docs: confirm Animals grid deploy is live + 5-way shared chunk verified
 
 ---
 
-## What just shipped this session (Daily Routines port — first StoryLayout game)
+## What just shipped this session (Honest Woodcutter port — 13th and final game)
 
-Settled the long-deferred "story games" decision *and* shipped the
-first port on the new layout in a single session. Departed from the
-"ship a grid game" template because Daily Routines genuinely needed
-new shared infra; the standard sequence applied at the *page* level,
-but two new layout files + two new shared-CSS files came along for
-the ride.
+**Closed the migration.** Last vanilla game ported, second-consumer
+refactor extracted, `flashcards.ts` Bongo bug folded in as a cleanup.
+The "story games" chapter is now closed alongside the foundational-set
+and reference-catalogue chapters.
 
-1. **Audit `kids-learning-games/games/daily-routines.html`** — 10
-   paginated story scenes (sunrise wake-up → toothbrush → breakfast
-   → school-bag → school-bell → reading → playground → bath →
-   dinner → bedtime moon-window). Each scene has a unique CSS-art
-   composition (no Fluent UI assets — pure CSS rendering of sun,
-   bed, toothbrush, table, school-bag, book, swing+slide, bathtub,
-   moon-window primitives), descriptive English prose (~30 words
-   per scene), and a `Back` / `Listen` / `Next` control row.
-   Document concludes with an 8-question multiple-choice quiz
-   (`{ q, opts: [4 strings], ans: index }`) with score panel,
-   retry, and restart. **Vanilla also morphs the body background
-   gradient per scene** — sunrise warm → midday bright → evening
-   amber → night dark → indoor neutral palettes — driven by
-   per-scene class names on `<body>`.
-2. **Audit `kids-learning-games/games/woodcutter-story.html` for
-   cross-reference** — and *correct* the historical "paginated
-   story" assumption that was driving every layout-decision call
-   so far. Woodcutter is **single-scene**: one CSS-animated hero
-   composition + 4 paragraphs of continuous prose + moral panel +
-   6-question quiz + Play-Animation/Reset buttons. Routines is the
-   *only* paginated story game; Woodcutter is a single-scene
-   narrative with no prev/next semantics. This split changes how
-   `StoryLayout` should be designed — covered below.
-3. **Audit `src/layouts/CardMachineLayout.astro` + a card-machine
-   page (`src/pages/games/weather-game.astro`)** to gauge whether
-   it could fit a paginated story before carving out a new layout.
-   It bakes in (1) viewport-locked `overflow:hidden` + `100vh`
-   body, (2) flex two-pane layout with a left deck + right detail
-   pane, (3) a hardcoded deck-of-cards DOM (`.deck` / `.top-card` /
-   `.ghost` + press-to-flip semantics), and (4) an OLED
-   `.machine-screen` aesthetic on the right pane. All four crash
-   into Routines' contract (scrollable single-column shell, scene
-   panel + controls + inline quiz, sunrise-warm palette, no deck
-   metaphor at all). **Decision: collapsed → carve out
-   `StoryLayout`**.
-4. **Decide layout shape** — modelled `StoryLayout.astro` on the
-   "scrollable single-column shell with theme tokens" pattern that
-   `GridLayout.astro` already uses, but with a *different*
-   content contract: header → progress bar → scene panel with
-   per-scene CSS art → Prev / 🔊 Listen / Next controls → inline
-   quiz block at the end (hidden until completion). Theme prop
-   accepts `'routines' | 'woodcutter'` so Woodcutter can drop in
-   later with just a theme override. FOUC pre-dark rule lives in
-   the layout component (one `html.pre-dark body.story` block per
-   theme). Quiz logic ships *page-local* (~100 lines of inline TS
-   in `daily-routines-game.astro` + a dedicated `routines_quiz_v1`
-   LocalStorage key) per the rule-#5 *"refactor trigger = second
-   consumer"* migration principle — Woodcutter is the second
-   consumer that triggers extraction to `src/lib/quiz.ts`.
-5. **Build `src/data/routines.ts`** — 10 typed `RoutineScene`
-   entries (`id` kebab-case + `time` + `title` + `emoji` + `text` +
-   `bg` sky class + optional `artBg` indoor override + `artHtml`
-   string with the per-scene CSS art HTML) + 10 `BODY_BGS` page
-   gradients (the `--st-bg` value the page rewrites per scene) +
-   8 typed `QuizQuestion` entries. ~90-line header doc covering
-   the layout decision, the `.routines-art` namespace scoping
-   strategy, the quiz-storage split (`progress.ts` for scenes
-   visited + `routines_quiz_v1` page-local key for quiz metadata),
-   and the vanilla quirks preserved verbatim.
-6. **Build `src/styles/story.css`** — shared `--st-*` theme tokens
-   (page background, scene-card surface, title color, body color,
-   progress-bar fill, button states, quiz panel surface, quiz
-   option states) + the core single-column `.story-shell` /
-   `.story-header` / `.story-progress` / `.scene-box` / `.scene-art`
-   / `.story-controls` / `.quiz-box` selectors. Default theme =
-   `routines`; placeholder palette for `woodcutter` seeded so the
-   second consumer's data shape is already proven. Generic dark
-   mode override for story-specific elements.
-7. **Build `src/styles/routines.css`** — per-scene CSS art
-   primitives (sun, bed, toothbrush, table, school-bag, book,
-   swing+slide, bathtub, moon-window). **All selectors scoped under
-   `.routines-art`** (the marker class applied to the
-   `<div class="scene-art routines-art …">` art container in the
-   page) so vanilla-style short class names like `.bed` / `.tub` /
-   `.swing` / `.child` / `.sun` stay collision-free with future
-   story games. **All keyframes prefixed `routines-*`**
-   (`routines-sunRise`, `routines-toothBrush`, `routines-bookFloat`,
-   etc.) for the same reason.
-8. **Build `src/layouts/StoryLayout.astro`** — third shared shell.
-   Structure mirrors `GridLayout.astro` (head meta + PWA + nav +
-   `<slot />` + settings modal + build info + SW auto-update
-   handling) but `<body class="story" data-theme={theme}>` and the
-   FOUC pre-dark rules target `body.story` instead of `body.grid`.
-9. **Build `src/pages/games/daily-routines-game.astro`** — uses
-   `StoryLayout`, imports `routines.css`. Renders header + progress
-   bar + first scene SSR'd (so the page paints correctly on JS-off
-   and during hydration) + control row + hidden inline quiz block
-   with all 8 questions + 32 option buttons + score panel
-   pre-rendered. Inline `<script is:inline>` sets the initial
-   `--st-bg` value on `<body>` *before* hydration so the page
-   never flashes the wrong palette on load. Client `<script>`
-   block manages: scene navigation (Prev/Next + arrow keys),
-   speech (default voice, no language override — Routines is
-   English-only), scene-visited progress in
-   `kids_progress_v1:routines` via `progress.ts`, quiz state in
-   `routines_quiz_v1` via inline load/save helpers, completion
-   overlay + golden-confetti flourish on perfect quiz score, and
-   the per-scene `--st-bg` rewrite as the child clicks Next.
-10. **Wire** `GameNav.astro` + `index.astro` home tile (mark
-    `ready: true`); also flipped Woodcutter's home tile to its
-    new "single-scene, layout shape TBD" copy.
-11. **Build verification:** `npm run check` 0/0/0 across 38 files,
-    default sandbox; `npm run build` **13 pages** emitted in
-    7.96 s, default sandbox. Notable: an unused-import hint
-    flagged by Astro's TS server because the frontmatter and the
-    page `<script>` block had two separate `import { … } from
-    '@/data/routines'` statements; dropped the unused `QUIZ` from
-    the frontmatter, fix in-place pre-commit.
-12. **Live deploy verified within ~45 s** of push:
-    `/games/daily-routines-game` HTTP 200, all 11 prior live URLs
-    still 200 (no regressions across the 4 card-machine + 7 grid
-    games). **8-way `progress.ts` shared-chunk dedup confirmed at
-    the chunk level** (alphabets + numbers + colors + shapes +
-    animals + birds + hindi + **routines** all import the *exact
-    same* `progress.Czz_LiQd.js` + `achievements.CySDez3r.js` +
-    `settings.zS6XEbod.js` — three shared modules now serving
-    *all three layouts*). Routines correctly does *not* import
-    `fluent.rTHKURu4.js` (no Fluent UI assets — pure CSS art).
-    All three layout pre-paint scripts ship byte-for-byte
-    identical content (same hash from the Astro-internal FOUC
-    handler in the layout component). Bidirectional CSS isolation
-    verified: `daily-routines-game.BtooriIC.css` (14.5 KB)
-    contains only `body.story` + `.story-*` + `.scene-*` +
-    `.routines-art *` selectors, zero `cm-*` / `gl-*` /
-    `.top-card` / `.machine-screen` / `.gl-tile` leakage; the
-    card-machine and grid bundles contain zero `.routines-art` /
-    `.story-shell` / `.scene-box` / `--st-*` selectors. SSR
-    markup sniff confirms `<body class="story" data-theme="routines">`
-    + the inline `--st-bg` setter + the first scene's CSS art
-    tree (sun, ground, bed, mattress, pillow, blanket, bed-frame
-    elements) + the prev/listen/next control row + the hidden
-    inline quiz block with all 8 questions pre-rendered.
+1. **Audit `kids-learning-games/games/woodcutter-story.html`** — single
+   CSS-animated hero scene composition: woodcutter character (head +
+   body + arms + chopping axe) chopping by a river, with sun + 2
+   clouds + 3 trees + animated wave overlay + 100 JS-injected
+   twinkling stars. On load, vanilla auto-runs a choreographed timeline
+   — woodcutter drops his axe at 1 s (`.scene.animated .woodcutter`
+   gets a 2 s drop animation) → splash on the river at 2-3.5 s → fairy
+   appears at 3-5 s with a scale-and-rotate entrance → fairy floats
+   forever from 5 s → golden axe rises with rotation at 6-9 s → silver
+   axe rises at 9-12 s. Below the scene: 4 paragraphs of continuous
+   prose + golden moral panel ("Honesty is always rewarded") +
+   6-question multiple-choice quiz + Play-Animation/Reset buttons.
+   Vanilla auto-starts the quiz on load. Storage key:
+   `woodcutter_progress` with `{ quizAttempts, bestScore, lastPlayed }`
+   shape (similar to `routines_quiz_v1` but with `quizAttempts` instead
+   of `attempts`). **Confirmed: not paginated**, no prev/next, no
+   progress bar — single hero scene + linear prose + always-visible
+   quiz.
+2. **Audit `src/pages/games/daily-routines-game.astro`** — found the
+   inline quiz block (`loadQuizState` / `saveQuizState` /
+   `escapeHtml` / `startQuiz` / `renderQuestion` / `onQuizAnswer` /
+   `showQuizResult` + the `quizBody` click delegation). ~80 lines of
+   page-local TS that should now move to the shared lib.
+3. **Audit `src/layouts/StoryLayout.astro`** — found that the layout
+   shell *never enforced* the progress bar / Prev / Next chrome.
+   Those elements live in the consuming page's slot content, not in
+   the layout. The pre-port docs assumed we'd need a `pagination={false}`
+   prop or a `StoryLayout--single` variant; the audit revealed neither
+   is necessary. The Woodcutter page just omits the progress bar +
+   Prev/Listen/Next controls from its slot, the layout stays neutral,
+   and the existing `theme: 'routines' | 'woodcutter'` prop +
+   pre-existing FOUC pre-dark rule for `[data-theme='woodcutter']`
+   are everything we need.
+4. **Build `src/lib/quiz.ts`** — the second-consumer refactor.
+   Exports `QuizQuestion` (now imported by both `routines.ts` and
+   `woodcutter.ts` instead of each declaring their own) +
+   `QuizState` types; `loadQuizState(gameId)` /
+   `saveQuizState(gameId, s)` / `clearQuizState(gameId)` /
+   `escapeQuizHtml(s)` helpers; and `mountQuiz(config)` controller
+   that renders questions, scores them, persists state, fires
+   `onPerfect` for confetti, and handles a single delegated click
+   listener on the body element. Per-game `messages` overrides,
+   configurable `greatGteThreshold` (default 63 %), idempotent
+   `start()` for retries.
+5. **Refactor `daily-routines-game.astro`** — drops the local
+   `QuizState` interface + `loadQuizState` / `saveQuizState` /
+   `escapeHtml` / `startQuiz` / `renderQuestion` / `onQuizAnswer` /
+   `showQuizResult` / the `quizBody` click delegation; replaces
+   them with a single `mountQuiz({ gameId: 'routines', questions: QUIZ,
+   bodyEl, resultEl, ..., onPerfect, playTap })` call. Page keeps the
+   page-specific bits: `data-mode='quiz'` body toggle (hides the
+   progress bar + scene-box + Prev/Listen/Next while quiz is showing
+   — Routines-only), the "Read Again" button (resets the page to
+   scene 1 — Routines-only, no Woodcutter equivalent).
+6. **Build `src/data/woodcutter.ts`** — typed exports: `STORY` (the 4
+   prose paragraphs verbatim from vanilla), `MORAL` (verbatim),
+   `QUIZ` (6 `QuizQuestion` entries verbatim from vanilla
+   `storyQuizData`), `SCENE_ART_HTML` (pre-rendered hero-scene
+   markup as a single string — sun + 2 clouds + 3 trees + river +
+   wave + woodcutter character + fairy character + golden axe +
+   silver axe + splash + 60 deterministic background stars). ~85-line
+   header doc covering the layout decision rationale (no new prop
+   needed), the storage-key harmonisation (`woodcutter_progress` →
+   `woodcutter_quiz_v1`), the animation choreography, and the
+   pre-rendered-stars decision.
+7. **Build `src/styles/woodcutter.css`** — per-scene CSS art primitives
+   (sun, clouds, trees, river+wave, woodcutter, fairy, axes, splash,
+   stars) + the `.story-prose` reading panel + the `.story-moral`
+   golden-scroll panel. **All selectors scoped under `.woodcutter-art`**
+   (the marker class on the `<div class="scene-art woodcutter-art">`
+   container) and **all keyframes prefixed `woodcutter-*`**
+   (`woodcutter-twinkle` / `-sun-glow` / `-cloud-move` / `-sway` /
+   `-wave` / `-chop` / `-drop` / `-splash` / `-fairy-appear` / `-float`
+   / `-wing-flap` / `-axe-rise`) for bidirectional collision-freeness
+   with `routines.css`. Hero-scene height overridden to 500 px on
+   desktop / 380 px on mobile (story.css default `.scene-art` is
+   340 px / 240 px — Routines per-scene panels are smaller). Dark-mode
+   tweaks for the prose surface (moral keeps its golden palette as a
+   "scroll of wisdom" UI element).
+8. **Update `src/styles/story.css`** — flesh out the woodcutter theme
+   block (was a placeholder palette). New tokens: `--st-bg` deep navy →
+   purple twilight gradient `#1e3c72 / #2a5298 / #7e22ce` lifted from
+   vanilla `body { background: linear-gradient(...) }`, `--st-btn-next-bg`
+   navy/blue, `--st-btn-prev-bg` neutral grey, `--st-btn-restart-bg`
+   purple, `--st-quiz-heading` deep navy, `--st-quiz-opt-bg` soft
+   blue-violet, `--st-done-accent` gold. Plus a dark-mode override
+   for `body.dark-mode.story[data-theme='woodcutter']` (deeper
+   night-sky body bg + brighter quiz heading + dark-mode quiz options).
+9. **Build `src/pages/games/woodcutter-story.astro`** — uses
+   `StoryLayout` with `theme="woodcutter"`. Renders header + single
+   `.scene-box` containing the entire pre-rendered hero scene
+   (`set:html={SCENE_ART_HTML}`) + Play Animation / Reset button row
+   + 4-paragraph prose article + moral panel + always-visible
+   `.quiz-box` with score panel pre-rendered. Inline `<script is:inline>`
+   sets `--st-bg` to the woodcutter gradient before hydration. Client
+   `<script>` block snapshots the original scene innerHTML at hydration
+   and replays it on Play / Reset (re-setting innerHTML restarts all
+   CSS animations — cleaner than vanilla's `style.animation = 'none'`
+   reset). Mounts `mountQuiz({ gameId: 'woodcutter', questions: QUIZ,
+   ..., messages: { perfect: 'Perfect! You truly understood the
+   story!', great: 'Great job!', keepReading: 'Read the story again
+   and try once more!' }, onPerfect: () => launchConfetti(WOODCUTTER_CONFETTI),
+   playTap })` and calls `quiz.start()` immediately on load to match
+   vanilla's auto-start behaviour. Reset additionally restarts the
+   quiz from question 1.
+10. **Wire** `GameNav.astro` (add Woodcutter link) + `index.astro` home
+    tile (flip `ready: true` with full description copy).
+11. **Fix `src/data/flashcards.ts`** — Bongo's image path:
+    `Long%20Drum/3D/long_drum_3d.png` → `Long%20drum/3D/long_drum_3d.png`
+    (lowercase d). Single-character fix; image now returns 200 OK from
+    Microsoft's CDN.
+12. **Build verification:** `npm run check` 0/0/0 across **43 files**
+    (was 40 — +4 new files: woodcutter.css/.ts/.astro + quiz.ts;
+    routines page lost ~80 lines but still 1 file). `npm run build`
+    **14 pages** emitted in 8.2 s. Notable: shared `quiz.h5Df3D_T.js`
+    chunk emitted at 1.80 KB raw / 0.98 KB gzip; pre-paint layout
+    chunks unchanged (3-way dedup preserved); shared CSS bundle
+    `daily-routines-game.Cgea29N_.css` now serves 2 pages (was 1).
+13. **Live deploy verified within ~90 s** of push:
+    `/games/woodcutter-story` HTTP 200, all 12 prior live URLs still
+    200 (no regressions across all 4 card-machine + 7 grid + Routines).
+    SSR markup sniff confirms 60 stars, 4 prose paragraphs, golden +
+    silver axes, splash, fairy ensemble, moral text, Comprehension
+    Quiz heading all rendered server-side. Bidirectional chunk dedup
+    invariants verified at the bundle level: `quiz.h5Df3D_T.js` 2-way
+    (routines + woodcutter), `progress.Czz_LiQd.js` 8-way (no
+    woodcutter), `fluent.rTHKURu4.js` 6-way (no woodcutter),
+    `achievements.DT2pP3cz.js` 13-way. Bidirectional CSS isolation:
+    0 `.woodcutter-art` selectors in the routines page bundle, 0
+    `.routines-art` selectors in the woodcutter page bundle, 0
+    `cm-*` / `gl-*` selectors in either story bundle.
 
-**Layout decision codified at port time**: carve out a third shared
-shell (`StoryLayout`). The cost was ~200 lines of new layout +
-~250 lines of new shared CSS + ~400 lines of game-specific scoped
-CSS — *one-time* infra that's now amortised over both story games.
-Reusing `CardMachineLayout` would have demanded heavy override
-machinery for *all four* of the conflicts above, ending in a layout
-file that's "card-machine OR story" with switch logic everywhere —
-exactly the bespoke-shell-per-game smell rule #3 prohibits.
+**Layout decision codified at port time**: reuse `StoryLayout` with
+the page omitting the progress bar / Prev / Next chrome. **No new
+prop, no new variant.** Total cost: zero changes to `StoryLayout.astro`,
+~30 new lines of theme tokens in `story.css`, ~370 lines of new
+`woodcutter.css` (per-scene art + prose + moral primitives), ~165
+lines of `src/data/woodcutter.ts`, ~145 lines of page, plus the
+shared `src/lib/quiz.ts` (~195 lines) which is *not* a Woodcutter
+cost — both story games now share it.
 
-**Pre-existing bug surfaced (not fixed in this commit)**: still
-open from the Hindi port — `flashcards.ts` line 360 uses
-`Long%20Drum/3D/long_drum_3d.png` (capital D) for the Bongo card,
-returns 403 in production (Fluent UI uses lowercase
-`Long%20drum`). Filed as one-off tech-debt in `PROGRESS.md` for
-the next session that touches flashcards data — the fix is one
-character.
-
-Full changelog entry: `PROGRESS.md` → "2026-05-08 — Daily Routines on a brand-new `StoryLayout` (12/13 games — story-flow chapter opens)".
+Full changelog entry: `PROGRESS.md` → "2026-05-08 — Honest Woodcutter
+ships on `StoryLayout` + `src/lib/quiz.ts` extracted (13/13 games —
+migration complete)".
 
 ---
 
-## Next session: Woodcutter port
+## Next session: post-migration polish
 
-The "Resume here next session" marker in `PROGRESS.md` points at
-**Woodcutter port** — the **last vanilla game**. After this lands,
-the migration is 13/13 done and we're into the cut-over /
-Stats-modal / unified-Deck phase of the project.
+The migration is **13/13 done**. The "Resume here next session"
+marker in `PROGRESS.md` no longer points at any game port — it
+now points at the post-migration backlog. There are four candidate
+tracks; pick one (or run them sequentially in roughly the order
+below — that's also the prioritisation in `PROGRESS.md` →
+"Rough order of payoff" → "Post-migration polish").
 
-**Vanilla shape** (audit ran in *this* session, contradicting the
-historical "paginated story" assumption):
+### Track 1 — Wire `mountQuiz` across the 11 non-story games (highest payoff)
 
-- *Single* CSS-animated hero scene (woodcutter, river, lake, gold
-  axe, silver axe, normal axe, deity figure — all rendered in
-  pure CSS, no images).
-- 4 paragraphs of continuous prose (the woodcutter loses his axe
-  in the river, the river deity offers a gold axe then a silver
-  axe, the woodcutter honestly identifies his own; the deity
-  rewards his honesty with all three).
-- 1 moral panel (`Honesty is the best policy`).
-- 6-question multiple-choice quiz on the story.
-- `Play Animation` / `Reset` buttons (re-runs the CSS animation
-  from the start).
-- **No prev/next semantics**, no scene pagination — fundamentally
-  different from Daily Routines.
+**Why first**: every non-story page currently has an `alert(…)`
+stub for both the Stats and Quiz buttons. The infra now exists
+(`src/lib/quiz.ts` is shipped and 2-way dedup'd between the two
+story games), and there's already a worked example consuming it
+(`src/pages/games/woodcutter-story.astro`). Wiring it to the
+remaining 11 games turns a pile of stubs into real per-game
+content with zero new shared-infra cost.
 
-**Layout decision needed at port time** (two viable paths — pick
-the cheapest):
+**Per-game cost**: ~5 question objects (the user / content owner
+will need to provide them, or we author them for review) + ~30
+lines of glue per page. Quiz state lands in
+`<gameId>_quiz_v1` LocalStorage automatically via
+`saveQuizState`. Stats modal can then read `progress.ts` *and*
+`quiz.ts` aggregations across all 13 games.
 
-1. **Reuse `StoryLayout.astro` with a new `pagination={false}`
-   prop** — hide the prev/next chrome + progress bar + scene-count
-   text via the layout shell when the prop is false. Single-scene
-   pages then look like "header → scene panel → optional Listen
-   button → quiz". Pro: zero new layout files, single source of
-   truth for "story-flow games". Con: prop branching inside
-   `StoryLayout.astro`.
-2. **Carve out a small `StoryLayout--single` variant** (or a
-   sibling layout file) — one-off shell for single-scene stories.
-   Pro: cleaner boundary if more single-scene stories ever land
-   (currently zero on the horizon, so YAGNI applies). Con: more
-   files for one consumer.
+**Scope**:
 
-**Default plan**: option 1 (`pagination={false}` prop). It's
-cheaper and matches how `GridLayout` handles per-game variants
-(`theme` prop + `data-theme` attribute, no per-game shell).
-Re-evaluate at port time if the prop branching gets messy.
+1. Define `QUIZ` arrays in each `src/data/<game>.ts` (animals,
+   birds, alphabets, numbers, colors, shapes, hindi, dinosaurs,
+   flashcards, solar-system, weather). 5 questions per game is
+   plenty; question stem can reuse the game's existing data
+   (`"Which letter is for Apple?"` → multi-choice from 4 letters,
+   correct one being "A"). For card-machine games, picking from
+   visible deck items is natural.
+2. Per page, replace the `alert('Quiz coming soon!')` stub with:
+   ```ts
+   import { mountQuiz } from '@/lib/quiz';
+   import { QUIZ } from '@/data/<game>';
 
-**`src/lib/quiz.ts` extraction is non-negotiable** — both Routines
-and Woodcutter end with a quiz of the same shape:
+   const quizOverlay = document.getElementById('quizOverlay')!;
+   const quizBody = quizOverlay.querySelector('.quiz-questions')!;
+   const quizResult = quizOverlay.querySelector('.quiz-result')!;
+   const quizClose = quizOverlay.querySelector('.quiz-close')!;
 
-- N multiple-choice questions: `{ q, opts: string[], ans: number }`.
-- Score tracking: `{ attempts, bestScore, lastPlayed }`.
-- LocalStorage key: `<gameId>_quiz_v1`.
-- Retry / restart UI flow.
+   const quiz = mountQuiz({
+     gameId: '<game>',
+     questions: QUIZ,
+     bodyEl: quizBody,
+     resultEl: quizResult,
+     onPerfect: () => launchConfetti(<GAME>_CONFETTI),
+     playTap,
+   });
 
-The rule-#5 "refactor trigger = second consumer" rule is finally
-satisfied. Pull the inline quiz logic from
-`src/pages/games/daily-routines-game.astro` (~100 lines of TS) into
-a new `src/lib/quiz.ts` module that exposes:
+   quizButton.addEventListener('click', () => {
+     quizOverlay.hidden = false;
+     quiz.start();
+   });
+   quizClose.addEventListener('click', () => {
+     quizOverlay.hidden = true;
+   });
+   ```
+3. Add a hidden `<div id="quizOverlay">` markup to each page
+   (modal-style — the story games use an inline always-visible
+   block; non-story games should use a modal overlay since the
+   page is otherwise about browsing/filtering, not reading).
+   This is a candidate for a small `src/components/QuizModal.astro`
+   component that takes `gameId` + `questions` slots — *but
+   wait until 2 consumers exist before extracting* (rule #3,
+   "refactor trigger = second consumer").
+4. After 2 wired, decide whether `QuizModal.astro` warrants
+   extraction. After ~6 wired, the Stats modal becomes cheap to
+   build because every game now persists rich state.
 
-- `loadQuizState(gameId): QuizState` / `saveQuizState(gameId, s)`.
-- A `mountQuiz(rootEl, questions, gameId, onComplete)` helper that
-  attaches click handlers to option buttons, tracks selected /
-  correct / incorrect states, computes the score, and updates the
-  ledger when the child submits.
-- `clearQuizState(gameId)` for the Settings modal's eventual
-  "Start Over" button.
+**Don't add a Stats modal yet** — wire 4-5 games first, see what
+shape the aggregated state takes, then decide whether the Stats
+modal is best implemented as (a) a per-page panel, (b) a global
+modal in the layouts, or (c) a dedicated `/stats` page.
 
-Both pages should then collapse onto a `<QuizPanel
-gameId="routines" questions={QUIZ} />` (or similar Astro
-component) — refactor Routines as part of Woodcutter's commit.
+### Track 2 — Playwright smoke tests (one suite per layout)
 
-**Reading order for the next agent**:
+Three suites: card-machine, grid, story. Each parameterised over
+themes inside the suite. Per-layout test scope:
 
-1. Vanilla source: `kids-learning-games/games/woodcutter-story.html`.
-2. Closest Astro precedent: `src/pages/games/daily-routines-game.astro`
-   (the only `StoryLayout` consumer so far) — copy-adapt the page
-   skeleton + the quiz logic (which you'll be extracting to
-   `src/lib/quiz.ts` as you go).
-3. `src/layouts/StoryLayout.astro` — understand the existing
-   layout, decide whether `pagination={false}` is a clean prop or
-   needs to be a layout-config object.
-4. `src/styles/story.css` — add a `--woodcutter` theme block (the
-   placeholder palette is already there as a stub).
-5. Tech-debt note: `flashcards.ts` Bongo's `Long%20Drum` path bug
-   — fix in this commit since you're touching adjacent code.
+- **CardMachineLayout** (Dinosaurs, Flashcards, Solar System,
+  Weather) — load page, assert deck count, click a card, assert
+  detail-pane render (Fluent image / pure CSS art / detailed
+  text), click Quiz button, assert overlay open, answer
+  questions, assert score panel + LocalStorage write.
+- **GridLayout** (Alphabets, Numbers, Colors, Shapes, Animals,
+  Birds, Hindi) — load page, assert tile count, click a tile,
+  assert detail-pane render + audio TTS event firing
+  (`speechSynthesis.speak` mock), filter pills change visible
+  tiles, completion-overlay fires after all tiles tapped, golden
+  confetti DOM nodes appear.
+- **StoryLayout** (Daily Routines, Honest Woodcutter) — load
+  page, assert SSR'd scene art, click Next / Listen / Prev
+  (Routines only), reach end of story, quiz appears, answer
+  questions, assert score panel + LocalStorage write +
+  perfect-score confetti.
 
-**Expected scope**:
+**Setup**: install `@playwright/test`, configure `playwright.config.ts`
+to run against `npm run preview` (dist/ output), add `npm test`
+script, optionally wire into the GH Actions workflow as a
+gate-on-merge check.
 
-- New `src/data/woodcutter.ts` — typed `WoodcutterStory` entry
-  (single scene + prose paragraphs as `text` blocks + moral) +
-  6 typed `QuizQuestion` entries. Header doc covering the
-  layout-decision rationale (single vs paginated) + the
-  vanilla-CSS-animation strategy (pure CSS, no Fluent UI assets).
-- New `src/pages/games/woodcutter-story.astro` — copy-adapt of
-  `daily-routines-game.astro` (closest precedent) with
-  `pagination={false}`. Single scene SSR'd; quiz block uses the
-  new `<QuizPanel>` (or equivalent) component.
-- New `src/lib/quiz.ts` (extraction trigger) — see shape above.
-  Refactor `daily-routines-game.astro` to use it as part of the
-  same commit.
-- ~30-line `--woodcutter` theme block in `story.css` + dark-mode
-  override + FOUC pre-dark rule (the FOUC rule should already
-  exist as a placeholder in `StoryLayout.astro` — verify and
-  flesh out).
-- New `src/styles/woodcutter.css` (or inline in the page if it
-  stays small) — per-scene CSS art primitives for the woodcutter,
-  river, lake, gold/silver/normal axes, deity figure. Scope all
-  selectors under `.woodcutter-art` and prefix keyframes
-  `woodcutter-*` (mirroring the Routines pattern).
-- Wire `GameNav.astro` + `index.astro` home tile (mark `ready: true`).
-- Bulk-verify any image assets the port introduces (vanilla uses
-  pure CSS art, so likely none — but check).
+### Track 3 — Option C decision (unified `DeckLayout`)
 
-**Standard ship sequence** (now proven 8× — alphabets / numbers /
-colors / shapes / animals / birds / hindi / routines):
+Now unblocked since both shared libs (`progress.ts` + `quiz.ts`)
+exist. **Current evidence still leans *separate***:
 
-1. Read vanilla `kids-learning-games/games/<game>.html`. Note
-   exact data, scene count, image set, narrative flow, quiz shape.
-2. Decide layout (`CardMachineLayout` / `GridLayout` /
-   `StoryLayout` — first-fit on the closest precedent; carve out
-   only if it collapses).
-3. Build `src/data/<game>.ts` with header comment per migration
-   principle #4.
-4. Extract any second-consumer helpers to `src/lib/`
-   (`src/lib/quiz.ts` is the queued one for Woodcutter).
-5. Add the relevant CSS to the chosen layout's stylesheet.
-6. Add FOUC pre-dark rule to the chosen layout component.
-7. Write `src/pages/games/<game>.astro`.
-8. Wire `GameNav.astro` + `index.astro`.
-9. **Bulk-verify all Fluent UI image paths** (curl smoke test) —
-   if applicable. The Hindi port confirmed Fluent has class-of-bug
-   403s on humans + lowercase-second-word casing surprises. Fix
-   any 404s pre-commit.
-10. Run `npm run check` + `npm run build` (default sandbox — the
-    2026-05-07 tooling fixes mean no `["all"]` needed for either).
-11. Commit + push: `feat(<game>): port <game> on <layout> (13/13)`.
-12. Verify live deploy (poll ~45 s, then HTTP 200 + SSR markup
-    sniff via `curl + grep`).
-13. Update `PROGRESS.md` + `README.md` + this file, add changelog
-    entry, commit `docs:` follow-up.
+- Different detail-payload shapes (Fluent image vs pure CSS shape
+  gallery vs CSS count grid vs scene art with prose vs hero scene
+  with prose + moral panel).
+- Different filter bars (Animals 6-pill vs Hindi bilingual 3-pill
+  vs Routines no-filter vs Woodcutter no-filter).
+- Different state shapes (`Set<string>` for grid progress vs
+  `{ attempts, bestScore, lastPlayed }` for story quiz state vs
+  no per-item state at all for Woodcutter).
+- Different page rhythms (browse a deck → flip vs scan a chart
+  → tap vs follow a story → quiz at end).
 
-After Woodcutter lands, the migration is **13/13 done** — time to:
+**Best decided after Track 1 lands** — the per-game Quiz wiring
+will surface either "all 13 games share the same modal" (lean
+*together*) or "the modal needs game-specific entry points and
+state schemas" (lean *separate*). If the answer is *together*,
+the per-layout shells could collapse into a single
+`DeckLayout.astro` with a `view: 'grid' | 'card' | 'story'` prop.
+If *separate*, leave the three shells.
 
-- Revisit **Option C** (unified Deck layout with grid/card/story
-  view toggle) — three pieces of evidence already lean *separate*
-  (different detail-payload shapes, different filter bars,
-  different storage shapes); decide once `src/lib/quiz.ts` exists.
-- Wire the **real Stats modal** (currently `alert(…)` stub across
-  all 12 ported games) to read from `progress.ts` + `quiz.ts`
-  aggregations.
-- Plan the **cut-over** of the vanilla `kids-learning-games` repo
-  to serve the Astro build, with a SW handoff strategy so existing
-  PWA installs upgrade cleanly.
+### Track 4 — Cut-over plan (vanilla → Astro)
+
+Migrate the live `kids-learning-games` GH Pages site to serve the
+Astro `dist/` build. The hard part isn't the file copy — it's the
+PWA service-worker handoff. Existing installs of the vanilla PWA
+have a SW registered against the vanilla scope; if we just swap
+the assets, the SW will continue serving stale vanilla content
+from cache until it expires.
+
+**Strategy** (sketch — needs a session of investigation):
+
+1. Bake a "kill switch" SW into the vanilla repo *first*: a
+   minimal SW that on activate calls `self.registration.unregister()`
+   then forces a hard reload. Ship this as a vanilla update; let
+   it propagate over ~24-48 h.
+2. Only then deploy the Astro build to the vanilla repo's GH
+   Pages domain. The new SW (Workbox-generated) will install
+   fresh and serve the Astro assets. No stale vanilla cache.
+3. Validate with a manual test on a phone that has the vanilla
+   PWA installed: install vanilla → wait for kill-switch → push
+   Astro → confirm the next launch serves Astro.
+
+**Open questions**: which domain becomes the canonical one? Do
+we keep `kids-learning-games-astro.github.io` as the staging
+mirror, or fold it back? Routing under `/` vs `/games/`?
+Discuss before implementation.
+
+---
+
+### Reading order for the next agent (post-migration)
+
+1. **`PROGRESS.md`** — re-read "Resume here next session" + "Rough
+   order of payoff" → "Post-migration polish".
+2. **This file** → "Next session: post-migration polish" (this
+   section).
+3. **`src/lib/quiz.ts`** + the 2 consumer pages
+   (`daily-routines-game.astro`, `woodcutter-story.astro`) — the
+   shape `mountQuiz` expects.
+4. **One non-story page** as the wiring target — e.g. start with
+   `src/pages/games/animals-game.astro` (it has the most
+   user-facing content) or `dinosaurs-game.astro` (smallest, fewest
+   moving parts).
+5. **`src/data/animals.ts`** (or whichever page you target) for
+   where to add the `QUIZ` export.
 
 ---
 
@@ -767,46 +796,54 @@ top of this file is the 60-second version; this is the rationale.
   `flashcards.ts` / `alphabets.ts` / `weather.ts`; consumer pages
   updated to import from `@/data/fluent` directly. Build now ships a
   single 0.09 KB `fluent.rTHKURu4.js` shared chunk.
-- **Stats + Quiz modals**. The Stats modal is currently an `alert(…)`
-  stub across all 12 ported games. Routines is the *only* game with
-  a real quiz, but its quiz logic is inline in the page (not yet in
-  `src/lib/`). Once Woodcutter lands and triggers the
-  `src/lib/quiz.ts` extraction, the Stats modal becomes the natural
-  next task — it can aggregate `progress.ts` learning state across
-  all 7 grid games + Routines's scenes-visited progress, *and*
-  `quiz.ts` quiz scores across both story games.
-- **`src/lib/quiz.ts` extraction**. *Now the queued refactor* — both
-  Routines and Woodcutter end with a quiz of the same shape
-  (`{ q, opts, ans }` questions + `{ attempts, bestScore, lastPlayed }`
-  state + `<gameId>_quiz_v1` LocalStorage key + retry / restart UI).
-  The rule-#5 *"refactor trigger = second consumer"* trigger is
-  finally satisfied. Pull from `src/pages/games/daily-routines-game.astro`
-  (~100 lines of TS) into a new module + a `<QuizPanel>` Astro
-  component when porting Woodcutter. See "Next session: Woodcutter
-  port" for the full shape.
-- **`flashcards.ts` Bongo image is broken in production.** Line 360
-  uses `Long%20Drum/3D/long_drum_3d.png` (capital D) — that path
-  returns 403; Fluent UI uses lowercase `Long%20drum/...`. Surfaced
-  during the Hindi port's bulk Fluent-path verification (Hindi's
-  Dhol consonant uses the same emoji and ships the lowercase path
-  correctly). Fix is one character on one line. Easy follow-up for
-  the Woodcutter session — fold into the same commit.
-- **Playwright smoke tests**. One suite per layout. With Routines
-  now live, that's three suites (card-machine / grid / story).
-  Filter → navigate → completion overlay (grid + card-machine) /
-  scene-flow → quiz → score panel (story). Parameterise over themes.
-  Not started.
+- ~~**`src/lib/quiz.ts` extraction**.~~ **Done 2026-05-08** as part of
+  the Woodcutter port. The rule-#5 *"refactor trigger = second
+  consumer"* trigger is satisfied — `mountQuiz` controller +
+  `QuizQuestion` / `QuizState` types + `loadQuizState` /
+  `saveQuizState` / `clearQuizState` / `escapeQuizHtml` helpers all
+  live in `src/lib/quiz.ts` (~195 LoC). Both story games consume it;
+  2-way dedup'd via `quiz.h5Df3D_T.js` shared chunk (1.80 KB raw /
+  0.98 KB gzip). Daily Routines refactored in the same commit:
+  ~80 LoC of inline quiz code removed.
+- ~~**`flashcards.ts` Bongo image is broken in production**.~~ **Done
+  2026-05-08** as part of the Woodcutter port (cleanup commit fold-in).
+  `Long%20Drum/3D/long_drum_3d.png` (capital D, returned 403) →
+  `Long%20drum/3D/long_drum_3d.png` (lowercase d, returns 200).
+  Single-character fix on line 360 of `src/data/flashcards.ts`.
+  Surfaced during the Hindi port's bulk Fluent-path verification
+  and parked as tech-debt at that commit; cleaned up here.
+- **Stats + Quiz modals (per-page wiring)**. The Stats and Quiz
+  modals are still `alert(…)` stubs across all 11 non-story
+  ported games. The infra now exists (`src/lib/quiz.ts` shipped
+  with the Woodcutter port, 2-way dedup'd). **This is the
+  highest-payoff post-migration task** — see "Next session:
+  post-migration polish" → Track 1 above for the wiring shape.
+- **Playwright smoke tests**. One suite per layout — three suites
+  (card-machine / grid / story). With both story games now live,
+  the test matrix is: filter → navigate → completion overlay
+  (grid + card-machine) / scene-flow → quiz → score panel
+  (story). Parameterise over themes inside each suite. Not
+  started. See "Next session: post-migration polish" → Track 2.
 - **Option C — unified `Deck` layout with grid/card/story view
-  toggle.** *Partly unblocked* as of 2026-05-08 — 12/13 games
-  shipped, three layouts in production. Three pieces of evidence
-  now lean *separate*: different detail-payload shapes, different
+  toggle.** *Fully unblocked* as of 2026-05-08 — 13/13 games
+  shipped, three layouts in production, both shared libs
+  (`progress.ts` + `quiz.ts`) exist. Three pieces of evidence
+  lean *separate*: different detail-payload shapes, different
   filter bars, different storage shapes (`Set<string>` for grid
-  progress vs `{ attempts, bestScore, lastPlayed }` for story quiz
-  state). Best decided after Woodcutter lands and `src/lib/quiz.ts`
-  exists.
-- **Cut-over plan.** Only after all 13 games land. Migrate the
-  vanilla repo to serve the Astro build. SW handoff strategy needed
-  for existing PWA installs.
+  progress vs `{ attempts, bestScore, lastPlayed }` for story
+  quiz state vs no per-item state for Woodcutter). **Best decided
+  after Track 1 (Stats + Quiz modal wiring) surfaces how much DOM
+  / CSS / JS the three layouts truly share at the
+  user-interaction level.** See "Next session: post-migration
+  polish" → Track 3.
+- **Cut-over plan.** Migration of the live `kids-learning-games`
+  vanilla repo to serve the Astro `dist/` build. Hard part is the
+  PWA service-worker handoff for existing installs. Sketch in
+  "Next session: post-migration polish" → Track 4. Lower priority
+  than Track 1 — the Astro site at
+  `aakash-jain-1.github.io/kids-learning-games-astro/` is fully
+  functional standalone and can serve as the canonical URL until
+  the cut-over plan is firm.
 
 ---
 
@@ -1064,6 +1101,88 @@ agent's high-level response.)
     comparison table + shared-module list), and this file (TL;DR
     + current state + "What just shipped" + "Next session:
     Woodcutter port" + tech debt).
+30. *"Continue"* (next session — Woodcutter port; closes the
+    migration) → audited
+    `kids-learning-games/games/woodcutter-story.html` and
+    confirmed it's a *single* CSS-animated hero scene (not
+    paginated like Routines): woodcutter chops by a river → drops
+    axe at 1 s → fairy appears at 3 s → golden axe at 6 s → silver
+    axe at 9 s, all on choreographed CSS animation-delays + 4
+    paragraphs of continuous prose + golden moral panel + 6-question
+    quiz + Play-Animation/Reset buttons + auto-starting quiz on
+    load. Audited `src/layouts/StoryLayout.astro` and discovered
+    the layout shell *never enforced* the progress bar / Prev /
+    Next chrome — those elements live in the consuming page's slot
+    content, not in the layout. **This collapsed the pre-port
+    "pagination={false} prop vs StoryLayout--single variant"
+    debate** — zero changes to `StoryLayout.astro` were needed; the
+    Woodcutter page just omits those elements from its slot.
+    **Built `src/lib/quiz.ts`** (the long-deferred second-consumer
+    refactor): `QuizQuestion` / `QuizState` types + `loadQuizState`
+    / `saveQuizState` / `clearQuizState` / `escapeQuizHtml` helpers
+    + `mountQuiz(config)` controller with per-game `messages`
+    overrides, configurable `greatGteThreshold`, `onPerfect`
+    callback, and `playTap` SFX hook (~195 LoC). Refactored
+    `daily-routines-game.astro` to consume `mountQuiz` (~80 LoC of
+    inline quiz code removed; functional behaviour identical).
+    Built `src/data/woodcutter.ts` (typed `STORY` / `MORAL` /
+    `QUIZ` / `SCENE_ART_HTML` exports — the SCENE_ART is a
+    pre-rendered hero-scene markup string with sun + 2 clouds + 3
+    trees + woodcutter character + fairy + axes + 60 deterministic
+    background stars; vanilla generated 100 with `Math.random()`
+    per page load, the Astro version pre-renders 60 server-side
+    for SSR stability) and `src/styles/woodcutter.css` (per-scene
+    art primitives + prose panel + golden moral scroll, all under
+    `.woodcutter-art` with `woodcutter-*`-prefixed keyframes for
+    bidirectional collision-freeness with `routines.css`). Updated
+    `src/styles/story.css` woodcutter theme block (fleshed out the
+    placeholder with deep navy → purple twilight + gold accents +
+    blue-violet quiz palette + dark-mode override). Built
+    `src/pages/games/woodcutter-story.astro` (uses `StoryLayout`
+    with `theme="woodcutter"`; renders pre-rendered hero scene +
+    Play / Reset buttons + 4-paragraph prose + moral panel +
+    always-visible quiz; client `<script>` snapshots scene innerHTML
+    at hydration and replays it on Play / Reset by re-setting the
+    innerHTML — cleaner than vanilla's `style.animation = 'none'`
+    reset; mounts `mountQuiz` with woodcutter-specific messages and
+    confetti palette and auto-starts on load to match vanilla).
+    Wired `GameNav.astro` + `index.astro` (Woodcutter tile
+    `ready: true` with full description). **Cleanup fold-in**:
+    fixed the Bongo image-path bug in `src/data/flashcards.ts`
+    (`Long%20Drum/3D/long_drum_3d.png` → `Long%20drum/...` —
+    capital D returned 403; Fluent UI uses lowercase). Build
+    verified: `npm run check` 0/0/0 across **43 files**;
+    `npm run build` **14 pages** in 8.2 s. Notable: shared
+    `quiz.h5Df3D_T.js` chunk emitted at 1.80 KB raw / 0.98 KB
+    gzip — **2-way dedup** (routines + woodcutter); pre-paint
+    layout chunks unchanged (3-way dedup preserved); shared CSS
+    bundle `daily-routines-game.Cgea29N_.css` now serves 2 pages
+    (was 1) — 2-way CSS dedup. Bidirectional CSS isolation
+    verified: 0 `.woodcutter-art` selectors in routines page
+    bundle, 0 `.routines-art` selectors in woodcutter page bundle,
+    0 `cm-*` / `gl-*` selectors in either story bundle. Live
+    deploy verified within ~90 s of push: `/games/woodcutter-story`
+    HTTP 200, all 12 prior live URLs still 200, no regressions.
+    SSR markup confirmed: 60 stars + 4 prose paragraphs + golden
+    + silver axes + splash + fairy ensemble + moral text +
+    Comprehension Quiz heading all rendered server-side. Commit
+    `ca2fa2d`. **Migration complete: 13/13 games ported and
+    live.**
+31. *"Continue"* (this docs commit) → writing this docs follow-up,
+    rolling the Woodcutter port + 13/13 migration completion into
+    PROGRESS.md (changelog entry + "13 of 13 ported" snapshot
+    updates + per-game layout decisions table updated for
+    Woodcutter [shipped, no new prop or variant] + tech-debt
+    section [`src/lib/quiz.ts` extraction marked Done; Bongo image
+    bug marked Done] + "Resume here next session" pointer moved
+    to post-migration polish + "Rough order of payoff" reorganised
+    to close all three chapters), README.md (game count + new
+    `src/lib/quiz.ts` in shared-module list + file tree updated +
+    comparison table updated + "What's NOT in scope" updated for
+    post-migration items), and this file (TL;DR rewritten for
+    13/13 + current state snapshot + "What just shipped"
+    rewritten for Woodcutter + "Next session: post-migration
+    polish" with 4 candidate tracks + tech debt updated).
 
 ---
 
@@ -1083,50 +1202,58 @@ agent's high-level response.)
    - `kids-learning-games/dev/ACTION_ITEMS.md` (what's already fixed).
    - `kids-learning-games/README.md` (vanilla public README).
 3. **Then explore the codebase** — at minimum:
-   - The target game's vanilla source: `kids-learning-games/games/<game>-game.html`
-     (e.g. `woodcutter-story.html` for the next port).
-   - The closest Astro precedent for the next port:
-     `src/pages/games/daily-routines-game.astro` is the only
-     `StoryLayout` consumer so far, so it's the precedent for
-     Woodcutter. Copy-adapt the page skeleton + the inline quiz
-     logic (which you'll be extracting to `src/lib/quiz.ts` as the
-     second-consumer trigger).
-   - For non-story ports (n/a after Woodcutter — the migration
-     completes at 13/13 once Woodcutter lands): grid precedents are
-     `src/pages/games/animals-game.astro` / `birds-game.astro` /
-     `alphabets-game.astro` (image-driven), `colors-game.astro` /
-     `shapes-game.astro` (CSS-art). Card-machine precedents are
-     `weather-game.astro` (image deck) and `solar-system-game.astro`
-     (CSS art).
+   - **Migration is complete** as of 2026-05-08 — all 13 vanilla
+     games ported. There's no "next port" to research a vanilla
+     source for. The post-migration backlog is in
+     `PROGRESS.md` → "Resume here next session" + Track 1-4 in
+     "Next session: post-migration polish" (this file).
+   - For **Track 1 (wire `mountQuiz` across non-story games)**:
+     `src/lib/quiz.ts` is the API; the worked example consumers
+     are `src/pages/games/daily-routines-game.astro` and
+     `src/pages/games/woodcutter-story.astro`. The wiring shape
+     is the same as Woodcutter's `quiz.start()` call, but with a
+     modal overlay instead of an always-visible block. Pick a
+     small game first to learn the pattern (e.g.
+     `dinosaurs-game.astro` — 15 cards, simple data shape).
+   - For **Track 2 (Playwright)**: install `@playwright/test`,
+     write three suites (one per layout), parameterise over
+     themes inside each suite. The card-machine and grid suites
+     can be cribbed from each other (filter → tap → detail-pane
+     → quiz modal). The story suite is structurally different
+     (linear flow → quiz at end).
+   - For **Track 3 (Option C)**: re-read this file's "Layout
+     debate history" + the three "evidence leans separate"
+     bullets in "Next session: post-migration polish" → Track 3.
+     Best decided after Track 1 lands.
    - The three shared layouts: `src/layouts/CardMachineLayout.astro`
      / `src/layouts/GridLayout.astro` / `src/layouts/StoryLayout.astro`.
    - The shared CSS: `src/styles/card-machine.css` /
      `src/styles/grid.css` / `src/styles/story.css` (plus
-     game-specific scoped CSS like `routines.css`).
-   - The shared libs in `src/lib/` (`progress.ts`, `audio.ts`,
-     `speech.ts`, `settings.ts`, `achievements.ts`). After Woodcutter
-     lands, `src/lib/quiz.ts` will join the list.
-4. The next likely task is the **Woodcutter port** — the **last
-   vanilla game**. Per the 2026-05-08 audit, Woodcutter is *not*
-   paginated like Routines (the historical "paginated story"
-   assumption was wrong) — it's a single CSS-animated hero scene +
-   4 paragraphs of continuous prose + moral panel + 6-question
-   quiz. Plan: reuse `StoryLayout.astro` with a new
-   `pagination={false}` prop, *or* carve out a small
-   `StoryLayout--single` variant; decide at port time. **Quiz
-   extraction to `src/lib/quiz.ts` is the second-consumer
-   refactor trigger — non-negotiable**. Full scope under
-   "Next session: Woodcutter port" above.
+     game-specific scoped CSS like `routines.css` /
+     `woodcutter.css`).
+   - The shared libs in `src/lib/` (`progress.ts`, `quiz.ts`,
+     `audio.ts`, `speech.ts`, `settings.ts`, `achievements.ts`,
+     `fluent.ts`).
+4. The next likely task is **Track 1 — wire `mountQuiz` across
+   the 11 non-story games**. The infra is shipped, there's a
+   worked example to copy, and each per-game wiring is ~30 lines
+   of glue + 5 question objects. After 4-5 games are wired, the
+   Stats modal becomes the natural next task. Full scope under
+   "Next session: post-migration polish" → Track 1 above.
 5. **Do not** re-read the full chat transcript unless investigating a
    specific historical decision — the docs already capture the
    architectural conclusions.
 
 ---
 
-*Last updated 2026-05-08 with Daily Routines port + docs follow-up.
-12/13 games ported, all live, foundational-set chapter closed,
-story-flow chapter open with 1 of 2 games shipped. Next: Woodcutter
-port (the last vanilla game) + `src/lib/quiz.ts` extraction (the
-second-consumer refactor trigger). After that — 13/13 done, time
-for the Stats modal, Playwright suites, Option C decision, and
-cut-over of the vanilla repo.*
+*Last updated 2026-05-08 with Honest Woodcutter port + 13/13 migration
+completion + `src/lib/quiz.ts` extraction + Bongo image-path fix.
+**Migration complete: all 13 vanilla games ported and live.**
+Foundational-set chapter closed (7 grid games). Reference-catalogue
+chapter closed (4 card-machine games). Story-flow chapter closed (2
+story games). Three shared layouts in production. Two shared
+controllers in `src/lib/` (`progress.ts` 8-way + `quiz.ts` 2-way).
+Next: post-migration polish — Track 1 (wire `mountQuiz` across the
+11 non-story games — highest payoff), then Stats modal, then
+Playwright suites, then Option C decision, then cut-over plan for
+the live vanilla repo.*
