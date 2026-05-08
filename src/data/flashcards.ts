@@ -11,7 +11,15 @@
  * Consumers compose the full image URL as
  * `${FLUENT_IMG_BASE}${card.img}`. The base lives in `@/data/fluent` —
  * import it from there directly.
+ *
+ * Quiz (post-migration polish, 2026-05-08, Track 1 batch 2): 5
+ * multiple-choice questions exercising cross-deck recognition (the whole
+ * point of a 14-deck flashcards game). Fourth non-story consumer of
+ * `src/lib/quiz.ts` — completes the card-machine sweep. Storage key:
+ * `flashcards_quiz_v1`.
  */
+
+import type { QuizQuestion } from '@/lib/quiz';
 
 const E = (code: number): string => String.fromCodePoint(code);
 
@@ -391,3 +399,35 @@ export const DECKS: readonly Deck[] = [
 export function getDeck(key: string): Deck {
   return DECKS.find((d) => d.key === key) ?? DECKS[0]!;
 }
+
+// Cross-deck recognition quiz. Each question mixes options from
+// different decks (animal vs food vs vehicle vs shape, etc.) so the
+// child practises the *category boundary* the flashcard game is
+// teaching, rather than memorising a single deck.
+export const QUIZ: readonly QuizQuestion[] = [
+  {
+    q: 'Which of these is a FRUIT?',
+    opts: ['Lion', 'Apple', 'Triangle', 'Trumpet'],
+    ans: 1,
+  },
+  {
+    q: 'Which of these is a VEHICLE?',
+    opts: ['Banana', 'Crocodile', 'Bicycle', 'Square'],
+    ans: 2,
+  },
+  {
+    q: 'Which of these is an INSECT?',
+    opts: ['Eagle', 'Butterfly', 'Dolphin', 'Apple'],
+    ans: 1,
+  },
+  {
+    q: 'Which of these is a SHAPE?',
+    opts: ['Penguin', 'Pizza', 'Star', 'Drum'],
+    ans: 2,
+  },
+  {
+    q: 'Which of these is a MUSICAL INSTRUMENT?',
+    opts: ['Tiger', 'Train', 'Strawberry', 'Guitar'],
+    ans: 3,
+  },
+];

@@ -103,15 +103,33 @@ const description =
       </div>
     </div>
   </div>
+
+  <div class="cm-quiz-overlay" id="quizOverlay" role="dialog" aria-modal="true" aria-labelledby="quizHeading">
+    <div class="cm-quiz-card">
+      <button class="cm-quiz-close" id="quizCloseBtn" type="button" aria-label="Close quiz">&times;</button>
+      <h2 class="quiz-heading" id="quizHeading">🧠 Quick Solar System Quiz</h2>
+      <div id="quizBody"></div>
+      <div class="quiz-result" id="quizResult" hidden>
+        <div class="quiz-result-emoji" id="quizResEmoji" aria-hidden="true"></div>
+        <div class="quiz-result-text" id="quizResText"></div>
+        <div class="quiz-result-actions">
+          <button class="cm-quiz-retry-btn" id="quizRetryBtn" type="button">🔄 Try Again</button>
+          <button class="cm-quiz-retry-btn" id="quizDoneBtn" type="button">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </CardMachineLayout>
 
 <script>
-  import { ALL_CARDS, type PlanetCard, type PlanetType } from '@/data/solar-system';
+  import { ALL_CARDS, QUIZ, type PlanetCard, type PlanetType } from '@/data/solar-system';
   import { playTap } from '@/lib/audio';
   import { speak } from '@/lib/speech';
   import { launchConfetti } from '@/lib/achievements';
   import { getSettings } from '@/lib/settings';
+  import { mountQuiz } from '@/lib/quiz';
 
+  const GAME_ID = 'solar-system';
   // Confetti palette used on completion — picked to pop against the deep
   // purple/navy done overlay backdrop.
   const SPACE_COLORS = ['#f7c948', '#ffe030', '#ff6b6b', '#43cea2', '#667eea', '#f093fb', '#84fab0', '#fff'];
@@ -292,14 +310,79 @@ const description =
   $('btnSettings').addEventListener('click', () => {
     (window as unknown as { openSettings?: () => void }).openSettings?.();
   });
-  $('btnStats').addEventListener('click', () => {
-    alert('Stats modal — not yet implemented in this POC.');
-  });
+
+  // --- Quiz modal (shared mountQuiz controller from src/lib/quiz.ts) ---
+  const quizOverlay = document.getElementById('quizOverlay');
+  const quizBody = document.getElementById('quizBody');
+  const quizResult = document.getElementById('quizResult');
+  const quizResEmoji = document.getElementById('quizResEmoji');
+  const quizResText = document.getElementById('quizResText');
+
+  const quiz =
+    quizOverlay && quizBody && quizResult && quizResEmoji && quizResText
+      ? mountQuiz({
+          gameId: GAME_ID,
+          questions: QUIZ,
+          bodyEl: quizBody,
+          resultEl: quizResult,
+          resultEmojiEl: quizResEmoji,
+          resultTextEl: quizResText,
+          messages: {
+            perfect: 'Stellar! Perfect score!',
+            great: 'Great job, space explorer!',
+            keepReading: 'Tour the planets again and try once more!',
+          },
+          onPerfect: () => launchConfetti(SPACE_COLORS),
+          playTap,
+        })
+      : null;
+
+  const closeQuizModal = (): void => {
+    quizOverlay?.classList.remove('show');
+  };
+
   $('btnQuiz').addEventListener('click', () => {
-    alert('Quiz modal — not yet implemented in this POC.');
+    if (!quiz || !quizOverlay) return;
+    playTap();
+    quizOverlay.classList.add('show');
+    quiz.start();
+  });
+
+  document.getElementById('quizCloseBtn')?.addEventListener('click', () => {
+    playTap();
+    closeQuizModal();
+  });
+  document.getElementById('quizDoneBtn')?.addEventListener('click', () => {
+    playTap();
+    closeQuizModal();
+  });
+  document.getElementById('quizRetryBtn')?.addEventListener('click', () => {
+    playTap();
+    quiz?.start();
+  });
+  quizOverlay?.addEventListener('click', (e) => {
+    if (e.target === quizOverlay) closeQuizModal();
+  });
+
+  $('btnStats').addEventListener('click', () => {
+    playTap();
+    const state = quiz?.getState() ?? { attempts: 0, bestScore: 0, lastPlayed: '' };
+    const lines = [
+      `🪐 Space objects in the deck: ${ALL_CARDS.length}`,
+      `🧠 Quiz attempts: ${state.attempts}`,
+      `🏆 Best score: ${state.bestScore}%`,
+      state.lastPlayed ? `📅 Last played: ${state.lastPlayed}` : '📅 Last played: never',
+    ];
+    alert(lines.join('\n'));
   });
 
   document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && quizOverlay?.classList.contains('show')) {
+      e.preventDefault();
+      closeQuizModal();
+      return;
+    }
+    if (quizOverlay?.classList.contains('show')) return;
     if (e.key === 'ArrowRight') navigate(1);
     else if (e.key === 'ArrowLeft') navigate(-1);
     else if (e.key === ' ' || e.key === 'Enter') {

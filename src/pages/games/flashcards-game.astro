@@ -106,11 +106,28 @@ const initialCard = initialDeck.cards[0]!;
       </div>
     </div>
   </div>
+
+  <div class="cm-quiz-overlay" id="quizOverlay" role="dialog" aria-modal="true" aria-labelledby="quizHeading">
+    <div class="cm-quiz-card">
+      <button class="cm-quiz-close" id="quizCloseBtn" type="button" aria-label="Close quiz">&times;</button>
+      <h2 class="quiz-heading" id="quizHeading">🧠 Quick Flashcards Quiz</h2>
+      <div id="quizBody"></div>
+      <div class="quiz-result" id="quizResult" hidden>
+        <div class="quiz-result-emoji" id="quizResEmoji" aria-hidden="true"></div>
+        <div class="quiz-result-text" id="quizResText"></div>
+        <div class="quiz-result-actions">
+          <button class="cm-quiz-retry-btn" id="quizRetryBtn" type="button">🔄 Try Again</button>
+          <button class="cm-quiz-retry-btn" id="quizDoneBtn" type="button">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </CardMachineLayout>
 
 <script>
   import {
     DECKS,
+    QUIZ,
     getDeck,
     type FlashCard,
     type Deck,
@@ -120,7 +137,9 @@ const initialCard = initialDeck.cards[0]!;
   import { speak } from '@/lib/speech';
   import { launchConfetti } from '@/lib/achievements';
   import { getSettings } from '@/lib/settings';
+  import { mountQuiz } from '@/lib/quiz';
 
+  const GAME_ID = 'flashcards';
   const FLASH_COLORS = ['#f7971e', '#ffd200', '#ff6b6b', '#43cea2', '#667eea', '#f093fb', '#84fab0', '#fff'];
 
   let deck: Deck = DECKS[0]!;
@@ -321,14 +340,81 @@ const initialCard = initialDeck.cards[0]!;
   $('btnSettings').addEventListener('click', () => {
     (window as unknown as { openSettings?: () => void }).openSettings?.();
   });
-  $('btnStats').addEventListener('click', () => {
-    alert('Stats modal — not yet implemented in this POC.');
-  });
+
+  // --- Quiz modal (shared mountQuiz controller from src/lib/quiz.ts) ---
+  const quizOverlay = document.getElementById('quizOverlay');
+  const quizBody = document.getElementById('quizBody');
+  const quizResult = document.getElementById('quizResult');
+  const quizResEmoji = document.getElementById('quizResEmoji');
+  const quizResText = document.getElementById('quizResText');
+
+  const quiz =
+    quizOverlay && quizBody && quizResult && quizResEmoji && quizResText
+      ? mountQuiz({
+          gameId: GAME_ID,
+          questions: QUIZ,
+          bodyEl: quizBody,
+          resultEl: quizResult,
+          resultEmojiEl: quizResEmoji,
+          resultTextEl: quizResText,
+          messages: {
+            perfect: 'Perfect score! You are a flashcard star!',
+            great: 'Great recall, well done!',
+            keepReading: 'Browse a few more decks and try again!',
+          },
+          onPerfect: () => launchConfetti(FLASH_COLORS),
+          playTap,
+        })
+      : null;
+
+  const closeQuizModal = (): void => {
+    quizOverlay?.classList.remove('show');
+  };
+
   $('btnQuiz').addEventListener('click', () => {
-    alert('Quiz modal — not yet implemented in this POC.');
+    if (!quiz || !quizOverlay) return;
+    playTap();
+    quizOverlay.classList.add('show');
+    quiz.start();
+  });
+
+  document.getElementById('quizCloseBtn')?.addEventListener('click', () => {
+    playTap();
+    closeQuizModal();
+  });
+  document.getElementById('quizDoneBtn')?.addEventListener('click', () => {
+    playTap();
+    closeQuizModal();
+  });
+  document.getElementById('quizRetryBtn')?.addEventListener('click', () => {
+    playTap();
+    quiz?.start();
+  });
+  quizOverlay?.addEventListener('click', (e) => {
+    if (e.target === quizOverlay) closeQuizModal();
+  });
+
+  $('btnStats').addEventListener('click', () => {
+    playTap();
+    const state = quiz?.getState() ?? { attempts: 0, bestScore: 0, lastPlayed: '' };
+    const totalCards = DECKS.reduce((sum, d) => sum + d.cards.length, 0);
+    const lines = [
+      `🃏 Decks: ${DECKS.length}`,
+      `🃏 Total cards: ${totalCards}`,
+      `🧠 Quiz attempts: ${state.attempts}`,
+      `🏆 Best score: ${state.bestScore}%`,
+      state.lastPlayed ? `📅 Last played: ${state.lastPlayed}` : '📅 Last played: never',
+    ];
+    alert(lines.join('\n'));
   });
 
   document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && quizOverlay?.classList.contains('show')) {
+      e.preventDefault();
+      closeQuizModal();
+      return;
+    }
+    if (quizOverlay?.classList.contains('show')) return;
     if (e.key === 'ArrowRight') navigate(1);
     else if (e.key === 'ArrowLeft') navigate(-1);
     else if (e.key === ' ' || e.key === 'Enter') {

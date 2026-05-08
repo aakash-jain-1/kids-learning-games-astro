@@ -15,6 +15,13 @@
 //
 // The final card count and order mirror the vanilla game exactly: Sun,
 // 8 planets, Moon, Pluto = 11 cards.
+//
+// Quiz (post-migration polish, 2026-05-08, Track 1 batch 2): 5
+// multiple-choice questions about the deck content. Second non-story
+// consumer of `src/lib/quiz.ts` after Dinosaurs. Storage key:
+// `solar-system_quiz_v1`.
+
+import type { QuizQuestion } from '@/lib/quiz';
 
 export type PlanetType =
   | 'star'
@@ -88,4 +95,32 @@ export const FILTERS: readonly PlanetFilter[] = [
   { key: 'ice-giant', label: '❄️ Ice Giant' },
   { key: 'satellite', label: '🌕 Moon' },
   { key: 'dwarf', label: '🧣 Dwarf' },
+];
+
+export const QUIZ: readonly QuizQuestion[] = [
+  {
+    q: 'Which is the BIGGEST planet in our Solar System?',
+    opts: ['Earth', 'Mars', 'Jupiter', 'Saturn'],
+    ans: 2,
+  },
+  {
+    q: 'Which planet has beautiful rings made of ice and rock?',
+    opts: ['Mercury', 'Venus', 'Neptune', 'Saturn'],
+    ans: 3,
+  },
+  {
+    q: 'Which is the HOTTEST planet, hot enough to melt lead?',
+    opts: ['Mercury', 'Venus', 'Mars', 'Jupiter'],
+    ans: 1,
+  },
+  {
+    q: 'Which planet is known as the Red Planet?',
+    opts: ['Mars', 'Jupiter', 'Pluto', 'Mercury'],
+    ans: 0,
+  },
+  {
+    q: 'What is the Sun made of?',
+    opts: ['Solid rock', 'Liquid water', 'Super-hot gas', 'Cold ice'],
+    ans: 2,
+  },
 ];

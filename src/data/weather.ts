@@ -17,6 +17,13 @@
 //
 // Consumers compose the full image URL as `${FLUENT_IMG_BASE}${card.img}`.
 // `FLUENT_IMG_BASE` lives in `@/data/fluent` — import it from there directly.
+//
+// Quiz (post-migration polish, 2026-05-08, Track 1 batch 2): 5
+// multiple-choice questions about the deck content. Third non-story
+// consumer of `src/lib/quiz.ts` after Dinosaurs and Solar System.
+// Storage key: `weather_quiz_v1`.
+
+import type { QuizQuestion } from '@/lib/quiz';
 
 export type Season = 'spring' | 'summer' | 'autumn' | 'winter' | 'any';
 
@@ -129,3 +136,41 @@ export function seasonLabel(season: Season): string {
   const word = season.charAt(0).toUpperCase() + season.slice(1);
   return `${emoji} ${word}`;
 }
+
+export const QUIZ: readonly QuizQuestion[] = [
+  {
+    q: 'How many colours does a rainbow always have?',
+    opts: ['Five', 'Six', 'Seven', 'Ten'],
+    ans: 2,
+  },
+  {
+    q: 'In which season does it usually SNOW?',
+    opts: ['Spring', 'Summer', 'Autumn', 'Winter'],
+    ans: 3,
+  },
+  {
+    q: 'What should you do during a thunderstorm?',
+    opts: [
+      'Play outside in the rain',
+      'Stand under a tall tree',
+      'Stay safely indoors',
+      'Fly a kite',
+    ],
+    ans: 2,
+  },
+  {
+    q: 'In which season do leaves turn red, orange and yellow?',
+    opts: ['Spring', 'Summer', 'Autumn', 'Winter'],
+    ans: 2,
+  },
+  {
+    q: 'Are any two snowflakes ever exactly alike?',
+    opts: [
+      'Yes, all snowflakes are identical',
+      'No, every snowflake is unique',
+      'Only in winter',
+      'Only the big ones match',
+    ],
+    ans: 1,
+  },
+];
