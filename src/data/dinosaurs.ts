@@ -1,5 +1,14 @@
 // Dinosaur card deck. Ported from games/dinosaurs-game.html lines 256-272.
 // Typed so TypeScript catches typos in diet and missing fields.
+//
+// Quiz (post-migration polish, 2026-05-08): 5 multiple-choice
+// questions about the deck content. First non-story consumer of the
+// shared `src/lib/quiz.ts` controller — all answers are facts that
+// appear verbatim in the card `f` text, so a child who has flipped
+// through the deck (or had a parent read it) should be able to score
+// 100 % from memory. Per-game LocalStorage key: `dinosaurs_quiz_v1`.
+
+import type { QuizQuestion } from '@/lib/quiz';
 
 export type Diet = 'carnivore' | 'herbivore' | 'omnivore';
 
@@ -38,4 +47,32 @@ export const FILTERS: readonly DietFilter[] = [
   { key: 'carnivore', label: '🥩 Carnivore' },
   { key: 'herbivore', label: '🌿 Herbivore' },
   { key: 'omnivore', label: '🍽️ Omnivore' },
+];
+
+export const QUIZ: readonly QuizQuestion[] = [
+  {
+    q: 'Which dinosaur had three horns on its face and a huge bony neck frill?',
+    opts: ['T-Rex', 'Triceratops', 'Stegosaurus', 'Velociraptor'],
+    ans: 1,
+  },
+  {
+    q: 'Which was one of the LONGEST dinosaurs ever, with a whip-like tail that could make a sonic BOOM?',
+    opts: ['Brachiosaurus', 'Spinosaurus', 'Diplodocus', 'Iguanodon'],
+    ans: 2,
+  },
+  {
+    q: 'Pterodactyl was actually NOT a dinosaur — what was it?',
+    opts: ['A swimming reptile', 'A flying reptile', 'A giant bird', 'A baby T-Rex'],
+    ans: 1,
+  },
+  {
+    q: 'Which dinosaur was only the size of a turkey and was actually covered in FEATHERS?',
+    opts: ['Compsognathus', 'Allosaurus', 'Velociraptor', 'Pachycephalosaurus'],
+    ans: 2,
+  },
+  {
+    q: 'Which big furry animal lived during the freezing ICE AGE and was painted by early cave people?',
+    opts: ['Mammoth', 'Ankylosaurus', 'Spinosaurus', 'Parasaurolophus'],
+    ans: 0,
+  },
 ];

@@ -87,15 +87,33 @@ const description =
       </div>
     </div>
   </div>
+
+  <div class="cm-quiz-overlay" id="quizOverlay" role="dialog" aria-modal="true" aria-labelledby="quizHeading">
+    <div class="cm-quiz-card">
+      <button class="cm-quiz-close" id="quizCloseBtn" type="button" aria-label="Close quiz">&times;</button>
+      <h2 class="quiz-heading" id="quizHeading">🧠 Quick Dinosaur Quiz</h2>
+      <div id="quizBody"></div>
+      <div class="quiz-result" id="quizResult" hidden>
+        <div class="quiz-result-emoji" id="quizResEmoji" aria-hidden="true"></div>
+        <div class="quiz-result-text" id="quizResText"></div>
+        <div class="quiz-result-actions">
+          <button class="cm-quiz-retry-btn" id="quizRetryBtn" type="button">🔄 Try Again</button>
+          <button class="cm-quiz-retry-btn" id="quizDoneBtn" type="button">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </CardMachineLayout>
 
 <script>
-  import { ALL_CARDS, type DinosaurCard, type Diet } from '@/data/dinosaurs';
+  import { ALL_CARDS, QUIZ, type DinosaurCard, type Diet } from '@/data/dinosaurs';
   import { playTap } from '@/lib/audio';
   import { speak } from '@/lib/speech';
   import { launchConfetti } from '@/lib/achievements';
   import { getSettings } from '@/lib/settings';
+  import { mountQuiz } from '@/lib/quiz';
 
+  const GAME_ID = 'dinosaurs';
   const DINO_COLORS = ['#7ccd42', '#4a9010', '#a8e063', '#ffa726', '#ef5350'];
 
   let cards: readonly DinosaurCard[] = ALL_CARDS;
@@ -240,14 +258,79 @@ const description =
   $('btnSettings').addEventListener('click', () => {
     (window as unknown as { openSettings?: () => void }).openSettings?.();
   });
-  $('btnStats').addEventListener('click', () => {
-    alert('Stats modal — not yet implemented in this POC.');
-  });
+
+  // --- Quiz modal (shared mountQuiz controller from src/lib/quiz.ts) ---
+  const quizOverlay = document.getElementById('quizOverlay');
+  const quizBody = document.getElementById('quizBody');
+  const quizResult = document.getElementById('quizResult');
+  const quizResEmoji = document.getElementById('quizResEmoji');
+  const quizResText = document.getElementById('quizResText');
+
+  const quiz =
+    quizOverlay && quizBody && quizResult && quizResEmoji && quizResText
+      ? mountQuiz({
+          gameId: GAME_ID,
+          questions: QUIZ,
+          bodyEl: quizBody,
+          resultEl: quizResult,
+          resultEmojiEl: quizResEmoji,
+          resultTextEl: quizResText,
+          messages: {
+            perfect: 'Roarsome! Perfect score!',
+            great: 'Great job, dino expert!',
+            keepReading: 'Browse the deck once more and try again!',
+          },
+          onPerfect: () => launchConfetti(DINO_COLORS),
+          playTap,
+        })
+      : null;
+
+  const closeQuizModal = (): void => {
+    quizOverlay?.classList.remove('show');
+  };
+
   $('btnQuiz').addEventListener('click', () => {
-    alert('Quiz modal — not yet implemented in this POC.');
+    if (!quiz || !quizOverlay) return;
+    playTap();
+    quizOverlay.classList.add('show');
+    quiz.start();
+  });
+
+  document.getElementById('quizCloseBtn')?.addEventListener('click', () => {
+    playTap();
+    closeQuizModal();
+  });
+  document.getElementById('quizDoneBtn')?.addEventListener('click', () => {
+    playTap();
+    closeQuizModal();
+  });
+  document.getElementById('quizRetryBtn')?.addEventListener('click', () => {
+    playTap();
+    quiz?.start();
+  });
+  quizOverlay?.addEventListener('click', (e) => {
+    if (e.target === quizOverlay) closeQuizModal();
+  });
+
+  $('btnStats').addEventListener('click', () => {
+    playTap();
+    const state = quiz?.getState() ?? { attempts: 0, bestScore: 0, lastPlayed: '' };
+    const lines = [
+      `🦖 Dinosaurs in the deck: ${ALL_CARDS.length}`,
+      `🧠 Quiz attempts: ${state.attempts}`,
+      `🏆 Best score: ${state.bestScore}%`,
+      state.lastPlayed ? `📅 Last played: ${state.lastPlayed}` : '📅 Last played: never',
+    ];
+    alert(lines.join('\n'));
   });
 
   document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && quizOverlay?.classList.contains('show')) {
+      e.preventDefault();
+      closeQuizModal();
+      return;
+    }
+    if (quizOverlay?.classList.contains('show')) return;
     if (e.key === 'ArrowRight') navigate(1);
     else if (e.key === 'ArrowLeft') navigate(-1);
     else if (e.key === ' ' || e.key === 'Enter') {
