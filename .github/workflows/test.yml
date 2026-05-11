@@ -1,0 +1,74 @@
+name: Playwright tests
+
+# Smoke tests for the three game layouts (card-machine / grid / story).
+# Runs against the production build via `astro preview` (Playwright's
+# webServer config takes care of starting + tearing it down).
+#
+# Track 2 of post-migration polish — see `PROGRESS.md` → "Rough order
+# of payoff" → item 4 (Add tests). Currently a soft gate: failures
+# don't block deploys (the deploy workflow runs in parallel on push)
+# but the red ❌ on the PR/commit makes regressions noisy.
+#
+# Bumping this to a hard gate is one line: add `needs: test` to the
+# `build` job in `deploy.yml`.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Don't queue duplicate runs; the latest commit's tests are the only
+# ones that matter.
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Playwright (chromium)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install deps
+        run: npm ci
+        env:
+          ASTRO_TELEMETRY_DISABLED: '1'
+          DO_NOT_TRACK: '1'
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Build site
+        run: npm run build
+        env:
+          ASTRO_TELEMETRY_DISABLED: '1'
+          DO_NOT_TRACK: '1'
+
+      - name: Run Playwright tests
+        run: npm test
+        env:
+          CI: 'true'
+          ASTRO_TELEMETRY_DISABLED: '1'
+          DO_NOT_TRACK: '1'
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14
