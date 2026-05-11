@@ -172,20 +172,21 @@ or (b) document a one-off exception.
   - `CardMachineLayout.astro` shell — used by 4 ported games. Proven against three card-face strategies (pure-CSS art, image-with-fallback, big-digit/letter text).
   - `GridLayout.astro` shell — used by 7 ported games (Alphabets, Numbers, Colors, Shapes, Animals, Birds, Hindi). Single-column vertical flow (header → filters → tile grid → inline detail). Five deck variants in `grid.css`: `--capped` (auto-fill 64–96px, alphabets *and Hindi at 48 tiles* — the upper edge of what `--capped` handles cleanly, validated by Hindi shipping with Devanagari at the same tile size as Latin caps via a +12 % page-local font-size override), `--numbers` (fixed `repeat(5, …)` for the small 10-tile deck), `--colors` (auto-fill 96px+ for swatch tiles), `--shapes` (auto-fill 96px+ for shape-tile + name label), `--animals` / `--birds` (auto-fill 96px+ for emoji-tile + name label — single grouped CSS rule shared between Animals and Birds, both consume the `.gl-tile--emoji` namespace). Four reusable detail-payload patterns: **Fluent UI image** (used by alphabets + animals + birds + **hindi** — four image-driven grid games, all sharing the same `installImageFallback(img, emoji)` SVG-fallback helper), CSS count-objects (numbers), CSS shape-gallery (colors), **CSS shape-figure-hero** (shapes — the same `.gl-shape-figure--<shape>` primitive used at ~36px on every tile is rerendered at ~180px in the detail card). Completion overlay + restart button included.
   - `StoryLayout.astro` shell — used by 2 ported games (Daily Routines + Honest Woodcutter), carved out 2026-05-08 after the first-attempt try on `CardMachineLayout` collapsed (`overflow:hidden` viewport lock + flex two-pane layout + hardcoded `.deck`/`.top-card`/`.ghost` DOM + the OLED-look `.machine-screen` right pane all crash into a scrollable narrative that wants to animate per scene and end in a quiz). Single-column scrollable narrative shell: **header → optional progress bar → scene panel with per-game CSS art → optional Prev / 🔊 Listen / Next controls → inline quiz block** (Routines hides the quiz by default and reveals it on the last scene; Woodcutter renders it always-visible at the bottom of the page, matching vanilla). The progress bar + Prev/Next controls are *page-supplied*, not layout-baked — Routines includes them, Woodcutter omits them; the layout shell stays neutral. Theme prop accepts `'routines' | 'woodcutter'`. FOUC pre-dark rule lives inside the layout component itself (one `html.pre-dark body.story` block per theme), matching the GridLayout pattern.
-  - `card-machine.css` with ~25 `--cm-*` theming tokens per theme.
-  - `grid.css` with ~25 `--gl-*` theming tokens per theme, 5 `--gl-count-bg-*` tokens for the count-objects palette (used by numbers), `--gl-shape-color` / `--gl-shape-border` for the colour shape gallery (used by colors), and `--gl-shape-fill` for the shape-figure namespace (used by shapes — driven by `[data-group=…]` rule on `.gl-tile--shape` so each pedagogical group gets a distinct fill colour). Each detail-payload type is opt-in: a game uses `.gl-detail-image` *or* `.gl-count-grid` *or* `.gl-shape-grid` *or* `.gl-shape-figure`, never two at once.
+  - `card-machine.css` with ~25 `--cm-*` theming tokens per theme + a `--quiz-*` token block per card-machine theme (Dinosaurs, Flashcards, Solar System, Weather; canonical token namespace renamed from the original `--cm-quiz-*` at the rule-#3 extraction on 2026-05-11) for the quiz modal's per-theme palette. The inner modal selectors (`.cm-quiz-card .quiz-question` / `.cm-quiz-card .quiz-opt` / `.cm-quiz-card .quiz-result-*`) and the layout-agnostic outer shell (`.cm-quiz-overlay`, `.cm-quiz-card`, `.cm-quiz-close`, `.cm-quiz-retry-btn`) live in the shared `src/styles/quiz-modal.css` once the grid games joined as the third consumer.
+  - `grid.css` with ~25 `--gl-*` theming tokens per theme, 5 `--gl-count-bg-*` tokens for the count-objects palette (used by numbers), `--gl-shape-color` / `--gl-shape-border` for the colour shape gallery (used by colors), `--gl-shape-fill` for the shape-figure namespace (used by shapes — driven by `[data-group=…]` rule on `.gl-tile--shape` so each pedagogical group gets a distinct fill colour), and a `--quiz-*` token block per grid theme (Alphabets, Numbers, Colors, Shapes, Animals, Birds, Hindi; defaults at `body.grid` + per-theme overrides + a `body.dark-mode.grid` block mapping `--quiz-card-bg` / `--quiz-card-text` / `--quiz-opt-text` to the existing `--gl-detail-bg` / `--gl-detail-text` dark-mode tokens) added 2026-05-11 alongside the parallel `.gl-quiz-overlay` shell. Each detail-payload type is opt-in: a game uses `.gl-detail-image` *or* `.gl-count-grid` *or* `.gl-shape-grid` *or* `.gl-shape-figure`, never two at once.
+  - `quiz-modal.css` (added 2026-05-11 at the rule-#3 third-consumer extraction) with the inner modal DOM selectors (`.quiz-heading`, `.quiz-question`, `.quiz-opt` / `:hover` / `:active`, `.quiz-result-emoji`, `.quiz-result-text`, `.quiz-result-actions`, mobile media-query overrides, the `quiz-pop` keyframe used by both modal cards) scoped via comma-separated selectors under both `.cm-quiz-card` and `.gl-quiz-card` so each layout's outer shell stays independently theming-addressable. Also hosts the layout-agnostic outer shell selectors (`.cm-quiz-overlay, .gl-quiz-overlay`, `.cm-quiz-card, .gl-quiz-card`, `.cm-quiz-close, .gl-quiz-close`, `.cm-quiz-retry-btn, .gl-quiz-retry-btn`) and the dark-mode token redefinitions for theme-agnostic option/glass tokens (`--quiz-overlay-bg`, `--quiz-opt-bg`, `--quiz-opt-border`, `--quiz-opt-hover-bg`) that apply equally to both layouts. Imported by *both* `CardMachineLayout.astro` and `GridLayout.astro`. Astro inlines this CSS into every consuming HTML page (rather than emitting a single external chunk), so the rules ship with first-paint on every game page.
   - `story.css` with `--st-*` theming tokens per story theme (page background, scene-card surface, title color, body color, progress-bar fill, button states, quiz panel surface, quiz option states for default/selected/correct/incorrect). `--st-bg` is the *one* token a per-game page rewrites — Daily Routines morphs the body gradient between sunrise / midday / evening / night palettes by setting `--st-bg` from JS via `document.body.style.setProperty('--st-bg', …)` on every scene change; Woodcutter sets it once at load to the deep navy → purple twilight gradient and never changes it. Both story themes (`routines` and `woodcutter`) ship full per-theme blocks plus dark-mode overrides; the woodcutter block was fleshed out from a placeholder seed at the Woodcutter port.
   - `routines.css` with per-scene CSS art primitives (sun, bed, toothbrush, table, school-bag, book, swing+slide, bathtub, moon-window) — *all selectors scoped under `.routines-art`* (the marker class applied to the `<div class="scene-art routines-art …">` art container in the page) so vanilla-style short class names like `.bed` / `.tub` / `.swing` / `.child` / `.sun` stay collision-free with the sister `woodcutter.css`. Keyframes are also prefixed (`routines-sunRise`, `routines-toothBrush`, `routines-bookFloat`, etc.) so two animations with the same vanilla name in two different story games can never collide.
   - `woodcutter.css` with single-scene CSS art primitives (sun, clouds, 3 trees, river+wave, woodcutter character with body+head+arms+axe, fairy character with body+head+wings+wand, golden axe, silver axe, splash, twinkling star overlay) — *all selectors scoped under `.woodcutter-art`* and *all keyframes prefixed `woodcutter-*`* (twinkle / sun-glow / cloud-move / sway / wave / chop / drop / splash / fairy-appear / float / wing-flap / axe-rise) for bidirectional collision-freeness with `routines.css`. Also hosts the `.story-prose` (4-paragraph reading panel) and `.story-moral` (golden-scroll panel) primitives — these two are Woodcutter-specific layout pieces, not shared with Routines.
   - Shared chrome primitives in `global.css` (`.ctrl-pill`, `.cat-bar`, `.cat-btn` base, nav, modal, progress bar, toast) — all three layouts share these.
-  - `src/lib/`: singleton AudioContext, speech wrapper, unified settings, achievement toasts + confetti, **`progress.ts`** (consumed by **all 7 grid games + Daily Routines** — alphabets, numbers, colors, shapes, animals, birds, hindi, routines — via the shared `kids_progress_v1:<gameId>` LocalStorage key; Routines uses it for "scenes visited" state, not letter/digit/colour learning; Woodcutter does *not* use it because its single-scene story has no per-item state to track), **`quiz.ts`** (consumed by both story games — Routines + Woodcutter — via the shared `<gameId>_quiz_v1` LocalStorage key; exports types `QuizQuestion` + `QuizState`, helpers `loadQuizState` / `saveQuizState` / `clearQuizState` / `escapeQuizHtml`, and the `mountQuiz(config)` controller that handles question rendering, scoring, state persistence, and confetti on perfect score).
+  - `src/lib/`: singleton AudioContext, speech wrapper, unified settings, achievement toasts + confetti, **`progress.ts`** (consumed by **all 7 grid games + Daily Routines** — alphabets, numbers, colors, shapes, animals, birds, hindi, routines — via the shared `kids_progress_v1:<gameId>` LocalStorage key; Routines uses it for "scenes visited" state, not letter/digit/colour learning; Woodcutter does *not* use it because its single-scene story has no per-item state to track), **`quiz.ts`** (consumed by **all 13 games** — both story games (routines + woodcutter), all 4 card-machine games (dinosaurs + flashcards + solar-system + weather), and all 7 grid games (alphabets + numbers + colors + shapes + animals + birds + hindi) — via the shared `<gameId>_quiz_v1` LocalStorage key; exports types `QuizQuestion` + `QuizState`, helpers `loadQuizState` / `saveQuizState` / `clearQuizState` / `escapeQuizHtml`, and the `mountQuiz(config)` controller that handles question rendering, scoring, state persistence, and confetti on perfect score). Track 1 of post-migration polish closed 2026-05-11 once the 7 grid games joined.
   - `src/data/fluent.ts` — shared `FLUENT_IMG_BASE` constant. **Imported directly by every consumer** (flashcards, weather, alphabets, animals, birds, hindi); the legacy `export { FLUENT_IMG_BASE } from './fluent'` re-exports were dropped from `src/data/{flashcards,alphabets,weather}.ts` during the Animals port. Build ships a single 0.09 KB `fluent.rTHKURu4.js` shared chunk now consumed by **6 image-driven games** (alphabets + flashcards + weather + animals + birds + hindi — verified at the chunk level via grep on the production page-chunks). Both story games (Routines + Woodcutter) deliberately do *not* import it — both use pure CSS scene art, no Fluent UI assets.
   - Workbox SW (`src/sw.ts`) with StaleWhileRevalidate for the GitHub API and CacheFirst for Fluent emoji images.
 - **Per-game learning state:** `kids_progress_v1:<gameId>` LocalStorage key is the canonical pattern for *learned items*. Alphabets writes to `kids_progress_v1:alphabets`, Numbers writes to `kids_progress_v1:numbers`, Colors writes to `kids_progress_v1:colors`, Shapes writes to `kids_progress_v1:shapes`, Animals writes to `kids_progress_v1:animals`, Birds writes to `kids_progress_v1:birds`, Hindi writes to `kids_progress_v1:hindi`, **Routines writes to `kids_progress_v1:routines`** (scene IDs visited as the child clicks Next). Read/write/clear is `src/lib/progress.ts` — all eight games share the implementation. Woodcutter does not need it (single-scene). **Per-game quiz state**: `<gameId>_quiz_v1` LocalStorage key holds `{ attempts, bestScore, lastPlayed }` quiz metadata for both story games (Routines uses `routines_quiz_v1`, Woodcutter uses `woodcutter_quiz_v1`). Read/write/clear and the `mountQuiz` controller live in `src/lib/quiz.ts` — extracted from the original Routines page-inline implementation when Woodcutter (second consumer) shipped, per the rule-#5 second-consumer trigger. Both pages now call `mountQuiz({ gameId, questions, bodyEl, resultEl, ... })` and wire only the page-specific bits (showing/hiding the quiz box, the Routines-specific "Read Again" button).
 - **Dev ergonomics:**
   - `npm run dev:fresh` — kills any stale dev/preview servers scoped to this project, then starts a clean one on `:4321`.
   - `npm run stop` — standalone kill script.
-- **Deploy: LIVE** at https://aakash-jain-1.github.io/kids-learning-games-astro/ via GitHub Actions (`.github/workflows/deploy.yml`). Auto-deploys on every push to `main`.
+- **Deploy: LIVE** at https://aakash-jain-1.github.io/kids-learning-games-astro/ via GitHub Actions (`.github/workflows/deploy.yml`). Auto-deploys on every push to `main`. **Post-Track-1-batch-3 sweep verified 2026-05-11**: all 13 game pages + index return HTTP 200 after the grid wirings + rule-#3 extraction shipped. Sample SSR markup confirmation on `/games/alphabets-game` (representative of the 7 newly wired grid pages): `class="gl-quiz-overlay"` + `class="gl-quiz-card"` + `id="quizOverlay"` all present; the parallel partition holds across the 4 card-machine pages (`class="cm-quiz-overlay"` × 4) and 0 cross-layout markup leakage.
   - `/` (home) — 200
   - `/games/flashcards-game` — 200
   - `/games/dinosaurs-game` — 200
@@ -201,14 +202,14 @@ or (b) document a one-off exception.
   - `/games/daily-routines-game` — 200 ✅ (verified 2026-05-08, `<body class="story" data-theme="routines">` reaches production — first non-card-machine, non-grid `<body>` class in the build), inline `<script>` sets `--st-bg` to the first scene's gradient before hydration so the page never flashes the wrong palette on load. SSR markup contains: page title `Daily Routines` + bilingual subtitle, progress bar wrapper (`.story-progress` + `.progress-fill`) initialised at scene 1/10, `.scene-box` with first scene's CSS art (`<div class="scene-art routines-art sky-morning">` containing `.sun`, `.ground.grass`, `.bed`, `.mattress`, `.pillow`, `.blanket`, `.bed-frame`), first scene's metadata (`6:30 AM — Morning` / `🌅` / `Wake Up!` / hello-good-morning prose), Prev / 🔊 Listen / Next ➡️ control row, hidden inline `.quiz-box` with all 8 questions + 32 option buttons + score panel SSR-rendered (revealed only after the child finishes the last scene). **8-way `progress.ts` shared-chunk dedup verified at the chunk level:** alphabets, numbers, colors, shapes, animals, birds, hindi, **and routines** page-chunks all import the *exact same* `/_astro/progress.Czz_LiQd.js` + `/_astro/achievements.CySDez3r.js` + `/_astro/settings.zS6XEbod.js` — three shared modules served once and cached for every game that uses the unified state libraries (now spanning *all three layouts*). Routines correctly does *not* import `/_astro/fluent.rTHKURu4.js` (no Fluent UI assets — pure CSS art). **Bidirectional CSS isolation verified:** the routines page CSS bundles contain only `body.story` + `.story-*` + `.scene-*` + `.routines-art *` selectors, zero `cm-*` / `gl-*` / `.top-card` / `.machine-screen` / `.gl-tile` leakage. **All three Astro-layout pre-paint scripts share identical hashes** (`CardMachineLayout/GridLayout/StoryLayout.astro_astro_type_script_index_0_lang.CXGnnBDI.js` and `_index_1_lang.CMRSRHTE.js`) — pre-dark FOUC handling is byte-for-byte identical across the three shells. **At the Woodcutter port (also 2026-05-08), Routines was refactored** to consume `mountQuiz` from `src/lib/quiz.ts` instead of inline page-local quiz code — the page is ~80 LoC lighter and the same `.quiz-box` markup + behaviour ships verbatim; bundle re-hashes but functional behaviour is preserved.)
   - `/games/woodcutter-story` — 200 ✅ (verified 2026-05-08, `<body class="story" data-theme="woodcutter">` reaches production — second StoryLayout game and 13th overall). Inline `<script>` sets `--st-bg` to the deep-navy → purple twilight gradient (`#1e3c72 → #2a5298 → #7e22ce`) before hydration so the page never flashes the default routines coral on load. SSR markup contains: page title `The Honest Woodcutter`, single `.scene-box` containing the entire pre-rendered hero scene (`<div class="scene-art woodcutter-art">` with **60 deterministic** `<div class="star">` background twinkles + sun + 2 clouds + 3 trees + river + wave + woodcutter character (head+arms+axe+body) + fairy (head+wings+body+wand) + golden axe + silver axe + splash effect — all SSR'd before any JS runs), Play Animation / Reset button row, 4 `<p class="prose-para">` paragraphs (story prose, verbatim from vanilla), `<aside class="story-moral">` panel with `Honesty is always rewarded.` text rendered, **always-visible** `.quiz-box` with all 6 questions + 24 option buttons + score panel SSR-rendered (revealed and hidden by the controller; vanilla auto-starts the quiz on load and the Astro port preserves that). **2-way `quiz.ts` shared-chunk dedup verified at the chunk level:** routines + woodcutter page-chunks both import the *exact same* `/_astro/quiz.h5Df3D_T.js` (1.80 KB raw / 0.98 KB gzip) — the second-consumer refactor produced its expected bundle. Woodcutter correctly does *not* import `/_astro/progress.Czz_LiQd.js` (no per-item state to track) or `/_astro/fluent.rTHKURu4.js` (pure CSS art). **Achievements 13-way dedup** (every game, including Woodcutter, imports `/_astro/achievements.DT2pP3cz.js`). **Bidirectional CSS isolation verified:** `woodcutter-story.BLoeGVIr.css` (7.4 KB) contains only `.scene-art.woodcutter-art *` selectors + `.story-prose` + `.story-moral` + `body.dark-mode.story[data-theme=woodcutter]` blocks; **0 woodcutter selectors leak into the routines bundle, 0 routines selectors leak into the woodcutter bundle**. The shared `daily-routines-game.Cgea29N_.css` (the story.css + global.css base bundle, 6.9 KB) is loaded by *both* story pages — 2-way CSS dedup. All twelve prior games still 200 with original `data-theme` attrs intact and unchanged tile counts — no regressions.)
   - `/manifest.webmanifest`, `/sw.js`, `/.nojekyll` — all 200
-- **Production build sizes (client JS, gzipped):** flashcards **11.96 KB** (+0.66 KB on Track 1 batch 2 for the modal markup, `mountQuiz` import, Stats panel, and 5 quiz questions covering 14 decks — same-shape +~0.66 KB delta on the other three card-machine games as well), **routines ~4.10 KB** (down from ~5.0 KB pre-extraction — `mountQuiz` moved to a shared chunk; the page-local script now only renders scene art + page-specific event wiring), **weather 4.05 KB** (+~0.7 KB on Track 1 batch 2 — 5 quiz questions + ~50 LoC of glue), hindi **~5.25 KB** (largest grid game — 48 entries; *not yet wired*), **dinosaurs 3.71 KB** (+0.67 KB on Track 1 batch 1 — first card-machine game to drop its `alert(…)` stubs), **solar-system 3.28 KB** (+0.6 KB on Track 1 batch 2), **animals 3.31 KB** *(grid; not yet wired)*, alphabets **2.98 KB** *(grid; not yet wired)*, **birds 2.55 KB** *(grid; not yet wired)*, colors **2.27 KB** *(grid; not yet wired)*, shapes **2.13 KB** *(grid; not yet wired)*, numbers **2.09 KB** *(grid; not yet wired)*, **woodcutter 1.46 KB** (smallest — pre-rendered scene art string + ~50 LoC of page-local glue around `mountQuiz`). Shared `progress.ts` chunk: **0.24 KB**, loaded once per session and cached by the SW for **all 7 grid games + Daily Routines** (8-way dedup; Woodcutter does *not* import it). Shared `fluent.ts` chunk: **0.09 KB**, imported by alphabets + flashcards + weather + animals + birds + hindi (6 image-driven games — both story games correctly opt out, since both have pure CSS art). **Shared `quiz.ts` chunk: 0.98 KB gzip** (1.80 KB raw, `quiz.h5Df3D_T.js`), imported by routines + woodcutter + dinosaurs + flashcards + solar-system + weather — **6-way dedup** as of Track 1 batch 2 (chunk hash unchanged from the Woodcutter ship; bundle content is byte-for-byte identical, just five more page-chunks importing it). **Achievements chunk: 13-way dedup** (every game imports it). Three pre-paint layout chunks (`CardMachineLayout`, `GridLayout`, `StoryLayout`) ship byte-for-byte identical content (`CXGnnBDI.js` + `CMRSRHTE.js`) but stay separately addressed because Astro hashes them per layout file. Total PWA precache: **57 entries, ~438 KB** (~+13 KB on top of the post-Woodcutter 425 KB — three larger card-machine page-chunks + their three new `QUIZ` arrays + the `mountQuiz` glue, all served from the same single shared `quiz.ts`).
-- **Production build sizes (CSS, per page):** card-machine games share `dinosaurs-game.*.css` (17.8 KB, unchanged from the Hindi build — the Routines and Woodcutter ports added zero card-machine selectors, bidirectional grep confirms zero leakage), grid games share `alphabets-game.*.css` (~26 KB, unchanged — neither story port added grid selectors), and the story-flow stack ships **two CSS files per page**: a shared `daily-routines-game.Cgea29N_.css` (6.9 KB — the story.css + global.css base bundle, loaded by *both* routines + woodcutter pages, 2-way CSS dedup) plus a page-specific bundle (`daily-routines-game.CxrRS3LH.css` 7.7 KB for the routines per-scene art / `woodcutter-story.BLoeGVIr.css` 7.4 KB for the woodcutter hero scene + prose + moral). Isolation verified bidirectionally: zero `data-theme="routines"` / `.routines-art` selectors in the woodcutter page-specific bundle; zero `data-theme="woodcutter"` / `.woodcutter-art` selectors in the routines page-specific bundle; zero `cm-*` / `gl-*` / `.top-card` / `.machine-screen` / `.gl-tile` selectors in either story page bundle; zero `.story-shell` / `.scene-box` / `--st-*` selectors in any card-machine or grid bundle; zero `data-theme="routines"` or `data-theme="woodcutter"` markup in any of the 11 non-story HTML pages.
+- **Production build sizes (client JS, gzipped, post-Track-1-batch-3 2026-05-11):** flashcards **11.94 KB**, **hindi 5.85 KB** (+0.60 KB on batch 3 — largest grid game, 48 Devanagari entries × richer Stats panel reading both `quiz.getState()` and `loadLearned(GAME_ID).size`), **routines ~4.08 KB** (held flat — already on `mountQuiz` since the Woodcutter port), **weather 4.03 KB**, **animals 3.90 KB** (+0.59 KB on batch 3), **dinosaurs 3.68 KB**, **birds 3.13 KB** (+0.58 KB on batch 3), **alphabets 3.58 KB** (+0.60 KB on batch 3), **solar-system 3.26 KB**, **colors 2.86 KB** (+0.59 KB on batch 3 — confetti palette dynamically derived from the deck's hex values), **shapes 2.69 KB** (+0.56 KB on batch 3), **numbers 2.68 KB** (+0.59 KB on batch 3), **woodcutter 1.44 KB** (smallest — pre-rendered scene art string + ~50 LoC of page-local glue around `mountQuiz`). All 7 grid-game deltas land within ±0.04 KB of the same ~+0.6 KB shape that Dinosaurs and the cm-batch established — uniform cost-of-entry for Quiz/Stats wiring across every layout. Shared `progress.ts` chunk: **0.24 KB**, loaded once per session and cached by the SW for **all 7 grid games + Daily Routines** (8-way dedup; Woodcutter does *not* import it). Shared `fluent.ts` chunk: **0.10 KB**, imported by alphabets + flashcards + weather + animals + birds + hindi (6 image-driven games — both story games correctly opt out, since both have pure CSS art). **Shared `quiz.ts` chunk: 1.69 KB gzip** (3.20 KB raw, `quiz.BkZwETv6.js`), imported by **all 13 games** — routines + woodcutter + 4 card-machine + 7 grid — **13-way dedup** as of Track 1 batch 3. The chunk re-hashed from the 6-way `quiz.h5Df3D_T.js` (1.80 KB raw / 0.98 KB gzip) because Vite folds in helpers that were previously externalized when the importer count was lower; the per-game cost of joining the shared lib stays *zero* JS. **Achievements chunk: 13-way dedup** (every game imports it). Three pre-paint layout chunks (`CardMachineLayout`, `GridLayout`, `StoryLayout`) ship byte-for-byte identical content (`CXGnnBDI.js` + `CMRSRHTE.js`) but stay separately addressed because Astro hashes them per layout file. Total PWA precache: **56 entries, ~488 KiB** (count fell by 1 because Astro now hashes one fewer external CSS file thanks to inlining `quiz-modal.css` per page; size grew by ~50 KiB primarily due to that per-page CSS inlining across all 11 non-story HTML pages plus the seven new `QUIZ` arrays + `mountQuiz` glue + larger `quiz.ts` shared chunk).
+- **Production build sizes (CSS, per page, post-Track-1-batch-3 2026-05-11):** card-machine games still share their own bundle (~17.5 KB, slightly smaller than pre-extraction because ~215 lines of inner-modal CSS moved out into the shared `quiz-modal.css`); grid games still share their own bundle (~26.5 KB, slightly bigger because of the new `--quiz-*` token block per theme + `.gl-quiz-overlay` / `.gl-quiz-card` shell). The story-flow stack still ships **two CSS files per page**: a shared `daily-routines-game.*.css` (6.9 KB — the story.css + global.css base bundle, loaded by *both* routines + woodcutter pages, 2-way CSS dedup) plus a page-specific bundle (~7.7 KB routines / ~7.4 KB woodcutter). The new shared `src/styles/quiz-modal.css` (~210 lines) is **inlined directly into each consuming HTML page** by Astro rather than emitted as an external chunk — net effect is ~2.4 KB of duplicated CSS across the 11 non-story HTML pages (~26 KB total) but every game gets the modal styles ready at first paint without an extra round trip. Isolation verified bidirectionally and at the bundle level: zero `data-theme="routines"` / `.routines-art` selectors in the woodcutter page-specific bundle; zero `data-theme="woodcutter"` / `.woodcutter-art` selectors in the routines page-specific bundle; zero `cm-*` / `gl-*` / `.top-card` / `.machine-screen` / `.gl-tile` selectors in either story page bundle; zero `.story-shell` / `.scene-box` / `--st-*` selectors in any card-machine or grid bundle; zero `data-theme="routines"` or `data-theme="woodcutter"` markup in any of the 11 non-story HTML pages. Cross-layout quiz selector partition: `cm-quiz-overlay` / `cm-quiz-card` / `cm-quiz-close` / `cm-quiz-retry-btn` 0 occurrences in `grid.css`; `gl-quiz-overlay` / `gl-quiz-card` / `gl-quiz-close` / `gl-quiz-retry-btn` 0 occurrences in `card-machine.css` — each layout's outer-shell selectors stay scoped to its own stylesheet.
 
 ---
 
 ## What still needs doing
 
-> **▶ Resume here next session:** the **migration is complete (13/13)** as of 2026-05-08, and **Track 1 of post-migration polish has finished its card-machine sweep — 4 of 11 non-story games wired** as of 2026-05-08. Started the day with **Dinosaurs** (cheapest first wiring, ~30 LoC of glue + 5-question data export, modal shell + 4-theme palette as one-time CSS payment), then completed the sweep with **Flashcards, Solar System, and Weather** in a single follow-up commit — exactly as the Dinosaurs entry predicted, those three cost *zero* new CSS (they inherited the `.cm-quiz-overlay` shell + `--cm-quiz-*` palette) and just under 130 LoC of page wiring + 15 quiz questions of data, all in. The shared `quiz.ts` chunk is now **6-way deduped** (the 4 card-machine games + 2 story games — same `quiz.h5Df3D_T.js` hash, byte-for-byte unchanged, just five additional importers). **Next batch (Track 1 batch 3): the seven grid games** (Alphabets, Numbers, Colors, Shapes, Animals, Birds, Hindi). That batch is the *third consumer* of the inner `.quiz-question` / `.quiz-opt` / `.quiz-result-*` selectors that `mountQuiz` writes — story games inline them in `story.css`, card-machine games scope them under `.cm-quiz-card` in `card-machine.css`, and the grid games trigger the rule-#3 *"third consumer triggers a refactor"* decision: either ship a third per-layout block in `grid.css` (`.gl-quiz-overlay` + `.gl-quiz-card` shell + `.gl-quiz-card .quiz-*` inner selectors) or extract the inner selectors to a shared `src/styles/quiz-modal.css` that all three layouts consume. Lean toward extraction — three layouts now want the same inner DOM, and the inner styles haven't drifted since they were copy-pasted at the Dinosaurs port. The other tracks remain queued: (b) Playwright smoke tests parameterised over themes (one suite per layout), (c) Option C — the unified `DeckLayout` with a per-user grid/card/story view toggle, now unblocked since `src/lib/quiz.ts` exists alongside `src/lib/progress.ts` though current evidence still leans against consolidation, and (d) the cut-over plan: migrate the live `kids-learning-games` repo to serve the Astro `dist/` build with a SW handoff strategy so existing PWA installs gracefully transition to the new SW. **Worked example to copy for batch 3:** `src/pages/games/weather-game.astro` (any of the 4 wired card-machine games is a clean reference, but Weather is the most representative because it has both filter pills + a `seasonLabel` helper, mirroring the grid games' filter shape). Build is clean: 14 pages, `npm run check` 0/0/0 across 43 files, all chunk-dedup invariants verified at the bundle level (quiz **6-way**, progress 8-way, fluent 6-way, achievements 13-way, layout pre-paint 3-way).
+> **▶ Resume here next session:** the **migration is complete (13/13)** as of 2026-05-08, and **Track 1 of post-migration polish is complete — 11 of 11 non-story games wired** as of 2026-05-11. The grid sweep landed in a single batch: 7 grid games (Alphabets, Numbers, Colors, Shapes, Animals, Birds, Hindi) + the rule-#3 third-consumer extraction of the inner modal selectors into `src/styles/quiz-modal.css` (consumed by both `CardMachineLayout` and `GridLayout`; `card-machine.css` and `grid.css` keep only their `--quiz-*` per-theme tokens + outer shell selectors). **Shared `quiz.ts` chunk now 13-way deduped** (every game) at `quiz.BkZwETv6.js` (3.20 KB raw / 1.69 KB gzip — bigger than the 6-way `h5Df3D_T` because Vite folds helpers into the chunk when the importer count is high). **Next track:** suggest **Track 2 — Playwright smoke tests** (one suite per layout: card-machine / grid / story; parameterise over themes inside each suite — load page, assert SSR'd content, click Quiz, answer questions, assert score panel + LocalStorage write). Set up `@playwright/test` against `npm run preview`, add `npm test`, optionally wire into the GH Actions workflow as a gate-on-merge check. Other tracks remain queued: (3) **Option C — unified `DeckLayout` with a grid/card/story view toggle**, now *fully* unblocked since every game is real, every shared lib is finalised (`progress.ts` 8-way + `quiz.ts` 13-way), and the rule-#3 modal-CSS extraction has clarified what is genuinely shared vs. layout-specific — current evidence still leans *separate* (different detail-payload shapes, different filter bars, different state shapes); (4) **cut-over plan** — migrate the live `kids-learning-games` repo to serve the Astro `dist/` build with a SW handoff strategy so existing PWA installs gracefully transition to the new SW. **Lower priority:** consider whether the Stats panel (currently `alert(…)` for grid games' aggregations) deserves a dedicated `/stats` page or per-page modal — wait until Playwright lands so the existing alert-shape behaviour can be locked in by tests first. Build is clean: 14 pages, `npm run check` 0/0/0 across 43 files, all chunk-dedup invariants verified at the bundle level (quiz **13-way**, progress 8-way, fluent 6-way, achievements 13-way, layout pre-paint 3-way).
 
 ### Per-game layout decisions for the 5 pending ports
 
@@ -283,7 +284,11 @@ before deciding.
    1. ~~**Daily Routines** — 10 paginated scenes + per-scene CSS art + inline 8-question quiz with `routines_quiz_v1` LocalStorage key. New `StoryLayout.astro` shell + `story.css` + `routines.css` carved out (third shared layout — first try on `CardMachineLayout` collapsed because of the viewport-lock + two-pane + deck-of-cards DOM + OLED right pane).~~ **Shipped 2026-05-08** ✅
    2. ~~**Honest Woodcutter** — single CSS-animated hero scene + 4 paragraphs of continuous prose + moral panel + 6-question quiz + Play-Animation/Reset buttons. **No new prop or variant on `StoryLayout`** — the layout shell stays neutral, the page just omits the progress bar / Prev / Next chrome from its slot content. New `src/styles/woodcutter.css` ships hero-scene art under `.woodcutter-art` with `woodcutter-*` keyframes for bidirectional collision-freeness with `routines.css`. **Extracted `src/lib/quiz.ts`** as the second-consumer refactor trigger — both story games now mount the same `mountQuiz` controller (1.80 KB shared chunk, 2-way dedup). Routines was refactored in the same commit to consume the shared lib (~80 LoC of inline quiz code removed).~~ **Shipped 2026-05-08** ✅
    3. *Migration complete (13/13).*
-3. **Wire the real Stats + Quiz modals across the 11 non-story games.** *In progress (4 of 11 wired as of 2026-05-08 — card-machine sweep complete).* Started 2026-05-08 with **Dinosaurs** (first non-story `mountQuiz` consumer; one-time CSS payment for the `.cm-quiz-overlay` shell + 4-theme `--cm-quiz-*` palette in `card-machine.css`), then **Flashcards + Solar System + Weather** shipped in the same-day follow-up commit — *zero* new CSS for those three, just `QUIZ` data + ~50 LoC of script-side glue per page, exactly as the Dinosaurs entry predicted. All four card-machine pages now run `mountQuiz` with their own `gameId` (so each game has its own LocalStorage state — `dinosaurs_quiz_v1` / `flashcards_quiz_v1` / `solar-system_quiz_v1` / `weather_quiz_v1`). Pattern proven across the four card-machine wirings: (a) add a `QUIZ: readonly QuizQuestion[]` export to `src/data/<game>.ts` (5 questions covers a learning-game-sized deck), (b) add a hidden `<div class="cm-quiz-overlay">` modal to the page (sibling of `cm-layout`), (c) replace the Quiz `alert(…)` stub with `mountQuiz({ gameId, questions, bodyEl, resultEl, ..., onPerfect, playTap })` + open/close handlers (Esc / click-outside / Close button) + keyboard-nav suspension while the modal is open, (d) replace the Stats `alert(…)` stub with `quiz.getState()` aggregations (deck size + attempts + best score + last played). The seven grid games (Alphabets, Numbers, Colors, Shapes, Animals, Birds, Hindi) are next and will trigger the rule-#3 *"third consumer triggers a refactor"* decision on whether to ship a third per-layout block in `grid.css` (`.gl-quiz-overlay` + `.gl-quiz-card` shell + scoped `.quiz-question` / `.quiz-opt` / `.quiz-result-*` selectors) **or** to extract those inner selectors into a shared `src/styles/quiz-modal.css` that all three layouts consume. Lean toward extraction — three layouts now want the same inner DOM, and the inner styles haven't drifted since they were copy-pasted at the Dinosaurs port; that means the three card-machine games we just shipped become the worked example for the grid wirings, plus the inner styles get a single source of truth.
+3. **Wire the real Stats + Quiz modals across the 11 non-story games.** *Complete (11 of 11 wired as of 2026-05-11) — Track 1 closed.* Shipped in three batches over two same-direction days:
+   - **Batch 1 (2026-05-08, commit `da97b21`)**: Dinosaurs — first non-story `mountQuiz` consumer; one-time CSS payment for the `.cm-quiz-overlay` shell + 4-theme `--cm-quiz-*` palette in `card-machine.css`.
+   - **Batch 2 (2026-05-08, commit `64e5e5e`)**: Flashcards + Solar System + Weather — *zero* new CSS, just data + page wiring (the 4 card-machine games inherited the modal infra from batch 1).
+   - **Batch 3 (2026-05-11, commits `6133d20` *(refactor)* + `6e210f9` *(feat)*)**: 7 grid games (Alphabets, Numbers, Colors, Shapes, Animals, Birds, Hindi) + the rule-#3 third-consumer extraction. The refactor commit moved the inner `.quiz-question` / `.quiz-opt` / `.quiz-result-*` / `.quiz-heading` selectors and the `.cm-quiz-overlay, .gl-quiz-overlay` shell into a new shared `src/styles/quiz-modal.css` consumed by both `CardMachineLayout` and `GridLayout`; `card-machine.css` + `grid.css` now carry only the `--quiz-*` per-theme tokens (canonical namespace, renamed from the layout-prefixed `--cm-quiz-*` / etc.) and the layout's own outer-shell scope. Story keeps its inline `.quiz-box` panel because the DOM shape is genuinely different (always-visible, in-flow, not a fixed-position overlay) and its `--st-quiz-*` tokens are a different semantic family. The feat commit added a 5-question `QUIZ` export to each grid game's `src/data/<game>.ts` (35 questions total, every option drawn from the existing deck content) plus the `#quizOverlay` modal markup + `mountQuiz` mount + open/close handlers + keyboard-nav suspension + a richer Stats panel reading both `quiz.getState()` (attempts / bestScore / lastPlayed) **and** `loadLearned(GAME_ID).size` / `ALL_CARDS.length` (tiles-learned vs total) — the grid-specific richer-stats shape that the Track 1 design predicted.
+   All 11 non-story games now write to their own LocalStorage state via per-game `gameId` (`<gameId>_quiz_v1` for each game). **Shared `quiz.ts` chunk now 13-way deduped** (every game) at `quiz.BkZwETv6.js` (3.20 KB raw / 1.69 KB gzip — bigger than the 6-way `h5Df3D_T` because Vite folds helpers into the chunk when importer count rises). Pattern proven across all 11 wirings: (a) add a `QUIZ: readonly QuizQuestion[]` export to `src/data/<game>.ts` (5 questions covers a learning-game-sized deck), (b) add a hidden modal to the page (`<div class="cm-quiz-overlay">` for card-machine, `<div class="gl-quiz-overlay">` for grid — both shells are styled by the shared `quiz-modal.css` via comma-separated selectors), (c) replace the Quiz `alert(…)` stub with `mountQuiz({ gameId, questions, bodyEl, resultEl, ..., onPerfect, playTap })` + open/close handlers (Esc / click-outside / Close button) + keyboard-nav suspension while the modal is open, (d) replace the Stats `alert(…)` stub with `quiz.getState()` aggregations (deck/tile size + attempts + best score + last played; grid games additionally surface `progress.ts` tiles-learned).
 4. **Add tests.** Playwright smoke test per layout (one for card-machine, one for grid, **one for story**): filter / navigate → completion overlay + confetti / quiz score panel. Parameterise over themes inside each test so one suite covers every game.
 5. **Option C — unified Deck layout with a grid/card/story view toggle.** Now *fully unblocked* — all 13 games have shipped, both shared libs (`progress.ts` for learning state + `quiz.ts` for quiz state) exist, and three pieces of evidence already lean *against* consolidation: (a) different detail-payload shapes (Fluent image vs CSS shape gallery vs CSS count grid vs scene art vs hero scene + prose + moral panel), (b) different filter bars (Animals's 6-pill mammal/bird/reptile/sea/insect filter vs Hindi's bilingual 3-pill vs Routines's no-filter-at-all), (c) different state shapes (`Set<string>` for grid progress vs `{ attempts, bestScore, lastPlayed }` for story quiz state vs no per-item state at all for Woodcutter). Decision time: (a) keep `CardMachineLayout` / `GridLayout` / `StoryLayout` separate (the evidence supports this) or (b) consolidate into a single `DeckLayout` with a per-user "Grid | Card | Story" toggle so parents can pick the teaching mode. Revisit *after* Stats + Quiz modals are live across all 13 games (item 3) — that's the cleanest signal of how much DOM / CSS the three layouts truly share.
 6. **Cut-over plan.** Migrate `kids-learning-games` (the live vanilla repo) to serve the Astro build, with a SW handoff strategy so existing PWA installs upgrade cleanly. Now eligible — all 13 games shipped — but intentionally postponed until the post-migration polish (items 3 + 4 above) is in place.
@@ -317,6 +322,250 @@ before deciding.
 ---
 
 ## Changelog
+
+### 2026-05-11 — Post-migration polish, Track 1 batch 3: 7 grid games get real quizzes + rule-#3 `quiz-modal.css` extraction (Track 1 complete — 11 of 11 non-story games wired)
+
+**Closes Track 1 of the post-migration polish phase.** All 11 non-story
+games now run real `mountQuiz` flows in place of their `alert(…)` Quiz
+and Stats stubs (the 4 card-machine games shipped on 2026-05-08; this
+entry adds the 7 grid games — Alphabets, Numbers, Colors, Shapes,
+Animals, Birds, Hindi). Also folds in the **rule-#3 third-consumer
+extraction** that batch 3 was always going to trigger: `card-machine.css`
++ `grid.css` no longer each carry the inner `.quiz-question` /
+`.quiz-opt` / `.quiz-result-*` / `.quiz-heading` selectors that
+`mountQuiz` writes; those rules now live once in
+`src/styles/quiz-modal.css`, scoped under both `.cm-quiz-card` and
+`.gl-quiz-card` via comma-separated selectors so each layout's outer
+shell stays independently themeable.
+
+Two commits in sequence (both pushed and live-verified):
+
+1. `6133d20` *(refactor)* — extract shared `quiz-modal.css`, normalize
+   the canonical `--quiz-*` token namespace across both `card-machine.css`
+   and `grid.css`, add `.gl-quiz-overlay` / `.gl-quiz-card` shell to
+   `grid.css` parallel to the existing `.cm-quiz-overlay` / `.cm-quiz-card`.
+   Pure refactor — built and shipped *before* a single grid page wiring
+   so the build-time invariants (no behavioural change, no inner-selector
+   duplication, no `cm-` / `gl-` cross-leakage) could be verified
+   independently of the wiring batch.
+2. `6e210f9` *(feat)* — wire `mountQuiz` across the 7 grid games. 14
+   files changed, 933 insertions / 52 deletions: 7 `src/data/<game>.ts`
+   files each gain a 5-question `QUIZ` array typed as
+   `readonly QuizQuestion[]`; 7 `src/pages/games/<game>-game.astro`
+   pages each gain a hidden `#quizOverlay` modal (sibling to the
+   existing `.gl-done-overlay`) + `mountQuiz` mount + open / close /
+   retry handlers + a real Stats panel reading `quiz.getState()` plus
+   `loadLearned(GAME_ID).size` for tiles-learned / total-tiles.
+
+#### Why the rule-#3 extraction got triggered now
+
+Before batch 3 the inner DOM that `mountQuiz` writes (`.quiz-question`,
+`.quiz-opt`, `.quiz-result*`, `.quiz-heading`) had been styled in
+*two* places: `card-machine.css` (4-game consumer) used local
+`.cm-quiz-card`-scoped versions; `story.css` used a separate
+`.quiz-box`-scoped panel because Story games render the quiz
+in-flow rather than as a modal overlay. Adding a third consumer
+(grid games' `.gl-quiz-card`) would have meant *three* identical
+copies of `.quiz-question` / `.quiz-opt` / `.quiz-result-*` rules —
+exactly the duplication migration rule #3 is meant to prevent.
+
+The split chosen:
+
+- **`src/styles/quiz-modal.css`** owns the *inner* selectors
+  (`.quiz-heading`, `.quiz-question`, `.quiz-opt`, `.quiz-opt:hover`,
+  `.quiz-result-*`, `.quiz-result-emoji`, `.quiz-result-text`,
+  `.quiz-result-actions`, mobile media-query overrides, the
+  `quiz-pop` keyframe used by both modal cards) plus the *outer
+  shell* selectors that are layout-agnostic (`.cm-quiz-overlay,
+  .gl-quiz-overlay`, `.cm-quiz-card, .gl-quiz-card`,
+  `.cm-quiz-close, .gl-quiz-close`, `.cm-quiz-retry-btn,
+  .gl-quiz-retry-btn`). Imported by *both* `CardMachineLayout.astro`
+  and `GridLayout.astro` so the shared rules ship through the same
+  CSS chunk graph.
+- **`card-machine.css`** keeps only the **theming tokens** and
+  card-machine-only theme overrides; renamed `--cm-quiz-*` to the
+  canonical `--quiz-*` namespace + added a missing
+  `--quiz-cta-bg: var(--cm-press-bg)` alias for the retry button so
+  the canonical names work uniformly.
+- **`grid.css`** gains a parallel `--quiz-*` token block (defaults +
+  per-theme overrides for all 7 grid themes — Alphabets, Numbers,
+  Colors, Shapes, Animals, Birds, Hindi) and a `body.dark-mode.grid`
+  block mapping `--quiz-card-bg` / `--quiz-card-text` /
+  `--quiz-opt-text` to existing grid dark-mode tokens
+  (`--gl-detail-bg` / `--gl-detail-text`).
+- **Story** keeps its inline `.quiz-box` panel intact — the DOM shape
+  is genuinely different (always-visible, in-flow, not a fixed-position
+  overlay) and its `--st-quiz-*` token palette is a different
+  semantic family, so it doesn't share the modal stylesheet.
+
+The extraction itself is **net negative LoC** in the per-layout CSS
+files (cm dropped ~215 lines of duplicated modal rules, grid added
+~80 lines of *new* tokens + shell, plus the new shared file is ~210
+lines) — but Astro's bundler then **inlines `quiz-modal.css` into
+every consuming HTML page** rather than emitting a single external
+chunk. That nets out as a small precache size bump (see "Build
+notes" below), accepted as a first-paint optimization Astro does
+on every CSS file under a certain size threshold.
+
+#### Quiz-question authoring per grid game (5 each, 35 total)
+
+Every option for every question is drawn from the game's existing
+deck content so a child who has tapped through the full chart can
+score 100% from memory:
+
+- **Alphabets** — letter-to-word recognition (`What word starts with C?`),
+  vowel identification (`Which is a vowel?`), word-to-letter
+  association (`Apple starts with which letter?`), letter-set
+  pedagogy (`How many letters in the English alphabet?`). Storage
+  key: `alphabets_quiz_v1`.
+- **Numbers** — digit recognition (`Which digit comes after 7?`),
+  counting (`How many fingers on one hand?`), digit-to-word
+  (`Two means how many?`), arithmetic readiness (`What is bigger:
+  6 or 9?`), set bounds (`What is the smallest digit on this game?`).
+  Storage key: `numbers_quiz_v1`.
+- **Colors** — primary recognition (`What colour is the sky?`),
+  warm/cool classification (`Which colour is warm?`), colour
+  mixing (`Mixing red and yellow makes…`), colour-to-fruit
+  association (`A banana is what colour?`), colour count (`How
+  many colours in this game?`). Storage key: `colors_quiz_v1`.
+- **Shapes** — visual recognition (`Which shape has 3 sides?`),
+  side counting (`How many sides does a hexagon have?`), shape
+  attributes (`Which shape rolls?`), pedagogical naming (`What is
+  another name for an oval?`), set bounds (`How many shapes in this
+  game?`). Storage key: `shapes_quiz_v1`.
+- **Animals** — sound recognition (`Which animal says "Roar"?`),
+  classification (`Which animal is a reptile?`), unique features
+  (`Which animal can fly?`), habitat (`Which animal lives in
+  water?`), distinctive trait (`Which animal has a long trunk?`).
+  Storage key: `animals_quiz_v1`.
+- **Birds** — bird sounds (`Which bird says "Hoo Hoo"?`),
+  classification (`Which is a bird of prey?`), distinctive trait
+  (`Which bird cannot fly?`), waterbird recognition (`Which bird
+  swims in lakes?`), national-bird trivia (`Which is the national
+  bird of India?`). Storage key: `birds_quiz_v1`.
+- **Hindi** — Devanagari letter-to-word (`अ stands for which
+  word?`), vowel identification in Devanagari (`Which is a स्वर
+  (vowel)?`), consonant identification (`Which is a व्यंजन
+  (consonant)?`), bilingual translation (`What does अनार mean in
+  English?`), cultural trivia (`What is the first letter of the
+  Hindi varnamala?`). Devanagari characters in question text and
+  options use Unicode escapes so the data file is ASCII-clean.
+  Storage key: `hindi_quiz_v1`.
+
+#### Per-page wiring (uniform across all 7 pages)
+
+- **HTML**: hidden `<div class="gl-quiz-overlay" id="quizOverlay"
+  role="dialog" aria-modal="true">` modal added as a sibling to
+  the existing `.gl-done-overlay`. Inside: `.gl-quiz-card`
+  containing close button (`.gl-quiz-close` × `aria-label="Close
+  quiz"`), per-game heading (e.g. `🧠 Quick Animals Quiz`),
+  `#quizBody` (rendered question + 4 option buttons by `mountQuiz`),
+  `#quizResult` (score panel with emoji + text + retry/done
+  actions). Same inner-DOM shape as the 4 card-machine pages
+  established in batch 1/2 — works because `quiz-modal.css`
+  scopes its rules under both `.cm-quiz-card` and `.gl-quiz-card`.
+- **Script**: imports `mountQuiz` from `@/lib/quiz` + `QUIZ` from
+  `@/data/<game>`; defines a per-game confetti palette (e.g.
+  `ALPHA_COLORS`, `NUMBERS_COLORS`, `COLORS_PALETTE` (dynamically
+  generated from the deck's hex values), `SHAPES_COLORS`,
+  `ANIMALS_COLORS`, `BIRDS_COLORS`, `HINDI_COLORS`); replaces the
+  pre-existing `alert('Quiz mode is coming soon!')` stub on the
+  Quiz button click with `quiz.start()` + `quizOverlay.classList.add('show')`;
+  replaces the pre-existing `alert(...)` stats stub on the Stats
+  button click with a structured display reading both
+  `quiz.getState()` (attempts / bestScore / lastPlayed) **and**
+  `learned.size` / `ALL_CARDS.length` (so the Stats panel surfaces
+  *both* the per-tile learning progress *and* the quiz progress —
+  the grid-specific richer-stats shape that the post-migration
+  Track 1 docs predicted).
+- **Open / close handlers**: button click opens the modal; the
+  Close button, the Done button, click-outside-the-card, and the
+  `Escape` key all close it. The global `keydown` listener now
+  starts with a guard `if (quizOverlay?.classList.contains('show')) return;`
+  before its existing per-game keyboard shortcuts so Arrow-key
+  deck navigation, digit-key shortcuts (Numbers), and first-letter
+  shortcuts (Colors / Shapes / Animals / Birds / Hindi) cannot
+  fire under the dimmed modal.
+
+#### Build notes
+
+- `npm run check` — **0 errors / 0 warnings / 0 hints** across
+  43 files. `npm run build` — 14 pages emitted in 6.89s. PWA
+  precache: **56 entries / 487.94 KiB** (was 57 entries / ~438 KiB
+  before this batch — the count *fell* by 1 entry because the
+  bundler now hashes one file fewer thanks to inlined CSS, and
+  the size grew by ~50 KiB primarily due to inlining of
+  `quiz-modal.css` into 11 SSR'd HTML pages plus the per-page
+  data + script payloads for the 7 grid games + 7 new `QUIZ`
+  arrays).
+- **`quiz.BkZwETv6.js` shared chunk now 13-way deduped** (every
+  game except none — all 13 game pages import the same chunk:
+  routines + woodcutter + 4 card-machine + 7 grid). Chunk
+  re-hashed from `quiz.h5Df3D_T.js` (the 6-way dedup hash from
+  the 2026-05-08 ship) to `quiz.BkZwETv6.js` (3.20 KB raw /
+  1.69 KB gzip) — bigger than the 6-way (1.80 KB raw / 0.98 KB
+  gzip) because Vite's bundler now folds in helpers that were
+  previously externalized when the importer count was lower.
+  Per-game cost-of-entry to the shared lib stays *zero* JS;
+  the chunk is loaded once per session and cached by the SW for
+  every game.
+- **0 inner-selector duplication** verified at the bundle level:
+  `.cm-quiz-card .quiz-question` and `.gl-quiz-card .quiz-question`
+  appear in `dist/games/*-game.html` exactly once per file (Astro
+  inlines `quiz-modal.css` per page rather than emitting an
+  external chunk; the rule itself is *defined* once in
+  `src/styles/quiz-modal.css`).
+- **0 cm-/gl- leakage**: `cm-quiz-overlay` / `cm-quiz-card` /
+  `cm-quiz-close` / `cm-quiz-retry-btn` not present in `grid.css`;
+  `gl-quiz-overlay` / `gl-quiz-card` / `gl-quiz-close` /
+  `gl-quiz-retry-btn` not present in `card-machine.css`. Both
+  layouts' shell selectors stay scoped to their own stylesheet.
+- **Markup partition verified at the dist level**: 7 grid pages
+  carry `class="gl-quiz-overlay"` (alphabets, animals, birds,
+  colors, hindi, numbers, shapes); 4 cm pages carry
+  `class="cm-quiz-overlay"` (weather, solar-system, flashcards,
+  dinosaurs); 0 cross-contamination on either side.
+- **0 stale `alert(…)` "coming soon" stubs** anywhere in the
+  source tree (`src/pages/games/*-game.astro` returns 0 hits for
+  `Quiz mode is coming soon`).
+- **Per-page chunk deltas** (gzip):
+  - **alphabets** 2.98 → 3.58 KB (+0.60 KB)
+  - **numbers** 2.09 → 2.68 KB (+0.59 KB)
+  - **colors** 2.27 → 2.86 KB (+0.59 KB)
+  - **shapes** 2.13 → 2.69 KB (+0.56 KB)
+  - **animals** 3.31 → 3.90 KB (+0.59 KB)
+  - **birds** 2.55 → 3.13 KB (+0.58 KB)
+  - **hindi** 5.25 → 5.85 KB (+0.60 KB)
+
+  All within ±0.04 KB of the ~+0.6 KB Dinosaurs/cm-batch baseline.
+  Predictable cost.
+- **Live deploy verified**: HTTP 200 across all 13 game pages +
+  index after push (within ~30 s of the GH Actions run). SSR
+  markup confirmed on a sample grid page (`alphabets-game.html`):
+  `class="gl-quiz-overlay"` + `class="gl-quiz-card"` +
+  `id="quizOverlay"` all present.
+
+#### Where this leaves the post-migration polish phase
+
+Track 1 is **done** (11 of 11 non-story games wired, plus both
+story games which already shipped on `mountQuiz` at the
+Woodcutter port). All 13 games run a real
+`<gameId>_quiz_v1` LocalStorage state via the shared
+`src/lib/quiz.ts` controller. Per-tile learning state via
+`kids_progress_v1:<gameId>` continues to back the 7 grid games +
+Routines (8-way `progress.ts` dedup unchanged).
+
+Next tracks remain queued: **Track 2 (Playwright smoke tests)**,
+**Track 3 (Option C — unified `DeckLayout` decision)** — both
+are *fully* unblocked now, since every game is real, every shared
+lib is finalised, and the inner-selector / outer-shell scope
+boundary is now clearly drawn by the rule-#3 extraction.
+**Track 4 (cut-over plan)** stays lower priority. See the
+**Resume here next session** marker further up for the suggested
+next track.
+
+Commits `6133d20` *(refactor)* + `6e210f9` *(feat)* + this
+*(docs)* commit.
 
 ### 2026-05-08 — Post-migration polish, Track 1 batch 2: Flashcards + Solar System + Weather get real quizzes (4 of 11 non-story games wired — card-machine sweep complete)
 
