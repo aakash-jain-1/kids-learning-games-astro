@@ -101,15 +101,26 @@ All three layouts share the same head/meta, PWA wiring, nav, settings modal, bui
 │   │   │   ├── weather-game.astro         # CardMachineLayout
 │   │   │   └── woodcutter-story.astro     # StoryLayout (single-scene)
 │   │   └── index.astro
-│   └── styles/
-│       ├── card-machine.css      # themeable card-machine visual system + --quiz-* token block per cm theme
-│       ├── grid.css              # themeable grid visual system + --quiz-* token block per grid theme
-│       ├── quiz-modal.css        # shared modal: inner .quiz-question/.quiz-opt/.quiz-result-* + outer .cm-quiz-overlay,.gl-quiz-overlay shells (consumed by BOTH CardMachineLayout and GridLayout)
-│       ├── story.css             # themeable story-flow visual system (--st-* tokens; story keeps its own inline .quiz-box panel — DOM shape genuinely different)
-│       ├── routines.css          # Daily Routines per-scene CSS art (scoped under .routines-art)
-│       ├── woodcutter.css        # Honest Woodcutter hero-scene CSS art + prose/moral cards (scoped under .woodcutter-art)
-│       ├── planets.css           # solar-system-only CSS planet art
-│       └── global.css            # base reset + shared chrome primitives
+│   ├── styles/
+│   │   ├── card-machine.css      # themeable card-machine visual system + --quiz-* token block per cm theme
+│   │   ├── grid.css              # themeable grid visual system + --quiz-* token block per grid theme
+│   │   ├── quiz-modal.css        # shared modal: inner .quiz-question/.quiz-opt/.quiz-result-* + outer .cm-quiz-overlay,.gl-quiz-overlay shells (consumed by BOTH CardMachineLayout and GridLayout)
+│   │   ├── story.css             # themeable story-flow visual system (--st-* tokens; story keeps its own inline .quiz-box panel — DOM shape genuinely different)
+│   │   ├── routines.css          # Daily Routines per-scene CSS art (scoped under .routines-art)
+│   │   ├── woodcutter.css        # Honest Woodcutter hero-scene CSS art + prose/moral cards (scoped under .woodcutter-art)
+│   │   ├── planets.css           # solar-system-only CSS planet art
+│   │   └── global.css            # base reset + shared chrome primitives
+│   └── pages/                    # (see above)
+├── tests/                        # Playwright smoke suites (Track 2)
+│   ├── card-machine.spec.ts      # 4 themes × {SSR shell, quiz overlay flow, close button}
+│   ├── grid.spec.ts              # 7 themes × {SSR deck, tile-tap progress, quiz flow, close}
+│   ├── story.spec.ts             # routines (scene nav + quiz reveal) + woodcutter (auto-quiz + reset)
+│   ├── helpers.ts                # shared waiters: answerQuizUntilResult, readQuizState, readLearned, modal open/close
+│   └── tsconfig.json             # extends ../tsconfig.json + adds @playwright/test types
+├── playwright.config.ts          # webServer (astro preview) | PLAYWRIGHT_BASE_URL override | chromium-only | ignoreHTTPSErrors for Zscaler MitM
+└── .github/workflows/
+    ├── deploy.yml                # build + ship dist/ to GitHub Pages on push to main
+    └── test.yml                  # build + Playwright smoke suite (soft gate, runs in parallel)
 ```
 
 ## Running
@@ -129,12 +140,49 @@ would otherwise hold ports `4321`–`4323`. They are scoped by the absolute
 path of this project, so they will never touch an unrelated Astro dev server
 running from a different repo.
 
+## Testing
+
+Three Playwright smoke suites — one per layout (`tests/card-machine.spec.ts`,
+`tests/grid.spec.ts`, `tests/story.spec.ts`) — assert that every shipped game
+SSRs the right shell, the `mountQuiz` modal opens / advances / records to
+LocalStorage, and the per-game progress writes hit `kids_progress_v1:<gameId>`
+where applicable. Themes are parameterised inside each suite, so a regression
+in any one of the 13 games shows up as a single failing row in the report.
+
+```bash
+npm run test:install   # one-time: install Playwright's chromium + deps
+npm test               # build first if needed, then run all 47 tests
+npm run test:ui        # interactive Playwright runner (debug a flaky test)
+```
+
+`playwright.config.ts` spawns `astro preview --host 127.0.0.1` via Playwright's
+`webServer` config, so `npm test` is fully self-contained — you don't need a
+separate `npm run preview` running. CI runs the same script in
+`.github/workflows/test.yml` (one chromium worker, build first, then test;
+artefacts uploaded as `playwright-report/`).
+
+> **Local Zscaler note:** if `npm test` hangs or returns 403s on this dev box,
+> the corporate Zscaler proxy is intercepting localhost traffic on every port.
+> Workaround: point the suite at the live GitHub Pages deploy via
+> `PLAYWRIGHT_BASE_URL`. The config skips spawning the webServer when this var
+> is set, and `ignoreHTTPSErrors: true` accepts Zscaler's MitM cert.
+>
+> ```bash
+> PLAYWRIGHT_BASE_URL="https://aakash-jain-1.github.io/kids-learning-games-astro/" npm test
+> ```
+>
+> Trailing slash matters — tests use `page.goto('games/<slug>.html')` (no
+> leading slash) so URLs compose under the Astro `base` prefix; without the
+> trailing slash on the base URL, `new URL(path, baseURL)` resolves under the
+> host root and you'll get a "Site not found · GitHub Pages" 404. Same applies
+> to the local URL: `playwright.config.ts` always emits the trailing slash.
+
 ## What's NOT in scope for this POC
 
 - *(All 13 vanilla games shipped as of 2026-05-08 — Woodcutter closed the migration. Routines + Woodcutter both ship a real, fully-functional inline quiz on the shared `src/lib/quiz.ts` controller. The migration is now complete.)*
 - Option C — a unified `DeckLayout` with a per-user grid/card/story view toggle that would consolidate `CardMachineLayout` + `GridLayout` + `StoryLayout` into one. Now unblocked (all 13 games shipped + `src/lib/quiz.ts` extracted), but the evidence to date still leans **against** consolidation: different detail-payload shapes, different filter bars, different state shapes (`Set<string>` for grid progress vs `{ attempts, bestScore, lastPlayed }` for story quiz state vs no per-item state at all for Woodcutter). See the "Option C" entry in PROGRESS.md for the full evidence trail.
 - ~~Wire the real Stats + Quiz modals across **all** ported games — *in progress (4 of 11 non-story games wired as of 2026-05-08)*.~~ **Done 2026-05-11**: 11 of 11 non-story games + both story games = all 13 wired. Track 1 closed across three batches: Dinosaurs (batch 1, 2026-05-08, paid the `.cm-quiz-overlay` shell + 4-theme `--cm-quiz-*` palette one-time CSS cost), Flashcards/Solar System/Weather (batch 2, same day, zero new CSS), 7 grid games + the rule-#3 third-consumer extraction (batch 3, 2026-05-11). Inner modal selectors now live once in `src/styles/quiz-modal.css`; per-layout CSS files keep only the canonical `--quiz-*` per-theme tokens + their own outer shell scope. Shared `quiz.ts` chunk now **13-way deduped** (`quiz.BkZwETv6.js`, 3.20 KB raw / 1.69 KB gzip — bigger than the 6-way version because Vite folds in helpers when importer count rises; per-game cost-of-entry stays *zero* JS). Live verified: 13 game pages + index all HTTP 200; SSR markup partition holds (`gl-quiz-overlay` × 7, `cm-quiz-overlay` × 4, no cross-leakage). Whether the Stats panel deserves a dedicated `/stats` page or per-page Stats modal is a follow-up question — best decided after Playwright lands so existing alert-shape behaviour can be locked in by tests first.
-- Full test suite — Playwright smoke tests per layout (one for grid, one for card-machine, one for story) parameterised over themes are queued in PROGRESS.md.
+- ~~Full test suite — Playwright smoke tests per layout (one for grid, one for card-machine, one for story) parameterised over themes are queued in PROGRESS.md.~~ **Bootstrapped 2026-05-11** as Track 2 of the post-migration polish: 47 tests across `tests/{card-machine,grid,story}.spec.ts`, all 13 themes parameterised, run by `npm test` against `astro preview` via Playwright's `webServer` config (or against any `PLAYWRIGHT_BASE_URL`-pointed deploy). Wired into `.github/workflows/test.yml` as a soft gate (failures don't block deploy yet — promoting it to a hard gate is one line). Validated end-to-end against the live GitHub Pages deploy in 22.2 s wall-clock; full suite passes 47/47.
 - Cut-over plan — the live `kids-learning-games` repo still serves the vanilla static HTML pages. Migrating it to serve the Astro `dist/` build (with a SW handoff strategy so existing PWA installs gracefully transition to the new SW) is the final piece, intentionally postponed until after this POC's content stabilised.
 
 ## Comparison at a glance

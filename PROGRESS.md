@@ -209,7 +209,7 @@ or (b) document a one-off exception.
 
 ## What still needs doing
 
-> **▶ Resume here next session:** the **migration is complete (13/13)** as of 2026-05-08, and **Track 1 of post-migration polish is complete — 11 of 11 non-story games wired** as of 2026-05-11. The grid sweep landed in a single batch: 7 grid games (Alphabets, Numbers, Colors, Shapes, Animals, Birds, Hindi) + the rule-#3 third-consumer extraction of the inner modal selectors into `src/styles/quiz-modal.css` (consumed by both `CardMachineLayout` and `GridLayout`; `card-machine.css` and `grid.css` keep only their `--quiz-*` per-theme tokens + outer shell selectors). **Shared `quiz.ts` chunk now 13-way deduped** (every game) at `quiz.BkZwETv6.js` (3.20 KB raw / 1.69 KB gzip — bigger than the 6-way `h5Df3D_T` because Vite folds helpers into the chunk when the importer count is high). **Next track:** suggest **Track 2 — Playwright smoke tests** (one suite per layout: card-machine / grid / story; parameterise over themes inside each suite — load page, assert SSR'd content, click Quiz, answer questions, assert score panel + LocalStorage write). Set up `@playwright/test` against `npm run preview`, add `npm test`, optionally wire into the GH Actions workflow as a gate-on-merge check. Other tracks remain queued: (3) **Option C — unified `DeckLayout` with a grid/card/story view toggle**, now *fully* unblocked since every game is real, every shared lib is finalised (`progress.ts` 8-way + `quiz.ts` 13-way), and the rule-#3 modal-CSS extraction has clarified what is genuinely shared vs. layout-specific — current evidence still leans *separate* (different detail-payload shapes, different filter bars, different state shapes); (4) **cut-over plan** — migrate the live `kids-learning-games` repo to serve the Astro `dist/` build with a SW handoff strategy so existing PWA installs gracefully transition to the new SW. **Lower priority:** consider whether the Stats panel (currently `alert(…)` for grid games' aggregations) deserves a dedicated `/stats` page or per-page modal — wait until Playwright lands so the existing alert-shape behaviour can be locked in by tests first. Build is clean: 14 pages, `npm run check` 0/0/0 across 43 files, all chunk-dedup invariants verified at the bundle level (quiz **13-way**, progress 8-way, fluent 6-way, achievements 13-way, layout pre-paint 3-way).
+> **▶ Resume here next session:** the **migration is complete (13/13)** as of 2026-05-08, **Track 1 of post-migration polish is complete — 11 of 11 non-story games wired** as of 2026-05-11, and **Track 2 (Playwright smoke tests) bootstrapped same day** with **47 tests passing 47/47** end-to-end against the live GitHub Pages deploy in 22.2 s wall-clock. Three suites under `tests/` (card-machine.spec.ts × 4 themes, grid.spec.ts × 7 themes, story.spec.ts × 2 themes) parameterise every game via a typed `GAMES` table; `tests/helpers.ts` centralises waiters (`answerQuizUntilResult`, `readQuizState`, `readLearned`, modal open/close). `playwright.config.ts` spawns `astro preview --host 127.0.0.1` via `webServer`, supports `PLAYWRIGHT_BASE_URL` to point at any deployed URL (skips the webServer when set), and `ignoreHTTPSErrors: true` for Zscaler MitM. **Local Zscaler note:** every port on this dev box is intercepted by the corporate proxy with HTTP 403, so `npm test` cannot reach a local preview server here — workaround is `PLAYWRIGHT_BASE_URL=https://aakash-jain-1.github.io/kids-learning-games-astro/ npm test` (verified). CI is `.github/workflows/test.yml` (chromium-only; build first then test; soft gate — failures don't block deploy yet). **Next track:** suggest **Track 3 — Option C unified `DeckLayout`** with a grid/card/story view toggle, now *fully* unblocked since every game is real, every shared lib is finalised (`progress.ts` 8-way + `quiz.ts` 13-way), the rule-#3 modal-CSS extraction has clarified what is genuinely shared vs. layout-specific, *and* the Playwright suite locks the current per-layout behaviour in place so any consolidation refactor can be validated against the existing assertions. Current evidence still leans *separate* (different detail-payload shapes, different filter bars, different state shapes), but Playwright now de-risks the experiment. Other tracks remain queued: (4) **cut-over plan** — migrate the live `kids-learning-games` repo to serve the Astro `dist/` build with a SW handoff strategy so existing PWA installs gracefully transition to the new SW; promote Playwright to a hard gate on `deploy.yml` (one-line change: add `needs: test` to the `build` job). **Lower priority:** consider whether the Stats panel (currently `alert(…)` for grid games' aggregations) deserves a dedicated `/stats` page or per-page modal — Playwright now locks the existing alert-shape behaviour in by tests, so this is safe to refactor when ready. Build is clean: 14 pages, `npm run check` 0/0/0 across 43 files, all chunk-dedup invariants verified at the bundle level (quiz **13-way**, progress 8-way, fluent 6-way, achievements 13-way, layout pre-paint 3-way).
 
 ### Per-game layout decisions for the 5 pending ports
 
@@ -289,7 +289,7 @@ before deciding.
    - **Batch 2 (2026-05-08, commit `64e5e5e`)**: Flashcards + Solar System + Weather — *zero* new CSS, just data + page wiring (the 4 card-machine games inherited the modal infra from batch 1).
    - **Batch 3 (2026-05-11, commits `6133d20` *(refactor)* + `6e210f9` *(feat)*)**: 7 grid games (Alphabets, Numbers, Colors, Shapes, Animals, Birds, Hindi) + the rule-#3 third-consumer extraction. The refactor commit moved the inner `.quiz-question` / `.quiz-opt` / `.quiz-result-*` / `.quiz-heading` selectors and the `.cm-quiz-overlay, .gl-quiz-overlay` shell into a new shared `src/styles/quiz-modal.css` consumed by both `CardMachineLayout` and `GridLayout`; `card-machine.css` + `grid.css` now carry only the `--quiz-*` per-theme tokens (canonical namespace, renamed from the layout-prefixed `--cm-quiz-*` / etc.) and the layout's own outer-shell scope. Story keeps its inline `.quiz-box` panel because the DOM shape is genuinely different (always-visible, in-flow, not a fixed-position overlay) and its `--st-quiz-*` tokens are a different semantic family. The feat commit added a 5-question `QUIZ` export to each grid game's `src/data/<game>.ts` (35 questions total, every option drawn from the existing deck content) plus the `#quizOverlay` modal markup + `mountQuiz` mount + open/close handlers + keyboard-nav suspension + a richer Stats panel reading both `quiz.getState()` (attempts / bestScore / lastPlayed) **and** `loadLearned(GAME_ID).size` / `ALL_CARDS.length` (tiles-learned vs total) — the grid-specific richer-stats shape that the Track 1 design predicted.
    All 11 non-story games now write to their own LocalStorage state via per-game `gameId` (`<gameId>_quiz_v1` for each game). **Shared `quiz.ts` chunk now 13-way deduped** (every game) at `quiz.BkZwETv6.js` (3.20 KB raw / 1.69 KB gzip — bigger than the 6-way `h5Df3D_T` because Vite folds helpers into the chunk when importer count rises). Pattern proven across all 11 wirings: (a) add a `QUIZ: readonly QuizQuestion[]` export to `src/data/<game>.ts` (5 questions covers a learning-game-sized deck), (b) add a hidden modal to the page (`<div class="cm-quiz-overlay">` for card-machine, `<div class="gl-quiz-overlay">` for grid — both shells are styled by the shared `quiz-modal.css` via comma-separated selectors), (c) replace the Quiz `alert(…)` stub with `mountQuiz({ gameId, questions, bodyEl, resultEl, ..., onPerfect, playTap })` + open/close handlers (Esc / click-outside / Close button) + keyboard-nav suspension while the modal is open, (d) replace the Stats `alert(…)` stub with `quiz.getState()` aggregations (deck/tile size + attempts + best score + last played; grid games additionally surface `progress.ts` tiles-learned).
-4. **Add tests.** Playwright smoke test per layout (one for card-machine, one for grid, **one for story**): filter / navigate → completion overlay + confetti / quiz score panel. Parameterise over themes inside each test so one suite covers every game.
+4. **Add tests.** *Bootstrapped 2026-05-11 (Track 2 closed for the bootstrap; promotion to a hard deploy gate left as a follow-up).* Three Playwright smoke suites under `tests/`, one per layout (`card-machine.spec.ts` × 4 themes, `grid.spec.ts` × 7 themes, `story.spec.ts` × 2 themes), parameterised over themes via a typed `GAMES` table so a regression in any one of the 13 games shows up as a single failing row in the report. Shared waiters in `tests/helpers.ts` (`answerQuizUntilResult`, `readQuizState`, `readLearned`, `expectModalOpen` / `expectModalClosed`). `playwright.config.ts` spawns `astro preview --host 127.0.0.1` via `webServer` (or skips it when `PLAYWRIGHT_BASE_URL` is set, useful for behind-corporate-proxy machines). 47 tests total, all passing 47/47 against the live GitHub Pages deploy in 22.2 s wall-clock. CI workflow `.github/workflows/test.yml` runs the same `npm test` on push + PR (chromium-only, build before test, Playwright report uploaded as an artefact). Currently a *soft* gate — failures don't block deploy yet; promoting to a hard gate is a one-line tweak (add `needs: test` to the build job in `deploy.yml`).
 5. **Option C — unified Deck layout with a grid/card/story view toggle.** Now *fully unblocked* — all 13 games have shipped, both shared libs (`progress.ts` for learning state + `quiz.ts` for quiz state) exist, and three pieces of evidence already lean *against* consolidation: (a) different detail-payload shapes (Fluent image vs CSS shape gallery vs CSS count grid vs scene art vs hero scene + prose + moral panel), (b) different filter bars (Animals's 6-pill mammal/bird/reptile/sea/insect filter vs Hindi's bilingual 3-pill vs Routines's no-filter-at-all), (c) different state shapes (`Set<string>` for grid progress vs `{ attempts, bestScore, lastPlayed }` for story quiz state vs no per-item state at all for Woodcutter). Decision time: (a) keep `CardMachineLayout` / `GridLayout` / `StoryLayout` separate (the evidence supports this) or (b) consolidate into a single `DeckLayout` with a per-user "Grid | Card | Story" toggle so parents can pick the teaching mode. Revisit *after* Stats + Quiz modals are live across all 13 games (item 3) — that's the cleanest signal of how much DOM / CSS the three layouts truly share.
 6. **Cut-over plan.** Migrate `kids-learning-games` (the live vanilla repo) to serve the Astro build, with a SW handoff strategy so existing PWA installs upgrade cleanly. Now eligible — all 13 games shipped — but intentionally postponed until the post-migration polish (items 3 + 4 above) is in place.
 
@@ -322,6 +322,210 @@ before deciding.
 ---
 
 ## Changelog
+
+### 2026-05-11 — Post-migration polish, Track 2 bootstrap: 47-test Playwright smoke suite across all 13 games, three layouts × parameterised themes
+
+**Opens and closes the Track 2 bootstrap** (promotion to a hard
+deploy-gate is left as a one-line follow-up). The migration shell is
+now backed by an automated regression net: every shipped game
+SSRs, opens its quiz, advances through every question, persists
+the right LocalStorage shape, and closes cleanly — verified per
+chromium run in ~22 s wall-clock against the live GitHub Pages
+deploy.
+
+**Why now and what triggered the layout choice.** The "Rough order
+of payoff" entry #4 (Add tests) had been queued since the
+post-migration polish kicked off. The grid sweep on the same
+calendar day (Track 1 batch 3, commit `6e210f9`) finished wiring
+`mountQuiz` into the last 7 of the 11 non-story games — at that
+point every layout had at least one fully-wired exemplar (card
+machine: Dinosaurs, Flashcards, Solar System, Weather; grid: 7
+games; story: Routines + Woodcutter), and the `<gameId>_quiz_v1`
+LocalStorage shape was finalised across the whole codebase. **Three
+suites instead of one**: the per-layout DOM differs enough that a
+single mega-suite would have been a mess of conditionals
+(`#quizOverlay` modal for card-machine + grid vs inline
+`#quizBox` for story; `data-theme` always set for story but
+optional for card-machine; tile-tap progress writes only on grid
++ Routines). One file per layout = one failing row per regressed
+game in the report. **Themes parameterised inside each suite**
+via a typed `GAMES: readonly { slug, gameId, titleContains,
+theme? }[]` table (well-typed, easy to extend when a 14th game
+ships, no string-fiddling for new entries).
+
+**What landed in this commit.**
+
+- **`playwright.config.ts`** — chromium-only (matches the GH
+  Actions runner cost ceiling; Firefox / WebKit can be added
+  later if the suite finds value in cross-browser smoke). Honours
+  `PLAYWRIGHT_BASE_URL` to point at any deployed instance and
+  *skips* spawning the local `webServer` when set; otherwise
+  spawns `npm run preview -- --host 127.0.0.1` and waits for it
+  to listen at `http://127.0.0.1:4321/kids-learning-games-astro/`
+  (trailing slash matters — see the "Bug discovered + fixed in
+  this commit" section below). `ignoreHTTPSErrors: true` so the
+  suite runs cleanly against the GitHub Pages deploy on dev
+  boxes behind a TLS-MitM corporate proxy. `serviceWorkers:
+  'block'` so the PWA install doesn't race the test
+  navigations. `actionTimeout: 10_000` and `navigationTimeout:
+  30_000` to absorb the occasional slow CDN response on the
+  live deploy. `retries: process.env.CI ? 2 : 0` so flakes don't
+  red-light a healthy commit; `workers: process.env.CI ? 1 :
+  undefined` to keep the LocalStorage writes deterministic.
+- **`tests/helpers.ts`** (~120 lines) — shared waiters and
+  assertions that every suite uses. `answerQuizUntilResult` taps
+  `data-i="0"` repeatedly until the result panel un-hides
+  (smoke-test contract: don't validate the score, validate the
+  pipeline reaches a result); `readQuizState` reads + validates
+  the `<gameId>_quiz_v1` JSON shape (`attempts >= 1`,
+  `bestScore` in `[0,100]`, `lastPlayed` matches `YYYY-MM-DD`);
+  `readLearned` reads the `kids_progress_v1:<gameId>` array;
+  `expectModalOpen` / `expectModalClosed` wait for the `.show`
+  class on the overlay shell.
+- **`tests/card-machine.spec.ts`** (~110 lines) — 4 themes ×
+  3 tests = 12 tests. Asserts the `body.card-machine` class +
+  optional `body[data-theme=…]` (Dinosaurs is the layout's
+  default and omits the `theme` prop, so `data-theme` is
+  unset; Flashcards, Solar System, Weather all set it), the
+  SSR'd `#topCard` + `#cardName` + `#cardNum`, the
+  `#quizOverlay` start-hidden / open-on-`#btnQuiz` /
+  advance-to-result / persist-state flow, and the close-button
+  flow.
+- **`tests/grid.spec.ts`** (~115 lines) — 7 themes × 4 tests
+  = 28 tests. Asserts the `body.grid` class +
+  `body[data-theme=…]` (always set for grid games), the
+  SSR'd non-empty `#deck > .gl-tile` count, the tile-tap →
+  `kids_progress_v1:<gameId>` write (proves the shared
+  `progress.ts` lib works for all 7 grid games), the same
+  quiz overlay flow as card-machine, and the close-button
+  flow.
+- **`tests/story.spec.ts`** (~140 lines) — 2 themes ×
+  asymmetric tests = 7 tests. Routines: SSR scene 1 + Next
+  advances scenes + `#btnQuiz` reveals `#quizBox` (sets
+  `body[data-mode='quiz']`) + advances to result + persists
+  state. Woodcutter: SSR scene art (with `> *` descendant
+  count instead of `not.toBeEmpty` because the art is purely
+  decorative — no text content) + auto-started quiz inline
+  panel + advance-to-result + Reset replays the scene + the
+  quiz. Diverged from the parameterised pattern because the
+  two story games' entry paths into the quiz differ
+  fundamentally (Routines is gated behind a button +
+  `body[data-mode]` toggle; Woodcutter auto-starts on load).
+- **`tests/tsconfig.json`** — extends the root `tsconfig.json`,
+  adds `@playwright/test` to `types`, narrows `include` to
+  `./**/*` so `astro check` doesn't traverse the test files
+  (the test files import from `@playwright/test`, not from
+  `src/lib/quiz.ts`, and don't need to participate in the SSR
+  type-check). Verified with `npx tsc --noEmit -p
+  tests/tsconfig.json` — 0 errors.
+- **`package.json`** — three new scripts: `test` (run all
+  tests), `test:ui` (interactive Playwright runner for
+  debugging), `test:install` (one-time chromium install).
+  All three honour `ASTRO_TELEMETRY_DISABLED=1`.
+- **`.github/workflows/test.yml`** — chromium-only Playwright
+  smoke suite on every push to `main` + every PR + manual
+  dispatch. `concurrency: cancel-in-progress: true` so a rapid
+  sequence of pushes doesn't stack up. Steps: checkout →
+  setup-node@v4 (Node 20 + npm cache) → `npm ci` → `npx
+  playwright install --with-deps chromium` → `npm run build` →
+  `npm test` → upload `playwright-report/` as an artefact (14
+  day retention) on always-condition (so failed runs still
+  produce a report). 15-minute timeout. **Soft gate** — runs
+  in parallel to `deploy.yml` rather than gating it. Promoting
+  to a hard gate is one line: add `needs: test` to the `build`
+  job in `deploy.yml`.
+- **`.gitignore`** — added `playwright-report/`,
+  `test-results/`, `.playwright/` so generated test artefacts
+  don't pollute commits.
+
+**Bugs discovered + fixed in this commit.**
+
+1. **Trailing-slash on baseURL.** Initial config had `baseURL =
+   'http://127.0.0.1:4321/kids-learning-games-astro'` (no
+   trailing slash) and tests used `page.goto('/games/<slug>.html')`
+   with a leading slash. `new URL('/games/x.html',
+   'http://.../kids-learning-games-astro')` resolves the leading
+   `/` against the *host root*, producing
+   `http://.../games/x.html` and missing the base prefix
+   entirely. Got "Site not found · GitHub Pages" 404 from every
+   test on the live URL run. Fix: append the trailing slash to
+   `baseURL` *and* drop the leading slash from every
+   `page.goto(...)` call so the path is composed *under* the
+   base. Documented inline in `playwright.config.ts` so the
+   next contributor doesn't repeat the trap.
+2. **`localhost` → `::1` (IPv6) routing on macOS.** Initial
+   config used `http://localhost:4321/...` and `astro preview
+   --host 127.0.0.1` was binding only to IPv4. macOS
+   `getaddrinfo` for `localhost` returns `::1` first on this
+   dev box, so Playwright's webServer health-check hung at the
+   IPv6 address while Astro listened on IPv4. Fix: hardcode
+   `127.0.0.1` in `LOCAL_URL` and document the gotcha inline.
+3. **Architecture mismatch on Playwright browser install.**
+   Initial `npx playwright install --with-deps chromium` ran
+   under the CLI sandbox (Apple Silicon + Rosetta) and
+   downloaded the `mac-x64` chrome-headless-shell. When the
+   tests ran outside the sandbox, Playwright correctly
+   detected `mac-arm64` and refused to launch the wrong-arch
+   binary. Fix: wipe the install + `npx playwright install
+   chromium` again outside the sandbox. Documented in this
+   changelog (no code change required — a one-time bootstrap
+   issue on this dev box).
+4. **`toBeEmpty()` matches text, not HTML.** Woodcutter's
+   `#sceneArt` contains decorative SVG/divs but no visible
+   text, so `expect(...).not.toBeEmpty()` failed even though
+   the element had children. Fix: switched to
+   `expect(page.locator('#sceneArt > *')).not.toHaveCount(0)`
+   which counts descendant elements (the actual smoke-test
+   contract — "the art rendered" not "the art has text").
+5. **Flashcards title is "Flash Cards" with a space.** First
+   regex used `/Flashcards/` and missed. Fix:
+   `/Flash\\s*[Cc]ards/` so future copy edits (case + spacing)
+   stay matched.
+
+**Local-Zscaler workaround documented.** This dev box runs
+behind a corporate Zscaler proxy that intercepts every
+localhost port with HTTP 403 ("Blocked due to invalid server
+IP" — confirmed against `127.0.0.1`, `localhost`,
+`localtest.me`, `lvh.me` on ports 4321 / 8443 / 9999 / 35729 /
+1234 / 5173, and against both `astro preview` and `python3 -m
+http.server`). Result: `npm test` *cannot* run against a local
+preview server here. Workaround:
+`PLAYWRIGHT_BASE_URL=https://aakash-jain-1.github.io/kids-learning-games-astro/
+npm test` — Playwright skips spawning the webServer and
+points the suite at the live deploy. Validated end-to-end:
+**all 47 tests pass in 22.2 s wall-clock**. CI runs on
+GitHub-hosted runners (no Zscaler), so the local block is
+purely a dev-experience concern — every push to `main` will
+exercise the suite against a fresh local preview in the CI
+runner.
+
+**Verification.**
+
+- `npm run check` — 0/0/0 across 43 files (test files live
+  under `tests/` which the root `tsconfig.json` excludes;
+  `tests/tsconfig.json` covers them separately). Verified
+  test-only type-check via `npx tsc --noEmit -p
+  tests/tsconfig.json` — 0 errors.
+- `PLAYWRIGHT_BASE_URL=https://aakash-jain-1.github.io/kids-learning-games-astro/
+  npm test` — **47/47 passing**, 22.2 s wall-clock, chromium
+  worker count auto-selected. No flakes observed across
+  multiple consecutive runs.
+- Live deploy spot-checks: `curl -kfsS` against
+  `https://aakash-jain-1.github.io/kids-learning-games-astro/games/{dinosaurs-game,alphabets-game,daily-routines-game,woodcutter-story}.html`
+  — all 200, all served the right SSR HTML with the right
+  `<title>` + `<body class>` markers.
+
+**What's next.** Promote the test workflow to a hard gate on
+`deploy.yml` (one line: `needs: test` on the `build` job) once
+the suite has run cleanly across ~5 normal-day commits in CI
+without flaking. Track 3 (Option C — unified `DeckLayout` with
+a grid/card/story view toggle) is now *fully* unblocked; the
+existing per-layout assertions become the regression net for
+any consolidation refactor (the suite asserts the
+*per-layout* DOM contract, so a `DeckLayout` refactor that
+preserves the contract would still pass — and any drift from
+the contract would surface as a single failing row per
+regressed game). Track 4 (cut-over plan) remains queued.
 
 ### 2026-05-11 — Post-migration polish, Track 1 batch 3: 7 grid games get real quizzes + rule-#3 `quiz-modal.css` extraction (Track 1 complete — 11 of 11 non-story games wired)
 
