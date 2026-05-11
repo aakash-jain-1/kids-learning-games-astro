@@ -1,5 +1,6 @@
 ---
 import CardMachineLayout from '@/layouts/CardMachineLayout.astro';
+import GameControls from '@/components/GameControls.astro';
 import { ALL_CARDS, FILTERS } from '@/data/solar-system';
 // Solar-system-only CSS (~320 lines of pure-CSS planet art). Imported here
 // so it ships with this page's bundle and nowhere else.
@@ -20,11 +21,7 @@ const description =
     <!-- Left pane: card deck -->
     <div class="left-pane">
       <div class="left-top">
-        <div class="ctrl-row">
-          <button class="ctrl-pill" id="btnQuiz" type="button">🧠 Quiz</button>
-          <button class="ctrl-pill" id="btnStats" type="button">📊 Stats</button>
-          <button class="ctrl-pill" id="btnSettings" type="button">⚙️ Settings</button>
-        </div>
+        <GameControls />
       </div>
 
       <div class="cat-bar" id="catBar" role="group" aria-label="Type filter">

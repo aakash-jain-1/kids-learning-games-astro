@@ -1,5 +1,6 @@
 ---
 import GridLayout from '@/layouts/GridLayout.astro';
+import GameControls from '@/components/GameControls.astro';
 import { ALL_CARDS, FILTERS } from '@/data/hindi';
 
 const title = 'Hindi — Kids Learning Games';
@@ -35,11 +36,7 @@ const totalCards = ALL_CARDS.length;
             <span class="gl-progress-bar-fill" id="progressFill"></span>
           </span>
         </span>
-        <div class="ctrl-row">
-          <button class="ctrl-pill" id="btnQuiz" type="button">🧠 Quiz</button>
-          <button class="ctrl-pill" id="btnStats" type="button">📊 Stats</button>
-          <button class="ctrl-pill" id="btnSettings" type="button">⚙️ Settings</button>
-        </div>
+        <GameControls />
       </div>
     </header>
 

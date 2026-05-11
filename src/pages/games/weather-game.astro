@@ -1,5 +1,6 @@
 ---
 import CardMachineLayout from '@/layouts/CardMachineLayout.astro';
+import GameControls from '@/components/GameControls.astro';
 import { ALL_CARDS, FILTERS, seasonLabel } from '@/data/weather';
 
 const title = 'Weather & Seasons Cards — Kids Learning Games';
@@ -23,11 +24,7 @@ const initialBadge = seasonLabel(initialCard.season);
     <!-- Left pane: card deck -->
     <div class="left-pane">
       <div class="left-top">
-        <div class="ctrl-row">
-          <button class="ctrl-pill" id="btnQuiz" type="button">🧠 Quiz</button>
-          <button class="ctrl-pill" id="btnStats" type="button">📊 Stats</button>
-          <button class="ctrl-pill" id="btnSettings" type="button">⚙️ Settings</button>
-        </div>
+        <GameControls />
       </div>
 
       <div class="cat-bar" id="catBar" role="group" aria-label="Season filter">

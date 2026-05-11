@@ -1,5 +1,6 @@
 ---
 import CardMachineLayout from '@/layouts/CardMachineLayout.astro';
+import GameControls from '@/components/GameControls.astro';
 import { DECKS } from '@/data/flashcards';
 
 const title = 'Flash Cards — Kids Learning Games';
@@ -22,11 +23,7 @@ const initialCard = initialDeck.cards[0]!;
     <!-- Left pane: deck + card stack -->
     <div class="left-pane">
       <div class="left-top">
-        <div class="ctrl-row">
-          <button class="ctrl-pill" id="btnQuiz" type="button">🧠 Quiz</button>
-          <button class="ctrl-pill" id="btnStats" type="button">📊 Stats</button>
-          <button class="ctrl-pill" id="btnSettings" type="button">⚙️ Settings</button>
-        </div>
+        <GameControls />
       </div>
 
       <div class="cat-bar" id="catBar" role="group" aria-label="Deck selector">

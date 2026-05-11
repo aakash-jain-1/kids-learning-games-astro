@@ -1,0 +1,29 @@
+---
+// Renders the standard 3-button (or 2-button) ctrl-row that lives at the
+// top of every game page: Quiz / Stats / Settings.
+//
+// Extracted as a rule-#3 win after the third (and ultimately thirteenth)
+// duplicate landed across CardMachineLayout, GridLayout, and StoryLayout
+// pages. The IDs (`btnQuiz`, `btnStats`, `btnSettings`) and class names
+// (`ctrl-row`, `ctrl-pill`) are public contract — every per-game script
+// wires `document.getElementById('btnQuiz')` etc. — so the produced DOM
+// is byte-identical to the inline blocks it replaces, modulo the optional
+// Woodcutter `quiz={false}` variant.
+
+interface Props {
+  /**
+   * Show the `🧠 Quiz` pill. Defaults to `true`. Set to `false` for
+   * Woodcutter, where the quiz auto-starts on page load and a manual
+   * `Quiz` button would be redundant.
+   */
+  quiz?: boolean;
+}
+
+const { quiz = true } = Astro.props;
+---
+
+<div class="ctrl-row">
+  {quiz && <button class="ctrl-pill" id="btnQuiz" type="button">🧠 Quiz</button>}
+  <button class="ctrl-pill" id="btnStats" type="button">📊 Stats</button>
+  <button class="ctrl-pill" id="btnSettings" type="button">⚙️ Settings</button>
+</div>

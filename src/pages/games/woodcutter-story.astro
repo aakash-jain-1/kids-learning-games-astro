@@ -11,6 +11,7 @@
 // re-setting `.scene-art`'s innerHTML.
 
 import StoryLayout from '@/layouts/StoryLayout.astro';
+import GameControls from '@/components/GameControls.astro';
 import '@/styles/woodcutter.css';
 import { SCENE_ART_HTML, STORY, MORAL } from '@/data/woodcutter';
 
@@ -27,10 +28,7 @@ const description =
         The Honest Woodcutter
         <span aria-hidden="true">🧚‍♀️</span>
       </h1>
-      <div class="ctrl-row">
-        <button class="ctrl-pill" id="btnStats" type="button">📊 Stats</button>
-        <button class="ctrl-pill" id="btnSettings" type="button">⚙️ Settings</button>
-      </div>
+      <GameControls quiz={false} />
     </header>
 
     <section class="scene-box" aria-label="Animated story scene">
