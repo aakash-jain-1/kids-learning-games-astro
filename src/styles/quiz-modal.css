@@ -1,0 +1,234 @@
+/* Shared quiz-modal styling for `mountQuiz` (the post-migration polish
+   modal). Loaded by *both* CardMachineLayout and GridLayout — Story
+   keeps its inline `.quiz-box` panel (different DOM shape: always
+   visible inside the scene, not a fixed-position overlay).
+
+   Rule-#3 extraction trigger: this file was created when the third
+   layout (GridLayout, 7 games) needed the same inner DOM that
+   CardMachineLayout already wired (4 games) — duplicating the
+   `.quiz-question` / `.quiz-opt` / `.quiz-result-*` selectors would
+   have meant the same rules in three places, so they live here once.
+   See PROGRESS.md → "2026-05-11" changelog entry.
+
+   Scope: outer shell classes stay per-layout (`.cm-quiz-overlay` vs
+   `.gl-quiz-overlay`, `.cm-quiz-card` vs `.gl-quiz-card`,
+   `.cm-quiz-close` vs `.gl-quiz-close`, `.cm-quiz-retry-btn` vs
+   `.gl-quiz-retry-btn`) so each layout's existing markup keeps its
+   own debugging/devtools handle. Inner generic classes that
+   `mountQuiz` writes (`.quiz-heading` / `.quiz-question` /
+   `.quiz-opt` / `.quiz-result*`) get a single ruleset scoped under
+   both shell classes via comma-separated selectors.
+
+   Tokens: a single canonical `--quiz-*` namespace defined per-theme
+   inside each layout's CSS (`card-machine.css` for the 4 cm games,
+   `grid.css` for the 7 grid games). Dark mode redefines a small set
+   of tokens globally per layout body (no per-theme dark variants —
+   the dark-mode quiz card looks the same across every theme, only
+   the page background + tiles stay theme-tinted). */
+
+/* ── Outer modal shell (overlay + card) ────────────────────────────── */
+.cm-quiz-overlay,
+.gl-quiz-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: var(--quiz-overlay-bg);
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.cm-quiz-overlay.show,
+.gl-quiz-overlay.show {
+  display: flex;
+}
+
+.cm-quiz-card,
+.gl-quiz-card {
+  position: relative;
+  background: var(--quiz-card-bg);
+  color: var(--quiz-card-text);
+  border-radius: 24px;
+  padding: 28px 26px 24px;
+  max-width: 520px;
+  width: 100%;
+  max-height: 88dvh;
+  overflow-y: auto;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.5);
+  animation: quiz-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  font-family: inherit;
+}
+
+@keyframes quiz-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.5) rotate(-3deg);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.05) rotate(1deg);
+  }
+  100% {
+    transform: scale(1) rotate(0);
+    opacity: 1;
+  }
+}
+
+.cm-quiz-close,
+.gl-quiz-close {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  background: transparent;
+  border: none;
+  font-size: 1.7em;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--quiz-card-text);
+  opacity: 0.5;
+  font-family: inherit;
+  padding: 4px 10px;
+}
+
+.cm-quiz-close:hover,
+.gl-quiz-close:hover {
+  opacity: 1;
+}
+
+/* ── Inner selectors `mountQuiz` writes — scoped under both shells ── */
+.cm-quiz-card .quiz-heading,
+.gl-quiz-card .quiz-heading {
+  color: var(--quiz-heading);
+  text-align: center;
+  font-size: 1.5em;
+  margin: 0 0 18px;
+  font-weight: 800;
+}
+
+.cm-quiz-card .quiz-question,
+.gl-quiz-card .quiz-question {
+  font-weight: 700;
+  font-size: 1.05em;
+  margin-bottom: 12px;
+  color: var(--quiz-card-text);
+}
+
+.cm-quiz-card .quiz-opt,
+.gl-quiz-card .quiz-opt {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 12px 16px;
+  margin: 6px 0;
+  border-radius: 12px;
+  border: 2px solid var(--quiz-opt-border);
+  background: var(--quiz-opt-bg);
+  color: var(--quiz-opt-text);
+  font-size: 1em;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.2s ease, transform 0.15s ease;
+}
+
+.cm-quiz-card .quiz-opt:hover,
+.gl-quiz-card .quiz-opt:hover {
+  background: var(--quiz-opt-hover-bg);
+  transform: translateY(-1px);
+}
+
+.cm-quiz-card .quiz-opt:active,
+.gl-quiz-card .quiz-opt:active {
+  transform: translateY(0);
+}
+
+.cm-quiz-card .quiz-result,
+.gl-quiz-card .quiz-result {
+  text-align: center;
+  padding: 12px 4px 6px;
+}
+
+.cm-quiz-card .quiz-result[hidden],
+.gl-quiz-card .quiz-result[hidden] {
+  display: none;
+}
+
+.cm-quiz-card .quiz-result-emoji,
+.gl-quiz-card .quiz-result-emoji {
+  font-size: 3em;
+  line-height: 1;
+}
+
+.cm-quiz-card .quiz-result-text,
+.gl-quiz-card .quiz-result-text {
+  font-size: 1.15em;
+  font-weight: bold;
+  margin: 8px 0 14px;
+  color: var(--quiz-card-text);
+}
+
+.cm-quiz-card .quiz-result-actions,
+.gl-quiz-card .quiz-result-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.cm-quiz-retry-btn,
+.gl-quiz-retry-btn {
+  background: var(--quiz-cta-bg);
+  color: var(--quiz-cta-color, #fff);
+  border: none;
+  border-radius: 50px;
+  padding: 11px 28px;
+  font-size: 0.98em;
+  font-weight: bold;
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow: 0 5px 16px rgba(0, 0, 0, 0.18);
+  transition: 0.22s;
+}
+
+.cm-quiz-retry-btn:hover,
+.gl-quiz-retry-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.25);
+}
+
+@media (max-width: 600px) {
+  .cm-quiz-card,
+  .gl-quiz-card {
+    padding: 22px 18px 18px;
+  }
+  .cm-quiz-card .quiz-heading,
+  .gl-quiz-card .quiz-heading {
+    font-size: 1.3em;
+  }
+  .cm-quiz-card .quiz-question,
+  .gl-quiz-card .quiz-question {
+    font-size: 1em;
+  }
+  .cm-quiz-card .quiz-opt,
+  .gl-quiz-card .quiz-opt {
+    padding: 11px 14px;
+    font-size: 0.95em;
+  }
+}
+
+/* ── Dark mode — theme-agnostic option/glass tokens ────────────────
+   The card-bg + card-text + opt-text stay PER-THEME — each layout's
+   own dark block (in `card-machine.css` / `grid.css`) maps them onto
+   the layout-specific dark tokens (`--cm-dm-done-bg` for cm,
+   `--gl-detail-bg` for grid) so the modal card matches the rest of
+   the page in dark mode. The values redefined here are the parts
+   that are theme-agnostic — neutral white-on-black glass for the
+   options, slightly darker overlay for the backdrop.                */
+body.dark-mode.card-machine,
+body.dark-mode.grid {
+  --quiz-overlay-bg: rgba(0, 0, 0, 0.65);
+  --quiz-opt-bg: rgba(255, 255, 255, 0.06);
+  --quiz-opt-border: rgba(255, 255, 255, 0.16);
+  --quiz-opt-hover-bg: rgba(255, 255, 255, 0.12);
+}

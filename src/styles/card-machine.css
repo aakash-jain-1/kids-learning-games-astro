@@ -42,22 +42,24 @@ body.card-machine {
   --cm-dm-name-color: #d4e8c0;
   --cm-dm-done-bg: rgba(30, 40, 20, 0.9);
 
-  /* Quiz modal (post-migration polish, 2026-05-08). Defaults below
-     match the dinosaur (green) theme; flashcards / solar-system /
-     weather override per the existing pattern. The modal markup
-     itself (.cm-quiz-overlay / .cm-quiz-card) is scoped under the
-     `.cm-quiz-card` descendant selector for the inner .quiz-question
-     / .quiz-opt / .quiz-result-* classes that mountQuiz writes — so
-     any future story-flow / grid game can adopt the same controller
-     without colliding with these styles. */
-  --cm-quiz-overlay-bg: rgba(0, 0, 0, 0.55);
-  --cm-quiz-card-bg: #ffffff;
-  --cm-quiz-card-text: #2a3a1a;
-  --cm-quiz-heading: #4a9010;
-  --cm-quiz-opt-bg: #f3fae8;
-  --cm-quiz-opt-border: #a8e063;
-  --cm-quiz-opt-hover-bg: #e8f5d0;
-  --cm-quiz-opt-text: #2a3a1a;
+  /* Quiz modal tokens (post-migration polish). Defaults below match
+     the dinosaur (green) theme; the other 3 cm themes override below.
+     The actual modal selectors live in `src/styles/quiz-modal.css` —
+     extracted at the rule-#3 trigger when the 7 grid games landed
+     (2026-05-11). Token namespace is canonical `--quiz-*` so the
+     same shared file consumes both layouts' palettes. The retry-btn
+     `--quiz-cta-bg` aliases each theme's existing press-button
+     gradient (`--cm-press-bg`) so the modal CTA always matches the
+     deck's primary action colour. */
+  --quiz-overlay-bg: rgba(0, 0, 0, 0.55);
+  --quiz-card-bg: #ffffff;
+  --quiz-card-text: #2a3a1a;
+  --quiz-heading: #4a9010;
+  --quiz-opt-bg: #f3fae8;
+  --quiz-opt-border: #a8e063;
+  --quiz-opt-hover-bg: #e8f5d0;
+  --quiz-opt-text: #2a3a1a;
+  --quiz-cta-bg: var(--cm-press-bg);
 
   height: 100dvh;
   overflow: hidden;
@@ -93,11 +95,11 @@ body.card-machine[data-theme='flashcards'] {
   --cm-dm-name-color: #d4e8ff;
   --cm-dm-done-bg: rgba(26, 26, 46, 0.92);
 
-  --cm-quiz-heading: #d97706;
-  --cm-quiz-opt-bg: #fff7ed;
-  --cm-quiz-opt-border: #fed7aa;
-  --cm-quiz-opt-hover-bg: #ffedd5;
-  --cm-quiz-opt-text: #1a1a2e;
+  --quiz-heading: #d97706;
+  --quiz-opt-bg: #fff7ed;
+  --quiz-opt-border: #fed7aa;
+  --quiz-opt-hover-bg: #ffedd5;
+  --quiz-opt-text: #1a1a2e;
 }
 
 /* Weather — deep-navy sky left pane, ice-blue OLED accents */
@@ -131,11 +133,11 @@ body.card-machine[data-theme='weather'] {
   --cm-dm-name-color: #b8d4f0;
   --cm-dm-done-bg: rgba(20, 30, 50, 0.9);
 
-  --cm-quiz-heading: #1565c0;
-  --cm-quiz-opt-bg: #e3f2fd;
-  --cm-quiz-opt-border: #90caf9;
-  --cm-quiz-opt-hover-bg: #bbdefb;
-  --cm-quiz-opt-text: #0d47a1;
+  --quiz-heading: #1565c0;
+  --quiz-opt-bg: #e3f2fd;
+  --quiz-opt-border: #90caf9;
+  --quiz-opt-hover-bg: #bbdefb;
+  --quiz-opt-text: #0d47a1;
 }
 
 /* Solar System — deep-space purple/navy left pane, golden accents */
@@ -169,11 +171,11 @@ body.card-machine[data-theme='solar-system'] {
   --cm-dm-name-color: #c8b8f0;
   --cm-dm-done-bg: rgba(20, 18, 50, 0.9);
 
-  --cm-quiz-heading: #5b1a99;
-  --cm-quiz-opt-bg: #f3e8ff;
-  --cm-quiz-opt-border: #c4b5fd;
-  --cm-quiz-opt-hover-bg: #e9d5ff;
-  --cm-quiz-opt-text: #2a1a4a;
+  --quiz-heading: #5b1a99;
+  --quiz-opt-bg: #f3e8ff;
+  --quiz-opt-border: #c4b5fd;
+  --quiz-opt-hover-bg: #e9d5ff;
+  --quiz-opt-text: #2a1a4a;
 }
 
 .cm-layout {
@@ -957,165 +959,13 @@ body.card-machine[data-theme='solar-system'] {
   }
 }
 
-/* ── Quiz modal (post-migration polish) ─────────────────────────────
-   Page-level full-viewport overlay (parallel to .done-overlay but
-   fixed-positioned because the modal can be opened mid-deck without
-   filling the right-pane). The inner .quiz-question / .quiz-opt /
-   .quiz-result-* selectors below match the class names that
-   `mountQuiz` writes — scoped under `.cm-quiz-card` so they never
-   leak to other layouts.                                              */
-.cm-quiz-overlay {
-  display: none;
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  background: var(--cm-quiz-overlay-bg);
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-}
-
-.cm-quiz-overlay.show {
-  display: flex;
-}
-
-.cm-quiz-card {
-  position: relative;
-  background: var(--cm-quiz-card-bg);
-  color: var(--cm-quiz-card-text);
-  border-radius: 24px;
-  padding: 28px 26px 24px;
-  max-width: 520px;
-  width: 100%;
-  max-height: 88dvh;
-  overflow-y: auto;
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.5);
-  animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  font-family: inherit;
-}
-
-.cm-quiz-card .quiz-heading {
-  color: var(--cm-quiz-heading);
-  text-align: center;
-  font-size: 1.5em;
-  margin: 0 0 18px;
-  font-weight: 800;
-}
-
-.cm-quiz-close {
-  position: absolute;
-  top: 8px;
-  right: 12px;
-  background: transparent;
-  border: none;
-  font-size: 1.7em;
-  line-height: 1;
-  cursor: pointer;
-  color: var(--cm-quiz-card-text);
-  opacity: 0.5;
-  font-family: inherit;
-  padding: 4px 10px;
-}
-
-.cm-quiz-close:hover {
-  opacity: 1;
-}
-
-.cm-quiz-card .quiz-question {
-  font-weight: 700;
-  font-size: 1.05em;
-  margin-bottom: 12px;
-  color: var(--cm-quiz-card-text);
-}
-
-.cm-quiz-card .quiz-opt {
-  display: block;
-  width: 100%;
-  text-align: left;
-  padding: 12px 16px;
-  margin: 6px 0;
-  border-radius: 12px;
-  border: 2px solid var(--cm-quiz-opt-border);
-  background: var(--cm-quiz-opt-bg);
-  color: var(--cm-quiz-opt-text);
-  font-size: 1em;
-  font-weight: 600;
-  cursor: pointer;
-  font-family: inherit;
-  transition: background 0.2s ease, transform 0.15s ease;
-}
-
-.cm-quiz-card .quiz-opt:hover {
-  background: var(--cm-quiz-opt-hover-bg);
-  transform: translateY(-1px);
-}
-
-.cm-quiz-card .quiz-opt:active {
-  transform: translateY(0);
-}
-
-.cm-quiz-card .quiz-result {
-  text-align: center;
-  padding: 12px 4px 6px;
-}
-
-.cm-quiz-card .quiz-result[hidden] {
-  display: none;
-}
-
-.cm-quiz-card .quiz-result-emoji {
-  font-size: 3em;
-  line-height: 1;
-}
-
-.cm-quiz-card .quiz-result-text {
-  font-size: 1.15em;
-  font-weight: bold;
-  margin: 8px 0 14px;
-  color: var(--cm-quiz-card-text);
-}
-
-.cm-quiz-card .quiz-result-actions {
-  display: flex;
-  justify-content: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.cm-quiz-retry-btn {
-  background: var(--cm-press-bg);
-  color: #fff;
-  border: none;
-  border-radius: 50px;
-  padding: 11px 28px;
-  font-size: 0.98em;
-  font-weight: bold;
-  cursor: pointer;
-  font-family: inherit;
-  box-shadow: 0 5px 16px rgba(0, 0, 0, 0.18);
-  transition: 0.22s;
-}
-
-.cm-quiz-retry-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.25);
-}
-
-@media (max-width: 600px) {
-  .cm-quiz-card {
-    padding: 22px 18px 18px;
-  }
-  .cm-quiz-card .quiz-heading {
-    font-size: 1.3em;
-  }
-  .cm-quiz-card .quiz-question {
-    font-size: 1em;
-  }
-  .cm-quiz-card .quiz-opt {
-    padding: 11px 14px;
-    font-size: 0.95em;
-  }
-}
+/* The `.cm-quiz-overlay` / `.cm-quiz-card` modal selectors + the
+   inner `mountQuiz` class rules used to live here. They moved to
+   `src/styles/quiz-modal.css` (loaded by both this layout and
+   GridLayout) at the rule-#3 trigger when the 7 grid games landed
+   and became the third consumer of the same inner DOM (cm + grid +
+   their own page-local overlay markup). Per-theme tokens stayed in
+   the per-theme blocks above; only the rules moved.                 */
 
 /* Dark mode overrides for card-machine games */
 body.dark-mode .left-pane {
@@ -1147,28 +997,14 @@ body.dark-mode .done-card p {
   color: var(--cm-dm-name-color);
 }
 
-body.dark-mode .cm-quiz-card {
-  background: var(--cm-dm-done-bg);
-  color: var(--cm-dm-name-color);
-}
-
-body.dark-mode .cm-quiz-card .quiz-question,
-body.dark-mode .cm-quiz-card .quiz-result-text {
-  color: var(--cm-dm-name-color);
-}
-
-body.dark-mode .cm-quiz-card .quiz-opt {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.16);
-  color: var(--cm-dm-name-color);
-}
-
-body.dark-mode .cm-quiz-card .quiz-opt:hover {
-  background: rgba(255, 255, 255, 0.12);
-}
-
-body.dark-mode .cm-quiz-close {
-  color: var(--cm-dm-name-color);
+/* Dark-mode quiz token mapping — the shared `quiz-modal.css` overrides
+   the option/glass tokens (theme-agnostic) but leaves the card-bg +
+   text per-theme. Map them here onto the existing dm tokens so each
+   cm theme's dark quiz card matches its done-card / top-card glass. */
+body.dark-mode.card-machine {
+  --quiz-card-bg: var(--cm-dm-done-bg);
+  --quiz-card-text: var(--cm-dm-name-color);
+  --quiz-opt-text: var(--cm-dm-name-color);
 }
 
 /* Responsive */

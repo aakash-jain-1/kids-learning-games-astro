@@ -17,10 +17,26 @@
    and naturally matches how Starfall / Khan Kids / DotIAM lay out their
    alphabet screens. */
 
-/* -- Default (alphabets) palette -- */
+/* -- Default (alphabets) palette --
+   Quiz-modal tokens (post-migration polish, 2026-05-11): the actual
+   modal selectors live in `src/styles/quiz-modal.css` (loaded by both
+   GridLayout and CardMachineLayout). We just supply per-theme palette
+   values here. The retry-btn `--quiz-cta-bg` aliases each theme's
+   primary action gradient (`--gl-action-bg`) so the modal CTA always
+   matches the deck's action buttons.                                  */
 body.grid {
   --gl-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   --gl-shell-maxw: 860px;
+
+  --quiz-overlay-bg: rgba(0, 0, 0, 0.55);
+  --quiz-card-bg: #ffffff;
+  --quiz-card-text: #2a113e;
+  --quiz-heading: #4a0e4e;
+  --quiz-opt-bg: #f5f2fb;
+  --quiz-opt-border: #c8b8e8;
+  --quiz-opt-hover-bg: #ebe2f8;
+  --quiz-opt-text: #2a113e;
+  --quiz-cta-bg: var(--gl-action-bg);
 
   --gl-title-color: #ffffff;
   --gl-subtitle-color: rgba(255, 255, 255, 0.85);
@@ -1008,6 +1024,12 @@ body.grid .cat-btn.active {
 body.grid[data-theme='colors'] {
   --gl-bg: linear-gradient(135deg, #fbc2eb 0%, #a6c1ee 100%);
 
+  --quiz-heading: #c1466b;
+  --quiz-opt-bg: #fff5f0;
+  --quiz-opt-border: #ffd4b8;
+  --quiz-opt-hover-bg: #ffe6dc;
+  --quiz-opt-text: #2a113e;
+
   --gl-tile-bg: linear-gradient(145deg, #ffffff, #f0f0f0);
   --gl-tile-bg-hover: linear-gradient(145deg, #fff5f0, #ffe6dc);
   --gl-tile-bg-learned: linear-gradient(145deg, #ffd4b8, #ffb88a);
@@ -1048,6 +1070,12 @@ body.grid[data-theme='colors'] {
    with orange-on-tap; OLED-style detail card stays neutral. */
 body.grid[data-theme='numbers'] {
   --gl-bg: linear-gradient(135deg, #4facfe 0%, #00d2c4 100%);
+
+  --quiz-heading: #00838f;
+  --quiz-opt-bg: #e0f7fa;
+  --quiz-opt-border: #80deea;
+  --quiz-opt-hover-bg: #b2ebf2;
+  --quiz-opt-text: #003b6f;
 
   --gl-tile-bg: linear-gradient(145deg, #ffffff, #fff5e6);
   --gl-tile-bg-hover: linear-gradient(145deg, #ffd9a0, #ffb966);
@@ -1091,6 +1119,12 @@ body.grid[data-theme='numbers'] {
 body.grid[data-theme='shapes'] {
   --gl-bg: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
 
+  --quiz-heading: #6a1b9a;
+  --quiz-opt-bg: #fce4ec;
+  --quiz-opt-border: #f8bbd0;
+  --quiz-opt-hover-bg: #f48fb1;
+  --quiz-opt-text: #4a0072;
+
   --gl-tile-bg: linear-gradient(145deg, #ffffff, #fff0f7);
   --gl-tile-bg-hover: linear-gradient(145deg, #ffd6e8, #ffb5d2);
   --gl-tile-bg-learned: linear-gradient(145deg, #ffb5d2, #f48fb1);
@@ -1126,6 +1160,12 @@ body.grid[data-theme='shapes'] {
    warm tile interior and the cool background. */
 body.grid[data-theme='animals'] {
   --gl-bg: linear-gradient(135deg, #43cea2 0%, #185a9d 100%);
+
+  --quiz-heading: #185a9d;
+  --quiz-opt-bg: #e0f2f1;
+  --quiz-opt-border: #80cbc4;
+  --quiz-opt-hover-bg: #b2dfdb;
+  --quiz-opt-text: #052a3d;
 
   --gl-tile-bg: linear-gradient(145deg, #ffffff, #eaf6f1);
   --gl-tile-bg-hover: linear-gradient(145deg, #b2f5ea, #81e6d9);
@@ -1166,6 +1206,12 @@ body.grid[data-theme='animals'] {
 body.grid[data-theme='birds'] {
   --gl-bg: linear-gradient(135deg, #ff9a56 0%, #ff6a88 100%);
 
+  --quiz-heading: #c41e58;
+  --quiz-opt-bg: #fff3e0;
+  --quiz-opt-border: #ffcc80;
+  --quiz-opt-hover-bg: #ffe0b2;
+  --quiz-opt-text: #5a1b30;
+
   --gl-tile-bg: linear-gradient(145deg, #ffffff, #fff5ed);
   --gl-tile-bg-hover: linear-gradient(145deg, #ffe1cf, #ffc7a8);
   --gl-tile-bg-learned: linear-gradient(145deg, #ffc7a8, #ff9a56);
@@ -1205,6 +1251,12 @@ body.grid[data-theme='birds'] {
    the grid. Action / pill accent is deep saffron `#cc5500`. */
 body.grid[data-theme='hindi'] {
   --gl-bg: linear-gradient(135deg, #ff9933 0%, #fff4e6 50%, #138808 100%);
+
+  --quiz-heading: #cc5500;
+  --quiz-opt-bg: #fff4e6;
+  --quiz-opt-border: #ffcc80;
+  --quiz-opt-hover-bg: #ffe5cc;
+  --quiz-opt-text: #0d3d18;
 
   --gl-tile-bg: linear-gradient(145deg, #ffffff, #fff4e6);
   --gl-tile-bg-hover: linear-gradient(145deg, #ffe5cc, #ffd9b3);
@@ -1356,4 +1408,14 @@ body.dark-mode.grid[data-theme='hindi'] {
 
 body.dark-mode.grid .gl-detail-image-wrap {
   background: rgba(255, 255, 255, 0.05);
+}
+
+/* Dark-mode quiz token mapping — the shared `quiz-modal.css` overrides
+   the option/glass tokens (theme-agnostic) but leaves card-bg + text
+   per-theme. Map them onto the existing per-theme dm tokens so each
+   grid theme's dark quiz card matches its own detail card glass.    */
+body.dark-mode.grid {
+  --quiz-card-bg: var(--gl-detail-bg);
+  --quiz-card-text: var(--gl-detail-text);
+  --quiz-opt-text: var(--gl-detail-text);
 }
