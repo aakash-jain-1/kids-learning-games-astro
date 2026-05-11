@@ -70,3 +70,45 @@ export const FILTERS: readonly NumberFilter[] = [
   { key: 'low',  label: '🌱 1–5' },
   { key: 'high', label: '🌟 6–10' },
 ];
+
+import type { QuizQuestion } from '@/lib/quiz';
+
+/**
+ * Quiz questions for the Numbers modal. Mix of:
+ *   - digit → word recognition,
+ *   - word → digit recognition,
+ *   - body-counting application (fingers, eyes — recall the facts!),
+ *   - low vs high group identification (matches the deck filter),
+ *   - rainbow trivia from the "Seven" card's fact line — tests that
+ *     children noticed the fact when they tapped the tile.
+ *
+ * Every option is a number or word that appears on a real tile in
+ * the 1–10 deck so the quiz feels native to the deck's content.
+ */
+export const QUIZ: readonly QuizQuestion[] = [
+  {
+    q: 'What number comes after 4?',
+    opts: ['3', '5', '6', '7'],
+    ans: 1,
+  },
+  {
+    q: 'How do you write the word "Three" as a number?',
+    opts: ['2', '3', '4', '5'],
+    ans: 1,
+  },
+  {
+    q: 'How many fingers do you have on TWO hands?',
+    opts: ['Five', 'Eight', 'Ten', 'Twelve'],
+    ans: 2,
+  },
+  {
+    q: 'Which of these numbers is in the 1–5 group?',
+    opts: ['Eight', 'Nine', 'Ten', 'Two'],
+    ans: 3,
+  },
+  {
+    q: 'How many colours does a rainbow have?',
+    opts: ['Five', 'Six', 'Seven', 'Eight'],
+    ans: 2,
+  },
+];

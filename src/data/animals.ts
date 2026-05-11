@@ -228,3 +228,43 @@ export const FILTERS: readonly AnimalFilter[] = [
   { key: 'sea',     label: '\u{1F41F} Sea' },
   { key: 'insect',  label: '\u{1F41B} Insects' },
 ];
+
+import type { QuizQuestion } from '@/lib/quiz';
+
+/**
+ * Quiz questions for the Animals modal. Mix of:
+ *   - sound → animal recognition (Roar! → Lion — "the King of the
+ *     jungle" detail-card fact),
+ *   - animal → group classification (matches the deck's 5-group filter),
+ *   - body-feature trivia (longest neck → Giraffe; eight arms →
+ *     Octopus — both lifted from the cards' own fact lines).
+ *
+ * Every option is the name of a real card in the 37-card deck.
+ */
+export const QUIZ: readonly QuizQuestion[] = [
+  {
+    q: 'Which animal is called the "King of the Jungle"?',
+    opts: ['Bear', 'Elephant', 'Lion', 'Tiger'],
+    ans: 2,
+  },
+  {
+    q: 'Which of these is a REPTILE?',
+    opts: ['Cat', 'Duck', 'Fish', 'Snake'],
+    ans: 3,
+  },
+  {
+    q: 'Which animal has the longest neck?',
+    opts: ['Elephant', 'Giraffe', 'Horse', 'Zebra'],
+    ans: 1,
+  },
+  {
+    q: 'How many arms does an Octopus have?',
+    opts: ['4', '6', '8', '10'],
+    ans: 2,
+  },
+  {
+    q: 'Which one is an INSECT?',
+    opts: ['Bear', 'Butterfly', 'Penguin', 'Whale'],
+    ans: 1,
+  },
+];

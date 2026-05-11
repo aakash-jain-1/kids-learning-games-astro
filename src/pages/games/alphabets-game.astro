@@ -138,6 +138,22 @@ const totalCards = ALL_CARDS.length;
       </button>
     </div>
   </div>
+
+  <div class="gl-quiz-overlay" id="quizOverlay" role="dialog" aria-modal="true" aria-labelledby="quizHeading">
+    <div class="gl-quiz-card">
+      <button class="gl-quiz-close" id="quizCloseBtn" type="button" aria-label="Close quiz">&times;</button>
+      <h2 class="quiz-heading" id="quizHeading">🧠 Quick Alphabets Quiz</h2>
+      <div id="quizBody"></div>
+      <div class="quiz-result" id="quizResult" hidden>
+        <div class="quiz-result-emoji" id="quizResEmoji" aria-hidden="true"></div>
+        <div class="quiz-result-text" id="quizResText"></div>
+        <div class="quiz-result-actions">
+          <button class="gl-quiz-retry-btn" id="quizRetryBtn" type="button">🔄 Try Again</button>
+          <button class="gl-quiz-retry-btn" id="quizDoneBtn" type="button">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </GridLayout>
 
 <script>
@@ -146,13 +162,19 @@ const totalCards = ALL_CARDS.length;
   import { launchConfetti } from '@/lib/achievements';
   import { getSettings } from '@/lib/settings';
   import { loadLearned, saveLearned } from '@/lib/progress';
-  import { ALL_CARDS } from '@/data/alphabets';
+  import { mountQuiz } from '@/lib/quiz';
+  import { ALL_CARDS, QUIZ } from '@/data/alphabets';
   import { FLUENT_IMG_BASE } from '@/data/fluent';
 
   // Progress persistence — uses the shared `src/lib/progress.ts` helper
   // (extracted once Numbers became the second consumer). Game id maps
   // to `kids_progress_v1:alphabets`.
   const GAME_ID = 'alphabets';
+
+  // Confetti palette for the quiz perfect-score effect — matches the
+  // alphabets theme (purple gradient + green tile accents) so the
+  // burst feels native to the page.
+  const ALPHA_COLORS = ['#667eea', '#764ba2', '#4caf50', '#8bc34a', '#ffd700'];
 
   // --- State ---
   let learned = loadLearned(GAME_ID);
@@ -379,20 +401,85 @@ const totalCards = ALL_CARDS.length;
     (window as unknown as { openSettings?: () => void }).openSettings?.();
   });
 
-  document.getElementById('btnStats')?.addEventListener('click', () => {
-    playTap();
-    alert(
-      `You've learned ${learned.size} out of ${ALL_CARDS.length} letters!\n\nKeep going!`,
-    );
-  });
+  // --- Quiz modal wiring ---------------------------------------------
+  // Third layout consumer of `mountQuiz` (story-flow + card-machine
+  // shipped earlier). Markup parallels the cm pages — outer
+  // `.gl-quiz-overlay` shell + inner `.gl-quiz-card` styled by the
+  // shared `src/styles/quiz-modal.css` (loaded via GridLayout).
+  const quizOverlay = document.getElementById('quizOverlay');
+  const quizBody = document.getElementById('quizBody');
+  const quizResult = document.getElementById('quizResult');
+  const quizResEmoji = document.getElementById('quizResEmoji');
+  const quizResText = document.getElementById('quizResText');
+
+  const quiz =
+    quizOverlay && quizBody && quizResult && quizResEmoji && quizResText
+      ? mountQuiz({
+          gameId: GAME_ID,
+          questions: QUIZ,
+          bodyEl: quizBody,
+          resultEl: quizResult,
+          resultEmojiEl: quizResEmoji,
+          resultTextEl: quizResText,
+          messages: {
+            perfect: 'Excellent! You know your A-B-Cs perfectly!',
+            great: 'Great job, alphabet star!',
+            keepReading: 'Tap a few more letters and try the quiz again!',
+          },
+          onPerfect: () => launchConfetti(ALPHA_COLORS),
+          playTap,
+        })
+      : null;
+
+  const closeQuizModal = (): void => {
+    quizOverlay?.classList.remove('show');
+  };
 
   document.getElementById('btnQuiz')?.addEventListener('click', () => {
+    if (!quiz || !quizOverlay) return;
     playTap();
-    alert('Quiz mode is coming soon!');
+    quizOverlay.classList.add('show');
+    quiz.start();
+  });
+
+  document.getElementById('quizCloseBtn')?.addEventListener('click', () => {
+    playTap();
+    closeQuizModal();
+  });
+  document.getElementById('quizDoneBtn')?.addEventListener('click', () => {
+    playTap();
+    closeQuizModal();
+  });
+  document.getElementById('quizRetryBtn')?.addEventListener('click', () => {
+    playTap();
+    quiz?.start();
+  });
+  quizOverlay?.addEventListener('click', (e) => {
+    if (e.target === quizOverlay) closeQuizModal();
+  });
+
+  document.getElementById('btnStats')?.addEventListener('click', () => {
+    playTap();
+    const state = quiz?.getState() ?? { attempts: 0, bestScore: 0, lastPlayed: '' };
+    const lines = [
+      `🔤 Letters learned: ${learned.size} of ${ALL_CARDS.length}`,
+      `🧠 Quiz attempts: ${state.attempts}`,
+      `🏆 Best score: ${state.bestScore}%`,
+      state.lastPlayed ? `📅 Last played: ${state.lastPlayed}` : '📅 Last played: never',
+    ];
+    alert(lines.join('\n'));
   });
 
   // Keyboard navigation (arrow keys) — helpful for desktop users.
+  // Suspended while the quiz modal is open so arrow keys don't
+  // navigate the deck behind the modal; Escape closes the modal.
   document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && quizOverlay?.classList.contains('show')) {
+      e.preventDefault();
+      closeQuizModal();
+      return;
+    }
+    if (quizOverlay?.classList.contains('show')) return;
     if (e.target instanceof HTMLInputElement) return;
     if (e.key === 'ArrowLeft') navigate(-1);
     else if (e.key === 'ArrowRight') navigate(1);

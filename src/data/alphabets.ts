@@ -141,3 +141,49 @@ export const FILTERS: readonly AlphabetFilter[] = [
   { key: 'vowel',      label: '🎵 Vowels' },
   { key: 'consonant',  label: '🎸 Consonants' },
 ];
+
+import type { QuizQuestion } from '@/lib/quiz';
+
+/**
+ * Quiz questions for the post-migration quiz modal (third consumer of
+ * `mountQuiz`, alongside Daily Routines + Woodcutter on the story
+ * side and Dinosaurs + Flashcards + Solar System + Weather on the
+ * card-machine side). Mix of:
+ *   - letter → word association (the deck's primary pedagogy),
+ *   - word → letter association (reverse direction),
+ *   - vowel vs consonant identification (matches the deck filter),
+ *   - one cross-deck "which is the vowel" recognition question that
+ *     tests the vowel-set knowledge directly.
+ *
+ * Every option is a real letter or a real card-name from the 26-card
+ * deck so the quiz feels native, not bolted on. Answer order is
+ * shuffled across the 5 questions so children don't pattern-match
+ * on positional bias (no "the answer is always B").
+ */
+export const QUIZ: readonly QuizQuestion[] = [
+  {
+    q: 'Which letter is for Apple?',
+    opts: ['A', 'P', 'L', 'E'],
+    ans: 0,
+  },
+  {
+    q: 'Which of these is a VOWEL?',
+    opts: ['B', 'M', 'O', 'T'],
+    ans: 2,
+  },
+  {
+    q: 'Which letter is for Zebra?',
+    opts: ['S', 'X', 'Y', 'Z'],
+    ans: 3,
+  },
+  {
+    q: 'Which animal starts with the letter L?',
+    opts: ['Cat', 'Lion', 'Rabbit', 'Zebra'],
+    ans: 1,
+  },
+  {
+    q: 'How many vowels are there in the English alphabet?',
+    opts: ['3', '5', '7', '10'],
+    ans: 1,
+  },
+];

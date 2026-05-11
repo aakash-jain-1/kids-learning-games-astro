@@ -129,3 +129,43 @@ export const FILTERS: readonly ShapeFilter[] = [
   { key: 'basic',   label: '\u{1F4D0} Basic' },
   { key: 'special', label: '\u2728 Special' },
 ];
+
+import type { QuizQuestion } from '@/lib/quiz';
+
+/**
+ * Quiz questions for the Shapes modal. Mix of:
+ *   - sides-counting (Triangle = 3, Pentagon = 5, Hexagon = 6,
+ *     Octagon = 8 — straight from each card's fact line),
+ *   - shape → concept association (heart, star — round vs special
+ *     groups),
+ *   - cross-shape comparison (which shape has NO corners — Circle).
+ *
+ * Every option is a shape name from the 14-card deck.
+ */
+export const QUIZ: readonly QuizQuestion[] = [
+  {
+    q: 'How many sides does a Triangle have?',
+    opts: ['2', '3', '4', '5'],
+    ans: 1,
+  },
+  {
+    q: 'Which shape has 6 sides?',
+    opts: ['Hexagon', 'Pentagon', 'Square', 'Triangle'],
+    ans: 0,
+  },
+  {
+    q: 'Which shape is round and has NO corners at all?',
+    opts: ['Circle', 'Diamond', 'Square', 'Star'],
+    ans: 0,
+  },
+  {
+    q: 'How many points does a Star have?',
+    opts: ['3', '4', '5', '6'],
+    ans: 2,
+  },
+  {
+    q: 'Which shape shows love?',
+    opts: ['Diamond', 'Heart', 'Octagon', 'Trapezoid'],
+    ans: 1,
+  },
+];

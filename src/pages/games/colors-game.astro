@@ -143,6 +143,22 @@ const totalCards = ALL_CARDS.length;
       </button>
     </div>
   </div>
+
+  <div class="gl-quiz-overlay" id="quizOverlay" role="dialog" aria-modal="true" aria-labelledby="quizHeading">
+    <div class="gl-quiz-card">
+      <button class="gl-quiz-close" id="quizCloseBtn" type="button" aria-label="Close quiz">&times;</button>
+      <h2 class="quiz-heading" id="quizHeading">🧠 Quick Colours Quiz</h2>
+      <div id="quizBody"></div>
+      <div class="quiz-result" id="quizResult" hidden>
+        <div class="quiz-result-emoji" id="quizResEmoji" aria-hidden="true"></div>
+        <div class="quiz-result-text" id="quizResText"></div>
+        <div class="quiz-result-actions">
+          <button class="gl-quiz-retry-btn" id="quizRetryBtn" type="button">🔄 Try Again</button>
+          <button class="gl-quiz-retry-btn" id="quizDoneBtn" type="button">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </GridLayout>
 
 <script>
@@ -151,9 +167,14 @@ const totalCards = ALL_CARDS.length;
   import { launchConfetti } from '@/lib/achievements';
   import { getSettings } from '@/lib/settings';
   import { loadLearned, saveLearned } from '@/lib/progress';
-  import { ALL_CARDS } from '@/data/colors';
+  import { mountQuiz } from '@/lib/quiz';
+  import { ALL_CARDS, QUIZ } from '@/data/colors';
 
   const GAME_ID = 'colors';
+
+  // Confetti palette for the quiz perfect-score effect — uses every
+  // hex from the deck so the burst is the exact theme of the game.
+  const COLORS_PALETTE = ALL_CARDS.map((c) => c.hex);
 
   // --- State ---
   let learned = loadLearned(GAME_ID);
@@ -393,24 +414,84 @@ const totalCards = ALL_CARDS.length;
     (window as unknown as { openSettings?: () => void }).openSettings?.();
   });
 
-  document.getElementById('btnStats')?.addEventListener('click', () => {
-    playTap();
-    alert(
-      `You've learned ${learned.size} out of ${ALL_CARDS.length} colours!\n\nKeep exploring!`,
-    );
-  });
+  // --- Quiz modal wiring ---------------------------------------------
+  const quizOverlay = document.getElementById('quizOverlay');
+  const quizBody = document.getElementById('quizBody');
+  const quizResult = document.getElementById('quizResult');
+  const quizResEmoji = document.getElementById('quizResEmoji');
+  const quizResText = document.getElementById('quizResText');
+
+  const quiz =
+    quizOverlay && quizBody && quizResult && quizResEmoji && quizResText
+      ? mountQuiz({
+          gameId: GAME_ID,
+          questions: QUIZ,
+          bodyEl: quizBody,
+          resultEl: quizResult,
+          resultEmojiEl: quizResEmoji,
+          resultTextEl: quizResText,
+          messages: {
+            perfect: 'Picture-perfect! Colour expert!',
+            great: 'Great eye for colour!',
+            keepReading: 'Tap a few more swatches and try again!',
+          },
+          onPerfect: () => launchConfetti(COLORS_PALETTE),
+          playTap,
+        })
+      : null;
+
+  const closeQuizModal = (): void => {
+    quizOverlay?.classList.remove('show');
+  };
 
   document.getElementById('btnQuiz')?.addEventListener('click', () => {
+    if (!quiz || !quizOverlay) return;
     playTap();
-    alert('Quiz mode is coming soon!');
+    quizOverlay.classList.add('show');
+    quiz.start();
+  });
+
+  document.getElementById('quizCloseBtn')?.addEventListener('click', () => {
+    playTap();
+    closeQuizModal();
+  });
+  document.getElementById('quizDoneBtn')?.addEventListener('click', () => {
+    playTap();
+    closeQuizModal();
+  });
+  document.getElementById('quizRetryBtn')?.addEventListener('click', () => {
+    playTap();
+    quiz?.start();
+  });
+  quizOverlay?.addEventListener('click', (e) => {
+    if (e.target === quizOverlay) closeQuizModal();
+  });
+
+  document.getElementById('btnStats')?.addEventListener('click', () => {
+    playTap();
+    const state = quiz?.getState() ?? { attempts: 0, bestScore: 0, lastPlayed: '' };
+    const lines = [
+      `🎨 Colours learned: ${learned.size} of ${ALL_CARDS.length}`,
+      `🧠 Quiz attempts: ${state.attempts}`,
+      `🏆 Best score: ${state.bestScore}%`,
+      state.lastPlayed ? `📅 Last played: ${state.lastPlayed}` : '📅 Last played: never',
+    ];
+    alert(lines.join('\n'));
   });
 
   // Keyboard: arrow keys for navigation, plus first-letter shortcut
   // (R=Red, B=Blue, G=Green, Y=Yellow, O=Orange, P=Purple, K=Black,
   // W=White) — convenience for older kids. P is ambiguous between
   // Pink and Purple; pick the *first* match in deck order, which is
-  // Pink → Purple per the warm/cool ordering.
+  // Pink → Purple per the warm/cool ordering. Suspended while the
+  // quiz modal is open; Escape closes the modal.
   document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && quizOverlay?.classList.contains('show')) {
+      e.preventDefault();
+      closeQuizModal();
+      return;
+    }
+    if (quizOverlay?.classList.contains('show')) return;
     if (e.target instanceof HTMLInputElement) return;
     if (e.key === 'ArrowLeft') {
       navigate(-1);

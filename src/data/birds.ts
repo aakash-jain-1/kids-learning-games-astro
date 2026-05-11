@@ -221,3 +221,47 @@ export const FILTERS: readonly BirdFilter[] = [
   { key: 'tropical',  label: '\u{1F99C} Tropical' },
   { key: 'ground',    label: '\u{1F414} Ground' },
 ];
+
+import type { QuizQuestion } from '@/lib/quiz';
+
+/**
+ * Quiz questions for the Birds modal. Mix of:
+ *   - cultural / national identity (Peacock → India — straight from
+ *     the Peacock card's fact line),
+ *   - bird → group classification (matches the deck's 5-group filter),
+ *   - body-feature trivia (which bird stands on one leg — Flamingo,
+ *     from the Flamingo card's fact),
+ *   - sound recognition (which bird crows in the morning → Rooster,
+ *     "Cock-a-doodle-doo!" from its sound + fact),
+ *   - flightless-bird trivia (Penguin / Ostrich), reinforces the
+ *     Penguin-as-bird classification.
+ *
+ * Every option is the name of a real card in the 15-card deck.
+ */
+export const QUIZ: readonly QuizQuestion[] = [
+  {
+    q: 'Which bird is the national bird of India?',
+    opts: ['Eagle', 'Owl', 'Parrot', 'Peacock'],
+    ans: 3,
+  },
+  {
+    q: 'Which of these is a RAPTOR (a bird of prey)?',
+    opts: ['Duck', 'Eagle', 'Sparrow', 'Swan'],
+    ans: 1,
+  },
+  {
+    q: 'Which pink bird stands on just ONE leg?',
+    opts: ['Dove', 'Flamingo', 'Penguin', 'Turkey'],
+    ans: 1,
+  },
+  {
+    q: 'Which bird crows "Cock-a-doodle-doo!" in the morning?',
+    opts: ['Chicken', 'Owl', 'Rooster', 'Sparrow'],
+    ans: 2,
+  },
+  {
+    q: 'Which bird CANNOT fly but loves cold weather?',
+    opts: ['Eagle', 'Parrot', 'Penguin', 'Sparrow'],
+    ans: 2,
+  },
+];

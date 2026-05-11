@@ -328,3 +328,50 @@ export const FILTERS: readonly HindiFilter[] = [
   { key: 'vowel',     label: '\u0938\u094D\u0935\u0930 Vowels' },              // स्वर Vowels
   { key: 'consonant', label: '\u0935\u094D\u092F\u0902\u091C\u0928 Consonants' }, // व्यंजन Consonants
 ];
+
+import type { QuizQuestion } from '@/lib/quiz';
+
+/**
+ * Quiz questions for the Hindi Varnamala modal. Mix of:
+ *   - Devanagari letter → Hindi word association (अनार starts with अ),
+ *   - vowel vs consonant identification (matches the deck's bilingual
+ *     स्वर / व्यंजन filter pills),
+ *   - Hindi word → English meaning (हाथी → Elephant — pulled from the
+ *     ह card's `n` field),
+ *   - phonics (which letter sounds like "ka" — क),
+ *   - cultural trivia from the ल / Laddu card's fact line (round
+ *     Indian sweet).
+ *
+ * Devanagari characters use `\uXXXX` escapes to keep the source ASCII-
+ * clean and match the rest of this file's style. Every option that
+ * names a Hindi word matches the `trans` field of a real card; every
+ * Devanagari character in `opts` is a real letter from the 48-card
+ * deck.
+ */
+export const QUIZ: readonly QuizQuestion[] = [
+  {
+    q: 'Which Hindi letter is for \u0905\u0928\u093E\u0930 (Anar / Pomegranate)?', // अनार
+    opts: ['\u0905', '\u0907', '\u0909', '\u090F'], // अ, इ, उ, ए
+    ans: 0,
+  },
+  {
+    q: 'Which of these is a \u0938\u094D\u0935\u0930 (vowel)?', // स्वर
+    opts: ['\u0915', '\u092E', '\u0913', '\u0924'], // क, म, ओ, त
+    ans: 2,
+  },
+  {
+    q: 'What does \u0939\u093E\u0925\u0940 (Haathi) mean?', // हाथी
+    opts: ['Cat', 'Cow', 'Elephant', 'Lion'],
+    ans: 2,
+  },
+  {
+    q: 'Which Hindi letter sounds like "ka"?',
+    opts: ['\u0915', '\u0916', '\u0917', '\u0918'], // क, ख, ग, घ
+    ans: 0,
+  },
+  {
+    q: 'What is a \u0932\u0921\u094D\u0921\u0942 (Laddu)?', // लड्डू
+    opts: ['A bag', 'A drum', 'A round Indian sweet', 'A traditional outfit'],
+    ans: 2,
+  },
+];

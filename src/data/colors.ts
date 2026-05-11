@@ -113,3 +113,44 @@ export const FILTERS: readonly ColorFilter[] = [
   { key: 'cool',    label: '💧 Cool' },
   { key: 'neutral', label: '⚪ Neutral' },
 ];
+
+import type { QuizQuestion } from '@/lib/quiz';
+
+/**
+ * Quiz questions for the Colors modal. Mix of:
+ *   - object → colour recognition (strawberries → red, sky → blue),
+ *   - warm vs cool vs neutral group identification (matches deck filter),
+ *   - rainbow-edge trivia from the Violet fact ("last colour at the
+ *     edge of a rainbow") — tests detail-card reading,
+ *   - colour mixing question that connects two existing cards (red +
+ *     yellow = orange — primary-to-secondary intuition).
+ *
+ * Every option is a colour name from the 12-card deck.
+ */
+export const QUIZ: readonly QuizQuestion[] = [
+  {
+    q: 'What colour is a ripe strawberry?',
+    opts: ['Blue', 'Green', 'Red', 'Yellow'],
+    ans: 2,
+  },
+  {
+    q: 'Which of these is a COOL colour?',
+    opts: ['Blue', 'Orange', 'Pink', 'Yellow'],
+    ans: 0,
+  },
+  {
+    q: 'What colour are most clouds in a sunny sky?',
+    opts: ['Black', 'Brown', 'Purple', 'White'],
+    ans: 3,
+  },
+  {
+    q: 'When you mix Red and Yellow, what colour do you get?',
+    opts: ['Brown', 'Green', 'Orange', 'Purple'],
+    ans: 2,
+  },
+  {
+    q: 'Which colour is at the very edge of a rainbow?',
+    opts: ['Black', 'Pink', 'Violet', 'White'],
+    ans: 2,
+  },
+];
