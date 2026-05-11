@@ -1,5 +1,8 @@
 # Kids Learning Games — Astro POC
 
+[![Deploy to GitHub Pages](https://github.com/aakash-jain-1/kids-learning-games-astro/actions/workflows/deploy.yml/badge.svg)](https://github.com/aakash-jain-1/kids-learning-games-astro/actions/workflows/deploy.yml)
+[![Playwright tests](https://github.com/aakash-jain-1/kids-learning-games-astro/actions/workflows/test.yml/badge.svg)](https://github.com/aakash-jain-1/kids-learning-games-astro/actions/workflows/test.yml)
+
 A proof-of-concept migration of the [kids-learning-games](../kids-learning-games) vanilla HTML/CSS/JS PWA to **Astro + TypeScript + @vite-pwa/astro (Workbox)**. **All thirteen games ported end-to-end** — the migration is now complete, across **three shared layouts**:
 
 - `CardMachineLayout.astro` — **reference-catalogue games** (browse a deck of fact cards). Hosts Dinosaurs, Flashcards, Solar System, Weather.
@@ -57,6 +60,7 @@ All three layouts share the same head/meta, PWA wiring, nav, settings modal, bui
 ├── src/
 │   ├── components/
 │   │   ├── BuildInfo.astro       # cached GitHub build info (fixes H3)
+│   │   ├── GameControls.astro    # 3-pill ctrl-row (Quiz/Stats/Settings) — 13-way dedup
 │   │   ├── GameNav.astro         # unified top nav (fixes M5)
 │   │   └── SettingsModal.astro   # unified settings UI (fixes H1)
 │   ├── data/
