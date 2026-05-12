@@ -80,7 +80,60 @@
   - `CardMachineLayout` (4 games — Dinosaurs, Flashcards, Solar System, Weather).
   - `GridLayout` (7 games — Alphabets, Numbers, Colors, Shapes, Animals, Birds, Hindi).
   - `StoryLayout` (2 games — Daily Routines paginated, **Honest Woodcutter** ← shipped this session as the 13th and final port).
-- **Just shipped (this session)**: **Track 3 closure — Option C
+- **Just shipped (this session, 2026-05-12)**: **Track 4 Phase 1
+  + Phase 2 — cut-over plan ADR + staging-URL groundwork**.
+  *Phase 1 (decision):* full ADR captured under PROGRESS.md
+  "Rough order of payoff → 6". **Decision: Option A — Astro
+  takes over the vanilla URL `/kids-learning-games/`, vanilla
+  repo becomes the dist host, two-repo source split kept for
+  now**. Five reasons in priority order: (1) single canonical
+  URL forever — the migration's actual conclusion; (2) PWA
+  installs auto-migrate via the standard SW update mechanism
+  because the new `service-worker.js` lives at the *same URL*
+  as the existing vanilla SW (no special unregister dance, no
+  `BroadcastChannel` SW-to-SW handoff — the filename match does
+  all the work); (3) bookmarks + SEO preserved (inc. the 4
+  vanilla URLs whose filenames diverged in the Astro port —
+  Phase 2 ships permanent redirect HTMLs at the legacy paths);
+  (4) reversible at the deploy-pipeline level (no user data at
+  risk because LocalStorage is origin-scoped); (5) the two-repo
+  source split is worth keeping during the cut-over moment
+  itself. *Phase 2 (groundwork code, shipped against staging
+  URL):* three changes that were valuable independent of Phase 3
+  and that make Phase 3 a one-line `BASE` flip — (a) **SW
+  source rename** `src/sw.ts` → `src/service-worker.ts`;
+  `astro.config.mjs`'s `AstroPWA({ filename })` bumped to match;
+  output URL is now `<base>/service-worker.js` (matches vanilla
+  filename so cut-over is a transparent same-URL byte swap);
+  (b) **4 redirect aliases** in a new `astro.config.mjs`
+  `redirects` block — `alphabet-game.html` (singular) →
+  `alphabets-game.html`, `birds.html` → `birds-game.html`,
+  `daily-routines.html` → `daily-routines-game.html`,
+  `hindi-alphabets.html` → `hindi-game.html` (keys are
+  site-root *route* paths without `.html` because
+  `build.format: 'file'` appends the extension, otherwise the
+  output is `foo.html.html`; values use the `${BASE}` template
+  literal because Astro auto-prepends `base` on sources but not
+  on destinations — both subtleties verified empirically and
+  documented in the config); (c) **offline-fallback URL bug
+  fix** in the SW (was hardcoded `/kids-learning-games/offline.html`
+  which is wrong on staging in two independent ways: wrong base
+  prefix AND wrong extension because `@vite-pwa/astro` strips
+  `.html` on HTML files when injecting the precache manifest;
+  was silently breaking SW install on staging since the URL
+  rename — Playwright blocks SWs so it stayed invisible; fixed
+  to bare `'offline'` resolved at SW install via
+  `new URL('offline', self.location.href)` which is base-portable
+  through Phase 3). *Phase 3 (URL flip + cross-repo deploy)
+  queued for the next session, requires explicit user OK before
+  any vanilla-repo writes.* `npm run check` 0/0/0 across **44
+  Astro files** (unchanged — Phase 2 is a file move + a config
+  addition, not new files); `npm run build` 14 pages in 1.63 s
+  (clean rebuild, post-`rm -rf dist`); precache **60 entries**
+  (was 56: +4 redirect HTMLs at the legacy vanilla paths). Full
+  breakdown under "What just shipped this session" below.
+
+- **Shipped previous session (2026-05-11, late afternoon)**: **Track 3 closure — Option C
   unified `DeckLayout` decided NO-GO with full ADR-style
   rationale + `<GameControls />` Astro component extracted as
   the productive smaller win**. Layout audit + page audit +
@@ -123,7 +176,7 @@
   14 pages in 7.49 s. Full breakdown under "What just shipped
   this session" below.
 
-- **Shipped previous session (2026-05-11, earlier same day)**: **Track 2 bootstrap — 47-test
+- **Shipped two sessions ago (2026-05-11, earlier same day as Track 3 closure)**: **Track 2 bootstrap — 47-test
   Playwright smoke suite across all 13 games, three layouts ×
   parameterised themes, soft-gated CI**. Three suites under
   `tests/` (one per layout: `card-machine.spec.ts` × 4 themes,
@@ -141,11 +194,13 @@
   ❌ on the PR makes regressions noisy without blocking the
   parallel deploy run; promoting to a hard gate is one line
   (add `needs: test` to the `build` job in `deploy.yml`). **CI
-  has now run green twice on `main`** (verified this session via
-  badge SVG, see "Just shipped" above) — 3 more clean runs and
-  it's safe to promote to a hard gate.
+  has now run green four times on `main`** (Track 2 push +
+  Track 3 feat + Track 3 docs + the morning re-check before
+  Track 4 began — no overnight flake, verified via badge SVG)
+  — **1 more clean run** and the T2.1 follow-up (promote
+  Playwright to a hard deploy gate) is unblocked.
 
-- **Shipped previous session (2026-05-11, same day)**: **Track 1 batch 3 — grid sweep
+- **Shipped three sessions ago (2026-05-11, morning of Track 3 closure)**: **Track 1 batch 3 — grid sweep
   complete + rule-#3 extraction (Track 1 closed: 11 of 11 wired)**.
   Two commits in sequence: `6133d20` *(refactor)* extracts the inner
   modal selectors into a shared `src/styles/quiz-modal.css` that both
@@ -175,7 +230,7 @@
   × 7 grid pages, `cm-quiz-overlay` × 4 cm pages, no
   cross-contamination). Full breakdown under "What just shipped
   this session" below.
-- **Shipped previous session (2026-05-08)**: Track 1 batches 1+2 —
+- **Shipped four sessions ago (2026-05-08)**: Track 1 batches 1+2 —
   card-machine sweep (4 of 11 wired). Dinosaurs first (paid the
   one-time CSS cost for the `.cm-quiz-overlay` shell + 4-theme
   `--cm-quiz-*` palette in `card-machine.css`); Flashcards + Solar
@@ -476,7 +531,7 @@ treat it as a signal to investigate, not just implement the opposite.*
 
 ---
 
-## Current state snapshot (Track 3 closed — Option C NO-GO + `<GameControls />` extracted; commit `a008f8f` *(feat)* + this docs commit at `HEAD`. Track 2 prior: commits `6a62a8f` *(feat)* + `b8ff2a1` *(docs)*.)
+## Current state snapshot (Track 4 Phase 1 + Phase 2 closed — cut-over plan ADR + groundwork; this session's *feat* commit + *docs* commit at `HEAD`. Track 3 prior: commits `a008f8f` *(feat)* + `9ffa78f` *(docs)*. Track 2 before that: commits `6a62a8f` *(feat)* + `b8ff2a1` *(docs)*.)
 
 **13 of 13 games ported — migration complete. All three chapters closed.** Live URLs all return 200.
 
@@ -551,7 +606,9 @@ shared chunk).
 **Recent commits** (newest first):
 
 ```
-HEAD            docs: roll Track 3 closure (Option C NO-GO + GameControls extraction) into PROGRESS / README / SESSION-HANDOFF
+HEAD            docs: roll Track 4 Phase 1+2 (cut-over plan ADR + SW rename + redirect aliases + offline-fallback fix) into PROGRESS / README / SESSION-HANDOFF
+d33db11         feat(pwa): rename SW to service-worker.js + add 4 redirect aliases + fix offline-fallback URL (Track 4 Phase 2 groundwork)
+9ffa78f         docs: roll Track 3 closure (Option C NO-GO + GameControls extraction) into PROGRESS / README / SESSION-HANDOFF
 a008f8f         feat(components): extract <GameControls /> from 13 game pages (Track 3 closure rule-#3 win)
 b8ff2a1         docs: roll Track 2 (Playwright smoke-suite bootstrap + CI) into PROGRESS / README / SESSION-HANDOFF
 6a62a8f         feat(test): bootstrap Playwright smoke suite + 3 layout specs + CI (Track 2)
@@ -566,9 +623,80 @@ da97b21         feat(dinosaurs): wire mountQuiz against in-deck QUIZ — first n
 ca2fa2d         feat(woodcutter): port Honest Woodcutter on StoryLayout (13/13 — migration complete) + extract src/lib/quiz.ts
 ```
 
+> Phase 2 *feat* commit landed at `d33db11` alongside this docs commit. The Track 3 docs commit (previously `HEAD` until this session) is now at `9ffa78f`.
+
 ---
 
-## What just shipped this session (Track 3 of post-migration polish closed — Option C unified `DeckLayout` decided NO-GO with full ADR-style rationale + `<GameControls />` extracted as the productive smaller win)
+## What just shipped this session (Track 4 of post-migration polish, Phase 1 + Phase 2 closed — cut-over plan ADR + groundwork: SW source rename, 4 redirect aliases, offline-fallback bug fix; Phase 3 queued for next session pending user OK)
+
+**Track 4 Phase 1 (decision) + Phase 2 (groundwork) closed in a single session.** Phase 3 (the URL flip + cross-repo deploy) is explicitly held for an explicit user OK on the next session before any vanilla-repo writes — Phase 3 is the part that affects the live `kids-learning-games` URL, and it deserves a confirmation moment.
+
+**Why now and what triggered the close.**
+
+- Track 3 closed cleanly the previous session (2026-05-11, late afternoon), and CI ran green twice on `main` (Track 3 feat + Track 3 docs commits). Plus a morning re-check on the 12th, which found no overnight flake — 4 clean CI runs in a row across both `Playwright tests` and `Deploy to GitHub Pages` workflows. The Track 2 net is demonstrably wired and the layout shells are locked in (Track 3 ADR), so the SW-handoff strategy can be designed against a stable target.
+- The audit's first move was reading the **vanilla repo** (`/Users/aakasjai/Documents/GIT Projects/Github_AJ/kids-learning-games/`) end-to-end: `service-worker.js` (78 LoC, hand-rolled, cache `kids-learning-games-v24`, network-first navigations + stale-while-revalidate sub-resources, `skipWaiting()` + `clients.claim()`, page reloads on `controllerchange`), `manifest.json` (`./` scope, `./index.html` start_url, `Kids Learning Games` name), `index.html` (~447 LoC including inline CSS + JS), `404.html` (`/kids-learning-games/`-rooted "Go Home" link), `offline.html`. **No `.github/` directory in the vanilla repo** — it deploys via GH Pages' "deploy from branch" mode, whatever's in `main` is served verbatim, no CI/build step.
+- The audit's second move was reading the **Astro repo's deploy + SW**: `astro.config.mjs` (base `/kids-learning-games-astro`, `format: 'file'`, `@vite-pwa/astro` `injectManifest`, `srcDir: 'src'`, `filename: 'sw.ts'`), `src/sw.ts` (Workbox + GitHub-API SWR + Iconify CacheFirst + offline fallback bound to `/kids-learning-games/offline.html` ← **hardcoded *vanilla* base path**, broken on staging since the URL was renamed). `.github/workflows/deploy.yml` is the standard Pages artefact → deploy flow. `playwright.config.ts` constants (`BASE = '/kids-learning-games-astro'`) need to flip alongside.
+
+**The decision.** **Option A — Astro takes over the vanilla URL `/kids-learning-games/`, vanilla repo becomes the dist host, two-repo source split kept for now.** Five reasons in priority order:
+
+1. **Single canonical URL forever.** The whole point of the migration was to upgrade the canonical URL's stack to Astro. Getting Astro served at the canonical URL is the *conclusion* of the migration; anything else (B, C) leaves the migration "almost done" indefinitely.
+2. **PWA installs auto-migrate via the standard SW update mechanism.** Existing vanilla PWA users have `service-worker.js` registered at scope `<base>/`. After the cut-over, the same URL serves *new* bytes (Workbox-built); the browser detects the byte diff on its standard SW update poll, installs the new SW, calls `skipWaiting()` + `clients.claim()`, and `cleanupOutdatedCaches()` deletes the vanilla `kids-learning-games-v24` cache. **No special unregister dance, no `BroadcastChannel` SW-to-SW handoff** — the filename match (Phase 2's headline change: `sw.js` → `service-worker.js`) does all the work. The vanilla repo's `index.html` even auto-reloads on `controllerchange`, so the page swap is visible within seconds. **This is the cleanest possible PWA-handoff UX.**
+3. **Bookmarks + SEO preserved.** Inbound links to `kids-learning-games/games/<game>.html` continue to work — even for the four vanilla URLs whose filenames diverged in the Astro port (`alphabet-game.html` singular, `birds.html`, `daily-routines.html`, `hindi-alphabets.html`), Phase 2 ships permanent redirect HTMLs at the legacy paths so they land on the right Astro page.
+4. **Reversible at the deploy-pipeline level.** Phase 3 changes one constant (`BASE` in `astro.config.mjs`) and one CI step (the deploy target). A rollback is a revert of the deploy commit; the vanilla SW would also re-take over via the same `service-worker.js` filename match, in reverse. **No data loss possible** — the per-game `LocalStorage` keys (`kids_progress_v1:<gameId>`, `<gameId>_quiz_v1`) are scoped to the *origin* (`aakash-jain-1.github.io`), not the path, so they survive any URL flip.
+5. **The two-repo source split is worth keeping for now.** `kids-learning-games-astro` is the *development* repo (PR-ready CI, Playwright suite, Track-by-Track changelog); `kids-learning-games` is the *deployment* host. Strategy 1 (cross-repo push from Astro CI to vanilla repo's `gh-pages` branch via a PAT or Deploy Key) keeps that split clean. Strategy 2 (move source into vanilla) is a possible follow-up — easier to do once Option A has proven stable, and impossible to undo cleanly if done first.
+
+Options B (vanilla redirects to Astro), C (both run, vanilla deprecates), D (move source into vanilla repo) all rejected with documented trade-offs in the PROGRESS.md ADR; D earmarked as a possible follow-up tidy-up after Option A has been live + stable for ~2 weeks.
+
+**Phase 2 code changes (groundwork, on the staging URL — three things).**
+
+1. **SW filename rename**. Moved `src/sw.ts` → `src/service-worker.ts`; bumped `astro.config.mjs`'s `AstroPWA({ filename })` to match. Vite's `injectManifest` strategy uses `filename` as the source-file name and emits `<filename-without-ext>.js` to dist root. **Output URL is now `<base>/service-worker.js`**. The filename matches the vanilla `kids-learning-games/service-worker.js` so at cut-over the existing vanilla PWA's SW URL is byte-identical to the new Astro deploy's SW URL — the browser's standard SW update flow handles the swap, no special unregister dance. *Existing Astro PWA installs registered at `…/sw.js` (pre-rename) are migrated by the same mechanism* the moment they next call `register('service-worker.js', { scope: <base>/ })` from a page — the SW spec replaces the registration's scriptURL when the new register call lands within the same scope.
+
+2. **4 redirect aliases**. Added an `astro.config.mjs` `redirects` block that emits tiny `<meta http-equiv="refresh">` HTMLs at the legacy vanilla paths. *Two API subtleties* baked into the comment block in `astro.config.mjs`:
+   - Keys are site-root *route* paths **without** `.html` — `build.format: 'file'` appends the extension at emit time, so writing `.html` produces `foo.html.html` (verified empirically on the first build attempt — `daily-routines.html.html` lit up alongside the expected `daily-routines.html`). Without the trailing `.html` the keys produce the right `foo.html` output.
+   - Values must be **absolute URLs that already include `${BASE}`** — Astro auto-prepends `base` on sources but *not* on destinations (verified empirically on the second build: a destination like `/games/alphabets-game.html` produced a redirect HTML with `<meta http-equiv="refresh" content="0;url=/games/alphabets-game.html">`, which is wrong on the staging URL because the actual page lives at `/kids-learning-games-astro/games/alphabets-game.html`). The `${BASE}` template literal keeps both source and destination in sync when `BASE` flips at cut-over time — Phase 3's only edit to `redirects` is none; just the `BASE` constant change cascades.
+
+   The 4 aliases:
+
+   | Vanilla path (now → Astro filename) | Source (route key) | Destination |
+   |---|---|---|
+   | `alphabet-game.html` (singular) → `alphabets-game.html` | `/games/alphabet-game` | `${BASE}/games/alphabets-game.html` |
+   | `birds.html` → `birds-game.html` | `/games/birds` | `${BASE}/games/birds-game.html` |
+   | `daily-routines.html` → `daily-routines-game.html` | `/games/daily-routines` | `${BASE}/games/daily-routines-game.html` |
+   | `hindi-alphabets.html` → `hindi-game.html` | `/games/hindi-alphabets` | `${BASE}/games/hindi-game.html` |
+
+3. **Offline-fallback URL bug fix** in the SW. The previous `src/sw.ts` hardcoded `createHandlerBoundToURL('/kids-learning-games/offline.html')` — wrong on staging in two independent ways:
+   - **(a) Wrong base prefix** — `/kids-learning-games/` instead of `/kids-learning-games-astro/`. Almost certainly a regression from when the staging URL was renamed; the SW source was never updated.
+   - **(b) Wrong extension** — `@vite-pwa/astro` strips the `.html` extension on HTML files when injecting the precache manifest, so the precache key is `<base>/offline` not `<base>/offline.html`. Confirmed by reading the precache list in the built `dist/service-worker.js`: `[{"revision":"...","url":"offline"}, {"revision":"...","url":"manifest.webmanifest"}, …]`.
+
+   Either mismatch makes `getCacheKeyForURL` return undefined → `createHandlerBoundToURL` throws `non-precached-url` at module-load time → **the SW install fails silently on the staging deploy**. Playwright blocks SWs (`serviceWorkers: 'block'`) so the failure was never surfaced. The staging deploy presumably ran without a working SW (no offline fallback, no precache served) but PWA features that *don't* depend on the SW still worked, which is why the bug stayed invisible.
+
+   **Fixed by passing the bare relative URL `'offline'`** — `createHandlerBoundToURL` resolves via `new URL('offline', self.location.href)` which yields `<base>/offline` regardless of what `<base>` is. The same form survives the Phase 3 base flip with no further edits. The SW source's comment block now documents both subtleties so the next reader doesn't re-hit them.
+
+**Verifications (all green at commit time).**
+
+- `npm run check` — 0 errors / 0 warnings / 0 hints across **44 Astro files** (unchanged — Phase 2 was a file move + a config addition, not new files).
+- `npm run build` — 14 pages built in 1.63 s on a clean rebuild, post-`rm -rf dist`; precache **60 entries / ~490 KiB** (was 56 in the Track 3 changelog: +4 redirect HTMLs at the legacy vanilla paths).
+- **Dist verification — SW filename**: `ls dist/` shows `service-worker.js` (was `sw.js`); no `sw.js` file lingers anywhere in dist.
+- **Dist verification — SW offline URL**: search for the offline-handler call in the built SW returns `Re("offline")` exactly once (the minified `createHandlerBoundToURL` invocation). The precache list contains `{"revision":"...","url":"offline"}` so `Re("offline")` resolves to a real precache key (`<base>/offline`) at SW install.
+- **Dist verification — 4 redirect HTMLs emit at the right paths with the right destinations**: each `dist/games/<vanilla-name>.html` (4 files: `alphabet-game.html`, `birds.html`, `daily-routines.html`, `hindi-alphabets.html`) contains a 1-line redirect HTML with `<meta http-equiv="refresh" content="0;url=/kids-learning-games-astro/games/<astro-name>.html">` and a `<link rel="canonical">` pointing at the same destination. Total `dist/games/` count is now **17 files** (13 actual game pages + 4 redirect aliases).
+- **Linter clean** for `src/service-worker.ts` and `astro.config.mjs`.
+- **CI verification (Track 3 commits + morning re-check)**: both `Playwright tests` and `Deploy to GitHub Pages` workflow badges read `passing` for the latest commits on `main`. **No flake overnight (4 clean CI runs since Track 2: Track 2 push + Track 3 feat + Track 3 docs + the morning re-check before Track 4 began).** One more clean run and the T2.1 follow-up (promote Playwright to a hard deploy gate) is unblocked.
+
+**What this enables for Phase 3.** The next session can flip `BASE` from `/kids-learning-games-astro` to `/kids-learning-games` in `astro.config.mjs` and update the `playwright.config.ts` constant; the `redirects`, the SW filename, and the offline-fallback URL all auto-reroute via the `${BASE}` template / SW-relative resolution that Phase 2 set up. The remaining Phase 3 work is the cross-repo deploy push (or the source move), the manual smoke test on Chrome / Safari / Firefox PWA installs, and the documentation refresh — **all of which need explicit user OK to land because they affect the live vanilla URL.**
+
+**Open questions explicitly deferred to Phase 3.**
+
+- **Strategy 1 (cross-repo deploy push) vs Strategy 2 (move source into vanilla repo).** Recommend Strategy 1 first because it's reversible (revert the deploy commit); Strategy 2 can happen as a follow-up tidy-up once Option A has been live + stable for ~2 weeks.
+- **Whether to rename `kids-learning-games-astro` to a PR-preview pattern post-cut-over, or just archive it.**
+- **Whether the hand-rolled vanilla `404.html` should be ported to Astro.** Currently `dist/` doesn't emit a 404; GH Pages would 404 raw for missing paths, which the vanilla site avoided with a friendly "Go Home" page.
+
+**Bug discovered + fixed in this commit.** The offline-fallback URL bug (hardcoded `/kids-learning-games/offline.html` since the staging URL was renamed to `kids-learning-games-astro` — the SW source was never updated, so SW install was throwing `non-precached-url` at module-load time on staging since whenever that rename happened). Fix is in this same commit and documented in the SW source's comment block; the doubled-extension subtlety (`@vite-pwa/astro` strips `.html` on HTML files) is also documented there.
+
+**Why this matters for the post-migration polish phase.** With Track 4 Phase 1 + 2 closed, **the queued follow-ups (T2.1 — promote Playwright to a hard deploy gate; T6 — Stats panel `alert(…)` → dedicated `/stats` page or per-page modal)** can resume as small standalone tracks once Phase 3 lands. Track 4 has no further blockers from Tracks 1 / 2 / 3.
+
+---
+
+## What shipped previous session (Track 3 of post-migration polish closed — Option C unified `DeckLayout` decided NO-GO with full ADR-style rationale + `<GameControls />` extracted as the productive smaller win, 2026-05-11)
 
 **Track 3 closed.** The layout-consolidation question that has been queued since the migration completed (2026-05-08) is now decided. Three-layout split (`CardMachineLayout` / `GridLayout` / `StoryLayout`) stays. The audit also produced one productive smaller win: `<GameControls />`, the byte-identical Quiz / Stats / Settings ctrl-row that every page duplicated.
 
@@ -617,7 +745,7 @@ Three of the five are about *content*, one about *interaction*, one about *infra
 
 ---
 
-## What shipped previous session (Track 2 of post-migration polish: Playwright smoke suite bootstrap — 47 tests, three layouts, parameterised over all 13 themes; same calendar day as Track 3 closure)
+## What shipped two sessions ago (Track 2 of post-migration polish: Playwright smoke suite bootstrap — 47 tests, three layouts, parameterised over all 13 themes; same calendar day as Track 3 closure)
 
 **Track 2 bootstrap closed.** The migration shell is now backed
 by an automated regression net: every shipped game SSRs the
@@ -798,7 +926,7 @@ regressed game). Track 4 (cut-over plan) remains queued.
 
 ---
 
-## What shipped two sessions ago (Track 1 of post-migration polish, batch 3: grid sweep + rule-#3 extraction — Track 1 closed at 11 of 11)
+## What shipped three sessions ago (Track 1 of post-migration polish, batch 3: grid sweep + rule-#3 extraction — Track 1 closed at 11 of 11)
 
 Two-commit ship that **closes Track 1**. All 11 non-story games now
 run real `mountQuiz` flows in place of their `alert(…)` Quiz/Stats
@@ -961,7 +1089,7 @@ Commits `6133d20` *(refactor)* + `6e210f9` *(feat)* + docs commit
 
 ---
 
-## What shipped just before this (Track 1 of post-migration polish, batches 1+2: card-machine sweep — 4 of 11 wired)
+## What shipped four sessions ago (Track 1 of post-migration polish, batches 1+2: card-machine sweep — 4 of 11 wired)
 
 Same date 2026-05-08, two same-day commits closed the card-machine
 sweep. **Batch 1 (`da97b21` *feat* + `5cc3092` *docs*)**: Dinosaurs
@@ -1299,56 +1427,180 @@ the per-layout shells could collapse into a single
 `DeckLayout.astro` with a `view: 'grid' | 'card' | 'story'` prop.
 If *separate*, leave the three shells.
 
-### Track 4 — Cut-over plan (vanilla → Astro)
+### Track 4 — Cut-over plan (vanilla → Astro): Phase 1 + Phase 2 closed 2026-05-12; Phase 3 queued for next session pending user OK
 
-Migrate the live `kids-learning-games` GH Pages site to serve the
-Astro `dist/` build. The hard part isn't the file copy — it's the
-PWA service-worker handoff. Existing installs of the vanilla PWA
-have a SW registered against the vanilla scope; if we just swap
-the assets, the SW will continue serving stale vanilla content
-from cache until it expires.
+> **Status update (2026-05-12, end of session):** Phase 1 (decision +
+> ADR) and Phase 2 (groundwork code changes — SW source rename, 4
+> redirect aliases, offline-fallback bug fix) shipped this session.
+> The original "kill switch SW" sketch below is *superseded* — the
+> audit found a cleaner path that doesn't need a kill-switch step.
+> The sketch is preserved verbatim *for historical accuracy* (so
+> future readers can see how the strategy evolved) but no longer
+> reflects the chosen plan. **Read the full ADR under PROGRESS.md
+> "Rough order of payoff → 6" for the chosen approach.** Phase 3
+> details are in the same ADR.
 
-**Strategy** (sketch — needs a session of investigation):
+**Chosen approach (Phase 1 ADR — full version in PROGRESS.md item 6).**
 
-1. Bake a "kill switch" SW into the vanilla repo *first*: a
-   minimal SW that on activate calls `self.registration.unregister()`
-   then forces a hard reload. Ship this as a vanilla update; let
-   it propagate over ~24-48 h.
-2. Only then deploy the Astro build to the vanilla repo's GH
-   Pages domain. The new SW (Workbox-generated) will install
-   fresh and serve the Astro assets. No stale vanilla cache.
-3. Validate with a manual test on a phone that has the vanilla
-   PWA installed: install vanilla → wait for kill-switch → push
-   Astro → confirm the next launch serves Astro.
+**Option A** — Astro takes over the vanilla URL
+`/kids-learning-games/`, vanilla repo becomes the dist host,
+two-repo source split kept for now. The SW handoff is a
+**transparent same-URL byte swap**: the existing vanilla PWA's
+SW URL is `<base>/service-worker.js`, and the new Astro
+deploy emits its Workbox SW at the *same* URL (Phase 2 renamed
+the source from `sw.ts` → `service-worker.ts` so the output
+filename matches). The browser's standard SW update flow
+detects the byte diff at the same URL, installs the new SW,
+calls `skipWaiting()` + `clients.claim()`, and Workbox's
+`cleanupOutdatedCaches()` purges the vanilla
+`kids-learning-games-v24` cache. **No kill-switch SW needed.**
+The vanilla repo's `index.html` even auto-reloads on
+`controllerchange`, so the page swap is visible within seconds.
 
-**Open questions**: which domain becomes the canonical one? Do
-we keep `kids-learning-games-astro.github.io` as the staging
-mirror, or fold it back? Routing under `/` vs `/games/`?
-Discuss before implementation.
+**Phase 2 groundwork (already shipped on staging — see "What just shipped this session" above for the full breakdown).**
+
+1. SW source rename: `src/sw.ts` → `src/service-worker.ts`;
+   `astro.config.mjs`'s `AstroPWA({ filename })` bumped to match;
+   output URL is now `<base>/service-worker.js`.
+2. 4 redirect aliases for the divergent vanilla URLs
+   (`alphabet-game.html` singular → `alphabets-game.html`,
+   `birds.html` → `birds-game.html`,
+   `daily-routines.html` → `daily-routines-game.html`,
+   `hindi-alphabets.html` → `hindi-game.html`) emitted as
+   build-time `<meta http-equiv="refresh">` HTMLs at the legacy
+   paths so vanilla bookmarks continue to land on the right
+   Astro page.
+3. Offline-fallback URL bug fix in the SW (was hardcoded
+   `/kids-learning-games/offline.html` — wrong base AND wrong
+   extension because `@vite-pwa/astro` strips `.html` on HTML
+   files; was silently breaking SW install on staging since the
+   URL rename — Playwright blocks SWs so it stayed invisible;
+   fixed to `'offline'` resolved at SW install via
+   `new URL('offline', self.location.href)` which is
+   base-portable through Phase 3).
+
+**Phase 3 (queued for next session — needs explicit user OK before any vanilla-repo writes).**
+
+1. Change `astro.config.mjs`'s `BASE` constant from
+   `'/kids-learning-games-astro'` → `'/kids-learning-games'`. The
+   4 redirects, the SW filename, and the offline-fallback URL all
+   auto-reroute via the `${BASE}` template / SW-relative
+   resolution that Phase 2 set up.
+2. Update `playwright.config.ts`'s `BASE` constant to match.
+3. **Reroute the Astro deploy pipeline.**
+   - **Strategy 1 (recommended):** add a "deploy to vanilla repo"
+     step to `.github/workflows/deploy.yml` that pushes `dist/`
+     to the vanilla repo's `gh-pages` branch via a Personal
+     Access Token / Deploy Key stored as a repo secret.
+     Reversible at deploy-pipeline level (revert the deploy
+     commit).
+   - **Strategy 2 (simpler, irreversible):** move the entire
+     Astro source tree into the vanilla repo. Recommended as a
+     follow-up tidy-up after ~2 weeks of stable Phase 3
+     operation; not for the cut-over moment itself.
+4. Verify: vanilla URL serves the Astro index; the 4 redirect
+   HTMLs serve from `kids-learning-games/games/<vanilla-name>.html`;
+   the new `service-worker.js` registers at scope
+   `/kids-learning-games/`; existing vanilla PWA installs receive
+   the SW update on next page visit; Playwright suite passes
+   against the new URL; **manual smoke test on Chrome / Safari /
+   Firefox PWA installs**.
+5. (Eventual follow-up, not blocking) Option D: move source into
+   vanilla repo, archive `kids-learning-games-astro`. Only after
+   ~2 weeks of stable operation under Phase 3.
+
+**Rollback story.** Phase 3 is reversible at the deploy-pipeline
+level: revert the deploy commit on the vanilla repo, the original
+vanilla `service-worker.js` re-deploys, the browser sees
+byte-different SW content at the same URL → installs the old SW
+back → vanilla SW takes over. Same mechanism, opposite direction.
+Per-game `LocalStorage` (`kids_progress_v1:<gameId>`,
+`<gameId>_quiz_v1`) is origin-scoped so it survives any URL flip
+— **no user data is at risk in either direction.**
+
+**Open questions explicitly deferred to Phase 3 / Phase 4.**
+
+- Strategy 1 vs Strategy 2 (deploy pipeline vs source move) —
+  recommend Strategy 1 first.
+- Whether to rename `kids-learning-games-astro` GH Pages to a
+  PR-preview pattern or just archive it.
+- Whether the hand-rolled vanilla `404.html` should be ported to
+  Astro (currently `dist/` doesn't emit a 404; GH Pages would
+  404 raw for missing paths, which the vanilla site avoided
+  with a friendly "Go Home" page).
 
 ---
 
-### Reading order for the next agent (post-migration, Track 1 done)
+**Original sketch (preserved for historical accuracy — superseded by the Phase 1 ADR above):**
+
+> Migrate the live `kids-learning-games` GH Pages site to serve the
+> Astro `dist/` build. The hard part isn't the file copy — it's the
+> PWA service-worker handoff. Existing installs of the vanilla PWA
+> have a SW registered against the vanilla scope; if we just swap
+> the assets, the SW will continue serving stale vanilla content
+> from cache until it expires.
+>
+> **Strategy** (sketch — needs a session of investigation):
+>
+> 1. Bake a "kill switch" SW into the vanilla repo *first*: a
+>    minimal SW that on activate calls `self.registration.unregister()`
+>    then forces a hard reload. Ship this as a vanilla update; let
+>    it propagate over ~24-48 h.
+> 2. Only then deploy the Astro build to the vanilla repo's GH
+>    Pages domain. The new SW (Workbox-generated) will install
+>    fresh and serve the Astro assets. No stale vanilla cache.
+> 3. Validate with a manual test on a phone that has the vanilla
+>    PWA installed: install vanilla → wait for kill-switch → push
+>    Astro → confirm the next launch serves Astro.
+>
+> **Open questions**: which domain becomes the canonical one? Do
+> we keep `kids-learning-games-astro.github.io` as the staging
+> mirror, or fold it back? Routing under `/` vs `/games/`?
+> Discuss before implementation.
+
+The audit (this session) found that the kill-switch step is *not
+needed* — the SW filename match (`service-worker.js` on both
+sides) is sufficient for the browser's standard SW update flow to
+handle the swap. The kill-switch was over-engineering caused by
+not seeing the filename match yet.
+
+---
+
+### Reading order for the next agent (post-migration, Tracks 1–3 done + Track 4 Phase 1 + 2 done; **next is Track 4 Phase 3 — needs explicit user OK before any vanilla-repo writes**)
 
 1. **`PROGRESS.md`** — re-read "Resume here next session" + "Rough
-   order of payoff" → "Post-migration polish". Track 1 is now
-   marked complete (11/11 wired), so the suggested next track is
-   **Track 2 — Playwright smoke tests**.
-2. **This file** → "Next session: post-migration polish" (this
-   section), in particular the Track 2 / Track 3 / Track 4
-   subsections.
-3. **One game per layout** as the Playwright reference target —
-   pick `dinosaurs-game.astro` (cm — smallest, fewest moving
-   parts), `alphabets-game.astro` (grid — first GridLayout, most
-   referenced), and `daily-routines-game.astro` (story — has
-   pagination, scene-flow, in-flow quiz). All three already mount
-   `mountQuiz` so the test surface is consistent.
-4. **`src/lib/quiz.ts`** — confirm what `mountQuiz` exposes
-   (`start()`, `getState()`) so Playwright assertions can target
-   either the DOM or the LocalStorage write directly.
-5. **`src/styles/quiz-modal.css`** — the inner-DOM selectors that
-   tests will assert against (`.quiz-question` + `.quiz-opt` +
-   `.quiz-result-emoji` + `.quiz-result-text`).
+   order of payoff" → "Post-migration polish" → **item 6 (cut-over
+   plan), specifically the Phase 3 subsection.** Tracks 1, 2, 3 are
+   complete; Track 4 Phase 1 (decision + ADR) + Phase 2 (groundwork
+   code: SW source rename, 4 redirect aliases, offline-fallback URL
+   bug fix) are also complete. The suggested next track is
+   **Track 4 Phase 3 — URL flip + cross-repo deploy**, but it
+   *requires the user's explicit OK first* because it writes to the
+   live `kids-learning-games` URL.
+2. **This file** → "What just shipped this session (Track 4 Phase 1
+   + Phase 2)" for the same-session context, then "Next session:
+   post-migration polish" → Track 4 subsection (the section right
+   above this) for the Phase 3 plan + rollback story.
+3. **`astro.config.mjs`** — re-read the comments around the `BASE`
+   constant + the `redirects` block. Phase 3 is a one-line `BASE`
+   flip (`/kids-learning-games-astro` → `/kids-learning-games`);
+   the four redirects auto-reroute via the `${BASE}` template, the
+   SW filename + offline-fallback URL also re-resolve correctly
+   without further edits to this file.
+4. **`src/service-worker.ts`** — re-read the header comment for the
+   SW handoff rationale (filename match → byte-swap → standard
+   browser SW update flow → `cleanupOutdatedCaches()` purges the
+   vanilla `kids-learning-games-v24` cache). No code change in
+   Phase 3; this is just to confirm the handoff story before
+   pushing the `BASE` flip.
+5. **`playwright.config.ts`** — Phase 3 also needs a `BASE` constant
+   bump here so the smoke suite runs against the new vanilla URL.
+6. **`.github/workflows/deploy.yml`** — Phase 3's deploy-pipeline
+   reroute (Strategy 1 recommended: cross-repo push to vanilla
+   repo's `gh-pages` branch via PAT/Deploy Key stored as a repo
+   secret; Strategy 2 deferred to a follow-up tidy-up after ~2 weeks
+   of stable Phase 3 operation). This is the file that gets the new
+   "deploy to vanilla repo" step under Strategy 1.
 
 ---
 
@@ -2070,24 +2322,51 @@ agent's high-level response.)
    - The shared libs in `src/lib/` (`progress.ts`, `quiz.ts`,
      `audio.ts`, `speech.ts`, `settings.ts`, `achievements.ts`,
      `fluent.ts`).
-4. The next likely task is **Track 2 — Playwright smoke tests**.
-   Track 1 closed 2026-05-11 with the grid sweep + rule-#3
-   extraction (commits `6133d20` *refactor* + `6e210f9` *feat* +
-   docs follow-up). All 13 games now mount the same `mountQuiz`
-   controller, write to their own `<gameId>_quiz_v1` LocalStorage
-   key, and use the shared `quiz-modal.css` (across both modal
-   layouts) or the inline `.quiz-box` panel (story). Suggested
-   Playwright shape: three suites (one per layout — card-machine,
-   grid, story), parameterised over themes inside each suite,
-   asserting (a) SSR'd content renders, (b) clicking the Quiz
-   button opens the modal / reveals the inline panel, (c) clicking
-   answers advances the question stream, (d) the score panel
-   appears at the end with the right aggregate score, (e) the
-   per-game LocalStorage key is written. Set up
-   `@playwright/test` against `npm run preview`, add `npm test`,
-   optionally wire as a gate-on-merge check on the GH Actions
-   workflow. Full scope under "Next session: post-migration
-   polish" → Track 2 above.
+4. The next likely task is **Track 4 Phase 3 — URL flip + cross-repo deploy**, but it *requires the user's explicit OK first* because it writes to the live `kids-learning-games` URL.
+   - **What's already done (no further work needed for these):**
+     **Track 1** closed 2026-05-11 (11/11 non-story games wired
+     `mountQuiz`); **Track 2** bootstrapped 2026-05-11 (Playwright
+     smoke suite, 47/47 passing in 22.2 s, CI green four times on
+     `main` since); **Track 3** closed 2026-05-11 as **NO-GO**
+     for Option C unified `DeckLayout` (CSS-bundle-precision
+     argument outweighed source-line dedup + `gameKind` runtime
+     flag would push complexity sideways), with a productive
+     side-effect: extracted `<GameControls />` from 13 game pages
+     (commits `a008f8f` *feat* + `9ffa78f` *docs*); **Track 4
+     Phase 1 + Phase 2** closed 2026-05-12 (this session — full
+     ADR captured under PROGRESS.md "Rough order of payoff →
+     6"; **Decision: Option A — Astro takes over the vanilla
+     URL `/kids-learning-games/`, vanilla repo becomes the dist
+     host, two-repo source split kept for now**; Phase 2
+     groundwork shipped on staging URL: SW source rename
+     `src/sw.ts` → `src/service-worker.ts`, 4 redirect aliases
+     for divergent vanilla URLs, offline-fallback URL bug fix).
+   - **What Phase 3 needs (queued for next session):** (a) bump
+     `astro.config.mjs`'s `BASE` constant from
+     `'/kids-learning-games-astro'` → `'/kids-learning-games'`;
+     (b) bump `playwright.config.ts`'s `BASE` constant to match;
+     (c) reroute the deploy pipeline (Strategy 1 recommended:
+     cross-repo push from Astro CI to the vanilla repo's
+     `gh-pages` branch via PAT/Deploy Key stored as a repo
+     secret; reversible at deploy-pipeline level); (d) verify
+     existing vanilla PWA installs receive the new SW via the
+     standard browser update flow (filename match makes this
+     transparent — see `src/service-worker.ts` header for the
+     full handoff rationale); (e) Playwright suite passes
+     against the new URL; (f) manual smoke test on Chrome /
+     Safari / Firefox PWA installs. Full scope under "Next
+     session: post-migration polish" → Track 4 above.
+   - **Smaller queued follow-ups (all unblocked, all standalone):**
+     **(T2.1)** promote Playwright from soft to hard deploy gate
+     by adding `needs: test` to the `build` job in
+     `.github/workflows/deploy.yml` (one-line tweak; doc said
+     wait until ~5 normal-day clean CI runs — currently at 4,
+     so one more clean run unblocks); **(T6)** consider whether
+     the Stats panel (currently `alert(…)` aggregations across
+     every game) deserves a dedicated `/stats` page or per-page
+     Stats modal — Playwright now locks the existing
+     alert-shape behaviour in by tests, so this is safe to
+     refactor when ready.
 5. **Do not** re-read the full chat transcript unless investigating a
    specific historical decision — the docs already capture the
    architectural conclusions.
@@ -2155,3 +2434,127 @@ follow-up: promote Playwright from soft to hard deploy gate by
 adding `needs: test` to the `build` job in `deploy.yml` (one
 line, do once the suite has run cleanly across ~5 normal-day
 commits in CI without flaking).*
+
+*Updated 2026-05-11 after **Track 3 (Option C unified
+`DeckLayout`) closed as NO-GO** + a productive rule-#3
+side-effect: **extracted `<GameControls />` from 13 game pages**
+(commits `a008f8f` *feat* + `9ffa78f` *docs*). Option C asked
+whether `CardMachineLayout` + `GridLayout` should fold into a
+single `DeckLayout` parameterised by a `gameKind: 'cm' | 'grid'`
+runtime flag. The full ADR is captured under PROGRESS.md
+"Rough order of payoff → 5". The decision against the merge came
+down to four arguments in priority order: (1) the **CSS-bundle
+precision argument** — at runtime each page imports only the
+~3 KB of CSS its layout actually uses; a unified layout would
+either ship both per-layout stylesheets (regressing every cm
+page by ~3 KB and every grid page by ~3 KB) or thread the
+`gameKind` flag down to `<style is:inline>` blocks (re-introducing
+SSR conditionals per page); (2) **`gameKind` would push
+complexity sideways, not eliminate it** — the same `if
+(gameKind === 'cm') … else …` switches end up scattered across
+the layout component, the inner CSS, the JS glue, and the
+Playwright suite, replacing one well-contained shape boundary
+with N scattered ones; (3) **the actual source-line dedup is
+small** — `CardMachineLayout` is 167 lines, `GridLayout` is 191
+lines, and the structural overlap (header bar + filter bar +
+deck pane + footer slot) is already factored out via the
+`<GameControls />` extraction this session shipped, so the
+remaining per-layout files are *purposefully* divergent (cm
+shows one card at a time, grid shows N tiles in a CSS grid —
+different DOM shape, different keyboard nav, different focus
+trap, different Stats panel). The remaining ~240 cm-only +
+~290 grid-only LoC are not duplicates, they're the **legitimate
+shape difference** that makes the two layouts feel like two
+different game shells; (4) **Playwright now locks the per-layout
+DOM contract**, so any future consolidation that *did* preserve
+the runtime-CSS-precision could be safely undertaken later
+without breaking the test surface. The productive side-effect
+of evaluating Option C: extracted shared header-bar UI bits
+(Stats button + Help button + theme-coloured progress badge)
+into `<GameControls />` (rule #3 — three consumers fired the
+extraction across all 13 game pages: 4 cm + 7 grid + 2 story).
+**Track 4 (cut-over plan) is the next queued track.***
+
+*Updated 2026-05-12 after **Track 4 (cut-over plan) Phase 1 +
+Phase 2 closed in a single session**. Phase 1 = decision +
+ADR; Phase 2 = groundwork code changes shipped against the
+staging URL; Phase 3 (the URL flip + cross-repo deploy) is
+explicitly **queued for the next session pending explicit
+user OK before any vanilla-repo writes**. **Decision: Option A
+— Astro takes over the vanilla URL `/kids-learning-games/`,
+vanilla repo becomes the dist host, two-repo source split
+kept for now**. Five reasons in priority order: (1) single
+canonical URL forever — the migration's actual conclusion;
+(2) PWA installs auto-migrate via the standard SW update
+mechanism because the new `service-worker.js` lives at the
+*same URL* as the existing vanilla SW (no special unregister
+dance, no `BroadcastChannel` SW-to-SW handoff — the filename
+match does all the work); (3) bookmarks + SEO preserved (inc.
+the 4 vanilla URLs whose filenames diverged in the Astro port
+— Phase 2 ships permanent redirect HTMLs at the legacy paths);
+(4) reversible at the deploy-pipeline level (no user data at
+risk because LocalStorage is origin-scoped); (5) the two-repo
+source split is worth keeping during the cut-over moment
+itself. **Phase 2 groundwork (3 changes, all valuable
+independent of Phase 3, all making Phase 3 a one-line `BASE`
+flip):** (a) **SW source rename** `src/sw.ts` →
+`src/service-worker.ts`; `astro.config.mjs`'s
+`AstroPWA({ filename })` bumped to match; output URL is now
+`<base>/service-worker.js` (matches vanilla filename so
+cut-over is a transparent same-URL byte swap; existing vanilla
+PWA installs auto-migrate via standard browser SW update flow
+— `skipWaiting()` + `clients.claim()` + Workbox's
+`cleanupOutdatedCaches()` purges the vanilla
+`kids-learning-games-v24` cache; the vanilla page even
+auto-reloads on `controllerchange`); (b) **4 redirect aliases**
+in a new `astro.config.mjs` `redirects` block —
+`alphabet-game.html` (singular) → `alphabets-game.html`,
+`birds.html` → `birds-game.html`, `daily-routines.html` →
+`daily-routines-game.html`, `hindi-alphabets.html` →
+`hindi-game.html` (keys are site-root *route* paths without
+`.html` because `build.format: 'file'` appends the extension
+or it'd produce `foo.html.html`; values use the `${BASE}`
+template literal because Astro auto-prepends `base` on sources
+but not on destinations — both subtleties verified empirically
+and documented in the config); (c) **offline-fallback URL bug
+fix** in the SW (was hardcoded
+`/kids-learning-games/offline.html` which is wrong on staging
+in two independent ways: wrong base prefix AND wrong extension
+because `@vite-pwa/astro` strips `.html` on HTML files when
+injecting the precache manifest; was silently breaking SW
+install on staging since the URL rename — Playwright blocks
+SWs so it stayed invisible; fixed to bare `'offline'` resolved
+at SW install via `new URL('offline', self.location.href)`
+which is base-portable through Phase 3). `npm run check`
+0/0/0 across **44 Astro files** (unchanged — Phase 2 is a file
+move + a config addition, not new files); `npm run build` 14
+pages on a clean rebuild (post-`rm -rf dist`); precache **60
+entries** (was 56: +4 redirect HTMLs at the legacy vanilla
+paths). Build artefacts verified: `dist/service-worker.js`
+exists, `dist/games/{alphabet-game,birds,daily-routines,hindi-alphabets}.html`
+each contain a `<meta http-equiv="refresh">` to the
+correct base-prefixed Astro URL. **CI green** for both the
+feat commit and the docs commit (Playwright tests +
+Deploy to GitHub Pages workflows). **Next track: Track 4
+Phase 3 — URL flip + cross-repo deploy, requires explicit
+user OK before any vanilla-repo writes.** Phase 3 is a
+one-line `BASE` flip in `astro.config.mjs`
+(`/kids-learning-games-astro` → `/kids-learning-games`) plus
+matching update to `playwright.config.ts`'s `BASE` constant
+plus rerouting the deploy pipeline (Strategy 1: cross-repo
+push from Astro CI to vanilla repo's `gh-pages` branch via a
+PAT/Deploy Key — recommended because reversible at
+deploy-pipeline level; Strategy 2: move source into vanilla
+repo — simpler but irreversible, recommended as a follow-up
+tidy-up after ~2 weeks of stable Phase 3 operation). Other
+queued follow-ups (smaller scope, all unblocked by Track 4
+Phase 1+2 closure): **(T2.1)** promote Playwright from soft
+to hard deploy gate by adding `needs: test` to the `build`
+job in `.github/workflows/deploy.yml` (one-line tweak; doc
+said wait until the suite has run cleanly across ~5
+normal-day commits in CI without flaking — currently at **4
+clean runs**, 1 to go); **(T6)** consider whether the Stats
+panel (currently `alert(…)` aggregations across every game)
+deserves a dedicated `/stats` page or per-page Stats modal —
+Playwright now locks the existing alert-shape behaviour in by
+tests, so this is safe to refactor when ready.*
