@@ -210,7 +210,7 @@ or (b) document a one-off exception.
 
 ## What still needs doing
 
-> **▶ Resume here next session:** the **migration is complete (13/13)** as of 2026-05-08; **Tracks 1, 2, 3, and 4 of post-migration polish are all closed** as of 2026-05-12. **The post-migration polish phase is done.** Track 1: 11 of 11 non-story games wired with `mountQuiz` (closed 2026-05-11). Track 2: 47-test Playwright smoke suite + soft-gate CI (closed 2026-05-11; **5 clean CI runs** on `main` — Track 2 push, Track 3 feat + docs, Track 4 Phase 1+2 feat + docs — so the T2.1 follow-up to promote Playwright to a hard deploy gate is now unblocked; one-line tweak adds `needs: test` to the `build` job in `.github/workflows/deploy.yml`). Track 3: Option C unified `DeckLayout` decided NO-GO with full ADR-style rationale captured under "Rough order of payoff → 5"; productive smaller win — `<GameControls />` extracted from 13 game pages (closed 2026-05-11). Track 4: cut-over plan **closed 2026-05-12 with the cut-over cancelled** — full ADR-style rationale captured under "Rough order of payoff → 6". **Decision: cut-over cancelled, Astro stays at `https://aakash-jain-1.github.io/kids-learning-games-astro/` as the permanent canonical URL; the vanilla `kids-learning-games` repo stays live independently as a legacy app, no cross-repo writes.** The morning's session of 2026-05-12 had shipped Phase 1 (decision: Option A — Astro takes over the vanilla URL) + Phase 2 (groundwork code: SW rename, 4 redirect aliases, offline-fallback bug fix) and queued Phase 3 (URL flip + cross-repo deploy) for the next session pending user OK. The afternoon pivot reversed Phase 1's decision and cancelled Phase 3 entirely; Track 4 closes here. The Phase 2 code changes stay in the codebase (all three are independently fine — see "Rough order of payoff → 6" → "Pivot 2026-05-12 (afternoon)" callout for the reversal rationale). **Next session: no queued track.** **Smaller follow-ups available, all standalone:** (T2.1) promote Playwright to a hard deploy gate by adding `needs: test` to the `build` job in `.github/workflows/deploy.yml` (one-line tweak; **5 clean CI runs** now, threshold met); (T6) consider whether the Stats panel (currently `alert(…)` aggregations across every game) deserves a dedicated `/stats` page or per-page Stats modal — Playwright now locks the existing alert-shape behaviour in by tests, so this is safe to refactor when ready; (T7) port the vanilla `404.html` to Astro (currently `dist/` doesn't emit a 404 — GH Pages would 404 raw for missing paths, which the vanilla site avoided with a friendly "Go Home" page). All three are small (~15 minutes of work each) and safe to defer. **Build is clean:** 14 pages built on a clean rebuild, `npm run check` 0 errors / 0 warnings / 0 hints across **44 Astro files**, all chunk-dedup invariants still verified at the bundle level (quiz **13-way**, progress 8-way, fluent 6-way, achievements 13-way, layout pre-paint 3-way), precache **60 entries** (the +4 redirect HTMLs at the legacy vanilla paths from Phase 2 stay in dist as harmless robustness aliases — see the pivot callout for why they stay).
+> **▶ Resume here next session:** the **migration is complete (13/13)** as of 2026-05-08; **Tracks 1, 2, 3, and 4 of post-migration polish are all closed** as of 2026-05-12. **The post-migration polish phase is done.** Track 1: 11 of 11 non-story games wired with `mountQuiz` (closed 2026-05-11). Track 2: 47-test Playwright smoke suite + soft-gate CI (closed 2026-05-11; **5 clean CI runs** on `main` — Track 2 push, Track 3 feat + docs, Track 4 Phase 1+2 feat + docs — so the T2.1 follow-up to promote Playwright to a hard deploy gate is now unblocked; one-line tweak adds `needs: test` to the `build` job in `.github/workflows/deploy.yml`). Track 3: Option C unified `DeckLayout` decided NO-GO with full ADR-style rationale captured under "Rough order of payoff → 5"; productive smaller win — `<GameControls />` extracted from 13 game pages (closed 2026-05-11). Track 4: cut-over plan **closed 2026-05-12 with the cut-over cancelled** — full ADR-style rationale captured under "Rough order of payoff → 6". **Decision: cut-over cancelled, Astro stays at `https://aakash-jain-1.github.io/kids-learning-games-astro/` as the permanent canonical URL; the vanilla `kids-learning-games` repo stays live independently as a legacy app, no cross-repo writes.** The morning's session of 2026-05-12 had shipped Phase 1 (decision: Option A — Astro takes over the vanilla URL) + Phase 2 (groundwork code: SW rename, 4 redirect aliases, offline-fallback bug fix) and queued Phase 3 (URL flip + cross-repo deploy) for the next session pending user OK. The afternoon pivot reversed Phase 1's decision and cancelled Phase 3 entirely; Track 4 closes here. The Phase 2 code changes stay in the codebase (all three are independently fine — see "Rough order of payoff → 6" → "Pivot 2026-05-12 (afternoon)" callout for the reversal rationale). **Next session: no queued track.** **Smaller follow-ups available, all standalone:** (T2.1) promote Playwright to a hard deploy gate by adding `needs: test` to the `build` job in `.github/workflows/deploy.yml` (one-line tweak; **6 clean CI runs** now after the afternoon hotfix, threshold met); (T6) consider whether the Stats panel (currently `alert(…)` aggregations across every game) deserves a dedicated `/stats` page or per-page Stats modal — Playwright now locks the existing alert-shape behaviour in by tests, so this is safe to refactor when ready; (T7) port the vanilla `404.html` to Astro (currently `dist/` doesn't emit a 404 — GH Pages would 404 raw for missing paths, which the vanilla site avoided with a friendly "Go Home" page); (T8, **new — filed by the afternoon SW hotfix**) add an SW-aware Playwright spec (`tests/sw.spec.ts`) that runs with `serviceWorkers: 'allow'` and asserts the SW serves real precached pages on the happy path and the offline page only when network fails — would have caught the `NavigationRoute` regression that landed on the live URL between commit `d33db11` (Phase 2) and the hotfix `fce0380`. **Live regression context:** the Phase 2 SW-install fix unmasked a latent `NavigationRoute(createHandlerBoundToURL('offline'))` bug that served the offline page on every navigation; **hotfix shipped same afternoon** (commit `fce0380`) replacing `NavigationRoute` with `setCatchHandler`, deploy verified live (badge `passing`, home returns 200 with HTML, SW has 0 NavigationRoute references and 1 setCatchHandler call). All four follow-ups are small (~15–30 minutes of work each) and safe to defer. **Build is clean:** 14 pages built on a clean rebuild, `npm run check` 0 errors / 0 warnings / 0 hints across **44 Astro files**, all chunk-dedup invariants still verified at the bundle level (quiz **13-way**, progress 8-way, fluent 6-way, achievements 13-way, layout pre-paint 3-way), precache **60 entries** (the +4 redirect HTMLs at the legacy vanilla paths from Phase 2 stay in dist as harmless robustness aliases — see the pivot callout for why they stay).
 
 ### Per-game layout decisions for the 5 pending ports
 
@@ -414,6 +414,60 @@ before deciding.
 ---
 
 ## Changelog
+
+### 2026-05-12 (afternoon, hotfix) — fix(pwa): use `setCatchHandler` for offline fallback (was `NavigationRoute`) — fixes the offline-page-everywhere regression unmasked by the morning's Phase 2 SW install fix
+
+**Closes a regression introduced same-day by the morning's `d33db11` *feat* commit, surfaced by the user immediately after the afternoon pivot landed (`0bdc609`) when they hit the live Astro URL and got the offline page on every navigation.**
+
+**The bug.** The Track 4 Phase 2 commit fixed the offline-fallback URL form (`'/kids-learning-games/offline.html'` → `'offline'`) which had been throwing `non-precached-url` at SW module-load time → SW install failing silently → no SW intercepting navigations → pages served straight from network → bug masked. With the URL form correct, the SW finally installed successfully — but that surfaced a *latent* routing bug:
+
+```typescript
+const offlineFallback = createHandlerBoundToURL('offline');
+registerRoute(new NavigationRoute(offlineFallback));
+```
+
+`NavigationRoute(handler)` matches *every* navigation request (online or offline) and runs the handler. Paired with `createHandlerBoundToURL('offline')`, the handler ALWAYS returns the precached offline page — so every page load on `https://aakash-jain-1.github.io/kids-learning-games-astro/` got the offline page even when fully online. That's the SPA app-shell pattern (serve one HTML for all routes, JS handles client-side routing) which is wrong for a multi-page Astro app where every route is a server-rendered HTML file in the precache.
+
+**The fix.** Replace `NavigationRoute(handler)` with `setCatchHandler` — Workbox's primitive for "fire only when all other handlers fail (precache miss + network error)." This is the documented offline-fallback pattern in [Workbox's official recipes](https://developer.chrome.com/docs/workbox/modules/workbox-recipes#offline-fallback).
+
+```typescript
+setCatchHandler(async ({ request }) => {
+  if (request.destination === 'document') {
+    return (await matchPrecache('offline')) ?? Response.error();
+  }
+  return Response.error();
+});
+```
+
+Now:
+
+- **Online navigations to precached URLs** → served from precache (the `precacheAndRoute(__WB_MANIFEST)` route already handles this; was always working, was just being short-circuited by the spurious `NavigationRoute`).
+- **Offline navigations / network failures on document requests** → fall through to `setCatchHandler`, which returns the precached offline page.
+- **Non-document requests when offline** → fall through to `setCatchHandler`, which returns `Response.error()` so the browser uses its default offline UI for that resource type.
+
+**Imports updated.** `createHandlerBoundToURL`, `NavigationRoute` removed; `matchPrecache`, `setCatchHandler` added. The post-fix `createHandlerBoundToURL` reference still in the built `dist/service-worker.js` is Workbox's internal helper used by other precache machinery — not from our code.
+
+**Why this didn't surface in CI.** Playwright blocks SWs (`serviceWorkers: 'block'` in `playwright.config.ts`) so the test suite never exercises the SW handler. The bug surfaced only on real browser visits with PWA enabled. A standalone task to add an SW-aware Playwright suite (run a separate test file with SWs unblocked, assert document responses come from the real precache cache rather than the offline page) is filed as **T8** below.
+
+**Why this didn't surface earlier.** Pre-Phase-2, the SW was failing to install at all (the broken `'/kids-learning-games/offline.html'` URL threw at module-load), so this latent routing bug never got a chance to run. Phase 2's URL fix unmasked it for everyone with a fresh SW install or a browser SW update poll.
+
+**The "what stays from Phase 2" claim in the afternoon pivot's changelog entry below is still accurate** — the URL form fix (`'offline'`) was independently correct; this hotfix is in the *routing pattern*, which is a separate concern. The pivot's three Phase 2 changes (SW rename, 4 redirect aliases, offline-fallback URL fix) all stay in the codebase as documented.
+
+**Recovery for users currently stuck on the offline page.** The new SW (with this fix) calls `skipWaiting()` + `clients.claim()` like the previous one, and `@vite-pwa/astro`'s `registerType: 'autoUpdate'` runs the SW update poll on every navigation. So one page refresh → browser detects new SW bytes at the same URL → installs new SW → new SW activates → next navigation works. No manual SW unregister needed.
+
+**Verifications (all green at commit time).**
+
+- `npm run check` — 0 errors / 0 warnings / 0 hints across **44 Astro files**.
+- `npm run build` — 14 pages built; precache **60 entries** (unchanged — fix is purely the routing primitive choice + import set).
+- `dist/service-worker.js` checks: 0 `NavigationRoute` references; 1 `setCatchHandler` call; the precache list still contains `{"url":"offline"}`; the minified callback shows `destination==="document"?await Re("offline"):...` (where `Re` is Workbox's minified `matchPrecache`).
+- Linter clean for `src/service-worker.ts`.
+- **Live deploy verified post-push:** `Deploy to GitHub Pages` workflow badge `passing`, `Playwright tests` badge `passing` (CI green for the hotfix commit on `main`); `curl -kfsS https://aakash-jain-1.github.io/kids-learning-games-astro/service-worker.js | grep NavigationRoute` returns 0 matches; `grep setCatchHandler` returns 1 match; `grep -oE 'destination==="document"[^,)]{0,40}'` returns `destination==="document"?await Re("offline"`; `curl -o /dev/null -w "%{http_code}" https://aakash-jain-1.github.io/kids-learning-games-astro/` returns 200 with `<!DOCTYPE html>` content (not the offline page).
+
+**New small standalone follow-up filed.**
+
+- **(T8)** Add an SW-aware Playwright spec (`tests/sw.spec.ts`) that runs with `serviceWorkers: 'allow'`, opens the home page, waits for SW activation, navigates to a few precached + a few non-precached URLs, asserts document responses are the real page content (not the offline page) on the online ones and the offline page on the deliberately-bad URLs. Would have caught this regression at commit time. Probably ~30 minutes of work; queued alongside T2.1 / T6 / T7 in the rough-order-of-payoff queue.
+
+---
 
 ### 2026-05-12 (afternoon) — Post-migration polish, Track 4 closure: cut-over cancelled, Astro URL is the permanent canonical (docs-only pivot)
 

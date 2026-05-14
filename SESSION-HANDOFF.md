@@ -135,6 +135,47 @@
   phase is done** (Tracks 1, 2, 3, 4 all closed). Full breakdown
   under "What just shipped this session" below.
 
+- **Hotfix shipped same afternoon (2026-05-12 — `fce0380`)**:
+  **fix(pwa): use `setCatchHandler` for offline fallback (was
+  `NavigationRoute`).** Surfaced by the user immediately after
+  the afternoon pivot landed when they opened
+  `https://aakash-jain-1.github.io/kids-learning-games-astro/`
+  and got the offline page on **every** navigation. Root cause:
+  the morning's Phase 2 SW-install fix (offline-fallback URL form
+  `'/kids-learning-games/offline.html'` → `'offline'`) had let
+  the SW finally install successfully — and that unmasked a
+  *latent* routing bug `registerRoute(new
+  NavigationRoute(createHandlerBoundToURL('offline')))` which
+  intercepts every navigation (online or offline) and serves the
+  offline page. Pre-Phase-2 the SW was failing to install at all
+  (the broken URL threw at module-load) so the bug never got a
+  chance to run. Fix: replace `NavigationRoute` with
+  `setCatchHandler` — Workbox's documented offline-fallback
+  primitive that fires only when all other handlers fail. Now
+  online navigations to precached URLs are served from precache
+  (the implicit precache route handles them); offline navigations
+  to documents fall through to `setCatchHandler` and get the
+  precached offline page; offline non-document requests get
+  `Response.error()` so the browser uses its default offline UI
+  per resource type. **Why this didn't surface in CI:** Playwright
+  runs with `serviceWorkers: 'block'`. **New follow-up filed
+  (T8):** add an SW-aware Playwright spec under the rough-order-
+  of-payoff queue. **Recovery for users currently stuck on the
+  offline page:** one page refresh — `@vite-pwa/astro`'s
+  `registerType: 'autoUpdate'` polls the SW URL on every
+  navigation, the new SW activates via `skipWaiting()` +
+  `clients.claim()`, the next nav routes through the corrected
+  handler. *Verifications (live deploy post-push):* `Deploy to
+  GitHub Pages` badge `passing`, `Playwright tests` badge
+  `passing`; `curl https://aakash-jain-1.github.io/kids-learning-games-astro/service-worker.js
+  | grep NavigationRoute` returns 0; `grep setCatchHandler`
+  returns 1; `grep -oE 'destination==="document"[^,)]{0,40}'`
+  returns `destination==="document"?await Re("offline"`; home
+  page returns 200 with `<!DOCTYPE html>` content (not the
+  offline page). Full ADR-style write-up under the
+  PROGRESS.md changelog entry stamped **2026-05-12 (afternoon,
+  hotfix)**.
+
 - **Shipped earlier this same session (2026-05-12 morning, then
   partially mooted by the afternoon pivot above)**: **Track 4
   Phase 1 + Phase 2 — cut-over plan ADR + staging-URL
@@ -2718,3 +2759,51 @@ emit a 404 — GH Pages would 404 raw, which the vanilla site
 avoided with a friendly "Go Home" page) — no longer linked to
 the cut-over plan. **Or start a new feature track** — the
 migration arc is done, future work is feature-driven.*
+
+*Updated 2026-05-12 (afternoon, hotfix) — **fix(pwa): use
+`setCatchHandler` for offline fallback (was `NavigationRoute`)**
+(commit `fce0380`). User reported the live Astro URL serving the
+offline page on every navigation immediately after the afternoon
+pivot landed (`0bdc609`). Root cause was a latent bug in
+`src/service-worker.ts` that the morning's Phase 2 SW-install
+fix had unmasked: `registerRoute(new
+NavigationRoute(createHandlerBoundToURL('offline')))` matches
+every navigation (online or offline) and serves the offline page
+unconditionally — that's the SPA app-shell pattern, wrong for a
+multi-page Astro app. Pre-Phase-2, the SW was failing to install
+at all due to the broken `'/kids-learning-games/offline.html'`
+URL throwing at module-load, so the bug stayed dormant. Fix
+swaps `NavigationRoute` for `setCatchHandler` — Workbox's
+documented offline-fallback primitive that fires only when all
+other handlers (precache + network) fail; for document requests
+it returns the precached offline page, for everything else it
+returns `Response.error()` so the browser uses its default
+offline UI per resource type. **Why CI didn't catch it:** the
+Playwright suite runs with `serviceWorkers: 'block'` so it never
+exercises the SW handler. **Recovery for users currently on the
+offline page:** one page refresh — `@vite-pwa/astro`'s
+`registerType: 'autoUpdate'` polls the SW URL on every nav, the
+new SW activates via `skipWaiting()` + `clients.claim()`, the
+next nav routes through `setCatchHandler` and gets the real
+precached page. **Phase 2 still stands** — the offline-fallback
+URL form fix (`'offline'`) was independently correct, this
+hotfix is in the *routing pattern* primitive choice (a separate
+concern). **New follow-up filed (T8):** add an SW-aware
+Playwright spec (`tests/sw.spec.ts`) running with
+`serviceWorkers: 'allow'` to assert the SW serves real precached
+pages on the happy path and the offline page only when network
+fails — would have caught this regression at commit time;
+~30 minutes of work, queued alongside T2.1 / T6 / T7. **Live
+deploy verifications** (post-push of `0bdc609` + `fce0380`):
+`Deploy to GitHub Pages` badge `passing`, `Playwright tests`
+badge `passing`; `curl
+https://aakash-jain-1.github.io/kids-learning-games-astro/service-worker.js
+| grep NavigationRoute` returns 0 matches; `grep setCatchHandler`
+returns 1 match; `grep -oE 'destination==="document"[^,)]{0,40}'`
+returns `destination==="document"?await Re("offline"`; home
+page returns 200 with `<!DOCTYPE html>` content (not the offline
+page). **Local verifications:** `npm run check` 0/0/0 across
+**44 Astro files**; `npm run build` 14 pages built; precache
+**60 entries** unchanged. The `(T8)` follow-up brings the count
+of small standalone follow-ups to 4 (T2.1, T6, T7, T8) — all
+~15–30 minutes each, all safe to defer.*
