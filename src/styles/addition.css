@@ -1,0 +1,568 @@
+/* Counting Friends — preschool-math addition game (added 2026-05-15).
+   Uses `StoryLayout` with `theme='addition'` so the body class is
+   `body.story[data-theme='addition']`. The story.css defaults
+   (font-family, base background, padding-top) apply unmodified; this
+   file overrides `--st-bg` per scene-theme and supplies the rest of
+   the visual system as `cf-*` (counting-friends) classes scoped under
+   `body.story[data-theme='addition']` so they can never collide with
+   Routines / Woodcutter selectors.
+
+   Design constraints worth re-stating in a comment block here so the
+   next reader doesn't have to dig through PROGRESS.md to find them:
+
+   - **Tap targets ≥ 88px.** All numeral answer buttons and all
+     countable-emoji tap zones honour this. Below 80px is risky for
+     ages ≤4 (NN/g) and we round up to 88 to cover 1.1× scaled
+     contexts.
+   - **No drag, no pinch, no long-press.** Only `:active` + `:hover`
+     (which mobile Safari fires on tap-and-hold) are wired.
+   - **High contrast on numerals.** Numeral colour vs button bg ≥ 7:1
+     (WCAG AAA). Verified at design time.
+   - **Reduced motion**: every animation has a `@media (prefers-reduced-motion: reduce)`
+     fallback that collapses the keyframes to instant fades; the game
+     still works fully without motion.
+   - **All `cf-*` classes scope themselves under
+     `body.story[data-theme='addition']`** — so this file can never
+     leak into Routines or Woodcutter even if a class name accidentally
+     shadowed.
+*/
+
+/* ── Scene-theme background tokens ─────────────────────────────────── */
+
+body.story[data-theme='addition'] {
+  /* The page bg is the *scene* bg — we morph it per-round via
+     `data-scene` on `.cf-stage`. Default sets the lavender pre-paint
+     used when no round is active (initial empty state + session-done
+     overlay backdrop). */
+  --st-bg: linear-gradient(135deg, #d8e6ff 0%, #f0e6ff 100%);
+
+  /* Numeral-button surface — solid white card with a hairline. Bumped
+     to white (not the story `--st-card-bg` semi-transparent) because
+     these buttons *must* read as foreground tap targets, and a slight
+     transparency over the scene bg muddies contrast. */
+  --cf-btn-bg: #ffffff;
+  --cf-btn-bg-hover: #f8fbff;
+  --cf-btn-text: #1a1f3a;
+  --cf-btn-shadow: 0 4px 12px rgba(20, 30, 70, 0.12);
+  --cf-btn-border: rgba(30, 50, 100, 0.12);
+  --cf-btn-border-correct: #2e7d32;
+  --cf-btn-border-glow: #1976d2;
+  --cf-btn-fill-correct: #c8f5cb;
+  --cf-btn-fill-glow: #d4e8ff;
+
+  /* Five-frame dot tokens. The dots inside numeral buttons. */
+  --cf-dot-empty: rgba(20, 30, 70, 0.14);
+  --cf-dot-filled: #1976d2;
+
+  /* Group label — the "+" between Group A and Group B. */
+  --cf-plus-color: rgba(30, 50, 100, 0.55);
+
+  /* Caption box — accessibility text mirror of TTS narration. */
+  --cf-caption-bg: rgba(255, 255, 255, 0.92);
+  --cf-caption-text: #1a1f3a;
+  --cf-caption-shadow: 0 8px 24px rgba(20, 30, 70, 0.18);
+}
+
+/* Scene per-theme: the page script flips `data-scene` on `.cf-stage`
+   every round. Each block sets `--st-bg` plus a per-theme dot color
+   so the active-tap "ripple" matches the scene palette. */
+body.story[data-theme='addition'] .cf-stage[data-scene='pond'] {
+  --st-bg: linear-gradient(180deg, #b8e0ff 0%, #6fb6e6 60%, #4a8c4a 100%);
+  --cf-dot-filled: #1976d2;
+}
+body.story[data-theme='addition'] .cf-stage[data-scene='orchard'] {
+  --st-bg: linear-gradient(180deg, #ffe6c8 0%, #ffb88c 50%, #88b94a 100%);
+  --cf-dot-filled: #c0392b;
+}
+body.story[data-theme='addition'] .cf-stage[data-scene='sea'] {
+  --st-bg: linear-gradient(180deg, #b3e8ec 0%, #4dc4cf 60%, #f4d97a 100%);
+  --cf-dot-filled: #00838f;
+}
+body.story[data-theme='addition'] .cf-stage[data-scene='garden'] {
+  --st-bg: linear-gradient(180deg, #fff4b8 0%, #ffd666 60%, #6fbf3a 100%);
+  --cf-dot-filled: #c4880c;
+}
+
+/* The body bg is driven by `--st-bg` from story.css; we re-assert it
+   here on the body so the `data-scene` switch on `.cf-stage` cascades
+   up via the CSS variable. story.css already declares
+   `transition: background 1s ease;` so theme morphs feel calm. */
+body.story[data-theme='addition'] {
+  background: var(--st-bg);
+}
+
+/* ── Layout shell ─────────────────────────────────────────────────── */
+
+body.story[data-theme='addition'] .cf-shell {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 16px 20px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: calc(100vh - 36px); /* 36px = body padding-top from story.css */
+}
+
+body.story[data-theme='addition'] .cf-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+body.story[data-theme='addition'] .cf-title {
+  margin: 0;
+  font-size: clamp(1.6em, 4vw, 2.2em);
+  color: #fff;
+  text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+body.story[data-theme='addition'] .cf-progress-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.85);
+  color: #1a1f3a;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.95em;
+}
+
+body.story[data-theme='addition'] .cf-progress-bar {
+  width: 80px;
+  height: 8px;
+  background: rgba(20, 30, 70, 0.15);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+body.story[data-theme='addition'] .cf-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: #4caf50;
+  border-radius: 999px;
+  transition: width 0.4s ease-out;
+}
+
+/* ── Stage — the per-round scene that holds the two object groups ──── */
+
+body.story[data-theme='addition'] .cf-stage {
+  position: relative;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 24px;
+  padding: 24px 16px;
+  min-height: 320px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  /* Soft inset edge so the stage reads as a "scene window" within the
+     scene-coloured body bg. */
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.4);
+}
+
+/* The two object groups + the "and" connector. Using grid so the
+   middle "and" stays centred regardless of group widths. */
+body.story[data-theme='addition'] .cf-groups {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  width: 100%;
+  max-width: 720px;
+  gap: 16px;
+}
+
+body.story[data-theme='addition'] .cf-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 96px;
+}
+
+body.story[data-theme='addition'] .cf-plus {
+  font-size: 2.4em;
+  color: var(--cf-plus-color);
+  font-weight: 700;
+  user-select: none;
+}
+
+body.story[data-theme='addition'] .cf-item {
+  /* Tap target: emoji glyph centred in an 88×88 button, big enough
+     that a 3yo's tap-with-thumb lands accurately. */
+  width: 88px;
+  height: 88px;
+  border: none;
+  background: transparent;
+  font-size: 64px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 50%;
+  position: relative;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+  animation: cfFlyIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  /* `--cf-i` is the per-element animation delay — set on each item by
+     the page script so groups reveal with a small stagger. */
+  animation-delay: var(--cf-i, 0s);
+  transition: transform 0.2s ease;
+}
+
+body.story[data-theme='addition'] .cf-item:hover {
+  transform: scale(1.08);
+}
+
+body.story[data-theme='addition'] .cf-item:active {
+  transform: scale(0.92);
+}
+
+body.story[data-theme='addition'] .cf-item.cf-counted {
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 0 0 4px var(--cf-dot-filled), 0 0 24px rgba(255, 255, 255, 0.7);
+}
+
+body.story[data-theme='addition'] .cf-item.cf-pulse {
+  animation: cfPulse 0.6s ease-out;
+}
+
+@keyframes cfFlyIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-40px) scale(0.4);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(8px) scale(1.1);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes cfPulse {
+  0%   { transform: scale(1);    box-shadow: 0 0 0 0 var(--cf-dot-filled); }
+  50%  { transform: scale(1.18); box-shadow: 0 0 0 8px transparent; }
+  100% { transform: scale(1);    box-shadow: 0 0 0 0 transparent; }
+}
+
+/* ── Caption — accessibility/parent-readable mirror of TTS narration ─── */
+
+body.story[data-theme='addition'] .cf-caption {
+  background: var(--cf-caption-bg);
+  color: var(--cf-caption-text);
+  border-radius: 16px;
+  padding: 14px 18px;
+  font-size: clamp(1em, 2.4vw, 1.2em);
+  font-weight: 600;
+  text-align: center;
+  box-shadow: var(--cf-caption-shadow);
+  max-width: 720px;
+  margin: 0 auto;
+  min-height: 1.4em;
+  /* Subtle attention cue when caption text changes. */
+  animation: cfCaptionIn 0.4s ease-out;
+}
+
+@keyframes cfCaptionIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Numeral answer buttons — the "How many?" row ─────────────────── */
+
+body.story[data-theme='addition'] .cf-options {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 8px;
+}
+
+body.story[data-theme='addition'] .cf-opt {
+  /* 132×132 tap target — well above the ≥88px floor for ages ≤4. */
+  width: 132px;
+  height: 132px;
+  border-radius: 24px;
+  background: var(--cf-btn-bg);
+  border: 2px solid var(--cf-btn-border);
+  color: var(--cf-btn-text);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 8px;
+  font-family: inherit;
+  box-shadow: var(--cf-btn-shadow);
+  transition:
+    transform 0.18s ease,
+    background 0.18s ease,
+    border-color 0.18s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body.story[data-theme='addition'] .cf-opt:hover {
+  transform: translateY(-2px);
+  background: var(--cf-btn-bg-hover);
+}
+
+body.story[data-theme='addition'] .cf-opt:active {
+  transform: translateY(1px) scale(0.97);
+}
+
+body.story[data-theme='addition'] .cf-opt:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+body.story[data-theme='addition'] .cf-opt-digit {
+  font-size: 56px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+body.story[data-theme='addition'] .cf-opt-frame {
+  display: flex;
+  gap: 4px;
+}
+
+body.story[data-theme='addition'] .cf-opt-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--cf-dot-empty);
+  border: 2px solid var(--cf-dot-empty);
+}
+
+body.story[data-theme='addition'] .cf-opt-dot.cf-opt-dot--filled {
+  background: var(--cf-dot-filled);
+  border-color: var(--cf-dot-filled);
+}
+
+body.story[data-theme='addition'] .cf-opt.cf-opt--correct {
+  background: var(--cf-btn-fill-correct);
+  border-color: var(--cf-btn-border-correct);
+  animation: cfBounce 0.5s ease-out;
+}
+
+body.story[data-theme='addition'] .cf-opt.cf-opt--reveal {
+  background: var(--cf-btn-fill-glow);
+  border-color: var(--cf-btn-border-glow);
+  animation: cfPulseRing 1.4s ease-in-out infinite;
+}
+
+@keyframes cfBounce {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.16); }
+  60%  { transform: scale(0.96); }
+  100% { transform: scale(1); }
+}
+
+@keyframes cfPulseRing {
+  0%, 100% {
+    box-shadow:
+      var(--cf-btn-shadow),
+      0 0 0 0 rgba(25, 118, 210, 0.55);
+  }
+  50% {
+    box-shadow:
+      var(--cf-btn-shadow),
+      0 0 0 12px rgba(25, 118, 210, 0);
+  }
+}
+
+/* ── Footer row — Replay + Next + Stats ───────────────────────────── */
+
+body.story[data-theme='addition'] .cf-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+body.story[data-theme='addition'] .cf-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 22px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(255, 255, 255, 0.92);
+  color: #1a1f3a;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 1em;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(20, 30, 70, 0.15);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+body.story[data-theme='addition'] .cf-action:hover {
+  transform: translateY(-1px);
+  background: #ffffff;
+}
+
+body.story[data-theme='addition'] .cf-action:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+body.story[data-theme='addition'] .cf-action--primary {
+  background: #4caf50;
+  color: #ffffff;
+}
+
+body.story[data-theme='addition'] .cf-action--primary:hover {
+  background: #43a047;
+}
+
+/* ── Session-complete overlay — appears after the 8th round ───────── */
+
+body.story[data-theme='addition'] .cf-done {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 30, 70, 0.55);
+  z-index: 50;
+  padding: 20px;
+}
+
+body.story[data-theme='addition'] .cf-done.cf-done--show {
+  display: flex;
+}
+
+body.story[data-theme='addition'] .cf-done-card {
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 32px 28px;
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+  color: #1a1f3a;
+  box-shadow: 0 24px 80px rgba(20, 30, 70, 0.4);
+  animation: cfDoneIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes cfDoneIn {
+  from { opacity: 0; transform: scale(0.7) translateY(20px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+body.story[data-theme='addition'] .cf-done-emoji {
+  font-size: 72px;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+body.story[data-theme='addition'] .cf-done-title {
+  margin: 0 0 8px;
+  font-size: 1.6em;
+  color: #2e7d32;
+}
+
+body.story[data-theme='addition'] .cf-done-text {
+  margin: 0 0 24px;
+  font-size: 1.1em;
+  color: #555;
+}
+
+body.story[data-theme='addition'] .cf-done-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ── Reduced motion fallback ──────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  body.story[data-theme='addition'] .cf-item,
+  body.story[data-theme='addition'] .cf-item.cf-pulse,
+  body.story[data-theme='addition'] .cf-caption,
+  body.story[data-theme='addition'] .cf-opt.cf-opt--correct,
+  body.story[data-theme='addition'] .cf-opt.cf-opt--reveal,
+  body.story[data-theme='addition'] .cf-done-card {
+    animation: none;
+  }
+  body.story[data-theme='addition'] .cf-item:hover,
+  body.story[data-theme='addition'] .cf-opt:hover {
+    transform: none;
+  }
+  body.story[data-theme='addition'] {
+    transition: none;
+  }
+}
+
+/* ── Dark mode (theme-agnostic carry from story.css) ──────────────── */
+/* Dark mode keeps the scene palettes — we just deepen the chrome.
+   Numeral buttons get a dark surface with bright text + a brighter
+   glow so the high-contrast invariant carries over. */
+body.dark-mode.story[data-theme='addition'] {
+  --cf-btn-bg: #1a1f3a;
+  --cf-btn-bg-hover: #232847;
+  --cf-btn-text: #f0f4ff;
+  --cf-btn-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  --cf-btn-border: rgba(180, 200, 255, 0.18);
+  --cf-btn-fill-correct: #1b3a1d;
+  --cf-btn-fill-glow: #1f2d52;
+  --cf-dot-empty: rgba(180, 200, 255, 0.22);
+  --cf-caption-bg: rgba(20, 25, 50, 0.92);
+  --cf-caption-text: #f0f4ff;
+}
+
+body.dark-mode.story[data-theme='addition'] .cf-done-card {
+  background: #1a1f3a;
+  color: #f0f4ff;
+}
+
+body.dark-mode.story[data-theme='addition'] .cf-done-text {
+  color: #b8c2e0;
+}
+
+body.dark-mode.story[data-theme='addition'] .cf-action {
+  background: #232847;
+  color: #f0f4ff;
+}
+
+body.dark-mode.story[data-theme='addition'] .cf-action--primary {
+  background: #2e7d32;
+  color: #f0f4ff;
+}
+
+/* ── Responsive — tighten spacing on small phones ─────────────────── */
+
+@media (max-width: 480px) {
+  body.story[data-theme='addition'] .cf-item {
+    width: 72px;
+    height: 72px;
+    font-size: 52px;
+  }
+  body.story[data-theme='addition'] .cf-opt {
+    width: 104px;
+    height: 116px;
+  }
+  body.story[data-theme='addition'] .cf-opt-digit {
+    font-size: 44px;
+  }
+  body.story[data-theme='addition'] .cf-shell {
+    padding: 12px 12px 60px;
+    gap: 14px;
+  }
+}

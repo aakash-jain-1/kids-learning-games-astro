@@ -39,8 +39,17 @@ interface Props {
    * Visual palette for the story shell. Controls the CSS custom
    * properties defined in `story.css`. Leave undefined for the
    * default theme. Add new keys here as more story games land.
+   *
+   * `'addition'` (added 2026-05-15 for the Counting Friends game) is
+   * not strictly a story game, but reuses StoryLayout's wiring (head,
+   * GameNav, SettingsModal, BuildInfo, SW registration, FOUC handling)
+   * which is exactly what a single-scene-per-round stage game needs.
+   * Per rule #5 ("refactor on second consumer"), if a third
+   * non-story stage game lands we should carve out a `StageLayout`
+   * sister shell and migrate Counting Friends to it; until then,
+   * adding one theme key is the lowest-cost option.
    */
-  theme?: 'routines' | 'woodcutter';
+  theme?: 'routines' | 'woodcutter' | 'addition';
 }
 
 const {
@@ -140,5 +149,9 @@ const canonicalUrl =
   html.pre-dark body.story[data-theme='woodcutter'] {
     background: #0a0f1f;
     color: #d4d8f0;
+  }
+  html.pre-dark body.story[data-theme='addition'] {
+    background: #0a1020;
+    color: #d4e0ff;
   }
 </style>
