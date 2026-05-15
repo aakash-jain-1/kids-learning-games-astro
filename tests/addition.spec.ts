@@ -21,7 +21,23 @@ const STATS_KEY = 'counting_friends_stats_v1';
 test.describe('counting friends (preschool addition)', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('games/counting-friends-game.html');
-    await page.evaluate(() => localStorage.clear());
+    // Wipe any prior progress, then mute sound so `narrate()` takes
+    // its silent-mode fallback path (`setTimeout(onEnd, 600)`) — that
+    // makes the round-progression chain deterministic and fast,
+    // independent of whatever `speechSynthesis.speak()` does in
+    // headless Chromium (some CI runners have no system TTS engine
+    // and never fire `onend`, which would stall the rerun chain
+    // beyond the test timeout). The page also has a watchdog for
+    // real browsers; we don't rely on it here.
+    await page.evaluate(() => {
+      localStorage.clear();
+      localStorage.setItem(
+        'kids_settings_v1',
+        JSON.stringify({ dark: false, sound: false, autoSpeak: false, fontSize: 'medium' }),
+      );
+    });
+    // Reload so the page picks up the muted settings on first script run.
+    await page.reload();
   });
 
   test('SSR renders header, scene, three numeral options, and a caption', async ({ page }) => {

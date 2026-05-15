@@ -183,6 +183,7 @@ const TOTAL_ROUNDS = 8;
     buildNarration,
     loadAdditionStats,
     saveAdditionStats,
+    type AdditionTheme,
     type Round,
     type RoundNarration,
   } from '@/data/addition';
@@ -191,8 +192,43 @@ const TOTAL_ROUNDS = 8;
   // Confetti palette — happy primaries that read on every scene bg.
   const CF_COLORS = ['#4caf50', '#1976d2', '#ffd54f', '#e91e63', '#ff7043'];
 
+  /**
+   * Read round 0 from the SSR'd DOM so the JS session starts in sync
+   * with whatever Astro rendered (deterministic seed in the page
+   * frontmatter). This avoids a synchronous `renderRound()` DOM
+   * replacement on first user interaction — without it, the very
+   * first option click would race against `kickoff()` mutating the
+   * options markup, and the click could land on a brand-new button
+   * with a different `data-n` than the one the user (or test)
+   * intended to tap. Reading state from the DOM keeps the SSR'd
+   * markup live for round 0; rounds 1..N are JS-generated as usual.
+   */
+  const readSSRRound = (): Round => {
+    const stageEl = document.getElementById('cfStage')!;
+    const themeKey = (stageEl.dataset.scene ?? 'pond') as AdditionTheme;
+    const a = stageEl.querySelectorAll('#cfGroupA .cf-item').length;
+    const b = stageEl.querySelectorAll('#cfGroupB .cf-item').length;
+    const optEls = Array.from(
+      document.querySelectorAll<HTMLElement>('#cfOptions .cf-opt'),
+    );
+    // Defensive: if SSR shape ever drifts, fall back to a JS-generated
+    // round so the page still works rather than throwing.
+    if (a === 0 || b === 0 || optEls.length !== 3) {
+      return generateSession()[0]!;
+    }
+    const opts = optEls.map((el) => Number(el.dataset.n));
+    return {
+      a,
+      b,
+      sum: a + b,
+      theme: themeKey,
+      options: [opts[0]!, opts[1]!, opts[2]!],
+    };
+  };
+
   // ── State ──────────────────────────────────────────────────────────
-  let session: Round[] = generateSession();
+  // Round 0 mirrors the SSR'd DOM exactly; rounds 1..N are JS-random.
+  let session: Round[] = [readSSRRound(), ...generateSession().slice(1)];
   let roundIdx = 0;
   /** Whether the child has tapped a numeral button yet on the current round. */
   let answered = false;
@@ -224,20 +260,45 @@ const TOTAL_ROUNDS = 8;
    * the captions, so we always speak when sound is on. The on-screen
    * caption is the silent-mode fallback, not a redundant accessibility
    * mirror — it's the *primary* output when sound is muted.
+   *
+   * Always fires `opts.onEnd` exactly once. Three paths:
+   *   1. Sound off (or speechSynthesis unsupported) → setTimeout
+   *      fallback at ~600ms so the round still progresses.
+   *   2. Sound on, speechSynthesis fires `onend` normally → wrap()
+   *      is invoked from the speech engine.
+   *   3. Sound on, but speechSynthesis never fires `onend` (some
+   *      headless browsers + CI runners with no system TTS engine
+   *      hit this; also Safari / mobile interrupt edge cases) →
+   *      watchdog fires wrap() after a length-based estimate so we
+   *      don't deadlock the round-progression chain.
+   *
+   * Watchdog discovered necessary 2026-05-15 by the new Playwright
+   * suite: the wrong-answer rerun chain (`narrate(rerun) → ... →
+   * narrate(rerunDone) → reveal`) timed out in CI because Chromium's
+   * headless TTS never invoked the `onend` callbacks. Real browsers
+   * with real audio fire `onend` long before the watchdog and the
+   * watchdog becomes a no-op.
    */
   const narrate = (text: string, opts?: { onEnd?: () => void }): void => {
+    const onEnd = opts?.onEnd;
     if (!isSpeechSupported() || !getSettings().sound) {
-      // No TTS available or sound off — fire the onEnd hook on the
-      // next tick so the round still progresses (otherwise the
-      // narration sequence would stall waiting for a callback that
-      // never arrives).
-      if (opts?.onEnd) setTimeout(opts.onEnd, 600);
+      if (onEnd) setTimeout(onEnd, 600);
       return;
     }
+    let fired = false;
+    const wrap = (): void => {
+      if (fired) return;
+      fired = true;
+      onEnd?.();
+    };
+    // Watchdog: ~10 chars/sec at our 0.85 rate plus a 600ms baseline.
+    // Generous; bigger than any real onend fires.
+    const watchdogMs = Math.max(800, text.length * 100 + 600);
+    if (onEnd) setTimeout(wrap, watchdogMs);
     // Slightly slower than `lib/speech.ts` default (0.9) — pace this
     // age group prefers, plus the rate matches preschool TV-show
     // narrators within ~10%.
-    speak(text, { rate: 0.85, pitch: 1.15, onEnd: opts?.onEnd });
+    speak(text, { rate: 0.85, pitch: 1.15, onEnd: onEnd ? wrap : undefined });
   };
 
   /**
@@ -616,17 +677,30 @@ const TOTAL_ROUNDS = 8;
     alert(lines.join('\n'));
   });
 
-  // ── Initial render ─────────────────────────────────────────────────
+  // ── Initial state binding ──────────────────────────────────────────
+  // The SSR'd DOM is round 0; we don't re-render it. We just bind
+  // the JS state (currentNarration, header progress) so subsequent
+  // logic — option clicks, replay button, item taps, etc. — has the
+  // expected references.
+  currentNarration = buildNarration(session[0]!);
+  progressText.textContent = `1 / ${TOTAL_ROUNDS}`;
+  progressFill.style.width = `${(1 / TOTAL_ROUNDS) * 100}%`;
+  progressPill.setAttribute('aria-label', `Round 1 of ${TOTAL_ROUNDS}`);
+
   // Don't auto-speak on first paint — browsers block speechSynthesis
-  // until the first user gesture. The SSR'd round provides the
-  // initial visual; we wait for the *first* tap (anywhere in the page
-  // body) to kick off narration. After that, all round transitions
-  // narrate normally.
+  // until the first user gesture. We wait for the *first* tap
+  // (anywhere on the page body) to kick off the intro narration.
+  // Critically, kickoff does NOT call renderRound() — that would
+  // race with the click event when the user's first interaction is
+  // a tap on an option button (Playwright tests proved this race
+  // empirically on 2026-05-15 — every option-click test failed
+  // because the SSR'd `data-n` values had been swapped out by a
+  // freshly-randomized JS session before the click could resolve).
   let kickedOff = false;
   const kickoff = (): void => {
     if (kickedOff) return;
     kickedOff = true;
-    startRound();
+    requestAnimationFrame(() => speakIntroSequence());
   };
   document.addEventListener('pointerdown', kickoff, { once: true });
   document.addEventListener('keydown', kickoff, { once: true });
