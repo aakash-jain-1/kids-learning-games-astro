@@ -72,15 +72,77 @@
 - **Project**: Migrate vanilla HTML/CSS/JS PWA `kids-learning-games`
   (13 games, ~500–1500 lines each, copy-pasted shells) to a typed
   Astro + `@vite-pwa/astro` (Workbox) project `kids-learning-games-astro`.
-- **State (2026-05-08, end of day): all 13 games ported and live —
-  migration complete** at https://aakash-jain-1.github.io/kids-learning-games-astro/.
+- **State (2026-05-15): all 13 vanilla games ported and live (migration
+  complete since 2026-05-08), plus 1 new feature-driven game shipped
+  2026-05-15 — Counting Friends, preschool-math addition for ages 3–4.
+  Total 14 games** at https://aakash-jain-1.github.io/kids-learning-games-astro/.
   *Foundational-set chapter closed*; *story-flow chapter closed*;
-  *no vanilla games remaining*.
+  *post-migration polish phase closed*; *now in the feature-driven phase.*
 - **Three shared layouts** in production:
   - `CardMachineLayout` (4 games — Dinosaurs, Flashcards, Solar System, Weather).
   - `GridLayout` (7 games — Alphabets, Numbers, Colors, Shapes, Animals, Birds, Hindi).
-  - `StoryLayout` (2 games — Daily Routines paginated, **Honest Woodcutter** ← shipped this session as the 13th and final port).
-- **Just shipped (this session, 2026-05-12 — afternoon pivot)**:
+  - `StoryLayout` (3 games — Daily Routines paginated, Honest Woodcutter,
+    and **Counting Friends** ← shipped 2026-05-15 as the first
+    feature-driven game; uses the new `theme='addition'` key on
+    StoryLayout, philosophically a single-scene-per-round stage game
+    that reuses StoryLayout's wiring per rule #5 "refactor on second
+    consumer").
+- **Just shipped (this session, 2026-05-15)**: **Counting Friends —
+  preschool-math addition for ages 3–4 (first feature-driven game
+  after the migration arc closed)**. Triggered by direct user
+  request: *"game for addition, simple addition for 3 year old boy."*
+  Research-and-design canvas at
+  `canvases/kids-addition-game-design.canvas.tsx` captured the
+  upstream reasoning (developmental snapshot, touch-UX guardrails,
+  pedagogical primitives, codebase audit, three layout-architecture
+  options, 6 open design questions with recommended defaults). User
+  delegated the choices ("not sure what to do, just make a game which
+  can help him") so all six recommended defaults were taken: name
+  *Counting Friends*, sums 2–5 two-addend, audio via Web Speech API
+  with always-visible caption fallback, 4 themes (Pond/Orchard/Sea/
+  Garden), layout Option B (StoryLayout with new `'addition'` theme),
+  emoji objects. The shipped game: 8 single-scene rounds per session;
+  each round shows two groups of identical themed objects (e.g. 2
+  ducks + 3 ducks) connected by a visible *and*; child can tap-to-
+  count each object (running count narrated) or just tap the answer
+  if they subitize; three numeral answer buttons at the bottom each
+  show the digit + a 5-cell five-frame visualization; right answer
+  triggers confetti + audio celebration "Yes! Five ducks! Two and
+  three make five!"; wrong answer triggers an *errorless* guided-
+  count rerun (every object lights up sequentially while audio counts,
+  correct button gets a pulsing blue glow, no score penalty visible
+  to the child); session-complete card after round 8. Distractors
+  always `[sum-1, sum, sum+1]` shuffled (close-by-1 keeps it
+  detectable when the child counts). Stats schema is bespoke
+  (`counting_friends_stats_v1`) — `{ sessions, rounds,
+  correctFirstTry, lastPlayed }` — the standard `lib/quiz.ts`
+  percentage-scored shape doesn't fit a per-round game with no
+  score. Files: `src/data/addition.ts` (226 LoC — themes + session
+  generator + narration builder + stats persistence),
+  `src/styles/addition.css` (386 LoC — 4 scene palettes, five-frame
+  numeral buttons, fly-in/pulse/celebrate animations, dark mode,
+  reduced-motion fallback, mobile breakpoint),
+  `src/pages/games/counting-friends-game.astro` (343 LoC — round
+  controller, tap-to-count, errorless wrong-answer flow, parent
+  Stats), `tests/addition.spec.ts` (122 LoC — 6-test smoke suite),
+  `src/layouts/StoryLayout.astro` (+14 lines — theme union widening +
+  pre-dark FOUC rule), `src/components/GameNav.astro` (+1 line),
+  `src/pages/index.astro` (+7 lines — home card). *Verifications:*
+  `npm run check` 0/0/0 across **46 Astro files** (+2: new page +
+  addition.css); `npm run build` **15 pages** (+1), precache **64
+  entries** (+4); SSR markup verified (data-theme="addition", cf-stage,
+  cf-opt classes, theme emoji, scene data attribute). New follow-up
+  filed (T9: pre-recorded MP3 narration for v2 polish). **The
+  project is now in the feature-driven phase** — Counting Friends
+  is the reference for "how to build a non-migration game in this
+  codebase" (typed data + scoped CSS + page-local controller +
+  bespoke stats schema + reuse StoryLayout's wiring rather than
+  carving a new shell). Next-session candidates earmarked: Magnitude
+  Comparison ("which group has more?"), Number Bond Pop ("how many
+  more to make 5?"). Full breakdown in PROGRESS.md changelog
+  **2026-05-15**.
+
+- **Shipped previous session (2026-05-12 — afternoon pivot)**:
   **Track 4 closure — cut-over cancelled, Astro URL is the
   permanent canonical (docs-only)**. Same-day reversal of this
   morning's Phase-1 decision (Option A — Astro takes over the
@@ -2807,3 +2869,66 @@ page). **Local verifications:** `npm run check` 0/0/0 across
 **60 entries** unchanged. The `(T8)` follow-up brings the count
 of small standalone follow-ups to 4 (T2.1, T6, T7, T8) — all
 ~15–30 minutes each, all safe to defer.*
+
+*Updated 2026-05-15 — **Counting Friends shipped — first
+feature-driven game after the migration arc closed.** Triggered by
+direct user request ("game for addition, simple addition for 3 year
+old boy"). Pedagogical research grounded in 2025 Springer RCT on
+cardinality instruction in 3–4yos, PLOS One 2024 on numerical
+mapping in preschoolers, NN/g design-for-kids touch-UX guidelines,
+and shipping-app patterns from Endless Numbers / Khan Academy Kids
+/ DragonBox Numbers (self-paced, no scoring, no failures, audio
+narration that does the reading). Research-and-design canvas saved
+at `canvases/kids-addition-game-design.canvas.tsx`. User delegated
+the 6 design choices ("not sure what to do, just make a game which
+can help him"), so all six recommended defaults shipped: name
+*Counting Friends*, sums 2–5 two-addend, audio via Web Speech API
++ caption fallback, 4 themes (Pond/Orchard/Sea/Garden), layout
+Option B (StoryLayout with new `'addition'` theme key — cleanest
+shell investment until a 2nd non-story stage game arrives), emoji
+objects. **Game shape:** 8 single-scene rounds per session, two
+groups of identical themed objects per scene connected by a
+visible *and*; tap-to-count emoji items (running count narrated)
+or just tap one of three numeral answer buttons each showing
+digit + 5-cell five-frame visualization; right answer = confetti +
+celebration audio; wrong answer = errorless guided-count rerun
+with the correct button getting a pulsing blue glow, no score
+penalty visible to child. Distractors always `[sum-1, sum, sum+1]`
+shuffled. Bespoke stats schema (`counting_friends_stats_v1`) since
+`lib/quiz.ts`'s percentage shape doesn't fit a per-round game.
+**Files:** `src/data/addition.ts` (226 LoC), `src/styles/addition.css`
+(386 LoC, all `cf-*` classes scoped under
+`body.story[data-theme='addition']`), `src/pages/games/counting-friends-game.astro`
+(343 LoC), `tests/addition.spec.ts` (6-test smoke suite, 122 LoC),
+`src/layouts/StoryLayout.astro` (+14 lines for theme union widening
++ pre-dark FOUC rule for the addition theme),
+`src/components/GameNav.astro` (+1 link), `src/pages/index.astro`
+(+7-line home-card). **Verifications:** `npm run check` 0/0/0
+across **46 Astro files** (+2 vs the previous 44); `npm run build`
+**15 pages** built (+1); precache **64 entries** (+4 = page HTML +
+page-specific JS chunk + new addition.css + Vite re-emitted
+shared chunk); SSR markup verified (`data-theme="addition"`,
+`cf-stage`, `cf-opt`, theme emoji, `data-scene` attribute).
+**New follow-up filed (T9):** v2 polish — replace Web Speech API
+TTS with pre-recorded MP3 narration in a kid-friendly voice
+(~2–3 hr of recording/encoding + a small narration-asset
+registry). Defer until v1 retention is validated with the actual
+3yo user. **Total feature-game candidates now in the queue:**
+T9 (Counting Friends MP3s), and earmarked sister games — Magnitude
+Comparison ("which group has more?"), Number Bond Pop ("how many
+more to make 5?"). Both would reuse most of `addition.css` if
+shipped, validating the `StageLayout` carve when we cross that
+threshold. **The project's overall arc:** the migration arc that
+ran from early April (audit) through 2026-05-08 (Woodcutter
+shipped) plus 4 tracks of post-migration polish (May 11–12) is
+now genuinely behind us — Counting Friends is the first commit
+that ships *new content*, not migrated or polished *existing
+content*. From this point on, work is feature-driven; the choice
+each session is between picking a new feature game, picking one
+of the 4 pending small standalone follow-ups (T2.1 / T6 / T7 /
+T8), or polishing an existing game. The standalone follow-up
+queue is now 5 (T2.1, T6, T7, T8, T9). The `addition` body theme
+is the 4th theme registered on `StoryLayout` (after `routines`,
+`woodcutter`, default-undefined); per rule #5, when a 5th
+non-story stage game lands we promote to a sister `StageLayout`
+shell.*
