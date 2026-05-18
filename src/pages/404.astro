@@ -1,0 +1,200 @@
+---
+/**
+ * 404 page — friendly "Go Home" landing for any unmatched URL.
+ *
+ * Why this exists: GitHub Pages serves a `404.html` from the site root
+ * (here, the deployed `<base>/404.html`) for any path not present in
+ * the build output. Without this file, GH Pages falls back to its own
+ * default page ("Site not found · GitHub Pages") — unstyled, generic,
+ * and confusing for the actual 3yo + parent target audience. The
+ * vanilla `kids-learning-games` repo had a friendly 404 at
+ * `kids-learning-games/404.html`; this is the Astro port (T7).
+ *
+ * Design language mirrors `public/offline.html` and the vanilla 404
+ * verbatim — same gradient body, same glass-morphism box, same big
+ * emoji + headline + paragraph + single CTA button — so all three
+ * "fallback" pages of the site (404, offline, and the home hero
+ * panel) read as one visual family. A single CTA is the right shape
+ * for a 3yo: parents can read the headline; the kid sees one
+ * obvious button to tap.
+ *
+ * Three small upgrades over the vanilla 2026 version:
+ *  - **Astro `BASE_URL` template** for the home link, so it relocates
+ *    automatically if `astro.config.mjs`'s `BASE` ever flips (the
+ *    Track-4 cut-over plan was cancelled but the relocatability is
+ *    still cheap and matches every other internal link in this repo).
+ *  - **FOUC-safe dark-mode pre-paint** (the same `is:inline` script
+ *    `index.astro` uses) so a dark-mode user doesn't get a flash of
+ *    the bright purple gradient before the dark-mode background paints.
+ *  - **`body.dark-mode` override** — the vanilla page lacked one,
+ *    leaving dark-mode users with the same bright purple regardless
+ *    of preference. Cheap to add; better UX.
+ *
+ * Deliberately NOT included:
+ *  - `GameNav`, `SettingsModal`, `BuildInfo` — the 404 should be one
+ *    obvious affordance. Mirrors the vanilla design philosophy.
+ *  - `global.css` import — keep the page self-contained so it renders
+ *    even if a global stylesheet ever becomes unavailable. The CSS
+ *    payload here is ~1 KB inline; the resilience is worth more than
+ *    the deduplication.
+ *  - SW registration — the 404 is a terminal page; "Go Home" lands
+ *    on `index.astro` which registers the SW for any session that
+ *    hasn't yet. Skipping registration here keeps the 404 payload
+ *    minimal and avoids any possibility of the 404 page itself
+ *    becoming a precache target by accident.
+ *
+ * Offline interaction note: when a user with the SW installed
+ * navigates to a wrong URL while offline, `setCatchHandler` in
+ * `service-worker.ts` serves the precached `offline` page rather
+ * than this 404 page (the request fails before GH Pages can return
+ * `404.html`). That's the right behaviour — "you're offline" is a
+ * more actionable message than "page not found" when both are true.
+ * Online + wrong URL → this page; offline + wrong URL → offline page.
+ */
+
+const base = import.meta.env.BASE_URL;
+const homeHref = base.endsWith('/') ? base : `${base}/`;
+---
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#667eea" />
+    <meta
+      name="description"
+      content="Page not found — the link you followed doesn't lead anywhere on Kids Learning Games. Tap to go back to the home page."
+    />
+    <title>Page Not Found — Kids Learning Games</title>
+
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔍</text></svg>"
+    />
+
+    <script is:inline>
+      (function () {
+        try {
+          var raw = localStorage.getItem('kids_settings_v1');
+          if (!raw) return;
+          var s = JSON.parse(raw);
+          if (s && s.dark) document.documentElement.classList.add('pre-dark');
+        } catch (e) {
+          /* noop */
+        }
+      })();
+    </script>
+
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: 'Comic Sans MS', cursive, Arial, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+        min-height: 100vh;
+        min-height: 100dvh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 20px;
+        color: #fff;
+      }
+
+      html.pre-dark body,
+      body.dark-mode {
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #2d1b4e 100%);
+        color: #e8e4ff;
+      }
+
+      .box {
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border-radius: 24px;
+        padding: 40px 30px;
+        max-width: 420px;
+        width: 100%;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+      }
+
+      .icon {
+        font-size: 4em;
+        line-height: 1;
+        margin-bottom: 16px;
+      }
+
+      h1 {
+        font-size: 1.8em;
+        margin-bottom: 12px;
+      }
+
+      p {
+        font-size: 1.1em;
+        opacity: 0.9;
+        line-height: 1.6;
+        margin-bottom: 24px;
+      }
+
+      a.home {
+        display: inline-block;
+        background: linear-gradient(145deg, #4caf50, #2e7d32);
+        color: #fff;
+        text-decoration: none;
+        padding: 14px 36px;
+        font-size: 1.1em;
+        font-weight: bold;
+        border-radius: 50px;
+        font-family: inherit;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      a.home:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+      }
+
+      a.home:active {
+        transform: translateY(1px);
+      }
+
+      a.home:focus-visible {
+        outline: 3px solid #fff;
+        outline-offset: 3px;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        a.home {
+          transition: none;
+        }
+        a.home:hover {
+          transform: none;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <main class="box" role="main">
+      <div class="icon" aria-hidden="true">🔍</div>
+      <h1>Page Not Found</h1>
+      <p>Oops! This page doesn't exist. Let's go back to the games!</p>
+      <a class="home" href={homeHref} aria-label="Go to home page">
+        🏠 Go Home
+      </a>
+    </main>
+
+    <script>
+      import { initSettings } from '@/lib/settings';
+      initSettings();
+      document.documentElement.classList.remove('pre-dark');
+    </script>
+  </body>
+</html>

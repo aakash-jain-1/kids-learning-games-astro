@@ -63,9 +63,20 @@ export default defineConfig({
     trace: 'on-first-retry',
     actionTimeout: 10_000,
     navigationTimeout: 30_000,
-    // Skip Astro's PWA service-worker registration so each test starts
-    // with a clean cache. The SW interferes with Playwright's "fresh
-    // page" assumption — install events can race with test navigations.
+    // Skip Astro's PWA service-worker registration by default so each
+    // test starts with a clean cache. The SW interferes with Playwright's
+    // "fresh page" assumption — install events can race with test
+    // navigations, and the precache cache layer makes assertions about
+    // "did the page actually re-fetch?" non-deterministic.
+    //
+    // Per-file override: `tests/sw.spec.ts` (T8, shipped 2026-05-18)
+    // opts back IN to `serviceWorkers: 'allow'` via `test.use({})` so
+    // that suite can actually exercise the SW lifecycle (install →
+    // activate → take control → precache hits → setCatchHandler
+    // offline-fallback path). Every OTHER tests/*.spec.ts inherits
+    // the block default below, which is correct for those suites
+    // (their assertions are about page content + LocalStorage writes
+    // that should be deterministic regardless of SW state).
     serviceWorkers: 'block',
     // Allow self-signed certificates so the suite can run against the
     // live GitHub Pages deploy on machines behind a TLS-MitM corporate
