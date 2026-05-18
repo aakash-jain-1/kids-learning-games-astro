@@ -210,9 +210,9 @@ or (b) document a one-off exception.
 
 ## What still needs doing
 
-> **▶ Resume here next session:** the **migration is complete (13/13)** as of 2026-05-08; **Tracks 1, 2, 3, and 4 of post-migration polish are all closed** as of 2026-05-12; **the project is now in its feature-driven phase.** **First feature-driven game shipped 2026-05-15: Counting Friends — preschool addition for ages 3–4 (8 single-scene rounds per session, two groups of friendly objects, errorless answer flow, 4 themes — Pond/Orchard/Sea/Garden).** **Second feature-driven game shipped 2026-05-18: More Friends — preschool magnitude comparison for ages 3–4 (8 rounds, two side-by-side groups with sizes 1–4 each (always unequal), tap the bigger group, errorless guided-count-of-both-sides on miss; sister game / developmental precursor to Counting Friends — children master "more vs less" comparison ~6–12 months before consolidating cardinality enough to add).** Counting Friends triggered by a direct user request ("game for addition, simple addition for 3 year old boy"); More Friends shipped immediately after as the natural sister mechanic, completing the "comparison-then-addition" cognitive path. Both games' design + research grounded in 2025 RCT findings on cardinality instruction (Springer), preschool-math best practices (five-frames before ten-frames, counting-all not counting-on, story-context framing), and shipping-app patterns (Endless Numbers, Khan Academy Kids — self-paced, no scoring, no failures). Both shipped on `StoryLayout` with new theme keys (`'addition'` and `'comparison'`); the `StageLayout` carve held a second time per the deeper analysis in the More Friends commit message — the actual chrome differences between StoryLayout and a hypothetical StageLayout amount to a body-class rename (`body.story` → `body.stage`) and nothing else, because both games already scope every game-specific class under `body.story[data-theme='X']`. Carving a near-identical sister layout would add code without removing any. The **second-consumer carve that DID happen** at the More Friends ship was the *content* primitives: `src/lib/preschool-themes.ts` extracts `PreschoolTheme` + `ThemeMeta` + `THEMES` + `THEME_BY_KEY` + `numberWord` / `cap` / `nounFor` helpers from the previous inline-in-`addition.ts` definitions, with `addition.ts` keeping `AdditionTheme = PreschoolTheme` as a backward-compat alias so the Counting Friends page (`counting-friends-game.astro`) continues to import unchanged. **15 games total now.** Track 1: 11 of 11 non-story games wired with `mountQuiz` (closed 2026-05-11). Track 2: 47-test Playwright smoke suite + soft-gate CI (closed 2026-05-11; **5 clean CI runs** on `main` — Track 2 push, Track 3 feat + docs, Track 4 Phase 1+2 feat + docs — so the T2.1 follow-up to promote Playwright to a hard deploy gate is now unblocked; one-line tweak adds `needs: test` to the `build` job in `.github/workflows/deploy.yml`). Track 3: Option C unified `DeckLayout` decided NO-GO with full ADR-style rationale captured under "Rough order of payoff → 5"; productive smaller win — `<GameControls />` extracted from 13 game pages (closed 2026-05-11). Track 4: cut-over plan **closed 2026-05-12 with the cut-over cancelled** — full ADR-style rationale captured under "Rough order of payoff → 6". **Decision: cut-over cancelled, Astro stays at `https://aakash-jain-1.github.io/kids-learning-games-astro/` as the permanent canonical URL; the vanilla `kids-learning-games` repo stays live independently as a legacy app, no cross-repo writes.** The morning's session of 2026-05-12 had shipped Phase 1 (decision: Option A — Astro takes over the vanilla URL) + Phase 2 (groundwork code: SW rename, 4 redirect aliases, offline-fallback bug fix) and queued Phase 3 (URL flip + cross-repo deploy) for the next session pending user OK. The afternoon pivot reversed Phase 1's decision and cancelled Phase 3 entirely; Track 4 closes here. The Phase 2 code changes stay in the codebase (all three are independently fine — see "Rough order of payoff → 6" → "Pivot 2026-05-12 (afternoon)" callout for the reversal rationale). **Next session: no queued track.** **Smaller follow-ups available, all standalone (queue: 4 — T2.1 closed 2026-05-18 via the consolidated test-job-in-`deploy.yml` approach, after a same-day-earlier `workflow_run` chain attempt in `dccf36d` + `8428ae3` + `9be0318` empirically failed to fire across two consecutive pushes; pivoted in `fc4e7e2`. Both the morning's `2026-05-18` changelog entry — describing the workflow_run design reasoning — and the afternoon's `2026-05-18 (later, pivot)` entry — describing the empirical failure and the pivot — are kept; the morning entry is historical, the pivot entry is the source of truth. The remaining four follow-ups are):** (T6) consider whether the Stats panel (currently `alert(…)` aggregations across every game) deserves a dedicated `/stats` page or per-page Stats modal — Playwright now locks the existing alert-shape behaviour in by tests, so this is safe to refactor when ready; (T7) port the vanilla `404.html` to Astro (currently `dist/` doesn't emit a 404 — GH Pages would 404 raw for missing paths, which the vanilla site avoided with a friendly "Go Home" page); (T8) add an SW-aware Playwright spec (`tests/sw.spec.ts`) that runs with `serviceWorkers: 'allow'` and asserts the SW serves real precached pages on the happy path and the offline page only when network fails — would have caught the `NavigationRoute` regression that landed on 2026-05-12 between commits `d33db11` (Phase 2) and `fce0380` (the hotfix); (T9, **new — filed by the Counting Friends ship**) v2 polish for Counting Friends — replace Web Speech API with pre-recorded MP3 narration in a kid-friendly voice (warmer for the actual 3yo user; ~2–3 hr of recording/encoding + a small narration-asset registry; defer until v1 retention is validated). **Live regression context (2026-05-12):** the Phase 2 SW-install fix unmasked a latent `NavigationRoute(createHandlerBoundToURL('offline'))` bug that served the offline page on every navigation; hotfix `fce0380` replaced `NavigationRoute` with `setCatchHandler`, deploy verified live (badge `passing`, home returns 200 with HTML, SW has 0 NavigationRoute references and 1 setCatchHandler call). All five follow-ups are small (~15 min – 3 hr of work each) and safe to defer. **Or pick a new feature game** — Counting Friends established the feature-driven pattern; Magnitude Comparison ("which group has more?") and Number Bond Pop ("how many more to make 5?") are earmarked as natural follow-up sister games that would reuse most of `addition.css`. **Same-day hotfix shipped 2026-05-15 afternoon (commit `825181f`):** the post-push CI on the Counting Friends feat (`1a66542`) went red on every option-click test in `tests/addition.spec.ts` (deploy stayed green — soft gate). Two independent root causes: (1) the page's first-gesture `kickoff()` handler synchronously called `renderRound()` which mutated `optionsEl.innerHTML`, racing every `pointerdown → click` sequence and replacing the SSR'd numeral buttons with ones from a freshly-randomized JS session before the click could resolve — fixed by adding `readSSRRound()` to seed JS round 0 directly from the SSR'd DOM (data-scene + #cfGroupA/B item counts + option `data-n` reads), and changing `kickoff` to only fire `speakIntroSequence()` without re-rendering; (2) `speechSynthesis.speak()` in headless Chromium (no system TTS engine on CI runners) doesn't reliably fire `utterance.onend`, stalling the wrong-answer rerun chain `narrate(rerun) → speakGuidedCount → narrate(rerunDone) → reveal` — fixed by adding a length-based watchdog `setTimeout` to `narrate()` (real browsers fire onend long before the watchdog so it's a no-op in production; headless and TTS-disabled paths fall through deterministically) and by muting `kids_settings_v1.sound` in the test `beforeEach` (deterministic silent-mode path, no dependence on speech engine *or* watchdog). Live deploy post-push: `Deploy to GitHub Pages` `passing`, `Playwright tests` **`passing`**, live JS bundle contains `cfStage` + `cfGroupA` literals (proves `readSSRRound` shipped). Full ADR under "Changelog → 2026-05-15 (afternoon, hotfix)" below.
+> **▶ Resume here next session:** the **migration is complete (13/13)** as of 2026-05-08; **Tracks 1, 2, 3, and 4 of post-migration polish are all closed** as of 2026-05-12; **the project is now in its feature-driven phase.** **First feature-driven game shipped 2026-05-15: Counting Friends — preschool addition for ages 3–4 (8 single-scene rounds per session, two groups of friendly objects, errorless answer flow, 4 themes — Pond/Orchard/Sea/Garden).** **Second feature-driven game shipped 2026-05-18: More Friends — preschool magnitude comparison for ages 3–4 (8 rounds, two side-by-side groups with sizes 1–4 each (always unequal), tap the bigger group, errorless guided-count-of-both-sides on miss; sister game / developmental precursor to Counting Friends — children master "more vs less" comparison ~6–12 months before consolidating cardinality enough to add).** **Third feature-driven game shipped 2026-05-18 (later): Number Friends — preschool numeral recognition for ages 3–4 (8 rounds, one numeral target 2–5 displayed at the top of the stage, three group panels with distinct sizes below where exactly one matches the target; tap the matching group, errorless wrong-tap flow that counts the *tapped wrong* group then the *correct* group with narration between; completes the cardinality triad — Counting Friends asks set→numeral, More Friends asks set vs set, Number Friends asks numeral→set).** Counting Friends triggered by a direct user request ("game for addition, simple addition for 3 year old boy"); More Friends + Number Friends shipped immediately after as natural sister mechanics, completing the "compare → count → recognise" cognitive triangle for age 3. All three games' design + research grounded in 2025 RCT findings on cardinality instruction (Springer), preschool-math best practices (five-frames before ten-frames, counting-all not counting-on, story-context framing), and shipping-app patterns (Endless Numbers, Khan Academy Kids — self-paced, no scoring, no failures). All three shipped on `StoryLayout` with new theme keys (`'addition'`, `'comparison'`, `'numberfriends'`); the `StageLayout` carve held a **third time** with explicit re-evaluation conditions now locked into `StoryLayout.astro`'s JSDoc — chrome differences between StoryLayout and a hypothetical StageLayout still amount to a body-class rename (`body.story` → `body.stage`) and nothing else, because all three games already scope every game-specific class under `body.story[data-theme='X']`. Carve trigger conditions: a fourth stage-game ships AND its chrome needs differ meaningfully (different head meta, different header, different settings panel, etc.); OR the theme union grows to ≥6 keys; OR a stage-only style primitive emerges. The **second-consumer carve that DID happen** at the More Friends ship — `src/lib/preschool-themes.ts` extracting `PreschoolTheme` + `ThemeMeta` + `THEMES` + `THEME_BY_KEY` + `numberWord` / `cap` / `nounFor` — got its **third consumer** with the Number Friends ship at zero changes (validates the carve: if any primitive needed reshaping, the carve would have been premature; none did). **16 games total now.** Track 1: 11 of 11 non-story games wired with `mountQuiz` (closed 2026-05-11). Track 2: 47-test Playwright smoke suite + soft-gate CI (closed 2026-05-11; **5 clean CI runs** on `main` — Track 2 push, Track 3 feat + docs, Track 4 Phase 1+2 feat + docs — so the T2.1 follow-up to promote Playwright to a hard deploy gate is now unblocked; one-line tweak adds `needs: test` to the `build` job in `.github/workflows/deploy.yml`). Track 3: Option C unified `DeckLayout` decided NO-GO with full ADR-style rationale captured under "Rough order of payoff → 5"; productive smaller win — `<GameControls />` extracted from 13 game pages (closed 2026-05-11). Track 4: cut-over plan **closed 2026-05-12 with the cut-over cancelled** — full ADR-style rationale captured under "Rough order of payoff → 6". **Decision: cut-over cancelled, Astro stays at `https://aakash-jain-1.github.io/kids-learning-games-astro/` as the permanent canonical URL; the vanilla `kids-learning-games` repo stays live independently as a legacy app, no cross-repo writes.** The morning's session of 2026-05-12 had shipped Phase 1 (decision: Option A — Astro takes over the vanilla URL) + Phase 2 (groundwork code: SW rename, 4 redirect aliases, offline-fallback bug fix) and queued Phase 3 (URL flip + cross-repo deploy) for the next session pending user OK. The afternoon pivot reversed Phase 1's decision and cancelled Phase 3 entirely; Track 4 closes here. The Phase 2 code changes stay in the codebase (all three are independently fine — see "Rough order of payoff → 6" → "Pivot 2026-05-12 (afternoon)" callout for the reversal rationale). **Next session: no queued track.** **Smaller follow-ups available, all standalone (queue: 4 — T2.1 closed 2026-05-18 via the consolidated test-job-in-`deploy.yml` approach, after a same-day-earlier `workflow_run` chain attempt in `dccf36d` + `8428ae3` + `9be0318` empirically failed to fire across two consecutive pushes; pivoted in `fc4e7e2`. Both the morning's `2026-05-18` changelog entry — describing the workflow_run design reasoning — and the afternoon's `2026-05-18 (later, pivot)` entry — describing the empirical failure and the pivot — are kept; the morning entry is historical, the pivot entry is the source of truth. The remaining four follow-ups are):** (T6) consider whether the Stats panel (currently `alert(…)` aggregations across every game) deserves a dedicated `/stats` page or per-page Stats modal — Playwright now locks the existing alert-shape behaviour in by tests, so this is safe to refactor when ready; (T7) port the vanilla `404.html` to Astro (currently `dist/` doesn't emit a 404 — GH Pages would 404 raw for missing paths, which the vanilla site avoided with a friendly "Go Home" page); (T8) add an SW-aware Playwright spec (`tests/sw.spec.ts`) that runs with `serviceWorkers: 'allow'` and asserts the SW serves real precached pages on the happy path and the offline page only when network fails — would have caught the `NavigationRoute` regression that landed on 2026-05-12 between commits `d33db11` (Phase 2) and `fce0380` (the hotfix); (T9, **new — filed by the Counting Friends ship**) v2 polish for Counting Friends — replace Web Speech API with pre-recorded MP3 narration in a kid-friendly voice (warmer for the actual 3yo user; ~2–3 hr of recording/encoding + a small narration-asset registry; defer until v1 retention is validated). **Live regression context (2026-05-12):** the Phase 2 SW-install fix unmasked a latent `NavigationRoute(createHandlerBoundToURL('offline'))` bug that served the offline page on every navigation; hotfix `fce0380` replaced `NavigationRoute` with `setCatchHandler`, deploy verified live (badge `passing`, home returns 200 with HTML, SW has 0 NavigationRoute references and 1 setCatchHandler call). All five follow-ups are small (~15 min – 3 hr of work each) and safe to defer. **Or pick a new feature game** — Counting Friends established the feature-driven pattern; Magnitude Comparison ("which group has more?") and Number Bond Pop ("how many more to make 5?") are earmarked as natural follow-up sister games that would reuse most of `addition.css`. **Same-day hotfix shipped 2026-05-15 afternoon (commit `825181f`):** the post-push CI on the Counting Friends feat (`1a66542`) went red on every option-click test in `tests/addition.spec.ts` (deploy stayed green — soft gate). Two independent root causes: (1) the page's first-gesture `kickoff()` handler synchronously called `renderRound()` which mutated `optionsEl.innerHTML`, racing every `pointerdown → click` sequence and replacing the SSR'd numeral buttons with ones from a freshly-randomized JS session before the click could resolve — fixed by adding `readSSRRound()` to seed JS round 0 directly from the SSR'd DOM (data-scene + #cfGroupA/B item counts + option `data-n` reads), and changing `kickoff` to only fire `speakIntroSequence()` without re-rendering; (2) `speechSynthesis.speak()` in headless Chromium (no system TTS engine on CI runners) doesn't reliably fire `utterance.onend`, stalling the wrong-answer rerun chain `narrate(rerun) → speakGuidedCount → narrate(rerunDone) → reveal` — fixed by adding a length-based watchdog `setTimeout` to `narrate()` (real browsers fire onend long before the watchdog so it's a no-op in production; headless and TTS-disabled paths fall through deterministically) and by muting `kids_settings_v1.sound` in the test `beforeEach` (deterministic silent-mode path, no dependence on speech engine *or* watchdog). Live deploy post-push: `Deploy to GitHub Pages` `passing`, `Playwright tests` **`passing`**, live JS bundle contains `cfStage` + `cfGroupA` literals (proves `readSSRRound` shipped). Full ADR under "Changelog → 2026-05-15 (afternoon, hotfix)" below.
 
-**Build is clean:** 16 pages built on a clean rebuild (15 game pages — 13 vanilla ports + Counting Friends + More Friends — plus index), `npm run check` 0 errors / 0 warnings / 0 hints across **49 Astro files** (added: `src/data/comparison.ts` + `src/lib/preschool-themes.ts` + `src/pages/games/magnitude-comparison-game.astro` + `src/styles/comparison.css` + `tests/comparison.spec.ts`), all chunk-dedup invariants still verified at the bundle level (quiz **13-way** — neither preschool-math game uses `mountQuiz`, both implement their own per-round answer flow; progress 8-way; fluent 6-way; achievements **15-way** now that both preschool-math games consume `launchConfetti`; layout pre-paint 3-way), precache **68 entries** (the +4 redirect HTMLs at the legacy vanilla paths from Phase 2 stay in dist as harmless robustness aliases — see the pivot callout for why they stay; the Counting Friends ship added +4 entries 2026-05-15; the More Friends ship adds another +4 — page HTML + page-specific JS chunk + new comparison.css + a Vite re-emitted shared chunk for the new `preschool-themes.ts` module).
+**Build is clean:** 17 pages built on a clean rebuild (16 game pages — 13 vanilla ports + Counting Friends + More Friends + Number Friends — plus index), `npm run check` 0 errors / 0 warnings / 0 hints across **51 Astro files** (added: `src/data/numberfriends.ts` + `src/pages/games/number-friends-game.astro`; `src/styles/numberfriends.css` + `tests/numberfriends.spec.ts` are tracked separately by their respective tooling), all chunk-dedup invariants still verified at the bundle level (quiz **13-way** — no preschool-math game uses `mountQuiz`, all three implement their own per-round answer flow; progress 8-way; fluent 6-way; achievements **16-way** now that all three preschool-math games consume `launchConfetti`; layout pre-paint 3-way), precache **71 entries** (the +4 redirect HTMLs at the legacy vanilla paths from Phase 2 stay in dist as harmless robustness aliases — see the pivot callout for why they stay; the Counting Friends ship added +4 entries 2026-05-15; the More Friends ship added another +4 — page HTML + page-specific JS chunk + new comparison.css + a Vite re-emitted shared chunk for the new `preschool-themes.ts` module; the Number Friends ship adds +3 — page HTML + page-specific JS chunk + new `numberfriends.css`, and the existing `preschool-themes` shared chunk gains its third consumer with no re-emit, verifiable via `grep -l preschool-themes dist/games/*.html | wc -l` returning 3).
 
 ### Per-game layout decisions for the 5 pending ports
 
@@ -417,7 +417,299 @@ before deciding.
 
 ## Changelog
 
-### 2026-05-18 (still later) — feat(comparison): ship More Friends — second feature-driven game, magnitude comparison sister to Counting Friends + extract preschool-themes lib
+### 2026-05-18 (latest) — feat(numberfriends): ship Number Friends — third feature-driven game, completes the preschool-math cardinality triad (numeral→set)
+
+Shipped **Number Friends**, the third feature-driven preschool-math game.
+A numeral target appears at the top of the stage; three group panels of
+themed objects appear below; the child taps the group whose size
+matches the numeral. 8 rounds per session, 4 themes reused from
+Counting Friends + More Friends (Pond / Orchard / Sea / Garden), no
+scoring, no failures, errorless wrong-tap flow that counts the wrong
+group then the correct group with narration between.
+
+**Why this game right now.** After the More Friends ship + same-day
+post-push test fix (commit `56212d5`), the queue was: standalone
+follow-ups (T6 Stats refactor, T7 404 page, T8 SW-aware test, T9 MP3
+narration — T9 explicitly deferred until v1 retention is validated)
+or another sister kid-game. The sister-game wins again on user value:
+**numeral recognition + numeral-to-set translation is the missing
+third side of the cardinality triangle** that Counting Friends
+(set→numeral, "how many in all?") and More Friends (set vs set,
+"which has more?") opened. Counting Friends asks the child to count
+a set and produce a numeral; More Friends asks the child to compare
+two sets; Number Friends asks the inverse — "show me three" — which
+requires *recognising* the numeral as a symbol AND *translating* it
+back to a quantity. Same age band (3–4yo), same five-frame anchor,
+same theme catalog — but a genuinely different cognitive operation.
+Closes the cardinality triangle for age 3.
+
+**Pedagogy primitives.**
+
+- **Numeral-to-set translation.** Counting Friends + More Friends
+  both produce information *from* visible groups (a count, a
+  comparison). Number Friends consumes a numeral and produces a
+  selection — the child has to recognise "3" as a symbol, hold it
+  in working memory, and find the group that matches. This is a
+  distinct skill from counting; children who can subitize 3 reliably
+  in Counting Friends can still struggle with "show me 3" because
+  the numeral-recognition + memory-hold + cardinality-translation
+  chain has more steps. Standalone game means it gets dedicated
+  practice time without competing for attention with the
+  counting-and-addition flow.
+- **Subitize-friendly targets.** Targets ∈ {2, 3, 4, 5}. 1 is
+  trivially obvious (one object always reads as "one") and gets
+  skipped. 5 stretches the subitize range slightly but stays at
+  the five-frame anchor that Counting Friends uses for its numeral
+  buttons. Sizes 1–6 can appear as decoys (the upper neighbour of
+  target=5 is 6); the visual design uses smaller item tiles
+  (64×64 vs Counting Friends's 90×90 / More Friends's 80×80) so
+  six items fit comfortably in a panel.
+- **Three answer panels.** Two would be too easy for a 3yo (50%
+  guess rate); four would crowd the visual space. Three matches
+  the "three numeral options" pattern Counting Friends uses, so
+  the visual difficulty curve is consistent across the triad.
+- **Two decoy strategies per session, 4+4 mix.** "Near" rounds
+  (4 of 8): both decoys at target ± 1. Forces careful counting;
+  the child can't shortcut by visual size. "Mixed" rounds
+  (4 of 8): one decoy at target ± 1, one decoy at target ± 2.
+  Gives the child a confidence beat per round (the far decoy
+  is obviously wrong) while still requiring counting to
+  discriminate the near decoy from the target. Pure-near
+  sessions feel relentlessly hard; pure-mixed sessions feel
+  too easy. The 4+4 mix is the same cognitive-load shape that
+  preschool worksheets use ("circle the group of 3" with
+  obvious decoy + tricky decoy).
+- **Errorless wrong-tap flow with separate counts.** This is
+  the one place where Number Friends's pedagogy diverges from
+  More Friends's. More Friends's wrong-tap counts BOTH groups
+  in a single sweep ("one, two, three… one, two, three, four
+  — four is more"). Number Friends's wrong-tap counts the
+  *tapped (wrong)* group first ("one, two, four — that's
+  four ducks, not three"), pauses, then counts the *correct*
+  group ("look — one, two, three — three ducks!"). The
+  separation matters because the question is about
+  numeral-recognition: the child needs to hear "no, that group
+  had X, not what we wanted" *before* being shown "this is what
+  we wanted." Pure visual reveal would teach "tap any group and
+  see the right answer", which is the wrong lesson; explicit
+  count-of-wrong then count-of-right teaches "I tapped the
+  wrong size — here's why the right size is different".
+
+**Refactor decisions: lib reuse vs StageLayout deferral.**
+
+- **`src/lib/preschool-themes.ts` consumed for the third time.**
+  The lib carved at the More Friends ship (rule #5 second-consumer
+  trigger) gets its third consumer with no changes — `PreschoolTheme`,
+  `THEMES`, `THEME_BY_KEY`, `numberWord`, `cap`, `nounFor` all
+  imported as-is. This validates the carve: if a third consumer
+  needed any of those primitives reshaped, the carve would have
+  been premature. None did. The lib stays a pure data module.
+- **StageLayout NOT carved (third deferral, with explicit
+  re-evaluation conditions).** Rule #5 says "refactor on second
+  consumer", and More Friends was the second non-story stage
+  game. We deferred at More Friends with the reasoning that the
+  chrome difference between StoryLayout and a hypothetical
+  StageLayout amounts to one body-class rename (`body.story` →
+  `body.stage`) and nothing else. Number Friends is now the
+  third such consumer — under a strict reading of rule #5 the
+  carve is overdue. We're deferring AGAIN, and locking the
+  reasoning into `StoryLayout.astro`'s JSDoc so the next reader
+  doesn't have to re-derive it:
+  1. Chrome differences still amount to one thing (the body class).
+     Every game-specific style is already scoped under
+     `body.story[data-theme='X']`, so the prefix is doing the
+     isolation work that a body-class differentiator would do.
+  2. The hypothetical StageLayout would re-import all the same
+     head meta, GameNav, SettingsModal, BuildInfo, FOUC script,
+     and SW registration — the entire `<head>` and `<body>`
+     shell would be duplicated, not shared. So the carve doesn't
+     deduplicate anything; it relocates.
+  3. Migrating addition.css + comparison.css + numberfriends.css
+     from `body.story[...]` to `body.stage[...]` is mechanical
+     churn (3 files × ~30 selectors each ≈ 90 replacements,
+     one-time but irreversible without re-doing the same
+     churn). And every stage-game test would need an updated
+     body-class assertion.
+
+  **Trigger conditions for actually carving StageLayout** (locked
+  in `StoryLayout.astro`'s JSDoc):
+  - A fourth stage-game ships AND a meaningful chrome difference
+    emerges (different head meta, different header, a different
+    settings panel, etc.) — at that point the carve has real
+    payoff.
+  - OR the theme union grows to ≥6 keys and starts to feel
+    genuinely unwieldy in code review.
+  - OR a stage-only style primitive emerges that would belong in
+    a stage-only stylesheet (none today: every game style is
+    per-game).
+
+  Strict rule-#5 trigger violated, but the cost-benefit hasn't
+  shifted since the More Friends decision. Documenting the third
+  deferral explicitly so the bias toward "ship the carve" doesn't
+  override the bias toward "the carve has to actually pay off."
+  Bias-correction over rule-mechanics, this once.
+
+**Patterns reused (not reinvented).**
+
+- **`readSSRRound()` for round-0-from-DOM.** Same anti-race fix
+  Counting Friends discovered on 2026-05-15 + More Friends
+  inherited 2026-05-18. The kickoff handler reads round 0
+  directly from the SSR'd DOM (`#nfTarget[data-target]`,
+  `#nfStage[data-scene]`, `#nfGroup{0,1,2} .nf-item` counts) so
+  a tap during the first interaction can never race with a
+  re-render that mutates the panels.
+- **`narrate()` watchdog.** Same shape as Counting Friends +
+  More Friends — silent-mode `setTimeout(onEnd, 600)` for the
+  no-TTS path, length-based watchdog `setTimeout(wrap, ms)`
+  alongside `speechSynthesis.onend` for headless CI runners.
+  Real browsers fire onend first; the watchdog is a no-op in
+  production. Same tested pattern, third consumer, no changes.
+- **`sound: false` test shim.** The Playwright `beforeEach`
+  pre-seeds `kids_settings_v1` with `sound: false` so
+  `narrate()` takes the silent-mode fallback. Deterministic
+  round progression in CI, independent of the speech engine.
+- **`href`-based home-card selector from day one.** The post-push
+  fix on 2026-05-18 (commit `56212d5`) discovered that
+  `hasText: 'Counting Friends'` matched two cards once More
+  Friends's description referenced its sister game. Number
+  Friends's home-card description references both Counting
+  Friends *and* More Friends explicitly ("third preschool-math
+  game completing the cardinality triad"), so a hasText filter
+  would overmatch even more aggressively. The new spec uses
+  `a.home-card[href*="number-friends-game"]` from line 1 — no
+  retroactive fix needed.
+- **`alert(…)` Stats panel.** Same shape as every other game.
+  T6 (Stats refactor) is still pending; locking three preschool-math
+  games into the alert shape strengthens the case for a unified
+  stats view, but doesn't force the work yet.
+
+**Files added / changed.**
+
+- **New `src/data/numberfriends.ts`** (~250 LoC). Defines
+  `HuntRound`, `RoundNarration`, `NumberFriendsStats`. Exports
+  `generateSession(rand?)` (8 rounds with 4 near + 4 mixed
+  decoy strategy, target cycle 2/3/4/5 with each appearing
+  twice per session, post-shuffle), `buildNarration(round)`
+  (5-phase script: intro, correct, rerun, rerunDoneWrong,
+  rerunDoneRight), `loadNumberFriendsStats()` /
+  `saveNumberFriendsStats()` (`number_friends_stats_v1`
+  bespoke schema). Imports `PreschoolTheme`, `THEMES`,
+  `THEME_BY_KEY`, `numberWord`, `cap`, `nounFor` from the
+  shared lib.
+- **New `src/styles/numberfriends.css`** (~340 LoC). Scoped
+  under `body.story[data-theme='numberfriends']`. Three-panel
+  grid layout (`.nf-groups`, `grid-template-columns: repeat(3, 1fr)`,
+  stacks to 1 column ≤600px). Numeral-target card at top of
+  stage with a 5-frame matching the Counting Friends `.cf-opt-frame`
+  pattern. Same 4-scene palette tokens as `addition.css` /
+  `comparison.css` (`--st-bg` per `data-scene`). Item tile
+  sized 64×64 (smaller than sister games) so up to 6 items
+  fit cleanly in a panel. Reduced-motion fallback collapses
+  every animation. Dark-mode override for every panel + target
+  + caption + done-card. Mobile breakpoint stacks panels +
+  shrinks items + shrinks digit.
+- **New `src/pages/games/number-friends-game.astro`** (~420 LoC).
+  SSR markup with deterministic seed (`generateSession(() => 0.42)[0]!`),
+  three group panels with sizes baked into the HTML, target
+  card with digit + 5-frame baked in. JS controller reads the
+  SSR'd round via `readSSRRound()`, kicks off narration on
+  first user gesture without re-rendering, runs the 8-round
+  session, persists stats. Errorless wrong-tap flow counts
+  the tapped wrong group, narrates the wrong-done phrase
+  ("four ducks! that was four, not three"), pauses, counts
+  the correct group, narrates the right-done phrase ("look —
+  three ducks! three ducks"), and reveals the correct panel
+  with the `nf-group--reveal` pulsing-ring class. Confetti
+  on right-tap + at session-end.
+- **New `tests/numberfriends.spec.ts`** (~150 LoC). 6-test
+  smoke suite: SSR shape (target ∈ {2..5}, three groups with
+  distinct sizes, exactly one matches target, target's filled
+  dots match the digit), Next-button gating, any-tap
+  progression + `rounds` bump, correct-tap → `nf-group--correct`
+  + `correctFirstTry` bump, wrong-tap → `nf-group--reveal` on
+  the correct panel + no `correctFirstTry` bump, home-card
+  href match. `sound: false` shim in beforeEach;
+  `href`-based home-card selector from day one. Wrong-tap
+  reveal timeout bumped to 25s (vs More Friends's 20s)
+  because Number Friends's rerun has two count phases plus
+  two narrations between, vs More Friends's single sweep.
+- **Modified `src/data/addition.ts`** — no changes (the
+  Counting Friends page imports `THEME_BY_KEY` from
+  `'@/data/addition'`, which re-exports from the lib;
+  unchanged contract).
+- **Modified `src/layouts/StoryLayout.astro`** — added
+  `'numberfriends'` to the theme prop union, added matching
+  `html.pre-dark body.story[data-theme='numberfriends']`
+  FOUC rule (same `#0a1020` bg as addition + comparison —
+  three preschool-math games share the same dark-mode
+  background by design), updated JSDoc to document the
+  third StageLayout-carve deferral with the explicit
+  re-evaluation conditions above.
+- **Modified `src/components/GameNav.astro`** — added
+  `<a href={v('games/number-friends-game')}>Find</a>` link.
+  Shortened to "Find" (verb) rather than "Numbers" because
+  there's already a "Numbers" link for the existing 1–10
+  grid game (the foundational-set chapter game) — using the
+  same label twice would make the nav bar ambiguous. "Find"
+  matches the More Friends shortening pattern (Counting →
+  "Counting", More Friends → "More", Number Friends →
+  "Find") since those games' dominant child-facing actions
+  are counting / picking-the-bigger / finding.
+- **Modified `src/pages/index.astro`** — added Number
+  Friends home card (16th card overall, 3rd preschool-math
+  card). Description references Counting Friends + More
+  Friends + the cardinality triad framing — which is the
+  reason the test uses `href` not `hasText`.
+
+**Verifications.**
+
+- `npm run check` 0 / 0 / 0 across **51 Astro files** (added:
+  `src/data/numberfriends.ts` + `src/pages/games/number-friends-game.astro`
+  — `numberfriends.css` and `numberfriends.spec.ts` aren't .astro
+  but are tracked separately by their respective tooling).
+- `npm run build` emits `dist/games/number-friends-game.html` (13.7 KB).
+  17 pages built (was 16 — one new). Verified SSR markers via
+  grep: `data-theme="numberfriends"`, `data-scene="orchard"`,
+  three groups with `data-i` ∈ {0,1,2} and `data-size` ∈ {1,2,4}
+  (deterministic seed `() => 0.42` produces target=2 with mixed
+  decoys [1, 4]), `data-target="2"`, exactly 2 filled
+  `nf-target-dot--filled` dots (matches target), 7 total `.nf-item`
+  spans (1+2+4 = sum of sizes ✓).
+- Precache **+3 entries** (was 68 after More Friends; now 71):
+  page HTML + page-specific JS chunk + `numberfriends.css`. The
+  shared `preschool-themes` chunk gets a third consumer with no
+  re-emit (the chunk is referenced by all three preschool-math
+  games via the same hash `…lzNEqwsv.js` — verifiable with
+  `grep -l preschool-themes dist/games/*.html | wc -l` = 3).
+- All chunk-dedup invariants still verified: quiz **13-way**
+  (still no preschool-math game uses `mountQuiz`), progress 8-way,
+  fluent 6-way, achievements **16-way** now that all three
+  preschool-math games consume `launchConfetti`, layout pre-paint
+  3-way.
+
+**What's left in the queue after this ship.** Three standalone
+follow-ups (was four — T9's narration follow-up still deferred,
+awaiting v1 retention validation; the queue inherits it from the
+More Friends entry):
+
+- **(T6)** Stats refactor.
+- **(T7)** Port the vanilla `404.html` to Astro.
+- **(T8)** SW-aware Playwright spec.
+- **(T9)** Pre-recorded MP3 narration for **all three preschool-math
+  games** (Counting Friends + More Friends + Number Friends; was
+  Counting+More when filed — naturally scopes to the full triad
+  now). Defer until v1 retention is validated with the actual 3yo
+  user.
+
+**Or pick a fourth feature game** — Number Bond Pop ("how many
+more to make 5?") was earmarked at the More Friends entry. It's
+a meaningfully harder game (missing-addend partitioning, age 4+
+skill) so v1 retention on the existing triad should be
+validated first. If a fourth stage-game ships AND its chrome
+needs differ from the triad's, that's the explicit StageLayout
+carve trigger.
+
+
 
 Shipped **More Friends**, the second feature-driven preschool-math game.
 "Which side has more?" magnitude comparison — two groups of identical
