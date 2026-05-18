@@ -154,8 +154,13 @@ test.describe('counting friends (preschool addition)', () => {
 
   test('home page links to the new game', async ({ page }) => {
     await page.goto('');
-    const card = page.locator('a.home-card', { hasText: 'Counting Friends' });
+    // Filter by href, not by hasText — the More Friends card (added
+    // 2026-05-18) mentions "Counting Friends" in its description ("…
+    // Companion to Counting Friends …"), so a hasText-only filter
+    // would now match 2 cards. The href substring is unique by
+    // construction.
+    const card = page.locator('a.home-card[href*="counting-friends-game"]');
     await expect(card).toHaveCount(1);
-    await expect(card).toHaveAttribute('href', /counting-friends-game/);
+    await expect(card).toContainText('Counting Friends');
   });
 });

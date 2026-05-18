@@ -134,8 +134,12 @@ test.describe('more friends (preschool magnitude comparison)', () => {
 
   test('home page links to the new game', async ({ page }) => {
     await page.goto('');
-    const card = page.locator('a.home-card', { hasText: 'More Friends' });
+    // Filter by href, not by hasText — same reason addition.spec.ts
+    // uses href: card descriptions on this home grid sometimes
+    // mention sibling games' titles, so a hasText filter is
+    // ambiguous; the href substring is unique by construction.
+    const card = page.locator('a.home-card[href*="magnitude-comparison-game"]');
     await expect(card).toHaveCount(1);
-    await expect(card).toHaveAttribute('href', /magnitude-comparison-game/);
+    await expect(card).toContainText('More Friends');
   });
 });
