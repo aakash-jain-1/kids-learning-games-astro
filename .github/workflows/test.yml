@@ -9,14 +9,17 @@ name: Playwright tests
 # Track 2 of post-migration polish — see `PROGRESS.md` → "Rough order
 # of payoff" → item 4 (Add tests).
 #
-# Now a HARD deploy gate (closed T2.1 on 2026-05-18). `deploy.yml` is
-# triggered by this workflow's successful completion on `main` via
-# the `workflow_run` chain, NOT by push events directly. If this
-# workflow goes red, the live site does NOT update. PRs see test
-# results as PR checks but never trigger a deploy (deploy.yml only
-# triggers off main-branch workflow_run events). Note that
-# `workflow_dispatch` on deploy.yml is still available as an
-# emergency manual-deploy escape hatch that skips the gate.
+# Role today: independent test signal for the `Playwright tests`
+# badge + per-PR test feedback. **Not the deploy gate** — the deploy
+# gate is a separate copy of this same job inside `deploy.yml`,
+# guarding `build` via `needs: test`. T2.1 closed 2026-05-18; first
+# attempt was a `workflow_run` chain (commits dccf36d → 8428ae3)
+# that never fired (GitHub trigger-registry quirks invisible from
+# outside the repo); pivoted to the consolidated test-job-in-
+# deploy.yml approach in commits 9be0318+1, which is what's live
+# now. The duplication (test job in both files) means this workflow
+# runs on every push to main *and* on every PR, while deploy.yml's
+# copy only runs on push to main.
 #
 # History: was a soft gate from 2026-05-11 (Track 2 ship) through
 # 2026-05-18; promoted after the Counting Friends ship demonstrated

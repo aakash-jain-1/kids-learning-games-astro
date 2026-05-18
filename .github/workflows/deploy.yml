@@ -7,46 +7,35 @@ name: Deploy to GitHub Pages
 # Live URL: https://aakash-jain-1.github.io/kids-learning-games-astro/
 #
 # Trigger model — hard gate on Playwright tests:
-#   This workflow is triggered by the *successful completion* of the
-#   `Playwright tests` workflow (test.yml) on `main`, NOT directly by
-#   push events. test.yml runs on every push to main (and on PRs); if
-#   it goes red, this deploy workflow never starts, so the live site
-#   can never serve a regression that the test suite caught. Filed as
-#   T2.1 in PROGRESS.md → "Rough order of payoff" → 6, closed
+#   The `build` job depends on a `test` job that runs the same
+#   Playwright suite as `test.yml`. If `test` fails, `build` never
+#   starts and the live site stays on whatever the previous deploy
+#   shipped. test.yml continues to run independently for PR feedback
+#   (this workflow doesn't run on PRs at all). T2.1 closed
 #   2026-05-18 after the Counting Friends ship's red-tests / green-
 #   deploy failure mode (commits 1a66542 → 825181f) demonstrated the
 #   value of a hard gate concretely.
 #
-# Trigger semantics gotchas (worth re-reading if this file changes):
-#   1. `workflow_run` runs in the *default branch's* workflow-file
-#      context, not the head SHA's. We explicitly check out
-#      `github.event.workflow_run.head_sha` so we deploy the SAME
-#      commit the tests passed against, not whatever main looks
-#      like at deploy time.
-#   2. The `if:` guard on the build job is defence-in-depth — the
-#      `types: [completed]` filter fires on success/failure/cancelled
-#      alike, so we explicitly require `conclusion == 'success'`.
-#   3. `workflow_dispatch` is preserved as an emergency manual-deploy
-#      escape hatch (deploys whatever's on main); it skips the
-#      conclusion guard via the `event_name == 'workflow_dispatch'`
-#      branch.
-#   4. **The very first push that introduces a `workflow_run` trigger
-#      DOES NOT fire it.** Verified empirically when this gate
-#      shipped (commits `dccf36d` + `8428ae3`): test.yml ran for
-#      `8428ae3` and passed, but `workflow_run` did not fire
-#      deploy.yml because GitHub's internal trigger registry hadn't
-#      yet indexed the new trigger when test.yml started. The next
-#      push (with the new deploy.yml already on main) fired the
-#      chain correctly. Future pushes are unaffected — this is a
-#      one-time race at trigger introduction. If you rename the
-#      `Playwright tests` workflow or add a new chained trigger
-#      somewhere else, expect the same one-push warm-up.
+# Why test job is duplicated here vs test.yml:
+#   First pass at this gate (commits dccf36d → 8428ae3) used a
+#   `workflow_run` chain: deploy.yml triggered by test.yml's
+#   successful completion. Two pushes confirmed the trigger never
+#   fired — root cause unconfirmed (could be GitHub trigger-registry
+#   indexing quirks for new workflow_run files, could be a subtle
+#   YAML/filter mismatch I couldn't repro outside the prod repo).
+#   Pivoted to consolidated approach in commit 9be0318+1: copy the
+#   test job into deploy.yml, gate `build` on it via `needs: test`.
+#   Same Playwright spec runs twice per main push (once in test.yml
+#   for the badge + PR feedback path, once here for the deploy
+#   gate); ~60s of duplicate compute is an acceptable trade vs
+#   chasing a workflow_run misconfig that's invisible from the
+#   outside. The duplication risk (test job here drifts from
+#   test.yml) is low given both jobs are short and infrequently
+#   touched.
 
 on:
-  workflow_run:
-    workflows: ['Playwright tests']
+  push:
     branches: [main]
-    types: [completed]
   workflow_dispatch:
 
 permissions:
@@ -61,27 +50,57 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
-    name: Build Astro site
+  test:
+    name: Playwright (chromium) — deploy gate
     runs-on: ubuntu-latest
-    # Hard gate: only deploy if Playwright tests passed (or this is a
-    # manual workflow_dispatch override). Without this guard a failed
-    # test run would still trigger the deploy via the `completed`
-    # event, defeating the gate.
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        # `workflow_run` runs in the default-branch's workflow-file
-        # context. Without an explicit `ref`, `actions/checkout`
-        # would grab the default branch's HEAD — which can drift
-        # from the SHA the tests actually ran against if a second
-        # push lands while tests are still running. Pinning the
-        # checkout to `head_sha` guarantees we deploy the exact
-        # commit that just passed tests. Falls back to `github.sha`
-        # for the workflow_dispatch path.
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install deps
+        run: npm ci
+        env:
+          ASTRO_TELEMETRY_DISABLED: '1'
+          DO_NOT_TRACK: '1'
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Build site
+        run: npm run build
+        env:
+          ASTRO_TELEMETRY_DISABLED: '1'
+          DO_NOT_TRACK: '1'
+
+      - name: Run Playwright tests
+        run: npm test
+        env:
+          CI: 'true'
+          ASTRO_TELEMETRY_DISABLED: '1'
+          DO_NOT_TRACK: '1'
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-deploy-gate
+          path: playwright-report/
+          retention-days: 14
+
+  build:
+    name: Build Astro site
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Setup Node
         uses: actions/setup-node@v4
