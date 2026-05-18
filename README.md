@@ -94,6 +94,7 @@ All three layouts share the same head/meta, PWA wiring, nav, settings modal, bui
 │   │   ├── settings.ts           # unified settings store
 │   │   └── speech.ts             # Web Speech wrapper
 │   ├── pages/
+│   │   ├── 404.astro                # friendly "Page Not Found" landing for any unmatched URL — emits dist/404.html which GH Pages serves for missing paths (replaces the default unstyled "Site not found · GitHub Pages"). Self-contained inline styles + dark-mode override + FOUC-safe pre-paint; deliberately no GameNav/SettingsModal/BuildInfo (single CTA is the right shape for a 3yo).
 │   │   ├── games/
 │   │   │   ├── alphabets-game.astro       # GridLayout
 │   │   │   ├── animals-game.astro         # GridLayout
@@ -132,6 +133,8 @@ All three layouts share the same head/meta, PWA wiring, nav, settings modal, bui
 │   ├── addition.spec.ts          # counting-friends (SSR groups + sum invariant + correct/wrong-answer flows + home-card link)
 │   ├── comparison.spec.ts        # more-friends (SSR groups + bigger-side invariant + correct/wrong-answer flows + home-card link)
 │   ├── numberfriends.spec.ts     # number-friends (SSR target+groups + distinct-sizes + match-target invariant + correct/wrong-tap flows + home-card link, all using href-based selectors from day one)
+│   ├── not-found.spec.ts         # 404 page (T7) — direct navigation to dist/404.html returns 200 with the friendly Go Home content + BASE_URL home link
+│   ├── sw.spec.ts                # service worker (T8) — opts in to serviceWorkers: 'allow' via test.use({}); asserts SW installs + populates non-empty precache, online navigation never serves the offline fallback (May-12 NavigationRoute regression test), offline + uncached → setCatchHandler offline page, offline + cached → real page from precache
 │   ├── helpers.ts                # shared waiters: answerQuizUntilResult, readQuizState, readLearned, modal open/close
 │   └── tsconfig.json             # extends ../tsconfig.json + adds @playwright/test types
 ├── playwright.config.ts          # webServer (astro preview) | PLAYWRIGHT_BASE_URL override | chromium-only | ignoreHTTPSErrors for Zscaler MitM
@@ -159,16 +162,35 @@ running from a different repo.
 
 ## Testing
 
-Three Playwright smoke suites — one per layout (`tests/card-machine.spec.ts`,
-`tests/grid.spec.ts`, `tests/story.spec.ts`) — assert that every shipped game
-SSRs the right shell, the `mountQuiz` modal opens / advances / records to
-LocalStorage, and the per-game progress writes hit `kids_progress_v1:<gameId>`
-where applicable. Themes are parameterised inside each suite, so a regression
-in any one of the 13 games shows up as a single failing row in the report.
+**Eight Playwright smoke suites** covering three categories:
+
+1. **Per-layout** — one suite per shared layout: `tests/card-machine.spec.ts`,
+   `tests/grid.spec.ts`, `tests/story.spec.ts`. Each asserts that every game
+   on its layout SSRs the right shell, the `mountQuiz` modal opens / advances
+   / records to LocalStorage, and the per-game progress writes hit
+   `kids_progress_v1:<gameId>` where applicable. Themes parameterised inside
+   each suite, so a regression in any one of the 13 vanilla-port games shows
+   up as a single failing row in the report.
+2. **Per-game (preschool-math triad)** — `tests/addition.spec.ts`,
+   `tests/comparison.spec.ts`, `tests/numberfriends.spec.ts`. Each asserts
+   the SSR'd round shape (groups, sums/sizes, target+matching panel),
+   correct/wrong tap flows, errorless rerun behaviour, and home-card link.
+   Bespoke schemas (`<game>_stats_v1`) tested in addition to round invariants.
+3. **Infra-hardening** — `tests/not-found.spec.ts` (T7, the friendly 404
+   page) + `tests/sw.spec.ts` (T8, the service-worker behaviour suite).
+   T8 is the only suite that flips `serviceWorkers: 'allow'` via
+   `test.use({})`; every other suite inherits the `'block'` global default
+   so SW state can't perturb their content + LocalStorage assertions.
+
+All suites run via `npm test` (one chromium worker, against `astro preview`)
+and form the **consolidated test → build → deploy gate** in
+`.github/workflows/deploy.yml` — a test failure now blocks the GH Pages
+publish, so the production site can't regress under a green badge (T2.1
+hard gate, closed 2026-05-18).
 
 ```bash
 npm run test:install   # one-time: install Playwright's chromium + deps
-npm test               # build first if needed, then run all 47 tests
+npm test               # build first if needed, then run the full Playwright suite (8 spec files, ~70+ tests across 3 layout suites + 3 preschool-math triad suites + 404 + SW)
 npm run test:ui        # interactive Playwright runner (debug a flaky test)
 ```
 

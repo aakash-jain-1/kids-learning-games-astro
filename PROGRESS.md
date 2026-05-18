@@ -210,9 +210,9 @@ or (b) document a one-off exception.
 
 ## What still needs doing
 
-> **▶ Resume here next session:** the **migration is complete (13/13)** as of 2026-05-08; **Tracks 1, 2, 3, and 4 of post-migration polish are all closed** as of 2026-05-12; **the project is now in its feature-driven phase.** **First feature-driven game shipped 2026-05-15: Counting Friends — preschool addition for ages 3–4 (8 single-scene rounds per session, two groups of friendly objects, errorless answer flow, 4 themes — Pond/Orchard/Sea/Garden).** **Second feature-driven game shipped 2026-05-18: More Friends — preschool magnitude comparison for ages 3–4 (8 rounds, two side-by-side groups with sizes 1–4 each (always unequal), tap the bigger group, errorless guided-count-of-both-sides on miss; sister game / developmental precursor to Counting Friends — children master "more vs less" comparison ~6–12 months before consolidating cardinality enough to add).** **Third feature-driven game shipped 2026-05-18 (later): Number Friends — preschool numeral recognition for ages 3–4 (8 rounds, one numeral target 2–5 displayed at the top of the stage, three group panels with distinct sizes below where exactly one matches the target; tap the matching group, errorless wrong-tap flow that counts the *tapped wrong* group then the *correct* group with narration between; completes the cardinality triad — Counting Friends asks set→numeral, More Friends asks set vs set, Number Friends asks numeral→set).** Counting Friends triggered by a direct user request ("game for addition, simple addition for 3 year old boy"); More Friends + Number Friends shipped immediately after as natural sister mechanics, completing the "compare → count → recognise" cognitive triangle for age 3. All three games' design + research grounded in 2025 RCT findings on cardinality instruction (Springer), preschool-math best practices (five-frames before ten-frames, counting-all not counting-on, story-context framing), and shipping-app patterns (Endless Numbers, Khan Academy Kids — self-paced, no scoring, no failures). All three shipped on `StoryLayout` with new theme keys (`'addition'`, `'comparison'`, `'numberfriends'`); the `StageLayout` carve held a **third time** with explicit re-evaluation conditions now locked into `StoryLayout.astro`'s JSDoc — chrome differences between StoryLayout and a hypothetical StageLayout still amount to a body-class rename (`body.story` → `body.stage`) and nothing else, because all three games already scope every game-specific class under `body.story[data-theme='X']`. Carve trigger conditions: a fourth stage-game ships AND its chrome needs differ meaningfully (different head meta, different header, different settings panel, etc.); OR the theme union grows to ≥6 keys; OR a stage-only style primitive emerges. The **second-consumer carve that DID happen** at the More Friends ship — `src/lib/preschool-themes.ts` extracting `PreschoolTheme` + `ThemeMeta` + `THEMES` + `THEME_BY_KEY` + `numberWord` / `cap` / `nounFor` — got its **third consumer** with the Number Friends ship at zero changes (validates the carve: if any primitive needed reshaping, the carve would have been premature; none did). **16 games total now.** Track 1: 11 of 11 non-story games wired with `mountQuiz` (closed 2026-05-11). Track 2: 47-test Playwright smoke suite + soft-gate CI (closed 2026-05-11; **5 clean CI runs** on `main` — Track 2 push, Track 3 feat + docs, Track 4 Phase 1+2 feat + docs — so the T2.1 follow-up to promote Playwright to a hard deploy gate is now unblocked; one-line tweak adds `needs: test` to the `build` job in `.github/workflows/deploy.yml`). Track 3: Option C unified `DeckLayout` decided NO-GO with full ADR-style rationale captured under "Rough order of payoff → 5"; productive smaller win — `<GameControls />` extracted from 13 game pages (closed 2026-05-11). Track 4: cut-over plan **closed 2026-05-12 with the cut-over cancelled** — full ADR-style rationale captured under "Rough order of payoff → 6". **Decision: cut-over cancelled, Astro stays at `https://aakash-jain-1.github.io/kids-learning-games-astro/` as the permanent canonical URL; the vanilla `kids-learning-games` repo stays live independently as a legacy app, no cross-repo writes.** The morning's session of 2026-05-12 had shipped Phase 1 (decision: Option A — Astro takes over the vanilla URL) + Phase 2 (groundwork code: SW rename, 4 redirect aliases, offline-fallback bug fix) and queued Phase 3 (URL flip + cross-repo deploy) for the next session pending user OK. The afternoon pivot reversed Phase 1's decision and cancelled Phase 3 entirely; Track 4 closes here. The Phase 2 code changes stay in the codebase (all three are independently fine — see "Rough order of payoff → 6" → "Pivot 2026-05-12 (afternoon)" callout for the reversal rationale). **Next session: no queued track.** **Smaller follow-ups available, all standalone (queue: 4 — T2.1 closed 2026-05-18 via the consolidated test-job-in-`deploy.yml` approach, after a same-day-earlier `workflow_run` chain attempt in `dccf36d` + `8428ae3` + `9be0318` empirically failed to fire across two consecutive pushes; pivoted in `fc4e7e2`. Both the morning's `2026-05-18` changelog entry — describing the workflow_run design reasoning — and the afternoon's `2026-05-18 (later, pivot)` entry — describing the empirical failure and the pivot — are kept; the morning entry is historical, the pivot entry is the source of truth. The remaining four follow-ups are):** (T6) consider whether the Stats panel (currently `alert(…)` aggregations across every game) deserves a dedicated `/stats` page or per-page Stats modal — Playwright now locks the existing alert-shape behaviour in by tests, so this is safe to refactor when ready; (T7) port the vanilla `404.html` to Astro (currently `dist/` doesn't emit a 404 — GH Pages would 404 raw for missing paths, which the vanilla site avoided with a friendly "Go Home" page); (T8) add an SW-aware Playwright spec (`tests/sw.spec.ts`) that runs with `serviceWorkers: 'allow'` and asserts the SW serves real precached pages on the happy path and the offline page only when network fails — would have caught the `NavigationRoute` regression that landed on 2026-05-12 between commits `d33db11` (Phase 2) and `fce0380` (the hotfix); (T9, **new — filed by the Counting Friends ship**) v2 polish for Counting Friends — replace Web Speech API with pre-recorded MP3 narration in a kid-friendly voice (warmer for the actual 3yo user; ~2–3 hr of recording/encoding + a small narration-asset registry; defer until v1 retention is validated). **Live regression context (2026-05-12):** the Phase 2 SW-install fix unmasked a latent `NavigationRoute(createHandlerBoundToURL('offline'))` bug that served the offline page on every navigation; hotfix `fce0380` replaced `NavigationRoute` with `setCatchHandler`, deploy verified live (badge `passing`, home returns 200 with HTML, SW has 0 NavigationRoute references and 1 setCatchHandler call). All five follow-ups are small (~15 min – 3 hr of work each) and safe to defer. **Or pick a new feature game** — Counting Friends established the feature-driven pattern; Magnitude Comparison ("which group has more?") and Number Bond Pop ("how many more to make 5?") are earmarked as natural follow-up sister games that would reuse most of `addition.css`. **Same-day hotfix shipped 2026-05-15 afternoon (commit `825181f`):** the post-push CI on the Counting Friends feat (`1a66542`) went red on every option-click test in `tests/addition.spec.ts` (deploy stayed green — soft gate). Two independent root causes: (1) the page's first-gesture `kickoff()` handler synchronously called `renderRound()` which mutated `optionsEl.innerHTML`, racing every `pointerdown → click` sequence and replacing the SSR'd numeral buttons with ones from a freshly-randomized JS session before the click could resolve — fixed by adding `readSSRRound()` to seed JS round 0 directly from the SSR'd DOM (data-scene + #cfGroupA/B item counts + option `data-n` reads), and changing `kickoff` to only fire `speakIntroSequence()` without re-rendering; (2) `speechSynthesis.speak()` in headless Chromium (no system TTS engine on CI runners) doesn't reliably fire `utterance.onend`, stalling the wrong-answer rerun chain `narrate(rerun) → speakGuidedCount → narrate(rerunDone) → reveal` — fixed by adding a length-based watchdog `setTimeout` to `narrate()` (real browsers fire onend long before the watchdog so it's a no-op in production; headless and TTS-disabled paths fall through deterministically) and by muting `kids_settings_v1.sound` in the test `beforeEach` (deterministic silent-mode path, no dependence on speech engine *or* watchdog). Live deploy post-push: `Deploy to GitHub Pages` `passing`, `Playwright tests` **`passing`**, live JS bundle contains `cfStage` + `cfGroupA` literals (proves `readSSRRound` shipped). Full ADR under "Changelog → 2026-05-15 (afternoon, hotfix)" below.
+> **▶ Resume here next session:** the **migration is complete (13/13)** as of 2026-05-08; **Tracks 1, 2, 3, and 4 of post-migration polish are all closed** as of 2026-05-12; **the project is now in its feature-driven phase.** **First feature-driven game shipped 2026-05-15: Counting Friends — preschool addition for ages 3–4 (8 single-scene rounds per session, two groups of friendly objects, errorless answer flow, 4 themes — Pond/Orchard/Sea/Garden).** **Second feature-driven game shipped 2026-05-18: More Friends — preschool magnitude comparison for ages 3–4 (8 rounds, two side-by-side groups with sizes 1–4 each (always unequal), tap the bigger group, errorless guided-count-of-both-sides on miss; sister game / developmental precursor to Counting Friends — children master "more vs less" comparison ~6–12 months before consolidating cardinality enough to add).** **Third feature-driven game shipped 2026-05-18 (later): Number Friends — preschool numeral recognition for ages 3–4 (8 rounds, one numeral target 2–5 displayed at the top of the stage, three group panels with distinct sizes below where exactly one matches the target; tap the matching group, errorless wrong-tap flow that counts the *tapped wrong* group then the *correct* group with narration between; completes the cardinality triad — Counting Friends asks set→numeral, More Friends asks set vs set, Number Friends asks numeral→set).** Counting Friends triggered by a direct user request ("game for addition, simple addition for 3 year old boy"); More Friends + Number Friends shipped immediately after as natural sister mechanics, completing the "compare → count → recognise" cognitive triangle for age 3. All three games' design + research grounded in 2025 RCT findings on cardinality instruction (Springer), preschool-math best practices (five-frames before ten-frames, counting-all not counting-on, story-context framing), and shipping-app patterns (Endless Numbers, Khan Academy Kids — self-paced, no scoring, no failures). All three shipped on `StoryLayout` with new theme keys (`'addition'`, `'comparison'`, `'numberfriends'`); the `StageLayout` carve held a **third time** with explicit re-evaluation conditions now locked into `StoryLayout.astro`'s JSDoc — chrome differences between StoryLayout and a hypothetical StageLayout still amount to a body-class rename (`body.story` → `body.stage`) and nothing else, because all three games already scope every game-specific class under `body.story[data-theme='X']`. Carve trigger conditions: a fourth stage-game ships AND its chrome needs differ meaningfully (different head meta, different header, different settings panel, etc.); OR the theme union grows to ≥6 keys; OR a stage-only style primitive emerges. The **second-consumer carve that DID happen** at the More Friends ship — `src/lib/preschool-themes.ts` extracting `PreschoolTheme` + `ThemeMeta` + `THEMES` + `THEME_BY_KEY` + `numberWord` / `cap` / `nounFor` — got its **third consumer** with the Number Friends ship at zero changes (validates the carve: if any primitive needed reshaping, the carve would have been premature; none did). **16 games total now.** Track 1: 11 of 11 non-story games wired with `mountQuiz` (closed 2026-05-11). Track 2: 47-test Playwright smoke suite + soft-gate CI (closed 2026-05-11; **5 clean CI runs** on `main` — Track 2 push, Track 3 feat + docs, Track 4 Phase 1+2 feat + docs — so the T2.1 follow-up to promote Playwright to a hard deploy gate is now unblocked; one-line tweak adds `needs: test` to the `build` job in `.github/workflows/deploy.yml`). Track 3: Option C unified `DeckLayout` decided NO-GO with full ADR-style rationale captured under "Rough order of payoff → 5"; productive smaller win — `<GameControls />` extracted from 13 game pages (closed 2026-05-11). Track 4: cut-over plan **closed 2026-05-12 with the cut-over cancelled** — full ADR-style rationale captured under "Rough order of payoff → 6". **Decision: cut-over cancelled, Astro stays at `https://aakash-jain-1.github.io/kids-learning-games-astro/` as the permanent canonical URL; the vanilla `kids-learning-games` repo stays live independently as a legacy app, no cross-repo writes.** The morning's session of 2026-05-12 had shipped Phase 1 (decision: Option A — Astro takes over the vanilla URL) + Phase 2 (groundwork code: SW rename, 4 redirect aliases, offline-fallback bug fix) and queued Phase 3 (URL flip + cross-repo deploy) for the next session pending user OK. The afternoon pivot reversed Phase 1's decision and cancelled Phase 3 entirely; Track 4 closes here. The Phase 2 code changes stay in the codebase (all three are independently fine — see "Rough order of payoff → 6" → "Pivot 2026-05-12 (afternoon)" callout for the reversal rationale). **Next session: no queued track.** **Smaller follow-ups available, all standalone (queue: 2 — T2.1 closed 2026-05-18 via the consolidated test-job-in-`deploy.yml` approach (after a same-day-earlier `workflow_run` chain attempt in `dccf36d` + `8428ae3` + `9be0318` empirically failed to fire across two consecutive pushes; pivoted in `fc4e7e2`); T7 + T8 both closed 2026-05-18 (evening) in a single infra-hardening ship — `src/pages/404.astro` (friendly "Go Home" port of the vanilla 404, with three small upgrades: `BASE_URL` template literal, FOUC-safe dark-mode pre-paint, and a dark-mode override the vanilla page lacked) + `tests/not-found.spec.ts` (1-test smoke for direct navigation to 404.html; the "missing-path → 404" fallback is GH-Pages-layer behaviour and deliberately not coupled to `astro preview` to avoid CI risk) + `tests/sw.spec.ts` (4-test SW-behavior suite under `test.use({ serviceWorkers: 'allow' })`: SW installs + takes control + populates non-empty precache; online navigation does NOT serve the offline fallback — the explicit May-12 NavigationRoute regression test; offline navigation to an UNCACHED URL serves the offline fallback via `setCatchHandler`; offline navigation to a CACHED URL serves the real page from precache without network). The remaining two follow-ups are):** (T6) consider whether the Stats panel (currently `alert(…)` aggregations across every game) deserves a dedicated `/stats` page or per-page Stats modal — Playwright now locks the existing alert-shape behaviour in by tests, so this is safe to refactor when ready; (T9, **new — filed by the Counting Friends ship, scope expanded to all three preschool-math games at the More Friends + Number Friends ships**) v2 polish for Counting Friends + More Friends + Number Friends — replace Web Speech API with pre-recorded MP3 narration in a kid-friendly voice (warmer for the actual 3yo user; ~2–3 hr of recording/encoding + a small narration-asset registry; defer until v1 retention is validated). **Live regression context (2026-05-12):** the Phase 2 SW-install fix unmasked a latent `NavigationRoute(createHandlerBoundToURL('offline'))` bug that served the offline page on every navigation; hotfix `fce0380` replaced `NavigationRoute` with `setCatchHandler`, deploy verified live (badge `passing`, home returns 200 with HTML, SW has 0 NavigationRoute references and 1 setCatchHandler call). T8's third + fourth assertions now lock that hotfix in via the deploy gate — a NavigationRoute-class regression would fail CI before reaching production. Both remaining follow-ups are small (~15 min – 3 hr of work each) and safe to defer. **Or pick a new feature game** — Counting Friends established the feature-driven pattern; Magnitude Comparison ("which group has more?") and Number Bond Pop ("how many more to make 5?") are earmarked as natural follow-up sister games that would reuse most of `addition.css`. **Same-day hotfix shipped 2026-05-15 afternoon (commit `825181f`):** the post-push CI on the Counting Friends feat (`1a66542`) went red on every option-click test in `tests/addition.spec.ts` (deploy stayed green — soft gate). Two independent root causes: (1) the page's first-gesture `kickoff()` handler synchronously called `renderRound()` which mutated `optionsEl.innerHTML`, racing every `pointerdown → click` sequence and replacing the SSR'd numeral buttons with ones from a freshly-randomized JS session before the click could resolve — fixed by adding `readSSRRound()` to seed JS round 0 directly from the SSR'd DOM (data-scene + #cfGroupA/B item counts + option `data-n` reads), and changing `kickoff` to only fire `speakIntroSequence()` without re-rendering; (2) `speechSynthesis.speak()` in headless Chromium (no system TTS engine on CI runners) doesn't reliably fire `utterance.onend`, stalling the wrong-answer rerun chain `narrate(rerun) → speakGuidedCount → narrate(rerunDone) → reveal` — fixed by adding a length-based watchdog `setTimeout` to `narrate()` (real browsers fire onend long before the watchdog so it's a no-op in production; headless and TTS-disabled paths fall through deterministically) and by muting `kids_settings_v1.sound` in the test `beforeEach` (deterministic silent-mode path, no dependence on speech engine *or* watchdog). Live deploy post-push: `Deploy to GitHub Pages` `passing`, `Playwright tests` **`passing`**, live JS bundle contains `cfStage` + `cfGroupA` literals (proves `readSSRRound` shipped). Full ADR under "Changelog → 2026-05-15 (afternoon, hotfix)" below.
 
-**Build is clean:** 17 pages built on a clean rebuild (16 game pages — 13 vanilla ports + Counting Friends + More Friends + Number Friends — plus index), `npm run check` 0 errors / 0 warnings / 0 hints across **51 Astro files** (added: `src/data/numberfriends.ts` + `src/pages/games/number-friends-game.astro`; `src/styles/numberfriends.css` + `tests/numberfriends.spec.ts` are tracked separately by their respective tooling), all chunk-dedup invariants still verified at the bundle level (quiz **13-way** — no preschool-math game uses `mountQuiz`, all three implement their own per-round answer flow; progress 8-way; fluent 6-way; achievements **16-way** now that all three preschool-math games consume `launchConfetti`; layout pre-paint 3-way), precache **71 entries** (the +4 redirect HTMLs at the legacy vanilla paths from Phase 2 stay in dist as harmless robustness aliases — see the pivot callout for why they stay; the Counting Friends ship added +4 entries 2026-05-15; the More Friends ship added another +4 — page HTML + page-specific JS chunk + new comparison.css + a Vite re-emitted shared chunk for the new `preschool-themes.ts` module; the Number Friends ship adds +3 — page HTML + page-specific JS chunk + new `numberfriends.css`, and the existing `preschool-themes` shared chunk gains its third consumer with no re-emit, verifiable via `grep -l preschool-themes dist/games/*.html | wc -l` returning 3).
+**Build is clean:** 18 pages built on a clean rebuild (16 game pages — 13 vanilla ports + Counting Friends + More Friends + Number Friends — plus index plus the new `404.html`), `npm run check` 0 errors / 0 warnings / 0 hints across **52 Astro files** (added: `src/pages/404.astro`; the previous Number Friends ship's additions stay tracked here too), all chunk-dedup invariants still verified at the bundle level (quiz **13-way** — no preschool-math game uses `mountQuiz`, all three implement their own per-round answer flow; progress 8-way; fluent 6-way; achievements **16-way** since all three preschool-math games consume `launchConfetti`; layout pre-paint 3-way — 404 page deliberately ships its own self-contained inline pre-paint script for resilience and is NOT counted as a 4th consumer of the shared chunk), precache **73 entries** (the +4 redirect HTMLs at the legacy vanilla paths from Phase 2 stay in dist as harmless robustness aliases — see the pivot callout for why they stay; the Counting Friends ship added +4 entries 2026-05-15; the More Friends ship added another +4 — page HTML + page-specific JS chunk + new `comparison.css` + a Vite re-emitted shared chunk for the new `preschool-themes.ts` module; the Number Friends ship added +3 — page HTML + page-specific JS chunk + new `numberfriends.css`, the existing `preschool-themes` shared chunk gained its third consumer with no re-emit, verifiable via `grep -l preschool-themes dist/games/*.html | wc -l` returning 3; the T7 ship adds +2 — `dist/404.html` itself plus a small page-specific JS chunk for the `initSettings` import). The 404 precache key is `"404"` (no leading slash, no `.html`) — same convention as `"offline"`, verified via `grep -oE '"404"|"offline"' dist/service-worker.js` returning both keys.
 
 ### Per-game layout decisions for the 5 pending ports
 
@@ -416,6 +416,228 @@ before deciding.
 ---
 
 ## Changelog
+
+### 2026-05-18 (latest, evening) — chore: close T7 (Astro 404 page) + T8 (SW-aware Playwright spec) — two infra-hardening follow-ups in one ship
+
+After the Number Friends triad ship completed earlier this same session,
+the queue was: T6 (Stats refactor — open-ended, defer until target
+shape known), T7 (404 page — small, real UX gap), T8 (SW-aware test —
+small, complements T2.1's hard deploy gate), T9 (MP3 narration —
+explicitly deferred until v1 retention validation), or a fourth
+feature game (Number Bond Pop — earmarked but explicitly deferred
+until v1 retention validation, and the missing-addend partitioning
+mechanic is age 4+ which doesn't match the 3yo target user). T7 + T8
+won on cost-benefit: both ~30 min, both close real gaps, both fit
+the same "infra-hardening session" arc as this morning's T2.1
+closure. Shipped together.
+
+#### T7 — friendly 404 page (`src/pages/404.astro`)
+
+**Why this exists.** GitHub Pages serves `<base>/404.html` for any
+unmatched URL. Without it, GH Pages falls back to the default page
+("Site not found · GitHub Pages") — unstyled, generic, and confusing
+for the actual 3yo + parent target audience. The vanilla
+`kids-learning-games` repo had a friendly 404 at
+`kids-learning-games/404.html`; this is the Astro port. Same design
+language as `public/offline.html` and the home hero panel — gradient
+body, glass-morphism box, big emoji + headline + paragraph + single
+CTA button — so all three "fallback" pages of the site read as one
+visual family. Single CTA is the right shape for a 3yo: parents can
+read the headline; the kid sees one obvious 🏠 Go Home button to tap.
+
+**Three small upgrades over the vanilla 2026 version.**
+
+- **Astro `BASE_URL` template literal** for the home link
+  (`import.meta.env.BASE_URL`), so the page relocates automatically
+  if `BASE` ever flips. The Track-4 cut-over plan was cancelled, but
+  every other internal link in this repo uses this pattern; consistency
+  has lower long-term cost than divergence.
+- **FOUC-safe dark-mode pre-paint** — same `is:inline` script
+  `index.astro` uses. A dark-mode user no longer flashes the bright
+  purple gradient before the dark-mode background paints.
+- **`body.dark-mode` override** — the vanilla page lacked one. Cheap
+  to add; better UX for dark-mode users.
+
+**Deliberately NOT included.**
+
+- `GameNav`, `SettingsModal`, `BuildInfo` — the 404 should be one
+  obvious affordance. Mirrors the vanilla design philosophy.
+- `global.css` import — the page is self-contained so it renders even
+  if a global stylesheet ever becomes unavailable. The CSS payload
+  is ~1 KB inline; the resilience is worth more than the
+  deduplication.
+- SW registration — the 404 is a terminal page; "Go Home" lands on
+  `index.astro` which registers the SW for any session that hasn't
+  yet. Skipping registration here keeps the 404 payload minimal and
+  avoids any possibility of the 404 page itself becoming a precache
+  target by accident.
+
+**Offline-vs-404 interaction.** When a user with the SW installed
+navigates to a wrong URL while offline, `setCatchHandler` in
+`service-worker.ts` serves the precached `offline` page rather than
+this 404 page (the request fails before GH Pages can return
+`404.html`). That's the right behaviour — "you're offline" is a
+more actionable message than "page not found" when both are true.
+Online + wrong URL → 404 page; offline + wrong URL → offline page.
+Documented in `404.astro`'s header.
+
+**Test coverage.** `tests/not-found.spec.ts` (1 test) — direct
+navigation to `<base>/404.html` returns HTTP 200 with the friendly
+content (title `Page Not Found`, h1 + paragraph markers, `a.home`
+href = `/kids-learning-games-astro/`, `Go Home` link text). The
+"missing path → 404 page" fallback behaviour is deliberately NOT
+tested against `astro preview` because it's a property of the
+static-hosting layer (GH Pages in production, vite preview in CI)
+not of our code, and asserting it would couple the suite to upstream
+preview behaviour with a flaky-CI risk that has no upside. Verified
+manually post-deploy (live URL: typing `…/games/xxx-no-such.html`
+returns 404 status with the friendly page).
+
+#### T8 — SW-aware Playwright spec (`tests/sw.spec.ts`)
+
+**Why this exists.** The other Playwright suites all use the global
+`serviceWorkers: 'block'` setting in `playwright.config.ts`, which
+is correct for *those* tests (their assertions are about page
+content + per-game LocalStorage writes that should be deterministic
+regardless of SW state). But it leaves the SW *itself* untested by
+the consolidated deploy gate — and the May-12 NavigationRoute bug
+proved that's a meaningful gap. T8 closes it.
+
+**The May-12 regression class T8 covers.** On 2026-05-12 the morning
+Phase-2 SW-install fix unmasked a latent bug — the previous
+`service-worker.ts` had registered a
+`NavigationRoute(createHandlerBoundToURL('offline'))`, which is the
+"SPA app-shell" pattern (intercept every navigation and serve a
+single shell). Used together with the offline-fallback handler URL,
+this meant the offline page was served on EVERY navigation once the
+SW was installed — online OR offline — and the entire site looked
+like a permanent offline page to anyone whose SW had just updated.
+The bug went undetected because the existing Playwright suite blocks
+SWs. The hotfix `fce0380` replaced `NavigationRoute` with
+`setCatchHandler`. T8 asserts the post-hotfix behaviour so the next
+NavigationRoute-class regression fails CI before reaching production.
+
+**Four assertions, four failure modes covered.**
+
+1. **SW installs and takes control.** Visit home; assert
+   `navigator.serviceWorker.controller !== null` after
+   `waitForFunction` resolves; assert the controller's `scriptURL`
+   matches `/kids-learning-games-astro/service-worker.js` (catches
+   filename regressions — recall the 2026-05-12 `sw.js` →
+   `service-worker.js` rename). Catches "SW silently fails to
+   install" regressions where every later assertion would still pass
+   against the network.
+
+2. **Workbox precache cache exists with non-trivial entry count.**
+   Read `caches.keys()`, find the `*precache*` cache, open it, count
+   entries; assert ≥20. Catches "SW installs but precache manifest
+   is empty / errors" regressions (e.g. an
+   `injectManifest.globPatterns` misconfig that emits a zero-entry
+   manifest, or a Vite chunking change that drops every entry from
+   the manifest).
+
+3. **Online navigation serves the real page, NOT the offline
+   fallback** (the explicit May-12 regression). Visit home; reload
+   so the navigation goes through the SW; assert title doesn't
+   match `/Offline/` and body doesn't contain `"You're Offline"`.
+   Then navigate to Counting Friends, then to Number Friends; assert
+   the same on each. The May-12 bug specifically affected EVERY
+   navigation, not just one path, so testing across multiple pages
+   locks the assertion in.
+
+4. **Offline navigation to an uncached URL serves the offline
+   fallback.** Install SW online; flip `context.setOffline(true)`;
+   navigate to a deliberately-missing path; assert the offline page
+   renders. Exercises `setCatchHandler` and proves the
+   offline-fallback path the May-12 hotfix replaced `NavigationRoute`
+   with. **Robust against `astro preview` quirks** — the SW
+   intercepts the navigation BEFORE the preview server sees it
+   (precache miss → network attempt → network fails → setCatchHandler
+   fires), so this assertion doesn't depend on whether vite preview
+   serves dist/404.html for missing paths.
+
+5. **Offline navigation to a CACHED URL serves the real page**
+   (precache works without network — the actual offline-PWA promise).
+   Visit a game online so it precaches, flip offline, navigate to
+   it again; assert the game's content renders, not the offline
+   page. Catches "precache present but route handler isn't actually
+   serving from it" regressions.
+
+**Test isolation.** Playwright spawns a fresh browser context per
+test by default. With `serviceWorkers: 'allow'`, the SW state
+(registration, caches, IDB) lives in the context's storage, not the
+browser session — so each test starts with a clean SW slate by
+construction, no explicit `unregister()` cleanup needed. An earlier
+draft had a `beforeEach` that explicitly unregistered + cleared
+caches + waited for `!navigator.serviceWorker.controller`; that was
+removed because it introduces a race — `unregister()` removes the
+registration but the existing controller stays until next navigation,
+so a `waitForFunction(!controller)` could hang if the SW wins the
+install race before the cleanup script lands. Removed; relying on
+fresh contexts is cleaner and faster.
+
+**Why this is a separate file rather than added to an existing
+suite.** The global `serviceWorkers: 'block'` config sets the
+default for the whole `tests/` tree; this file flips it via
+`test.use({ serviceWorkers: 'allow' })`, which is per-file scope.
+Mixing SW-allow tests into an SW-block file would either require
+interleaved `test.use({})` calls (fragile — easy to accidentally
+pollute later tests with the wrong setting) or duplicate the file's
+tests across two files. Cleaner to give SW-aware tests their own
+module, named for what they cover.
+
+**Updated `playwright.config.ts` docstring** points the next reader
+from the global `serviceWorkers: 'block'` to the `sw.spec.ts`
+opt-in, with a one-line rationale for why blocking is the right
+default for every other suite.
+
+#### Files added / changed
+
+- **New `src/pages/404.astro`** (~190 LoC including header doc).
+- **New `tests/not-found.spec.ts`** (~75 LoC including header doc) —
+  1-test smoke suite for the 404 page (direct navigation only).
+- **New `tests/sw.spec.ts`** (~200 LoC including header doc) — 4-test
+  SW-behavior suite under `test.use({ serviceWorkers: 'allow' })`.
+- **Modified `playwright.config.ts`** — docstring on `serviceWorkers:
+  'block'` pointer to T8's per-file opt-in.
+
+#### Verifications
+
+- `npm run check` 0 / 0 / 0 across **52 Astro files** (+1 from the 51
+  baseline — `404.astro`).
+- `npm run build` emits **18 pages** (+1) with `dist/404.html` at
+  3.1 KB. Precache **73 entries** (+2 — `dist/404.html` itself + a
+  small page-specific JS chunk for the inline `<script>` import of
+  `initSettings`). The precache key for the 404 page is `"404"`
+  (no leading slash, no `.html`) — same convention as `"offline"`,
+  verified via `grep -oE '"404"|"offline"' dist/service-worker.js`
+  returning both keys.
+- `dist/404.html` content verified via grep: title `Page Not Found
+  — Kids Learning Games`, h1 `Page Not Found`, emoji 🔍, CTA `🏠 Go
+  Home` linking to `/kids-learning-games-astro/`.
+
+#### What's left in the queue after this ship
+
+Two standalone follow-ups (was four — T7 + T8 just closed; T9 still
+deferred awaiting v1 retention; T6 still open):
+
+- **(T6)** Stats refactor (the only remaining infra follow-up that
+  doesn't have an explicit "defer until X" gate). Open-ended; case
+  has strengthened over the last three ships (3 preschool-math games
+  with separate stats schemas, plus Quiz state for 13 vanilla ports
+  via `mountQuiz`). Defer-safe; Playwright locks in the alert
+  behaviour.
+- **(T9)** Pre-recorded MP3 narration for all three preschool-math
+  games. Defer until v1 retention is validated with the actual 3yo
+  user.
+
+**Or pick a fourth feature game** — Number Bond Pop ("how many more
+to make 5?") was earmarked at the More Friends entry. It's a
+meaningfully harder game (missing-addend partitioning, age 4+
+skill) so v1 retention on the existing triad should be validated
+first. If a fourth stage-game ships AND its chrome needs differ
+from the triad's, that's the explicit StageLayout carve trigger
+(re-evaluation conditions locked in `StoryLayout.astro`'s JSDoc).
 
 ### 2026-05-18 (latest) — feat(numberfriends): ship Number Friends — third feature-driven game, completes the preschool-math cardinality triad (numeral→set)
 
