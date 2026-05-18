@@ -25,73 +25,32 @@
  * its own tiny controller.
  */
 
-export type AdditionTheme = 'pond' | 'orchard' | 'sea' | 'garden';
+// The theme catalog lived inline here from 2026-05-15 (Counting Friends ship)
+// through 2026-05-18 (More Friends ship). It was extracted to
+// `src/lib/preschool-themes.ts` when the second preschool-math game shipped,
+// per the project's "refactor on second consumer" rule. The re-exports
+// below keep existing imports — `import { THEMES, ... } from '@/data/addition'`
+// — working unchanged on the Counting Friends page.
 
-export interface ThemeMeta {
-  /** Stable theme key — drives `data-theme` on the scene container, used as the CSS hook. */
-  readonly key: AdditionTheme;
-  /** Human label, shown only in the parent-facing Stats panel. */
-  readonly label: string;
-  /** Emoji used as the countable object. Crisp at any DPI; zero asset cost. */
-  readonly emoji: string;
-  /** Singular noun for narration when count === 1 (e.g. "duck"). */
-  readonly singular: string;
-  /** Plural noun for narration when count > 1 (e.g. "ducks"). */
-  readonly plural: string;
-  /** Short verb-phrase tag: "are swimming", "hang on a tree", "swim in the sea", "fly to flowers". */
-  readonly verbPhrase: string;
-}
+import {
+  THEMES as _THEMES,
+  THEME_BY_KEY as _THEME_BY_KEY,
+  type PreschoolTheme,
+  type ThemeMeta as _ThemeMeta,
+  numberWord as _numberWord,
+  cap as _cap,
+  nounFor as _nounFor,
+} from '@/lib/preschool-themes';
 
-/**
- * The four shipping themes for v1. Picked for:
- *  - Familiarity at age 3 (every theme has Bluey-grade recognition).
- *  - Strong distinct palettes (pond=blue/green, orchard=red/green,
- *    sea=aqua, garden=yellow) so the child gets visual variety across
- *    rounds without theme fatigue.
- *  - Verbs that read as motion-friendly so the fly-in animation has
- *    narrative grounding ("ducks come swimming in" matches the slide-in
- *    keyframe).
- *
- * Add 2 more themes (sky/balloons, bedroom/blocks) in a v2 patch once
- * we validate retention with the actual 3yo user.
- */
-export const THEMES: readonly ThemeMeta[] = [
-  {
-    key: 'pond',
-    label: 'Pond',
-    emoji: '🦆',
-    singular: 'duck',
-    plural: 'ducks',
-    verbPhrase: 'are swimming',
-  },
-  {
-    key: 'orchard',
-    label: 'Orchard',
-    emoji: '🍎',
-    singular: 'apple',
-    plural: 'apples',
-    verbPhrase: 'hang on a tree',
-  },
-  {
-    key: 'sea',
-    label: 'Sea',
-    emoji: '🐠',
-    singular: 'fish',
-    plural: 'fish',
-    verbPhrase: 'swim in the sea',
-  },
-  {
-    key: 'garden',
-    label: 'Garden',
-    emoji: '🐝',
-    singular: 'bee',
-    plural: 'bees',
-    verbPhrase: 'fly to the flowers',
-  },
-];
-
-export const THEME_BY_KEY: Readonly<Record<AdditionTheme, ThemeMeta>> =
-  Object.fromEntries(THEMES.map((t) => [t.key, t])) as Record<AdditionTheme, ThemeMeta>;
+/** Alias of `PreschoolTheme` from `@/lib/preschool-themes`. Kept here
+ *  so the Counting Friends page (`counting-friends-game.astro`) keeps
+ *  importing `AdditionTheme` from this module unchanged. New code in
+ *  other preschool-math games should import `PreschoolTheme` from the
+ *  lib directly. */
+export type AdditionTheme = PreschoolTheme;
+export type ThemeMeta = _ThemeMeta;
+export const THEMES = _THEMES;
+export const THEME_BY_KEY = _THEME_BY_KEY;
 
 /**
  * One round of play: two groups of `theme` objects, sized `a` and `b`,
@@ -240,23 +199,13 @@ export interface RoundNarration {
   readonly rerunDone: string;
 }
 
-const numberWord = (n: number): string => {
-  switch (n) {
-    case 0: return 'zero';
-    case 1: return 'one';
-    case 2: return 'two';
-    case 3: return 'three';
-    case 4: return 'four';
-    case 5: return 'five';
-    case 6: return 'six';
-    default: return String(n);
-  }
-};
-
-const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
-
-const nounFor = (count: number, theme: ThemeMeta): string =>
-  count === 1 ? theme.singular : theme.plural;
+// numberWord / cap / nounFor moved to `@/lib/preschool-themes` on
+// 2026-05-18 (More Friends ship) — they're useful to every preschool-
+// math game, not just addition. Aliased to local consts here so the
+// existing buildNarration body doesn't need to be edited.
+const numberWord = _numberWord;
+const cap = _cap;
+const nounFor = _nounFor;
 
 export const buildNarration = (round: Round): RoundNarration => {
   const theme = THEME_BY_KEY[round.theme];

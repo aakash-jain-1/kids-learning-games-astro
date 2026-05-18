@@ -40,16 +40,33 @@ interface Props {
    * properties defined in `story.css`. Leave undefined for the
    * default theme. Add new keys here as more story games land.
    *
-   * `'addition'` (added 2026-05-15 for the Counting Friends game) is
-   * not strictly a story game, but reuses StoryLayout's wiring (head,
+   * `'addition'` (added 2026-05-15 for the Counting Friends game) and
+   * `'comparison'` (added 2026-05-18 for the More Friends game) are
+   * not strictly story games, but reuse StoryLayout's wiring (head,
    * GameNav, SettingsModal, BuildInfo, SW registration, FOUC handling)
    * which is exactly what a single-scene-per-round stage game needs.
-   * Per rule #5 ("refactor on second consumer"), if a third
-   * non-story stage game lands we should carve out a `StageLayout`
-   * sister shell and migrate Counting Friends to it; until then,
-   * adding one theme key is the lowest-cost option.
+   *
+   * Per rule #5 ("refactor on second consumer"), the More Friends
+   * ship — the second non-story stage game — was the natural
+   * trigger to carve a `StageLayout` sister shell. We deliberately
+   * deferred: the actual chrome differences between StoryLayout and
+   * the hypothetical StageLayout amount to a body class rename
+   * (`body.story` → `body.stage`) and nothing else, because both
+   * games already scope every game-specific class under
+   * `body.story[data-theme='X']`. Carving a near-identical sister
+   * layout would add code without removing any. Re-evaluate when a
+   * third non-story stage game lands AND its chrome needs differ
+   * meaningfully (different header, different footer, different
+   * settings, etc.) — at that point a real shared shell makes
+   * sense. Until then, adding one theme key is the lowest-cost
+   * option and the existing code stays simple.
+   *
+   * The shared *content* primitives across these two games (theme
+   * catalog, number-word helpers, common animations) ARE refactored
+   * — see `src/lib/preschool-themes.ts`. That's where the
+   * second-consumer carve actually happened.
    */
-  theme?: 'routines' | 'woodcutter' | 'addition';
+  theme?: 'routines' | 'woodcutter' | 'addition' | 'comparison';
 }
 
 const {
@@ -151,6 +168,10 @@ const canonicalUrl =
     color: #d4d8f0;
   }
   html.pre-dark body.story[data-theme='addition'] {
+    background: #0a1020;
+    color: #d4e0ff;
+  }
+  html.pre-dark body.story[data-theme='comparison'] {
     background: #0a1020;
     color: #d4e0ff;
   }
