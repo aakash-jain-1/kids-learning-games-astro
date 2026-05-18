@@ -210,7 +210,9 @@ or (b) document a one-off exception.
 
 ## What still needs doing
 
-> **▶ Resume here next session:** the **migration is complete (13/13)** as of 2026-05-08; **Tracks 1, 2, 3, and 4 of post-migration polish are all closed** as of 2026-05-12; **the project is now in its feature-driven phase.** **First feature-driven game shipped 2026-05-15: Counting Friends — preschool addition for ages 3–4 (8 single-scene rounds per session, two groups of friendly objects, errorless answer flow, 4 themes — Pond/Orchard/Sea/Garden).** Triggered by a direct user request ("game for addition, simple addition for 3 year old boy"); design + research grounded in 2025 RCT findings on cardinality instruction (Springer), preschool-math best practices (five-frames before ten-frames, counting-all not counting-on, story-context addition), and shipping-app patterns (Endless Numbers, Khan Academy Kids — self-paced, no scoring, no failures). Shipped on `StoryLayout` with a new `'addition'` theme key (Option B from the research canvas — Option C `StageLayout` carve held until a second non-story stage game appears). 14 games total now. Track 1: 11 of 11 non-story games wired with `mountQuiz` (closed 2026-05-11). Track 2: 47-test Playwright smoke suite + soft-gate CI (closed 2026-05-11; **5 clean CI runs** on `main` — Track 2 push, Track 3 feat + docs, Track 4 Phase 1+2 feat + docs — so the T2.1 follow-up to promote Playwright to a hard deploy gate is now unblocked; one-line tweak adds `needs: test` to the `build` job in `.github/workflows/deploy.yml`). Track 3: Option C unified `DeckLayout` decided NO-GO with full ADR-style rationale captured under "Rough order of payoff → 5"; productive smaller win — `<GameControls />` extracted from 13 game pages (closed 2026-05-11). Track 4: cut-over plan **closed 2026-05-12 with the cut-over cancelled** — full ADR-style rationale captured under "Rough order of payoff → 6". **Decision: cut-over cancelled, Astro stays at `https://aakash-jain-1.github.io/kids-learning-games-astro/` as the permanent canonical URL; the vanilla `kids-learning-games` repo stays live independently as a legacy app, no cross-repo writes.** The morning's session of 2026-05-12 had shipped Phase 1 (decision: Option A — Astro takes over the vanilla URL) + Phase 2 (groundwork code: SW rename, 4 redirect aliases, offline-fallback bug fix) and queued Phase 3 (URL flip + cross-repo deploy) for the next session pending user OK. The afternoon pivot reversed Phase 1's decision and cancelled Phase 3 entirely; Track 4 closes here. The Phase 2 code changes stay in the codebase (all three are independently fine — see "Rough order of payoff → 6" → "Pivot 2026-05-12 (afternoon)" callout for the reversal rationale). **Next session: no queued track.** **Smaller follow-ups available, all standalone:** (T2.1) promote Playwright to a hard deploy gate by adding `needs: test` to the `build` job in `.github/workflows/deploy.yml` (one-line tweak; threshold met); (T6) consider whether the Stats panel (currently `alert(…)` aggregations across every game) deserves a dedicated `/stats` page or per-page Stats modal — Playwright now locks the existing alert-shape behaviour in by tests, so this is safe to refactor when ready; (T7) port the vanilla `404.html` to Astro (currently `dist/` doesn't emit a 404 — GH Pages would 404 raw for missing paths, which the vanilla site avoided with a friendly "Go Home" page); (T8) add an SW-aware Playwright spec (`tests/sw.spec.ts`) that runs with `serviceWorkers: 'allow'` and asserts the SW serves real precached pages on the happy path and the offline page only when network fails — would have caught the `NavigationRoute` regression that landed on 2026-05-12 between commits `d33db11` (Phase 2) and `fce0380` (the hotfix); (T9, **new — filed by the Counting Friends ship**) v2 polish for Counting Friends — replace Web Speech API with pre-recorded MP3 narration in a kid-friendly voice (warmer for the actual 3yo user; ~2–3 hr of recording/encoding + a small narration-asset registry; defer until v1 retention is validated). **Live regression context (2026-05-12):** the Phase 2 SW-install fix unmasked a latent `NavigationRoute(createHandlerBoundToURL('offline'))` bug that served the offline page on every navigation; hotfix `fce0380` replaced `NavigationRoute` with `setCatchHandler`, deploy verified live (badge `passing`, home returns 200 with HTML, SW has 0 NavigationRoute references and 1 setCatchHandler call). All five follow-ups are small (~15 min – 3 hr of work each) and safe to defer. **Or pick a new feature game** — Counting Friends established the feature-driven pattern; Magnitude Comparison ("which group has more?") and Number Bond Pop ("how many more to make 5?") are earmarked as natural follow-up sister games that would reuse most of `addition.css`. **Build is clean:** 14 pages built on a clean rebuild, `npm run check` 0 errors / 0 warnings / 0 hints across **44 Astro files**, all chunk-dedup invariants still verified at the bundle level (quiz **13-way**, progress 8-way, fluent 6-way, achievements 13-way, layout pre-paint 3-way), precache **60 entries** (the +4 redirect HTMLs at the legacy vanilla paths from Phase 2 stay in dist as harmless robustness aliases — see the pivot callout for why they stay).
+> **▶ Resume here next session:** the **migration is complete (13/13)** as of 2026-05-08; **Tracks 1, 2, 3, and 4 of post-migration polish are all closed** as of 2026-05-12; **the project is now in its feature-driven phase.** **First feature-driven game shipped 2026-05-15: Counting Friends — preschool addition for ages 3–4 (8 single-scene rounds per session, two groups of friendly objects, errorless answer flow, 4 themes — Pond/Orchard/Sea/Garden).** Triggered by a direct user request ("game for addition, simple addition for 3 year old boy"); design + research grounded in 2025 RCT findings on cardinality instruction (Springer), preschool-math best practices (five-frames before ten-frames, counting-all not counting-on, story-context addition), and shipping-app patterns (Endless Numbers, Khan Academy Kids — self-paced, no scoring, no failures). Shipped on `StoryLayout` with a new `'addition'` theme key (Option B from the research canvas — Option C `StageLayout` carve held until a second non-story stage game appears). 14 games total now. Track 1: 11 of 11 non-story games wired with `mountQuiz` (closed 2026-05-11). Track 2: 47-test Playwright smoke suite + soft-gate CI (closed 2026-05-11; **5 clean CI runs** on `main` — Track 2 push, Track 3 feat + docs, Track 4 Phase 1+2 feat + docs — so the T2.1 follow-up to promote Playwright to a hard deploy gate is now unblocked; one-line tweak adds `needs: test` to the `build` job in `.github/workflows/deploy.yml`). Track 3: Option C unified `DeckLayout` decided NO-GO with full ADR-style rationale captured under "Rough order of payoff → 5"; productive smaller win — `<GameControls />` extracted from 13 game pages (closed 2026-05-11). Track 4: cut-over plan **closed 2026-05-12 with the cut-over cancelled** — full ADR-style rationale captured under "Rough order of payoff → 6". **Decision: cut-over cancelled, Astro stays at `https://aakash-jain-1.github.io/kids-learning-games-astro/` as the permanent canonical URL; the vanilla `kids-learning-games` repo stays live independently as a legacy app, no cross-repo writes.** The morning's session of 2026-05-12 had shipped Phase 1 (decision: Option A — Astro takes over the vanilla URL) + Phase 2 (groundwork code: SW rename, 4 redirect aliases, offline-fallback bug fix) and queued Phase 3 (URL flip + cross-repo deploy) for the next session pending user OK. The afternoon pivot reversed Phase 1's decision and cancelled Phase 3 entirely; Track 4 closes here. The Phase 2 code changes stay in the codebase (all three are independently fine — see "Rough order of payoff → 6" → "Pivot 2026-05-12 (afternoon)" callout for the reversal rationale). **Next session: no queued track.** **Smaller follow-ups available, all standalone:** (T2.1) promote Playwright to a hard deploy gate by adding `needs: test` to the `build` job in `.github/workflows/deploy.yml` (one-line tweak; threshold met); (T6) consider whether the Stats panel (currently `alert(…)` aggregations across every game) deserves a dedicated `/stats` page or per-page Stats modal — Playwright now locks the existing alert-shape behaviour in by tests, so this is safe to refactor when ready; (T7) port the vanilla `404.html` to Astro (currently `dist/` doesn't emit a 404 — GH Pages would 404 raw for missing paths, which the vanilla site avoided with a friendly "Go Home" page); (T8) add an SW-aware Playwright spec (`tests/sw.spec.ts`) that runs with `serviceWorkers: 'allow'` and asserts the SW serves real precached pages on the happy path and the offline page only when network fails — would have caught the `NavigationRoute` regression that landed on 2026-05-12 between commits `d33db11` (Phase 2) and `fce0380` (the hotfix); (T9, **new — filed by the Counting Friends ship**) v2 polish for Counting Friends — replace Web Speech API with pre-recorded MP3 narration in a kid-friendly voice (warmer for the actual 3yo user; ~2–3 hr of recording/encoding + a small narration-asset registry; defer until v1 retention is validated). **Live regression context (2026-05-12):** the Phase 2 SW-install fix unmasked a latent `NavigationRoute(createHandlerBoundToURL('offline'))` bug that served the offline page on every navigation; hotfix `fce0380` replaced `NavigationRoute` with `setCatchHandler`, deploy verified live (badge `passing`, home returns 200 with HTML, SW has 0 NavigationRoute references and 1 setCatchHandler call). All five follow-ups are small (~15 min – 3 hr of work each) and safe to defer. **Or pick a new feature game** — Counting Friends established the feature-driven pattern; Magnitude Comparison ("which group has more?") and Number Bond Pop ("how many more to make 5?") are earmarked as natural follow-up sister games that would reuse most of `addition.css`. **Same-day hotfix shipped 2026-05-15 afternoon (commit `825181f`):** the post-push CI on the Counting Friends feat (`1a66542`) went red on every option-click test in `tests/addition.spec.ts` (deploy stayed green — soft gate). Two independent root causes: (1) the page's first-gesture `kickoff()` handler synchronously called `renderRound()` which mutated `optionsEl.innerHTML`, racing every `pointerdown → click` sequence and replacing the SSR'd numeral buttons with ones from a freshly-randomized JS session before the click could resolve — fixed by adding `readSSRRound()` to seed JS round 0 directly from the SSR'd DOM (data-scene + #cfGroupA/B item counts + option `data-n` reads), and changing `kickoff` to only fire `speakIntroSequence()` without re-rendering; (2) `speechSynthesis.speak()` in headless Chromium (no system TTS engine on CI runners) doesn't reliably fire `utterance.onend`, stalling the wrong-answer rerun chain `narrate(rerun) → speakGuidedCount → narrate(rerunDone) → reveal` — fixed by adding a length-based watchdog `setTimeout` to `narrate()` (real browsers fire onend long before the watchdog so it's a no-op in production; headless and TTS-disabled paths fall through deterministically) and by muting `kids_settings_v1.sound` in the test `beforeEach` (deterministic silent-mode path, no dependence on speech engine *or* watchdog). Live deploy post-push: `Deploy to GitHub Pages` `passing`, `Playwright tests` **`passing`**, live JS bundle contains `cfStage` + `cfGroupA` literals (proves `readSSRRound` shipped). Full ADR under "Changelog → 2026-05-15 (afternoon, hotfix)" below.
+
+**Build is clean:** 15 pages built on a clean rebuild, `npm run check` 0 errors / 0 warnings / 0 hints across **46 Astro files**, all chunk-dedup invariants still verified at the bundle level (quiz **13-way**, progress 8-way, fluent 6-way, achievements 13-way, layout pre-paint 3-way), precache **64 entries** (the +4 redirect HTMLs at the legacy vanilla paths from Phase 2 stay in dist as harmless robustness aliases — see the pivot callout for why they stay; the Counting Friends ship adds page HTML + page-specific JS chunk + new addition.css + a Vite re-emitted shared chunk for another +4).
 
 ### Per-game layout decisions for the 5 pending ports
 
@@ -414,6 +416,170 @@ before deciding.
 ---
 
 ## Changelog
+
+### 2026-05-15 (afternoon, hotfix) — fix(counting-friends): make round 0 SSR-faithful + add narrate() watchdog so the test suite passes deterministically
+
+Same-day follow-up to `1a66542` (the morning's Counting Friends feat
+commit). The post-push CI on the feat went red on every option-click
+test in the new `tests/addition.spec.ts` — `Deploy to GitHub Pages`
+went green, but `Playwright tests` went red, which is the exact
+failure shape that motivated the **(T2.1)** follow-up to gate deploy
+on tests (still queued). One commit fixes two independent root
+causes; both were invisible to local `npm run build && grep dist/`
+verification because they're dynamic-runtime concerns, not static SSR
+concerns. Shipped as commit `825181f`.
+
+**Why this didn't surface before push.** Locally, the corporate
+Zscaler TLS interception on this dev box prevents Playwright's local
+webServer from binding `127.0.0.1` reliably (this is the same
+constraint that keeps every CI verification on this project to
+`curl`-against-live-URL rather than `npm run preview`). The
+established convention is therefore "push and watch the CI badge."
+This is fine for SSR-shape regressions and lint regressions but
+fragile for runtime regressions in *new* test specs that depend on
+runtime primitives the existing specs don't touch — and
+`addition.spec.ts` was the first spec to depend on **(i)** click
+events landing reliably on DOM elements that aren't being swapped
+out by a parallel kickoff handler, and **(ii)** `speechSynthesis.speak()`
+firing its `utterance.onend` callback in headless Chromium. Both
+turned out to be unreliable.
+
+**Root cause 1 — `kickoff()` raced with click events.** The page
+deferred the first round's narration to the user's first gesture
+(necessary because browsers block `speechSynthesis` until a user
+interacts) by attaching a one-shot `pointerdown` handler that ran
+`startRound()`. `startRound()` synchronously called `renderRound()`
+which mutated `optionsEl.innerHTML` — replacing the SSR'd numeral
+buttons with ones generated from a freshly-randomized JS session.
+The full event sequence on a user (or test) tapping an option:
+
+  1. `pointerdown` fires on the option button.
+  2. The event bubbles up to `document`; the kickoff handler runs.
+  3. `kickoff` calls `startRound` → `renderRound` → DOM mutation
+     happens *synchronously*, replacing every `.cf-opt` button.
+  4. `pointerup` and `click` then fire, against an element that
+     either no longer exists in the DOM or has been replaced by a
+     button from a different randomly-generated round whose `data-n`
+     no longer matches what the SSR (or test) saw.
+
+The Playwright tests had a particularly clean repro: `tests/addition.spec.ts`
+read `a` and `b` by counting `#cfGroupA .cf-item` and `#cfGroupB .cf-item`
+elements in the SSR'd DOM, then did `await page.locator('#cfOptions
+.cf-opt[data-n="${a + b}"]').click()` to tap the correct answer. After
+the kickoff race, that selector either missed entirely (if the new
+round had no option matching `a + b`) or landed on a wrong-answer
+button (if the new round happened to have an option matching `a + b`
+that was a distractor for its own different sum). Either way, the
+follow-up `await expect(... cf-opt[data-n="${expected}"]).toHaveClass(/cf-opt--correct/)`
+failed.
+
+*Fix:* added a `readSSRRound()` helper that reads round 0 directly
+from the SSR'd DOM — `data-scene` from `#cfStage`, item counts from
+`#cfGroupA` / `#cfGroupB`, option digits from each `.cf-opt`'s
+`data-n` attribute. The JS session is now seeded as `[readSSRRound(),
+...generateSession().slice(1)]` so round 0 *is* the SSR'd content; no
+DOM swap on first interaction. The kickoff handler now only calls
+`speakIntroSequence()` (and that goes through `requestAnimationFrame`
+so the click event gets to fire first). Rounds 1..N still come from
+the random JS session as before, so each session still has 7 random
+rounds + 1 deterministic-from-SSR round; the tradeoff is that the
+SSR'd round is the same every page load, which is a non-issue for a
+3yo who plays through the whole 8-round session in one go and never
+reloads mid-session. The `readSSRRound` helper has a defensive fallback:
+if the SSR shape ever drifts (item counts wrong, option count not 3),
+it falls back to a fresh `generateSession()[0]` so the page still
+works rather than throwing. The fallback is dead code under normal
+operation but matters for resilience to future SSR template edits.
+
+**Root cause 2 — `speechSynthesis.speak()` in headless Chromium fires
+`utterance.onend` unreliably.** Most CI runners (GitHub Actions
+ubuntu-latest included) have no system TTS engine installed. The
+`speechSynthesis` API still exists and `speechSynthesis.speak()` runs
+without throwing, but `utterance.onend` either fires after an
+unpredictable delay or never fires at all. The errorless wrong-answer
+rerun chain in this game is `narrate(rerun) → speakGuidedCount(per
+item: narrate(word, onEnd: nextItem)) → narrate(rerunDone, onEnd:
+revealCorrect)` — every step depends on the previous step's `onend`
+callback firing to advance. With `onend` never firing, the chain
+stalled at the first `narrate()` call, the `cf-opt--reveal` class
+never landed, and the test waiter timed out at its 15-second cap.
+
+*Fix (two-pronged for defence-in-depth):*
+
+(a) **Page-side watchdog.** `narrate()` now wires a length-based
+watchdog `setTimeout` alongside the `utterance.onend` callback;
+whichever fires first wins, a `fired` boolean prevents the wrapped
+`onEnd` from running twice. The watchdog duration is
+`Math.max(800, text.length * 100 + 600)` — generous enough that real
+browsers with real audio always fire `onend` long before the
+watchdog (so the watchdog is a no-op in production), but tight
+enough that headless / no-TTS paths fall through within a few
+seconds. This is also a real production-hardening win independent
+of the test fix: real users hit `onend` flakiness on Safari (when
+the page is backgrounded mid-utterance), on Android with TTS
+disabled, and on Linux desktops where speech-dispatcher isn't
+configured. The watchdog's a candidate to lift into `lib/speech.ts`
+itself if any other game's tests run into the same fragility —
+would be a one-function change there.
+
+(b) **Test-side mute.** `tests/addition.spec.ts` `beforeEach` now
+explicitly writes `kids_settings_v1` with `sound: false`, then
+reloads the page so the script picks up the muted settings on
+first run. `narrate()` then takes its silent-mode early-return
+path (`if (!isSpeechSupported() || !getSettings().sound) {
+setTimeout(onEnd, 600); return; }`) on every call, which is fully
+deterministic and CI-runner-independent. The tests don't depend on
+the watchdog; the watchdog is the production safety net, the mute
+is the test-determinism guarantee. Worst-case wrong-answer chain
+timing under mute is ~5.1s for sum=5 (one 600ms `rerun` narrate +
+five 600ms `count` narrates with 180ms gaps + one 600ms `rerunDone`
+narrate), well under the 15s test cap.
+
+**Verifications.**
+
+- *Live deploy post-push of `825181f`:* `Deploy to GitHub Pages`
+  badge reads `passing`. `Playwright tests` badge reads
+  **`passing`** — the goal. The live JS bundle at
+  `_astro/counting-friends-game.astro_astro_type_script_index_0_lang.CIth51Fg.js`
+  contains the string literals `cfStage` and `cfGroupA` (search:
+  `curl … | grep -c cfStage` returns 1, `… | grep -c cfGroupA`
+  returns 1) — those IDs are *only* referenced from
+  `readSSRRound()`, so this is a robust positive signal that the
+  new helper is in the live bundle even though function names
+  themselves are minified away. The live HTML at
+  `https://aakash-jain-1.github.io/kids-learning-games-astro/games/counting-friends-game.html`
+  serves `data-scene="orchard"` (matches the deterministic SSR seed
+  `() => 0.42` exactly, so we know the freshly-built page is what
+  GH Pages is serving, not a stale cache).
+- *Local pre-push:* `npm run check` 0/0/0 across **46 Astro files**
+  (unchanged — fix-only commit, no new files); `npm run build` **15
+  pages** built, precache **64 entries** (both unchanged).
+
+**Lesson for future test specs.** Any new spec that depends on (i)
+timed promise chains via `setTimeout`/`onend`, (ii) kickoff handlers
+that mutate DOM as a side effect of the first user gesture, or (iii)
+click-race scenarios where DOM mutation happens during event
+propagation, needs an extra round of "will headless Chromium without
+system services actually satisfy this dependency?" thinking before
+push. The right guards are: prefer reading runtime state from the
+DOM rather than re-generating it from a fresh session; always wire a
+fallback `setTimeout` alongside any callback that depends on a
+browser API firing reliably; test specs should mute or stub timing-
+dependent APIs deterministically rather than rely on whatever the CI
+runner happens to have configured.
+
+**No new standalone follow-up filed.** The follow-up queue stays at
+5: **T2.1** (promote Playwright to a hard deploy gate — would have
+caught this regression at push time rather than after deploy went
+green; 6 → 7 clean CI runs now), **T6** (Stats panel refactor),
+**T7** (404 page port), **T8** (SW-aware Playwright spec — the SW
+hotfix's would-have-caught-it follow-up), **T9** (pre-recorded MP3
+narration for Counting Friends). The watchdog pattern in `narrate()`
+is implicitly a candidate for **T9** to displace if pre-recorded
+audio lands, since pre-recorded MP3 playback uses standard
+`<audio>` element `ended` events which fire reliably across all
+browsers/runners — at that point the `narrate()` watchdog becomes
+defensive code for a code path that's no longer exercised.
 
 ### 2026-05-15 — feat(content): Counting Friends — first feature-driven game after the migration arc closed (preschool addition for ages 3–4)
 

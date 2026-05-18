@@ -142,6 +142,8 @@
   more to make 5?"). Full breakdown in PROGRESS.md changelog
   **2026-05-15**.
 
+- **Hotfix shipped same afternoon (2026-05-15 — `825181f`)**: **fix(counting-friends): make round 0 SSR-faithful + add `narrate()` watchdog so the test suite passes deterministically.** Caught by the post-push CI run on `1a66542` — the `Deploy to GitHub Pages` workflow went green but the `Playwright tests` workflow went red on every option-click test in the new `tests/addition.spec.ts`. Two independent root causes, both fixed in one commit. **Root cause 1 — `kickoff()` raced with click events.** The page kicked off the first round on the very first user gesture (`pointerdown`), and `startRound()` synchronously called `renderRound()` which mutated `optionsEl.innerHTML` — replacing the SSR'd numeral buttons with ones from a freshly-randomized JS session. When a user (or test) tapped an option button: `pointerdown` bubbled up to document → `kickoff()` → `startRound()` → `renderRound()` → DOM mutated → `click` then fired against an element that potentially wasn't in the DOM anymore, OR fired against a brand-new button whose `data-n` was from a different round than the SSR. The Playwright tests `await page.locator('#cfOptions .cf-opt[data-n="${expected}"]').click()` where `expected` was read from the SSR'd group counts — after the race, that selector either missed entirely or landed on a wrong-answer button. *Fix:* added `readSSRRound()` which reads round 0 directly from the SSR'd DOM (`data-scene` attribute, `#cfGroupA` / `#cfGroupB` item counts, option `data-n` attributes); the JS session now starts as `[readSSRRound(), ...generateSession().slice(1)]` so round 0 *is* the SSR'd content. The kickoff handler now only calls `speakIntroSequence()` on first interaction — no `renderRound()` until the user clicks Next, eliminating the race. Rounds 1..N are still JS-random as before. **Root cause 2 — `speechSynthesis.speak()` in headless Chromium fires `utterance.onend` unreliably** (no system TTS engine on most CI runners). The wrong-answer rerun chain depends on `onend` to step through the guided count: `narrate(rerun) → speakGuidedCount → narrate(N) → ... → narrate(rerunDone) → reveal`. With `onend` never firing, the chain stalled at the first `narrate()` call and `cf-opt--reveal` never landed within the 15-second test timeout. *Fix (defence-in-depth):* (a) `narrate()` now wires a length-based watchdog `setTimeout` alongside `speechSynthesis.onend` — whichever fires first wins, a `fired` flag prevents double-fire. Real browsers with real audio fire `onend` long before the watchdog; headless / no-TTS environments fall through to the watchdog and the round still progresses. This is also a real production-hardening win (Safari interruption edge cases + Android TTS-disabled). (b) `tests/addition.spec.ts` `beforeEach` now explicitly mutes `kids_settings_v1.sound` and reloads the page; `narrate()` then takes its silent-mode `setTimeout(onEnd, 600)` fallback path on every call, fully deterministic and CI-runner-independent. **Verifications post-push:** `Deploy to GitHub Pages` badge `passing`; `Playwright tests` badge **`passing`** (the goal); live JS bundle at `_astro/counting-friends-game.astro_astro_type_script_index_0_lang.CIth51Fg.js` contains `cfStage` + `cfGroupA` literals (proves `readSSRRound` shipped); live SSR HTML serves `data-scene="orchard"` (matches the deterministic SSR seed exactly, proves the page is the freshly-built one). **Why this didn't surface locally pre-push:** I never ran Playwright locally during development — the corporate Zscaler proxy on this dev box prevents Playwright's local webServer from binding 127.0.0.1 reliably, so the convention has been to push and watch CI. The new `addition.spec.ts` was the first spec to exercise click→DOM-mutation timing and to depend on `speechSynthesis.onend` — both fragile, both invisible to a manual `npm run build && grep dist/...html`. *Lesson:* whenever a new spec depends on any of (timed promise chains via `onend`, kickoff handlers that mutate DOM, click-race scenarios), think one extra time about whether headless-Chromium-without-system-services will satisfy the dependency. Full ADR-style write-up under the PROGRESS.md changelog entry stamped **2026-05-15 (afternoon, hotfix)**.
+
 - **Shipped previous session (2026-05-12 — afternoon pivot)**:
   **Track 4 closure — cut-over cancelled, Astro URL is the
   permanent canonical (docs-only)**. Same-day reversal of this
@@ -2932,3 +2934,64 @@ is the 4th theme registered on `StoryLayout` (after `routines`,
 `woodcutter`, default-undefined); per rule #5, when a 5th
 non-story stage game lands we promote to a sister `StageLayout`
 shell.*
+
+*Updated 2026-05-15 (afternoon, hotfix) — **fix(counting-friends):
+make round 0 SSR-faithful + add `narrate()` watchdog so the test
+suite passes deterministically** (commit `825181f`). The post-push
+CI on `1a66542` (the feat commit) went red on every option-click
+test in `tests/addition.spec.ts`. Two independent root causes
+fused into one ship-blocker. **Bug 1: kickoff race.** The page
+kicked off round 0's narration on first `pointerdown`, and
+`startRound()` synchronously replaced `optionsEl.innerHTML` —
+so when a user (or test) tapped an option, `pointerdown` →
+`kickoff` → `renderRound` → DOM swap fired *before* the click
+event resolved, and the click landed on a brand-new button from
+a freshly-randomized JS session whose `data-n` no longer matched
+what the SSR had presented. Tests asserting `cf-opt--correct`
+on `data-n="${expected}"` (where `expected` came from counting
+SSR'd group items) failed because the click went to a different
+button. *Fix:* added `readSSRRound()` to seed JS round 0 directly
+from the SSR'd DOM (data-scene, #cfGroupA/B item counts, option
+`data-n` reads); kickoff now only calls `speakIntroSequence()`
+without re-rendering. Rounds 1..N still JS-random. **Bug 2:
+unreliable `speechSynthesis.onend` in headless Chromium.** The
+errorless wrong-answer rerun chain (`narrate(rerun) →
+speakGuidedCount → narrate(N) → … → narrate(rerunDone) →
+reveal`) depends on each `narrate()` call's `onend` callback to
+advance to the next step. Headless Chromium doesn't reliably
+fire `onend` (no system TTS on CI runners), so the chain stalled
+indefinitely on the first call. *Fix (two-pronged):* (a) page-
+side, `narrate()` now wires a length-based watchdog
+`setTimeout` alongside `utterance.onend`; whichever fires first
+wins, a `fired` flag prevents double-fire. Real browsers fire
+onend long before the watchdog (no-op in production) but
+headless and TTS-disabled paths fall through deterministically.
+(b) test-side, `tests/addition.spec.ts` `beforeEach` mutes
+`kids_settings_v1.sound`, then reloads — `narrate()` takes its
+silent-mode `setTimeout(onEnd, 600)` fallback on every call,
+fully deterministic, no dependence on speech engine *or*
+watchdog. **Live deploy verifications post-push:** `Deploy to
+GitHub Pages` badge `passing`; `Playwright tests` badge
+**`passing`** (the goal); the live JS bundle
+(`counting-friends-game.astro_astro_type_script_index_0_lang.CIth51Fg.js`)
+contains `cfStage` + `cfGroupA` string literals (only referenced
+from `readSSRRound`, so this proves the new helper shipped); live
+HTML serves `data-scene="orchard"` matching the deterministic SSR
+seed exactly. **Local verifications:** `npm run check` 0/0/0
+across 46 Astro files (unchanged); `npm run build` 15 pages,
+precache 64 entries (unchanged — this commit is small fix-only
+JS, no new files). **Why this didn't surface locally:** the dev
+box's corporate Zscaler proxy prevents Playwright's local
+webServer from binding 127.0.0.1 reliably, so the convention is
+push-and-watch-CI; the new `addition.spec.ts` was the first
+spec to depend on (i) click→DOM-mutation timing, (ii)
+`speechSynthesis.onend` resolving — neither inspectable from
+`npm run build && grep dist/`. **Lesson going forward:** any
+new spec that depends on timed-promise chains, kickoff handlers
+that mutate DOM, or click-race scenarios needs an extra round
+of "will headless Chromium without system services satisfy
+this?" thinking before push. The watchdog pattern in
+`narrate()` is now a candidate to lift into `lib/speech.ts`
+itself if any other game's tests run into the same fragility —
+it'd be a one-function change there. **No new follow-up filed.**
+The standalone follow-up queue stays at 5 (T2.1, T6, T7, T8, T9).*
