@@ -210,7 +210,7 @@ or (b) document a one-off exception.
 
 ## What still needs doing
 
-> **▶ Resume here next session:** the **migration is complete (13/13)** as of 2026-05-08; **Tracks 1, 2, 3, and 4 of post-migration polish are all closed** as of 2026-05-12; **the project is now in its feature-driven phase.** **First feature-driven game shipped 2026-05-15: Counting Friends — preschool addition for ages 3–4 (8 single-scene rounds per session, two groups of friendly objects, errorless answer flow, 4 themes — Pond/Orchard/Sea/Garden).** Triggered by a direct user request ("game for addition, simple addition for 3 year old boy"); design + research grounded in 2025 RCT findings on cardinality instruction (Springer), preschool-math best practices (five-frames before ten-frames, counting-all not counting-on, story-context addition), and shipping-app patterns (Endless Numbers, Khan Academy Kids — self-paced, no scoring, no failures). Shipped on `StoryLayout` with a new `'addition'` theme key (Option B from the research canvas — Option C `StageLayout` carve held until a second non-story stage game appears). 14 games total now. Track 1: 11 of 11 non-story games wired with `mountQuiz` (closed 2026-05-11). Track 2: 47-test Playwright smoke suite + soft-gate CI (closed 2026-05-11; **5 clean CI runs** on `main` — Track 2 push, Track 3 feat + docs, Track 4 Phase 1+2 feat + docs — so the T2.1 follow-up to promote Playwright to a hard deploy gate is now unblocked; one-line tweak adds `needs: test` to the `build` job in `.github/workflows/deploy.yml`). Track 3: Option C unified `DeckLayout` decided NO-GO with full ADR-style rationale captured under "Rough order of payoff → 5"; productive smaller win — `<GameControls />` extracted from 13 game pages (closed 2026-05-11). Track 4: cut-over plan **closed 2026-05-12 with the cut-over cancelled** — full ADR-style rationale captured under "Rough order of payoff → 6". **Decision: cut-over cancelled, Astro stays at `https://aakash-jain-1.github.io/kids-learning-games-astro/` as the permanent canonical URL; the vanilla `kids-learning-games` repo stays live independently as a legacy app, no cross-repo writes.** The morning's session of 2026-05-12 had shipped Phase 1 (decision: Option A — Astro takes over the vanilla URL) + Phase 2 (groundwork code: SW rename, 4 redirect aliases, offline-fallback bug fix) and queued Phase 3 (URL flip + cross-repo deploy) for the next session pending user OK. The afternoon pivot reversed Phase 1's decision and cancelled Phase 3 entirely; Track 4 closes here. The Phase 2 code changes stay in the codebase (all three are independently fine — see "Rough order of payoff → 6" → "Pivot 2026-05-12 (afternoon)" callout for the reversal rationale). **Next session: no queued track.** **Smaller follow-ups available, all standalone:** (T2.1) promote Playwright to a hard deploy gate by adding `needs: test` to the `build` job in `.github/workflows/deploy.yml` (one-line tweak; threshold met); (T6) consider whether the Stats panel (currently `alert(…)` aggregations across every game) deserves a dedicated `/stats` page or per-page Stats modal — Playwright now locks the existing alert-shape behaviour in by tests, so this is safe to refactor when ready; (T7) port the vanilla `404.html` to Astro (currently `dist/` doesn't emit a 404 — GH Pages would 404 raw for missing paths, which the vanilla site avoided with a friendly "Go Home" page); (T8) add an SW-aware Playwright spec (`tests/sw.spec.ts`) that runs with `serviceWorkers: 'allow'` and asserts the SW serves real precached pages on the happy path and the offline page only when network fails — would have caught the `NavigationRoute` regression that landed on 2026-05-12 between commits `d33db11` (Phase 2) and `fce0380` (the hotfix); (T9, **new — filed by the Counting Friends ship**) v2 polish for Counting Friends — replace Web Speech API with pre-recorded MP3 narration in a kid-friendly voice (warmer for the actual 3yo user; ~2–3 hr of recording/encoding + a small narration-asset registry; defer until v1 retention is validated). **Live regression context (2026-05-12):** the Phase 2 SW-install fix unmasked a latent `NavigationRoute(createHandlerBoundToURL('offline'))` bug that served the offline page on every navigation; hotfix `fce0380` replaced `NavigationRoute` with `setCatchHandler`, deploy verified live (badge `passing`, home returns 200 with HTML, SW has 0 NavigationRoute references and 1 setCatchHandler call). All five follow-ups are small (~15 min – 3 hr of work each) and safe to defer. **Or pick a new feature game** — Counting Friends established the feature-driven pattern; Magnitude Comparison ("which group has more?") and Number Bond Pop ("how many more to make 5?") are earmarked as natural follow-up sister games that would reuse most of `addition.css`. **Same-day hotfix shipped 2026-05-15 afternoon (commit `825181f`):** the post-push CI on the Counting Friends feat (`1a66542`) went red on every option-click test in `tests/addition.spec.ts` (deploy stayed green — soft gate). Two independent root causes: (1) the page's first-gesture `kickoff()` handler synchronously called `renderRound()` which mutated `optionsEl.innerHTML`, racing every `pointerdown → click` sequence and replacing the SSR'd numeral buttons with ones from a freshly-randomized JS session before the click could resolve — fixed by adding `readSSRRound()` to seed JS round 0 directly from the SSR'd DOM (data-scene + #cfGroupA/B item counts + option `data-n` reads), and changing `kickoff` to only fire `speakIntroSequence()` without re-rendering; (2) `speechSynthesis.speak()` in headless Chromium (no system TTS engine on CI runners) doesn't reliably fire `utterance.onend`, stalling the wrong-answer rerun chain `narrate(rerun) → speakGuidedCount → narrate(rerunDone) → reveal` — fixed by adding a length-based watchdog `setTimeout` to `narrate()` (real browsers fire onend long before the watchdog so it's a no-op in production; headless and TTS-disabled paths fall through deterministically) and by muting `kids_settings_v1.sound` in the test `beforeEach` (deterministic silent-mode path, no dependence on speech engine *or* watchdog). Live deploy post-push: `Deploy to GitHub Pages` `passing`, `Playwright tests` **`passing`**, live JS bundle contains `cfStage` + `cfGroupA` literals (proves `readSSRRound` shipped). Full ADR under "Changelog → 2026-05-15 (afternoon, hotfix)" below.
+> **▶ Resume here next session:** the **migration is complete (13/13)** as of 2026-05-08; **Tracks 1, 2, 3, and 4 of post-migration polish are all closed** as of 2026-05-12; **the project is now in its feature-driven phase.** **First feature-driven game shipped 2026-05-15: Counting Friends — preschool addition for ages 3–4 (8 single-scene rounds per session, two groups of friendly objects, errorless answer flow, 4 themes — Pond/Orchard/Sea/Garden).** Triggered by a direct user request ("game for addition, simple addition for 3 year old boy"); design + research grounded in 2025 RCT findings on cardinality instruction (Springer), preschool-math best practices (five-frames before ten-frames, counting-all not counting-on, story-context addition), and shipping-app patterns (Endless Numbers, Khan Academy Kids — self-paced, no scoring, no failures). Shipped on `StoryLayout` with a new `'addition'` theme key (Option B from the research canvas — Option C `StageLayout` carve held until a second non-story stage game appears). 14 games total now. Track 1: 11 of 11 non-story games wired with `mountQuiz` (closed 2026-05-11). Track 2: 47-test Playwright smoke suite + soft-gate CI (closed 2026-05-11; **5 clean CI runs** on `main` — Track 2 push, Track 3 feat + docs, Track 4 Phase 1+2 feat + docs — so the T2.1 follow-up to promote Playwright to a hard deploy gate is now unblocked; one-line tweak adds `needs: test` to the `build` job in `.github/workflows/deploy.yml`). Track 3: Option C unified `DeckLayout` decided NO-GO with full ADR-style rationale captured under "Rough order of payoff → 5"; productive smaller win — `<GameControls />` extracted from 13 game pages (closed 2026-05-11). Track 4: cut-over plan **closed 2026-05-12 with the cut-over cancelled** — full ADR-style rationale captured under "Rough order of payoff → 6". **Decision: cut-over cancelled, Astro stays at `https://aakash-jain-1.github.io/kids-learning-games-astro/` as the permanent canonical URL; the vanilla `kids-learning-games` repo stays live independently as a legacy app, no cross-repo writes.** The morning's session of 2026-05-12 had shipped Phase 1 (decision: Option A — Astro takes over the vanilla URL) + Phase 2 (groundwork code: SW rename, 4 redirect aliases, offline-fallback bug fix) and queued Phase 3 (URL flip + cross-repo deploy) for the next session pending user OK. The afternoon pivot reversed Phase 1's decision and cancelled Phase 3 entirely; Track 4 closes here. The Phase 2 code changes stay in the codebase (all three are independently fine — see "Rough order of payoff → 6" → "Pivot 2026-05-12 (afternoon)" callout for the reversal rationale). **Next session: no queued track.** **Smaller follow-ups available, all standalone (queue: 4 — T2.1 closed 2026-05-18 via `workflow_run` chain in `deploy.yml`, NOT the originally-planned `needs: test` one-line tweak — see "Changelog → 2026-05-18" for why; the remaining four are):** (T6) consider whether the Stats panel (currently `alert(…)` aggregations across every game) deserves a dedicated `/stats` page or per-page Stats modal — Playwright now locks the existing alert-shape behaviour in by tests, so this is safe to refactor when ready; (T7) port the vanilla `404.html` to Astro (currently `dist/` doesn't emit a 404 — GH Pages would 404 raw for missing paths, which the vanilla site avoided with a friendly "Go Home" page); (T8) add an SW-aware Playwright spec (`tests/sw.spec.ts`) that runs with `serviceWorkers: 'allow'` and asserts the SW serves real precached pages on the happy path and the offline page only when network fails — would have caught the `NavigationRoute` regression that landed on 2026-05-12 between commits `d33db11` (Phase 2) and `fce0380` (the hotfix); (T9, **new — filed by the Counting Friends ship**) v2 polish for Counting Friends — replace Web Speech API with pre-recorded MP3 narration in a kid-friendly voice (warmer for the actual 3yo user; ~2–3 hr of recording/encoding + a small narration-asset registry; defer until v1 retention is validated). **Live regression context (2026-05-12):** the Phase 2 SW-install fix unmasked a latent `NavigationRoute(createHandlerBoundToURL('offline'))` bug that served the offline page on every navigation; hotfix `fce0380` replaced `NavigationRoute` with `setCatchHandler`, deploy verified live (badge `passing`, home returns 200 with HTML, SW has 0 NavigationRoute references and 1 setCatchHandler call). All five follow-ups are small (~15 min – 3 hr of work each) and safe to defer. **Or pick a new feature game** — Counting Friends established the feature-driven pattern; Magnitude Comparison ("which group has more?") and Number Bond Pop ("how many more to make 5?") are earmarked as natural follow-up sister games that would reuse most of `addition.css`. **Same-day hotfix shipped 2026-05-15 afternoon (commit `825181f`):** the post-push CI on the Counting Friends feat (`1a66542`) went red on every option-click test in `tests/addition.spec.ts` (deploy stayed green — soft gate). Two independent root causes: (1) the page's first-gesture `kickoff()` handler synchronously called `renderRound()` which mutated `optionsEl.innerHTML`, racing every `pointerdown → click` sequence and replacing the SSR'd numeral buttons with ones from a freshly-randomized JS session before the click could resolve — fixed by adding `readSSRRound()` to seed JS round 0 directly from the SSR'd DOM (data-scene + #cfGroupA/B item counts + option `data-n` reads), and changing `kickoff` to only fire `speakIntroSequence()` without re-rendering; (2) `speechSynthesis.speak()` in headless Chromium (no system TTS engine on CI runners) doesn't reliably fire `utterance.onend`, stalling the wrong-answer rerun chain `narrate(rerun) → speakGuidedCount → narrate(rerunDone) → reveal` — fixed by adding a length-based watchdog `setTimeout` to `narrate()` (real browsers fire onend long before the watchdog so it's a no-op in production; headless and TTS-disabled paths fall through deterministically) and by muting `kids_settings_v1.sound` in the test `beforeEach` (deterministic silent-mode path, no dependence on speech engine *or* watchdog). Live deploy post-push: `Deploy to GitHub Pages` `passing`, `Playwright tests` **`passing`**, live JS bundle contains `cfStage` + `cfGroupA` literals (proves `readSSRRound` shipped). Full ADR under "Changelog → 2026-05-15 (afternoon, hotfix)" below.
 
 **Build is clean:** 15 pages built on a clean rebuild, `npm run check` 0 errors / 0 warnings / 0 hints across **46 Astro files**, all chunk-dedup invariants still verified at the bundle level (quiz **13-way**, progress 8-way, fluent 6-way, achievements 13-way, layout pre-paint 3-way), precache **64 entries** (the +4 redirect HTMLs at the legacy vanilla paths from Phase 2 stay in dist as harmless robustness aliases — see the pivot callout for why they stay; the Counting Friends ship adds page HTML + page-specific JS chunk + new addition.css + a Vite re-emitted shared chunk for another +4).
 
@@ -416,6 +416,128 @@ before deciding.
 ---
 
 ## Changelog
+
+### 2026-05-18 — ci(deploy): promote Playwright to a hard deploy gate via workflow_run chain (closes T2.1)
+
+Closes one of the five standalone follow-ups queued under the
+"Rough order of payoff" section. Triggered by the Counting Friends
+ship sequence on 2026-05-15: commit `1a66542` (the feat) deployed
+green to GitHub Pages even though the new Playwright spec
+(`tests/addition.spec.ts`) was failing on every option-click test.
+The live site briefly served a half-broken game (round 0 narration
+stalled, wrong-answer rerun never advanced) until the hotfix in
+`825181f` landed. That window — green-deploy-while-tests-red —
+was the exact failure mode T2.1 was filed to prevent, and shipping
+the hotfix made the cost concrete enough to prioritize closing
+this one over picking another feature game.
+
+**The "one line" claim was inaccurate.** The original `test.yml`
+header comment said *"Bumping this to a hard gate is one line: add
+`needs: test` to the `build` job in `deploy.yml`."* That doesn't
+work — `needs:` only chains jobs *within* the same workflow file,
+not across workflows. Two real options were on the table:
+
+1. **Merge the test job into `deploy.yml`.** Pros: simplest mental
+   model ("one workflow runs the full CI pipeline"); zero risk of
+   `workflow_run` misconfig. Cons: ~30 lines of YAML duplicated
+   between `deploy.yml` and `test.yml` (or test.yml has to become
+   PR-only, which would stop updating the `Playwright tests` badge
+   on direct pushes to main — bad signal); test runs twice on
+   every main push.
+2. **Chain workflows via `workflow_run`.** Pros: zero duplication;
+   both badges (`Playwright tests` + `Deploy to GitHub Pages`)
+   stay independently meaningful; canonical "deploy after CI"
+   pattern. Cons: trickier semantics — `workflow_run` runs in the
+   default-branch's workflow-file context, not the head-SHA's
+   context, so `actions/checkout` needs an explicit
+   `ref: ${{ github.event.workflow_run.head_sha }}` or it'd
+   deploy whatever's currently on `main` rather than the SHA the
+   tests passed against.
+
+Picked **option 2 (workflow_run chain)** because the duplication of
+option 1 was a real cost (drift risk over time) while the
+trickiness of option 2 was a one-time documentation cost. The
+gotchas are spelled out in the new `deploy.yml` header so the
+next person who touches the file doesn't need to rederive them.
+
+**The shipped change** to `deploy.yml`:
+
+- Trigger swapped from `push: { branches: [main] }` to
+  `workflow_run: { workflows: ['Playwright tests'], branches:
+  [main], types: [completed] }`. This means deploy.yml now
+  triggers on the *event* of test.yml completing on main,
+  regardless of whether tests passed or failed (the `completed`
+  event fires for success / failure / cancelled alike). The
+  filter to "only on success" is added at the job level, not the
+  trigger level — see next bullet.
+- `if:` guard on the `build` job:
+  `${{ github.event_name == 'workflow_dispatch' ||
+  github.event.workflow_run.conclusion == 'success' }}`. This is
+  the actual hard gate. Without it, every test failure would
+  trigger an empty no-op deploy run that *also* showed green in
+  the badge (because the deploy job correctly skipped), giving
+  false confidence. The guard makes the deploy job *not start*
+  on test failure, so the deploy badge accurately reflects "did
+  we deploy in response to the latest test result?".
+- `actions/checkout` step pins `ref: ${{
+  github.event.workflow_run.head_sha || github.sha }}`. The
+  `head_sha` value is set when `workflow_run` triggers; the
+  fallback to `github.sha` covers the `workflow_dispatch`
+  manual-deploy escape hatch (where `workflow_run` doesn't exist
+  and `github.sha` is whatever's at HEAD on main).
+- `workflow_dispatch` retained as a manual escape hatch for
+  emergency deploys that need to bypass the gate (e.g. CI
+  infrastructure breaks but the live site needs a fix). Skipping
+  the gate is intentional and surfaces in the `if:` guard's
+  short-circuit.
+
+**The shipped change** to `test.yml` is documentation-only: the
+"Bumping this to a hard gate is one line" note is replaced with
+an accurate description of the now-shipped hard-gate behaviour,
+the date the gate closed, the failure-mode that triggered the
+promotion (the Counting Friends red-tests / green-deploy
+incident), and the explicit note that `workflow_dispatch` is
+still available as an emergency manual-deploy escape hatch.
+
+**Side effects on the development model.** Three things shift for
+future commits:
+
+1. **Push-and-watch becomes a 2-stage gate.** test.yml runs
+   first; on success deploy.yml triggers. Total wall time for
+   "push → live" goes up by approximately the deploy.yml
+   duration that previously ran in parallel with test.yml. In
+   practice both are ~60–90s so total is ~3 min instead of ~90s.
+   Acceptable cost for the safety guarantee.
+2. **PRs still get test feedback.** test.yml still runs on
+   `pull_request: [main]`. Deploy doesn't trigger from PRs (the
+   `branches: [main]` filter on workflow_run skips them).
+3. **The CI badge dance changes.** Previously both badges
+   updated independently per push. Now `Deploy to GitHub Pages`
+   only updates after `Playwright tests` passes. A test-failure
+   commit will leave the deploy badge stale (showing the
+   previous successful deploy's status). That's intentional and
+   correct — the deploy badge should reflect "is the live site
+   serving a tested commit?", not "did the latest CI infra
+   attempt succeed?".
+
+**Verifications post-push** (live deploy of this commit):
+
+- `Deploy to GitHub Pages` badge → status check pending
+  immediately after push (since deploy.yml waits for test.yml's
+  completion); transitions to `passing` after the chain
+  completes.
+- `Playwright tests` badge → `passing` (unchanged behaviour).
+- Live URL serves the new commit (verifiable via the small SHA
+  fingerprint in the BuildInfo footer that already exists, or
+  via the `_astro/*.js` chunk hash difference).
+
+**No new follow-up filed.** Queue moves from 5 → 4: **T6** (Stats
+panel refactor), **T7** (404 page port), **T8** (SW-aware
+Playwright spec — `serviceWorkers: 'allow'`, would have caught
+the 2026-05-12 NavigationRoute regression), **T9** (pre-recorded
+MP3 narration for Counting Friends — defer until v1 retention is
+validated with the actual 3yo user). All four remain small,
+independent, defer-safe.
 
 ### 2026-05-15 (afternoon, hotfix) — fix(counting-friends): make round 0 SSR-faithful + add narrate() watchdog so the test suite passes deterministically
 

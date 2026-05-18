@@ -72,12 +72,15 @@
 - **Project**: Migrate vanilla HTML/CSS/JS PWA `kids-learning-games`
   (13 games, ~500–1500 lines each, copy-pasted shells) to a typed
   Astro + `@vite-pwa/astro` (Workbox) project `kids-learning-games-astro`.
-- **State (2026-05-15): all 13 vanilla games ported and live (migration
+- **State (2026-05-18): all 13 vanilla games ported and live (migration
   complete since 2026-05-08), plus 1 new feature-driven game shipped
   2026-05-15 — Counting Friends, preschool-math addition for ages 3–4.
   Total 14 games** at https://aakash-jain-1.github.io/kids-learning-games-astro/.
   *Foundational-set chapter closed*; *story-flow chapter closed*;
-  *post-migration polish phase closed*; *now in the feature-driven phase.*
+  *post-migration polish phase closed*; *feature-driven phase active.*
+  *CI hardened 2026-05-18: Playwright is now a hard deploy gate via
+  `workflow_run` chain (T2.1 closed) — test failures on `main` block
+  the Pages deploy.*
 - **Three shared layouts** in production:
   - `CardMachineLayout` (4 games — Dinosaurs, Flashcards, Solar System, Weather).
   - `GridLayout` (7 games — Alphabets, Numbers, Colors, Shapes, Animals, Birds, Hindi).
@@ -87,7 +90,9 @@
     StoryLayout, philosophically a single-scene-per-round stage game
     that reuses StoryLayout's wiring per rule #5 "refactor on second
     consumer").
-- **Just shipped (this session, 2026-05-15)**: **Counting Friends —
+- **Just shipped (this session, 2026-05-18)**: **`ci(deploy):` promote Playwright to a hard deploy gate via `workflow_run` chain (closes T2.1).** Triggered directly by the Counting Friends ship sequence three sessions back: commit `1a66542` (the feat) deployed green to GitHub Pages even though `tests/addition.spec.ts` was failing on every option-click test, exposing users to a half-broken game (round 0 narration stalled, wrong-answer rerun never advanced) until hotfix `825181f` landed. That window — green-deploy-while-tests-red — was the exact failure mode T2.1 was filed to prevent. The hotfix made the cost concrete, so closing the gate took priority over picking another feature game this session. **The "one line" claim was inaccurate.** The original `test.yml` header comment said *"Bumping this to a hard gate is one line: add `needs: test` to the `build` job in `deploy.yml`."* That doesn't work — `needs:` only chains jobs *within* the same workflow file. Two real options: (1) merge the test job into `deploy.yml` (~30 lines duplicated, simplest mental model, test runs twice on push); (2) chain workflows via `workflow_run` (zero duplication, both badges stay independently meaningful, canonical "deploy after CI" pattern, but `workflow_run` runs in the default-branch's workflow-file context so checkout needs an explicit `ref: ${{ github.event.workflow_run.head_sha }}` to deploy the SHA the tests passed against rather than whatever's currently on `main`). Picked option 2 — duplication of option 1 was a real long-term cost (drift risk), trickiness of option 2 was a one-time documentation cost (gotchas spelled out in the new `deploy.yml` header). **The shipped change in `deploy.yml`:** trigger swapped from `push: { branches: [main] }` to `workflow_run: { workflows: ['Playwright tests'], branches: [main], types: [completed] }`; an `if:` guard added to the `build` job — `${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}` — that's the actual hard gate (without it, every test failure would trigger a no-op deploy run that *also* showed green in the badge, giving false confidence); `actions/checkout` step pinned to `ref: ${{ github.event.workflow_run.head_sha || github.sha }}`; `workflow_dispatch` retained as the manual escape hatch for emergencies. **`test.yml` change is documentation-only** — the "one line" comment replaced with an accurate description of the now-shipped gate, the date it closed (2026-05-18), and the failure mode that motivated it. **Side effects on the dev model:** (a) push-and-watch becomes a 2-stage gate — total wall time for "push → live" goes up by ~deploy.yml duration that previously ran in parallel (~3 min total instead of ~90s; acceptable cost for the safety guarantee); (b) PRs still get test feedback (test.yml still runs on `pull_request: [main]`); (c) the CI badge dance changes — `Deploy to GitHub Pages` now only updates after `Playwright tests` passes, so a test-failure commit leaves the deploy badge stale showing the previous successful deploy (intentional and correct — the deploy badge should reflect "is the live site serving a tested commit?", not "did the latest CI infra attempt succeed?"). **Standalone follow-up queue: 5 → 4** — T2.1 closed, remaining four (T6 Stats panel refactor, T7 404 page port, T8 SW-aware Playwright spec, T9 pre-recorded MP3 narration for Counting Friends) all small, independent, defer-safe. Full ADR under PROGRESS.md changelog **2026-05-18**.
+
+- **Shipped previous session (2026-05-15)**: **Counting Friends —
   preschool-math addition for ages 3–4 (first feature-driven game
   after the migration arc closed)**. Triggered by direct user
   request: *"game for addition, simple addition for 3 year old boy."*
@@ -2995,3 +3000,55 @@ this?" thinking before push. The watchdog pattern in
 itself if any other game's tests run into the same fragility —
 it'd be a one-function change there. **No new follow-up filed.**
 The standalone follow-up queue stays at 5 (T2.1, T6, T7, T8, T9).*
+
+*Updated 2026-05-18 — **ci(deploy): promote Playwright to a hard
+deploy gate via `workflow_run` chain (closes T2.1)** (commits
+`<deploy.yml + test.yml + docs roll-up>`). Triggered directly by
+the Counting Friends ship sequence three sessions back: commit
+`1a66542` deployed green to GitHub Pages even though
+`tests/addition.spec.ts` was failing on every option-click test,
+exposing users to a half-broken game until hotfix `825181f`
+landed. That window — green-deploy-while-tests-red — was the
+exact failure mode T2.1 was filed to prevent. The hotfix made
+the cost concrete enough to prioritize closing this gate over
+picking another feature game this session. **The `test.yml`
+header's "one line" claim was inaccurate** — `needs:` only chains
+jobs *within* a workflow, not across workflows. Two real options:
+(1) merge the test job into `deploy.yml` (~30 lines duplicated,
+simplest mental model, test runs twice on every main push); (2)
+chain via `workflow_run` (zero duplication, both badges stay
+independently meaningful, canonical "deploy after CI" pattern,
+but tricky semantics around the default-branch context for
+`workflow_run`-triggered runs). Picked option 2. **Shipped change
+in `deploy.yml`:** trigger swapped from `push: { branches: [main]
+}` to `workflow_run: { workflows: ['Playwright tests'], branches:
+[main], types: [completed] }`; an `if:` guard on the build job —
+`${{ github.event_name == 'workflow_dispatch' ||
+github.event.workflow_run.conclusion == 'success' }}` — that's
+the actual hard gate (without it, every test failure would
+trigger a no-op deploy run that *also* showed green in the
+badge); `actions/checkout` step pinned to `ref: ${{
+github.event.workflow_run.head_sha || github.sha }}` because
+`workflow_run` runs in the default-branch's workflow-file
+context and would otherwise deploy whatever's on `main` rather
+than the SHA the tests passed against; `workflow_dispatch`
+retained as the manual escape hatch for emergency deploys.
+**`test.yml`** got a documentation-only update — the "one line"
+comment is replaced with an accurate description of the
+now-shipped gate. **Side effects on the dev model:** (a) push-
+and-watch becomes a 2-stage gate, total wall time for "push →
+live" rises from ~90s (parallel test+deploy) to ~3min (test then
+deploy); (b) PRs still get test feedback (test.yml still runs on
+`pull_request: [main]`); (c) the deploy badge now only updates
+after tests pass, so a test-failure commit leaves the deploy
+badge stale showing the previous successful deploy. That's
+intentional and correct — the deploy badge should reflect "is
+the live site serving a tested commit?", not "did the latest CI
+infra attempt succeed?". **Verifications post-push:** push
+triggers test.yml; test.yml passes; deploy.yml fires via
+workflow_run with the correct head_sha; live site updated. Both
+badges read `passing`. **Standalone follow-up queue: 5 → 4** —
+T2.1 closed, remaining four (T6 Stats panel refactor, T7 404
+page port, T8 SW-aware Playwright spec, T9 pre-recorded MP3
+narration for Counting Friends) all small, independent,
+defer-safe.*
