@@ -595,6 +595,32 @@ CI on the live deploy.
   count 14 → 15, second feature-driven game documented; full ADR
   here in the changelog).
 
+**Same-day post-push test fix (commit `56212d5`).** The
+`feat(comparison)` push (`cde2833`) and the docs follow-up
+(`8325ede`) both landed locally green — `npm run check` 0/0/0,
+`npm run build` succeeded, all expected SSR markers in the built HTML
+— but CI went red on both badges within ~3 min of the push. Without
+GitHub API access (corp Zscaler 403s authenticated calls), the only
+diagnostic was reasoning about likely failure modes. Root cause:
+**the new More Friends home-card description ("Companion to Counting
+Friends — …") collided with the existing
+`tests/addition.spec.ts` home-page test**, which filtered home cards
+by `hasText: 'Counting Friends'`. That substring filter started
+matching 2 cards (the Counting Friends card AND the More Friends
+card whose own description mentions it), so `toHaveCount(1)`
+failed. Fixed in `56212d5` by switching both home-card assertions
+to href-based selectors (`a.home-card[href*="counting-friends-game"]`
+and `…magnitude-comparison-game`) — unique by construction, stable
+against future cards mentioning sibling-game titles in copy. The CI
+gate validated the fix in the next iteration: both badges back to
+`passing`, deploy completed, live URL serves the new game (HTTP 200,
+all 5 expected SSR markers present including the seed-0.42
+`data-scene="orchard"` and `data-theme="comparison"`). **Lesson for
+the next contributor adding a kid-game whose description references
+a sibling game: prefer href-based home-card selectors over
+hasText.** The pattern is now established in both preschool-math
+suites.
+
 **What's left in the queue after this ship.** Three standalone follow-
 ups (was four — Counting Friends's T9 narration follow-up still
 deferred, awaiting v1 retention validation):
