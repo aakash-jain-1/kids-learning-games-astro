@@ -30,6 +30,17 @@ name: Deploy to GitHub Pages
 #      escape hatch (deploys whatever's on main); it skips the
 #      conclusion guard via the `event_name == 'workflow_dispatch'`
 #      branch.
+#   4. **The very first push that introduces a `workflow_run` trigger
+#      DOES NOT fire it.** Verified empirically when this gate
+#      shipped (commits `dccf36d` + `8428ae3`): test.yml ran for
+#      `8428ae3` and passed, but `workflow_run` did not fire
+#      deploy.yml because GitHub's internal trigger registry hadn't
+#      yet indexed the new trigger when test.yml started. The next
+#      push (with the new deploy.yml already on main) fired the
+#      chain correctly. Future pushes are unaffected — this is a
+#      one-time race at trigger introduction. If you rename the
+#      `Playwright tests` workflow or add a new chained trigger
+#      somewhere else, expect the same one-push warm-up.
 
 on:
   workflow_run:
