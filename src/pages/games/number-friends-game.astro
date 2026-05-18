@@ -1,0 +1,603 @@
+---
+import StoryLayout from '@/layouts/StoryLayout.astro';
+import GameControls from '@/components/GameControls.astro';
+import '@/styles/numberfriends.css';
+
+import { generateSession } from '@/data/numberfriends';
+import { THEME_BY_KEY, numberWord } from '@/lib/preschool-themes';
+
+const title = 'Number Friends — Kids Learning Games';
+const description =
+  'A gentle numeral-recognition game for ages 3–4. A numeral appears at the top; tap the group of friendly objects that has that many. Audio narration, no scoring, no failures. Companion game to Counting Friends and More Friends.';
+
+// SSR a deterministic first round so the page never paints blank. The
+// page script reads round 0 directly from the SSR'd DOM (matching
+// pattern from Counting Friends + More Friends — see those pages for
+// the kickoff-race rationale that motivated this approach), and
+// continues with random rounds 1..N after the user clicks Next.
+const SSR_FIRST_ROUND = generateSession(() => 0.42)[0]!;
+const ssrTheme = THEME_BY_KEY[SSR_FIRST_ROUND.theme];
+const ssrTargetWord = numberWord(SSR_FIRST_ROUND.target);
+const ssrTargetNoun =
+  SSR_FIRST_ROUND.target === 1 ? ssrTheme.singular : ssrTheme.plural;
+const ssrCaption = `Show me ${ssrTargetWord} ${ssrTargetNoun}!`;
+
+const TOTAL_ROUNDS = 8;
+---
+
+<StoryLayout
+  title={title}
+  description={description}
+  themeColor="#2e7d32"
+  theme="numberfriends"
+>
+  <main class="nf-shell" aria-label="Number Friends game">
+    <header class="nf-header">
+      <h1 class="nf-title">
+        <span aria-hidden="true">🔢</span>
+        <span>Number Friends</span>
+      </h1>
+
+      <div class="nf-header-right" style="display: flex; gap: 10px; align-items: center;">
+        <span
+          class="nf-progress-pill"
+          id="nfProgressPill"
+          aria-label={`Round 1 of ${TOTAL_ROUNDS}`}
+        >
+          <span id="nfProgressText">1 / {TOTAL_ROUNDS}</span>
+          <span class="nf-progress-bar" aria-hidden="true">
+            <span class="nf-progress-fill" id="nfProgressFill"></span>
+          </span>
+        </span>
+        <GameControls />
+      </div>
+    </header>
+
+    <section
+      class="nf-stage"
+      id="nfStage"
+      data-scene={SSR_FIRST_ROUND.theme}
+      aria-label="Number Friends scene"
+    >
+      <div
+        class="nf-target"
+        id="nfTarget"
+        data-target={SSR_FIRST_ROUND.target}
+        aria-label={`Find ${SSR_FIRST_ROUND.target} ${ssrTargetNoun}`}
+      >
+        <span class="nf-target-prompt" aria-hidden="true">Show me</span>
+        <span
+          class="nf-target-digit"
+          id="nfTargetDigit"
+          aria-hidden="true"
+        >
+          {SSR_FIRST_ROUND.target}
+        </span>
+        <span class="nf-target-frame" id="nfTargetFrame" aria-hidden="true">
+          {
+            Array.from({ length: 5 }, (_, i) => (
+              <span
+                class={`nf-target-dot${i < SSR_FIRST_ROUND.target ? ' nf-target-dot--filled' : ''}`}
+              />
+            ))
+          }
+        </span>
+      </div>
+
+      <div
+        class="nf-caption"
+        id="nfCaption"
+        role="status"
+        aria-live="polite"
+      >
+        {ssrCaption}
+      </div>
+
+      <div class="nf-groups" aria-label="Three groups of friends — tap the one that matches the number">
+        {
+          SSR_FIRST_ROUND.sizes.map((size, idx) => (
+            <button
+              type="button"
+              class="nf-group"
+              id={`nfGroup${idx}`}
+              data-i={idx}
+              data-size={size}
+              aria-label={`Group ${idx + 1} — ${size} ${
+                size === 1 ? ssrTheme.singular : ssrTheme.plural
+              } — tap if this group matches`}
+            >
+              {Array.from({ length: size }, (_, i) => (
+                <span
+                  class="nf-item"
+                  style={`--nf-i: ${i * 0.1}s`}
+                  aria-hidden="true"
+                >
+                  {ssrTheme.emoji}
+                </span>
+              ))}
+            </button>
+          ))
+        }
+      </div>
+    </section>
+
+    <footer class="nf-footer">
+      <button type="button" class="nf-action" id="nfReplayBtn" aria-label="Replay this round's narration">
+        🔊 Replay
+      </button>
+      <button type="button" class="nf-action nf-action--primary" id="nfNextBtn" aria-label="Next round" disabled>
+        Next round →
+      </button>
+    </footer>
+
+    <div class="nf-done" id="nfDone" role="dialog" aria-live="polite" aria-labelledby="nfDoneTitle">
+      <div class="nf-done-card">
+        <div class="nf-done-emoji" aria-hidden="true">🌟</div>
+        <h2 class="nf-done-title" id="nfDoneTitle">Number champion!</h2>
+        <p class="nf-done-text" id="nfDoneText">
+          You found {TOTAL_ROUNDS} number friends today!
+        </p>
+        <div class="nf-done-actions">
+          <button type="button" class="nf-action nf-action--primary" id="nfPlayAgainBtn">
+            ▶ Play again
+          </button>
+          <a class="nf-action" href={import.meta.env.BASE_URL}>
+            🏠 Home
+          </a>
+        </div>
+      </div>
+    </div>
+  </main>
+</StoryLayout>
+
+<script>
+  import { playTap, playCorrect } from '@/lib/audio';
+  import { speak, cancelSpeech, isSpeechSupported } from '@/lib/speech';
+  import { launchConfetti } from '@/lib/achievements';
+  import { getSettings } from '@/lib/settings';
+  import {
+    generateSession,
+    buildNarration,
+    loadNumberFriendsStats,
+    saveNumberFriendsStats,
+    type HuntRound,
+    type RoundNarration,
+  } from '@/data/numberfriends';
+  import { THEME_BY_KEY, numberWord, type PreschoolTheme } from '@/lib/preschool-themes';
+
+  const TOTAL_ROUNDS = 8;
+  // Confetti palette — same primaries as Counting Friends + More
+  // Friends so the preschool-math triad feels visually consistent.
+  const NF_COLORS = ['#4caf50', '#1976d2', '#ffd54f', '#e91e63', '#ff7043'];
+
+  /**
+   * Read round 0 from the SSR'd DOM so the JS session starts in sync
+   * with whatever Astro rendered. Avoids the same kickoff-race that
+   * bit Counting Friends on 2026-05-15 — without this, a tap on a
+   * group panel during the first interaction could land on a panel
+   * whose size has just been rewritten by a freshly-randomised JS
+   * session. See counting-friends-game.astro for the empirical proof
+   * of that race; Number Friends inherits the prophylactic fix.
+   */
+  const readSSRRound = (): HuntRound => {
+    const stageEl = document.getElementById('nfStage')!;
+    const targetEl = document.getElementById('nfTarget') as HTMLElement;
+    const themeKey = (stageEl.dataset.scene ?? 'pond') as PreschoolTheme;
+    const target = Number(targetEl.dataset.target);
+
+    const groupEls = [
+      document.getElementById('nfGroup0'),
+      document.getElementById('nfGroup1'),
+      document.getElementById('nfGroup2'),
+    ];
+    if (Number.isNaN(target) || groupEls.some((el) => !el)) {
+      // Defensive: if SSR shape ever drifts, fall back to a JS-generated
+      // round so the page still works rather than throwing.
+      return generateSession()[0]!;
+    }
+
+    const sizes = groupEls.map((el) => el!.querySelectorAll('.nf-item').length);
+    const correctIndex = sizes.indexOf(target);
+    if (correctIndex < 0 || correctIndex > 2) {
+      // SSR shape drifted — bail to a fresh round.
+      return generateSession()[0]!;
+    }
+
+    return {
+      target,
+      sizes: [sizes[0]!, sizes[1]!, sizes[2]!],
+      correctIndex: correctIndex as 0 | 1 | 2,
+      theme: themeKey,
+      // `difficulty` isn't meaningful for an SSR-derived round; the
+      // page only uses it for narration choice (which doesn't branch
+      // on difficulty today), so 'near' is a safe placeholder.
+      difficulty: 'near',
+    };
+  };
+
+  // ── State ──────────────────────────────────────────────────────────
+  let session: HuntRound[] = [readSSRRound(), ...generateSession().slice(1)];
+  let roundIdx = 0;
+  let answered = false;
+  let currentNarration: RoundNarration | null = null;
+  /**
+   * Most recent post-answer phrase, cached so Replay re-narrates the
+   * round summary. Number Friends has more post-answer phrasing than
+   * Counting Friends / More Friends (separate `rerunDoneWrong` and
+   * `rerunDoneRight`), so we cache the string directly rather than
+   * branch on a `firstTryCorrect` flag. Keeps Replay deterministic
+   * regardless of which post-answer phase fired last.
+   */
+  let lastPostAnswerText = '';
+
+  // ── DOM refs ───────────────────────────────────────────────────────
+  const stage = document.getElementById('nfStage') as HTMLElement;
+  const targetEl = document.getElementById('nfTarget') as HTMLElement;
+  const targetDigit = document.getElementById('nfTargetDigit') as HTMLElement;
+  const targetFrame = document.getElementById('nfTargetFrame') as HTMLElement;
+  const captionEl = document.getElementById('nfCaption') as HTMLElement;
+  const groupEls = [
+    document.getElementById('nfGroup0') as HTMLButtonElement,
+    document.getElementById('nfGroup1') as HTMLButtonElement,
+    document.getElementById('nfGroup2') as HTMLButtonElement,
+  ];
+  const progressText = document.getElementById('nfProgressText') as HTMLElement;
+  const progressFill = document.getElementById('nfProgressFill') as HTMLElement;
+  const progressPill = document.getElementById('nfProgressPill') as HTMLElement;
+  const replayBtn = document.getElementById('nfReplayBtn') as HTMLButtonElement;
+  const nextBtn = document.getElementById('nfNextBtn') as HTMLButtonElement;
+  const doneEl = document.getElementById('nfDone') as HTMLElement;
+  const playAgainBtn = document.getElementById('nfPlayAgainBtn') as HTMLButtonElement;
+
+  // ── Audio helpers ──────────────────────────────────────────────────
+
+  /**
+   * Speak `text` if the user has sound enabled. Same shape as
+   * Counting Friends' / More Friends' narrate(): silent-mode
+   * setTimeout fallback, watchdog alongside speechSynthesis.onend so
+   * headless CI runners without a system TTS engine don't deadlock
+   * the round-progression chain. See counting-friends-game.astro for
+   * the full rationale (discovered necessary 2026-05-15 by the
+   * Playwright suite).
+   */
+  const narrate = (text: string, opts?: { onEnd?: () => void }): void => {
+    const onEnd = opts?.onEnd;
+    if (!isSpeechSupported() || !getSettings().sound) {
+      if (onEnd) setTimeout(onEnd, 600);
+      return;
+    }
+    let fired = false;
+    const wrap = (): void => {
+      if (fired) return;
+      fired = true;
+      onEnd?.();
+    };
+    const watchdogMs = Math.max(800, text.length * 100 + 600);
+    if (onEnd) setTimeout(wrap, watchdogMs);
+    speak(text, { rate: 0.85, pitch: 1.15, onEnd: onEnd ? wrap : undefined });
+  };
+
+  const setCaption = (text: string): void => {
+    captionEl.textContent = text;
+    captionEl.style.animation = 'none';
+    void captionEl.offsetWidth;
+    captionEl.style.removeProperty('animation');
+  };
+
+  // ── Render helpers ─────────────────────────────────────────────────
+
+  const itemHtml = (emoji: string, idx: number): string =>
+    `<span class="nf-item" style="--nf-i: ${idx * 0.1}s" aria-hidden="true">${emoji}</span>`;
+
+  const renderTarget = (target: number): void => {
+    targetEl.dataset.target = String(target);
+    targetEl.setAttribute(
+      'aria-label',
+      `Find ${target} ${target === 1 ? 'friend' : 'friends'}`,
+    );
+    targetDigit.textContent = String(target);
+    let frameHtml = '';
+    for (let i = 0; i < 5; i++) {
+      frameHtml += `<span class="nf-target-dot${
+        i < target ? ' nf-target-dot--filled' : ''
+      }"></span>`;
+    }
+    targetFrame.innerHTML = frameHtml;
+  };
+
+  const renderRound = (): void => {
+    const round = session[roundIdx]!;
+    const theme = THEME_BY_KEY[round.theme];
+
+    progressText.textContent = `${roundIdx + 1} / ${TOTAL_ROUNDS}`;
+    progressFill.style.width = `${((roundIdx + 1) / TOTAL_ROUNDS) * 100}%`;
+    progressPill.setAttribute('aria-label', `Round ${roundIdx + 1} of ${TOTAL_ROUNDS}`);
+
+    stage.dataset.scene = round.theme;
+
+    renderTarget(round.target);
+
+    for (let g = 0; g < 3; g++) {
+      const size = round.sizes[g]!;
+      const el = groupEls[g]!;
+      let html = '';
+      for (let i = 0; i < size; i++) {
+        html += itemHtml(theme.emoji, i);
+      }
+      el.innerHTML = html;
+      el.dataset.size = String(size);
+      el.setAttribute(
+        'aria-label',
+        `Group ${g + 1} — ${size} ${size === 1 ? theme.singular : theme.plural} — tap if this group matches`,
+      );
+      el.disabled = false;
+      el.classList.remove('nf-group--correct', 'nf-group--reveal');
+    }
+
+    answered = false;
+    currentNarration = buildNarration(round);
+    lastPostAnswerText = '';
+    nextBtn.disabled = true;
+    replayBtn.disabled = false;
+  };
+
+  /** Speak the round's intro phrase. Single-phase narration here —
+   *  unlike Counting Friends (intro → addition → question), Number
+   *  Friends has just one question to ask: "show me three". */
+  const speakIntroSequence = (): void => {
+    const n = currentNarration;
+    if (!n) return;
+    setCaption(n.intro);
+    narrate(n.intro);
+  };
+
+  /**
+   * Run a guided count over a single group's items. Used by the
+   * errorless wrong-tap flow — first count the *tapped* (wrong)
+   * group, then count the *correct* group, with a different caption
+   * before each pass so the child hears "that was four, not three;
+   * look — three!"
+   */
+  const speakGuidedGroupCount = (
+    groupEl: HTMLButtonElement,
+    onDone: () => void,
+  ): void => {
+    const items = Array.from(groupEl.querySelectorAll<HTMLElement>('.nf-item'));
+    let i = 0;
+
+    const step = (): void => {
+      if (i >= items.length) {
+        onDone();
+        return;
+      }
+      const item = items[i]!;
+      item.classList.add('nf-item--counted', 'nf-item--pulse');
+      setCaption(String(i + 1));
+      const word = numberWord(i + 1);
+      narrate(word, {
+        onEnd: () => {
+          item.classList.remove('nf-item--pulse');
+          i++;
+          setTimeout(step, 180);
+        },
+      });
+    };
+
+    step();
+  };
+
+  /** Reset all `.nf-item--counted` decorations across every group. */
+  const resetCountedItems = (): void => {
+    for (const el of stage.querySelectorAll<HTMLElement>('.nf-item--counted')) {
+      el.classList.remove('nf-item--counted', 'nf-item--pulse');
+    }
+  };
+
+  // ── Answer handler ─────────────────────────────────────────────────
+
+  const onGroupTap = (idx: 0 | 1 | 2): void => {
+    if (answered) return;
+    const round = session[roundIdx]!;
+    playTap();
+
+    const tappedEl = groupEls[idx]!;
+    const correctEl = groupEls[round.correctIndex]!;
+    const tappedSize = round.sizes[idx]!;
+
+    if (idx === round.correctIndex) {
+      // Correct.
+      answered = true;
+      tappedEl.classList.add('nf-group--correct');
+      for (const el of groupEls) el.disabled = true;
+      playCorrect();
+      cancelSpeech();
+      const correctText = currentNarration?.correct ?? `Yes!`;
+      lastPostAnswerText = correctText;
+      setCaption(correctText);
+      narrate(correctText);
+      launchConfetti(NF_COLORS);
+      bumpStats(true);
+      nextBtn.disabled = false;
+    } else {
+      // Wrong — errorless rerun. Sequence:
+      //   1) "Hmm! Let's count them together." (rerun)
+      //   2) Count the tapped group, item by item.
+      //   3) "Four ducks! That was four, not three." (rerunDoneWrong)
+      //   4) Count the correct group, item by item.
+      //   5) "Look — three ducks! Three ducks." (rerunDoneRight)
+      //   6) Reveal the correct group with a pulsing ring; enable Next.
+      answered = true;
+      for (const el of groupEls) el.disabled = true;
+      cancelSpeech();
+      const rerunText = currentNarration?.rerun ?? "Let's count them together.";
+      setCaption(rerunText);
+      narrate(rerunText, {
+        onEnd: () => {
+          resetCountedItems();
+          // Phase 1: count the tapped (wrong) group.
+          speakGuidedGroupCount(tappedEl, () => {
+            const wrongDoneText =
+              currentNarration?.rerunDoneWrong(tappedSize) ?? `${tappedSize}.`;
+            setCaption(wrongDoneText);
+            lastPostAnswerText = wrongDoneText;
+            narrate(wrongDoneText, {
+              onEnd: () => {
+                // Pause briefly so the child registers the transition
+                // from "wrong group count" to "correct group count".
+                setTimeout(() => {
+                  resetCountedItems();
+                  // Phase 2: count the correct group.
+                  speakGuidedGroupCount(correctEl, () => {
+                    const rightDoneText =
+                      currentNarration?.rerunDoneRight ??
+                      `Look — ${round.target}!`;
+                    setCaption(rightDoneText);
+                    lastPostAnswerText = rightDoneText;
+                    narrate(rightDoneText, {
+                      onEnd: () => {
+                        correctEl.classList.add('nf-group--reveal');
+                        bumpStats(false);
+                        nextBtn.disabled = false;
+                      },
+                    });
+                  });
+                }, 350);
+              },
+            });
+          });
+        },
+      });
+    }
+  };
+
+  // ── Round progression ──────────────────────────────────────────────
+
+  const startRound = (): void => {
+    cancelSpeech();
+    resetCountedItems();
+    renderRound();
+    requestAnimationFrame(() => speakIntroSequence());
+  };
+
+  const onNext = (): void => {
+    playTap();
+    if (roundIdx >= TOTAL_ROUNDS - 1) {
+      showSessionComplete();
+      return;
+    }
+    roundIdx++;
+    startRound();
+  };
+
+  const showSessionComplete = (): void => {
+    cancelSpeech();
+    const stats = loadNumberFriendsStats();
+    saveNumberFriendsStats({
+      ...stats,
+      sessions: stats.sessions + 1,
+      lastPlayed: new Date().toISOString().slice(0, 10),
+    });
+    doneEl.classList.add('nf-done--show');
+    launchConfetti(NF_COLORS);
+    narrate(`Wow! You found ${TOTAL_ROUNDS} number friends today! Great job!`);
+  };
+
+  const onPlayAgain = (): void => {
+    playTap();
+    doneEl.classList.remove('nf-done--show');
+    session = generateSession();
+    roundIdx = 0;
+    startRound();
+  };
+
+  // ── Stats persistence ──────────────────────────────────────────────
+
+  const bumpStats = (correctFirstTry: boolean): void => {
+    const stats = loadNumberFriendsStats();
+    saveNumberFriendsStats({
+      ...stats,
+      rounds: stats.rounds + 1,
+      correctFirstTry: stats.correctFirstTry + (correctFirstTry ? 1 : 0),
+      lastPlayed: new Date().toISOString().slice(0, 10),
+    });
+  };
+
+  // ── Event wiring ───────────────────────────────────────────────────
+
+  for (const el of groupEls) {
+    el.addEventListener('click', () => {
+      if (el.disabled) return;
+      const idx = Number(el.dataset.i);
+      if (idx === 0 || idx === 1 || idx === 2) {
+        onGroupTap(idx as 0 | 1 | 2);
+      }
+    });
+  }
+
+  replayBtn.addEventListener('click', () => {
+    playTap();
+    cancelSpeech();
+    if (!answered) {
+      speakIntroSequence();
+    } else {
+      const text = lastPostAnswerText || (currentNarration?.intro ?? '');
+      setCaption(text);
+      narrate(text);
+    }
+  });
+
+  nextBtn.addEventListener('click', onNext);
+  playAgainBtn.addEventListener('click', onPlayAgain);
+
+  document.getElementById('btnSettings')?.addEventListener('click', () => {
+    playTap();
+    (window as unknown as { openSettings?: () => void }).openSettings?.();
+  });
+
+  document.getElementById('btnQuiz')?.addEventListener('click', () => {
+    playTap();
+    cancelSpeech();
+    speakIntroSequence();
+  });
+
+  document.getElementById('btnStats')?.addEventListener('click', () => {
+    playTap();
+    const stats = loadNumberFriendsStats();
+    const ratio =
+      stats.rounds === 0
+        ? 0
+        : Math.round((stats.correctFirstTry / stats.rounds) * 100);
+    const lines = [
+      `🔢 Sessions completed: ${stats.sessions}`,
+      `🌟 Rounds played: ${stats.rounds}`,
+      `🎯 First-try correct: ${stats.correctFirstTry} (${ratio}%)`,
+      stats.lastPlayed ? `📅 Last played: ${stats.lastPlayed}` : '📅 Last played: never',
+    ];
+    alert(lines.join('\n'));
+  });
+
+  // ── Initial state binding ──────────────────────────────────────────
+  // The SSR'd DOM is round 0; we don't re-render it. We just bind the
+  // JS state (currentNarration, header progress) so subsequent logic
+  // — group clicks, replay button, etc. — has the expected references.
+  currentNarration = buildNarration(session[0]!);
+  progressText.textContent = `1 / ${TOTAL_ROUNDS}`;
+  progressFill.style.width = `${(1 / TOTAL_ROUNDS) * 100}%`;
+  progressPill.setAttribute('aria-label', `Round 1 of ${TOTAL_ROUNDS}`);
+
+  // Don't auto-speak on first paint — browsers block speechSynthesis
+  // until the first user gesture. Wait for the *first* tap (anywhere
+  // on the page body) to kick off the intro narration. Critically,
+  // kickoff does NOT call renderRound() — that would race with the
+  // click event when the user's first interaction is a tap on a
+  // group. Same race that bit Counting Friends on 2026-05-15 — same
+  // fix here, applied prophylactically.
+  let kickedOff = false;
+  const kickoff = (): void => {
+    if (kickedOff) return;
+    kickedOff = true;
+    requestAnimationFrame(() => speakIntroSequence());
+  };
+  document.addEventListener('pointerdown', kickoff, { once: true });
+  document.addEventListener('keydown', kickoff, { once: true });
+</script>

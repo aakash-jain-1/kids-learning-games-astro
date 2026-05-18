@@ -1,0 +1,559 @@
+/* Number Friends — preschool-math numeral-to-set game (added 2026-05-18,
+   third preschool-math game completing the cardinality triad with
+   Counting Friends + More Friends).
+
+   Sister to Counting Friends (set→numeral) and More Friends (set vs
+   set). Uses `StoryLayout` with `theme='numberfriends'` so the body
+   class is `body.story[data-theme='numberfriends']`. All `nf-*`
+   (number-friends) classes scope themselves under that body selector
+   so they can never collide with Routines / Woodcutter / Counting
+   Friends / More Friends.
+
+   Design constraints worth re-stating in a comment block here so the
+   next reader doesn't have to dig through PROGRESS.md to find them:
+
+   - **The whole group panels are the answer buttons** (same pattern as
+     More Friends — three of them here instead of two). Items inside
+     each panel are decorative `<span>`s with `pointer-events: none`,
+     so taps always land on the panel itself rather than on individual
+     items. Tap target = the entire panel — far above the ≥88px floor
+     for ≤4yos.
+   - **The numeral target card** sits at the top of the stage in a
+     prominent white card with a 5-frame visualization underneath the
+     digit (matching Counting Friends's `.cf-opt-frame` pattern so the
+     two games' numeral visuals feel consistent).
+   - **Reduced motion**: every animation has a `@media (prefers-reduced-motion: reduce)`
+     fallback that collapses the keyframes to instant fades.
+   - **All `nf-*` classes scope themselves under
+     `body.story[data-theme='numberfriends']`** — so this file can never
+     leak into other games even if a class name accidentally shadowed.
+*/
+
+/* ── Scene-theme background tokens ─────────────────────────────────── */
+
+body.story[data-theme='numberfriends'] {
+  --st-bg: linear-gradient(135deg, #d8f0d8 0%, #e6f0ff 100%);
+
+  /* Group-panel surface tokens — translucent white card per panel,
+     mirrors the More Friends `.mf-group` palette intentionally so a
+     parent toggling between the two games sees a familiar visual
+     grammar. */
+  --nf-panel-bg: rgba(255, 255, 255, 0.18);
+  --nf-panel-border: rgba(255, 255, 255, 0.4);
+  --nf-panel-bg-hover: rgba(255, 255, 255, 0.32);
+  --nf-panel-border-correct: #2e7d32;
+  --nf-panel-border-glow: #1976d2;
+  --nf-panel-fill-correct: rgba(76, 175, 80, 0.22);
+  --nf-panel-fill-glow: rgba(25, 118, 210, 0.18);
+
+  /* Numeral-target card — solid white with a hairline. Higher-contrast
+     than the group panels because it's the "question" of the round
+     and must read as a foreground anchor against any scene bg. */
+  --nf-target-bg: #ffffff;
+  --nf-target-text: #1a1f3a;
+  --nf-target-border: rgba(30, 50, 100, 0.12);
+  --nf-target-shadow: 0 8px 24px rgba(20, 30, 70, 0.18);
+
+  /* Five-frame dot tokens for the numeral target — re-uses the
+     Counting Friends `--cf-dot-*` palette structure verbatim. */
+  --nf-dot-empty: rgba(20, 30, 70, 0.14);
+  --nf-dot-filled: #1976d2;
+
+  --nf-caption-bg: rgba(255, 255, 255, 0.92);
+  --nf-caption-text: #1a1f3a;
+  --nf-caption-shadow: 0 8px 24px rgba(20, 30, 70, 0.18);
+}
+
+/* Same per-theme backgrounds as Counting Friends and More Friends —
+   four games sharing a consistent pond/orchard/sea/garden palette. */
+body.story[data-theme='numberfriends'] .nf-stage[data-scene='pond'] {
+  --st-bg: linear-gradient(180deg, #b8e0ff 0%, #6fb6e6 60%, #4a8c4a 100%);
+  --nf-dot-filled: #1976d2;
+}
+body.story[data-theme='numberfriends'] .nf-stage[data-scene='orchard'] {
+  --st-bg: linear-gradient(180deg, #ffe6c8 0%, #ffb88c 50%, #88b94a 100%);
+  --nf-dot-filled: #c0392b;
+}
+body.story[data-theme='numberfriends'] .nf-stage[data-scene='sea'] {
+  --st-bg: linear-gradient(180deg, #b3e8ec 0%, #4dc4cf 60%, #f4d97a 100%);
+  --nf-dot-filled: #00838f;
+}
+body.story[data-theme='numberfriends'] .nf-stage[data-scene='garden'] {
+  --st-bg: linear-gradient(180deg, #fff4b8 0%, #ffd666 60%, #6fbf3a 100%);
+  --nf-dot-filled: #c4880c;
+}
+
+body.story[data-theme='numberfriends'] {
+  background: var(--st-bg);
+}
+
+/* ── Layout shell ─────────────────────────────────────────────────── */
+
+body.story[data-theme='numberfriends'] .nf-shell {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 16px 20px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: calc(100vh - 36px);
+}
+
+body.story[data-theme='numberfriends'] .nf-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+body.story[data-theme='numberfriends'] .nf-title {
+  margin: 0;
+  font-size: clamp(1.6em, 4vw, 2.2em);
+  color: #fff;
+  text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+body.story[data-theme='numberfriends'] .nf-progress-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.85);
+  color: #1a1f3a;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.95em;
+}
+
+body.story[data-theme='numberfriends'] .nf-progress-bar {
+  width: 80px;
+  height: 8px;
+  background: rgba(20, 30, 70, 0.15);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+body.story[data-theme='numberfriends'] .nf-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: #4caf50;
+  border-radius: 999px;
+  transition: width 0.4s ease-out;
+}
+
+/* ── Stage — numeral target on top, 3 group panels below ──────────── */
+
+body.story[data-theme='numberfriends'] .nf-stage {
+  position: relative;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 24px;
+  padding: 24px 16px;
+  min-height: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.32);
+}
+
+body.story[data-theme='numberfriends'] .nf-target {
+  /* The "show me 3" card. Inline-flex so the digit + 5-frame stack
+     vertically and the card hugs its content. */
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 28px;
+  border-radius: 24px;
+  background: var(--nf-target-bg);
+  color: var(--nf-target-text);
+  border: 2px solid var(--nf-target-border);
+  box-shadow: var(--nf-target-shadow);
+  /* Pulse gently to draw the eye to the question (not the answer
+     options). Calmer than the answer-correct pulse — this should
+     read as "I'm asking" not "you're right". */
+  animation: nfTargetPulse 2.4s ease-in-out infinite;
+}
+
+body.story[data-theme='numberfriends'] .nf-target-prompt {
+  font-size: 0.95em;
+  font-weight: 600;
+  color: rgba(30, 50, 100, 0.7);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+body.story[data-theme='numberfriends'] .nf-target-digit {
+  font-size: 88px;
+  font-weight: 700;
+  line-height: 1;
+  margin: 0;
+}
+
+body.story[data-theme='numberfriends'] .nf-target-frame {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+body.story[data-theme='numberfriends'] .nf-target-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--nf-dot-empty);
+  border: 2px solid var(--nf-dot-empty);
+}
+
+body.story[data-theme='numberfriends'] .nf-target-dot.nf-target-dot--filled {
+  background: var(--nf-dot-filled);
+  border-color: var(--nf-dot-filled);
+}
+
+@keyframes nfTargetPulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.04); }
+}
+
+/* The three group panels below the numeral target. Grid keeps them
+   evenly spaced; on mobile they stack to one column to keep tap
+   targets large enough. */
+body.story[data-theme='numberfriends'] .nf-groups {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  align-items: stretch;
+  width: 100%;
+  max-width: 720px;
+  gap: 12px;
+}
+
+body.story[data-theme='numberfriends'] .nf-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 160px;
+  padding: 14px 10px;
+  background: var(--nf-panel-bg);
+  border: 3px solid var(--nf-panel-border);
+  border-radius: 20px;
+  cursor: pointer;
+  font-family: inherit;
+  color: inherit;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s ease;
+}
+
+body.story[data-theme='numberfriends'] .nf-group:hover {
+  background: var(--nf-panel-bg-hover);
+  transform: translateY(-2px);
+}
+
+body.story[data-theme='numberfriends'] .nf-group:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+body.story[data-theme='numberfriends'] .nf-group:disabled {
+  cursor: default;
+  opacity: 0.85;
+}
+
+body.story[data-theme='numberfriends'] .nf-group.nf-group--correct {
+  background: var(--nf-panel-fill-correct);
+  border-color: var(--nf-panel-border-correct);
+  animation: nfBounce 0.5s ease-out;
+}
+
+body.story[data-theme='numberfriends'] .nf-group.nf-group--reveal {
+  background: var(--nf-panel-fill-glow);
+  border-color: var(--nf-panel-border-glow);
+  animation: nfPulseRing 1.4s ease-in-out infinite;
+}
+
+body.story[data-theme='numberfriends'] .nf-item {
+  /* Items here are smaller than Counting Friends / More Friends
+     because there are 3 panels per stage and panels can hold up to
+     6 items each (target=5 mixed-decoy → upper neighbour 6). 64×64
+     keeps the largest panel readable on a phone. Items are NOT tap
+     targets — the whole panel is the answer button — so we can
+     trade tap-size for visual capacity. */
+  width: 64px;
+  height: 64px;
+  font-size: 48px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: nfFlyIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation-delay: var(--nf-i, 0s);
+}
+
+body.story[data-theme='numberfriends'] .nf-item.nf-item--counted {
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 0 0 4px var(--nf-dot-filled), 0 0 16px rgba(255, 255, 255, 0.7);
+}
+
+body.story[data-theme='numberfriends'] .nf-item.nf-item--pulse {
+  animation: nfPulse 0.6s ease-out;
+}
+
+@keyframes nfFlyIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-30px) scale(0.4);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(6px) scale(1.1);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes nfPulse {
+  0%   { transform: scale(1);    box-shadow: 0 0 0 0 var(--nf-dot-filled); }
+  50%  { transform: scale(1.18); box-shadow: 0 0 0 6px transparent; }
+  100% { transform: scale(1);    box-shadow: 0 0 0 0 transparent; }
+}
+
+@keyframes nfBounce {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.06); }
+  60%  { transform: scale(0.98); }
+  100% { transform: scale(1); }
+}
+
+@keyframes nfPulseRing {
+  0%, 100% {
+    box-shadow:
+      0 4px 12px rgba(20, 30, 70, 0.15),
+      0 0 0 0 rgba(25, 118, 210, 0.55);
+  }
+  50% {
+    box-shadow:
+      0 4px 12px rgba(20, 30, 70, 0.15),
+      0 0 0 12px rgba(25, 118, 210, 0);
+  }
+}
+
+/* ── Caption — accessibility/parent-readable mirror of TTS narration ─── */
+
+body.story[data-theme='numberfriends'] .nf-caption {
+  background: var(--nf-caption-bg);
+  color: var(--nf-caption-text);
+  border-radius: 16px;
+  padding: 12px 18px;
+  font-size: clamp(1em, 2.4vw, 1.2em);
+  font-weight: 600;
+  text-align: center;
+  box-shadow: var(--nf-caption-shadow);
+  max-width: 720px;
+  margin: 0 auto;
+  min-height: 1.4em;
+  animation: nfCaptionIn 0.4s ease-out;
+}
+
+@keyframes nfCaptionIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Footer row — Replay + Next ────────────────────────────────────── */
+
+body.story[data-theme='numberfriends'] .nf-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+body.story[data-theme='numberfriends'] .nf-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 22px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(255, 255, 255, 0.92);
+  color: #1a1f3a;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 1em;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(20, 30, 70, 0.15);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+body.story[data-theme='numberfriends'] .nf-action:hover {
+  transform: translateY(-1px);
+  background: #ffffff;
+}
+
+body.story[data-theme='numberfriends'] .nf-action:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+body.story[data-theme='numberfriends'] .nf-action--primary {
+  background: #4caf50;
+  color: #ffffff;
+}
+
+body.story[data-theme='numberfriends'] .nf-action--primary:hover {
+  background: #43a047;
+}
+
+/* ── Session-complete overlay — appears after the 8th round ───────── */
+
+body.story[data-theme='numberfriends'] .nf-done {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 30, 70, 0.55);
+  z-index: 50;
+  padding: 20px;
+}
+
+body.story[data-theme='numberfriends'] .nf-done.nf-done--show {
+  display: flex;
+}
+
+body.story[data-theme='numberfriends'] .nf-done-card {
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 32px 28px;
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+  color: #1a1f3a;
+  box-shadow: 0 24px 80px rgba(20, 30, 70, 0.4);
+  animation: nfDoneIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes nfDoneIn {
+  from { opacity: 0; transform: scale(0.7) translateY(20px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+body.story[data-theme='numberfriends'] .nf-done-emoji {
+  font-size: 72px;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+body.story[data-theme='numberfriends'] .nf-done-title {
+  margin: 0 0 8px;
+  font-size: 1.6em;
+  color: #2e7d32;
+}
+
+body.story[data-theme='numberfriends'] .nf-done-text {
+  margin: 0 0 24px;
+  font-size: 1.1em;
+  color: #555;
+}
+
+body.story[data-theme='numberfriends'] .nf-done-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ── Reduced motion fallback ──────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  body.story[data-theme='numberfriends'] .nf-target,
+  body.story[data-theme='numberfriends'] .nf-item,
+  body.story[data-theme='numberfriends'] .nf-item.nf-item--pulse,
+  body.story[data-theme='numberfriends'] .nf-caption,
+  body.story[data-theme='numberfriends'] .nf-group.nf-group--correct,
+  body.story[data-theme='numberfriends'] .nf-group.nf-group--reveal,
+  body.story[data-theme='numberfriends'] .nf-done-card {
+    animation: none;
+  }
+  body.story[data-theme='numberfriends'] .nf-group:hover {
+    transform: none;
+  }
+  body.story[data-theme='numberfriends'] {
+    transition: none;
+  }
+}
+
+/* ── Dark mode ────────────────────────────────────────────────────── */
+
+body.dark-mode.story[data-theme='numberfriends'] {
+  --nf-panel-bg: rgba(255, 255, 255, 0.08);
+  --nf-panel-bg-hover: rgba(255, 255, 255, 0.16);
+  --nf-panel-border: rgba(180, 200, 255, 0.3);
+  --nf-panel-fill-correct: rgba(46, 125, 50, 0.35);
+  --nf-panel-fill-glow: rgba(25, 118, 210, 0.32);
+  --nf-target-bg: #1a1f3a;
+  --nf-target-text: #f0f4ff;
+  --nf-target-border: rgba(180, 200, 255, 0.18);
+  --nf-dot-empty: rgba(180, 200, 255, 0.22);
+  --nf-caption-bg: rgba(20, 25, 50, 0.92);
+  --nf-caption-text: #f0f4ff;
+}
+
+body.dark-mode.story[data-theme='numberfriends'] .nf-target-prompt {
+  color: rgba(180, 200, 255, 0.7);
+}
+
+body.dark-mode.story[data-theme='numberfriends'] .nf-done-card {
+  background: #1a1f3a;
+  color: #f0f4ff;
+}
+
+body.dark-mode.story[data-theme='numberfriends'] .nf-done-text {
+  color: #b8c2e0;
+}
+
+body.dark-mode.story[data-theme='numberfriends'] .nf-action {
+  background: #232847;
+  color: #f0f4ff;
+}
+
+body.dark-mode.story[data-theme='numberfriends'] .nf-action--primary {
+  background: #2e7d32;
+  color: #f0f4ff;
+}
+
+/* ── Responsive — stack panels on small phones ────────────────────── */
+
+@media (max-width: 600px) {
+  body.story[data-theme='numberfriends'] .nf-groups {
+    grid-template-columns: 1fr;
+  }
+  body.story[data-theme='numberfriends'] .nf-item {
+    width: 56px;
+    height: 56px;
+    font-size: 40px;
+  }
+  body.story[data-theme='numberfriends'] .nf-target-digit {
+    font-size: 64px;
+  }
+  body.story[data-theme='numberfriends'] .nf-shell {
+    padding: 12px 12px 60px;
+    gap: 14px;
+  }
+  body.story[data-theme='numberfriends'] .nf-stage {
+    min-height: auto;
+  }
+}
