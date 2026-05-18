@@ -1,14 +1,41 @@
 name: Deploy to GitHub Pages
 
-# Build the Astro POC on every push to `main` and publish the output to
-# GitHub Pages via the official Pages artifact → deploy flow (introduced
-# 2022, replaces the old `gh-pages` branch push pattern).
+# Build the Astro app and publish it to GitHub Pages via the official
+# Pages artifact → deploy flow (introduced 2022, replaces the old
+# `gh-pages` branch push pattern).
 #
 # Live URL: https://aakash-jain-1.github.io/kids-learning-games-astro/
+#
+# Trigger model — hard gate on Playwright tests:
+#   This workflow is triggered by the *successful completion* of the
+#   `Playwright tests` workflow (test.yml) on `main`, NOT directly by
+#   push events. test.yml runs on every push to main (and on PRs); if
+#   it goes red, this deploy workflow never starts, so the live site
+#   can never serve a regression that the test suite caught. Filed as
+#   T2.1 in PROGRESS.md → "Rough order of payoff" → 6, closed
+#   2026-05-18 after the Counting Friends ship's red-tests / green-
+#   deploy failure mode (commits 1a66542 → 825181f) demonstrated the
+#   value of a hard gate concretely.
+#
+# Trigger semantics gotchas (worth re-reading if this file changes):
+#   1. `workflow_run` runs in the *default branch's* workflow-file
+#      context, not the head SHA's. We explicitly check out
+#      `github.event.workflow_run.head_sha` so we deploy the SAME
+#      commit the tests passed against, not whatever main looks
+#      like at deploy time.
+#   2. The `if:` guard on the build job is defence-in-depth — the
+#      `types: [completed]` filter fires on success/failure/cancelled
+#      alike, so we explicitly require `conclusion == 'success'`.
+#   3. `workflow_dispatch` is preserved as an emergency manual-deploy
+#      escape hatch (deploys whatever's on main); it skips the
+#      conclusion guard via the `event_name == 'workflow_dispatch'`
+#      branch.
 
 on:
-  push:
+  workflow_run:
+    workflows: ['Playwright tests']
     branches: [main]
+    types: [completed]
   workflow_dispatch:
 
 permissions:
@@ -26,9 +53,24 @@ jobs:
   build:
     name: Build Astro site
     runs-on: ubuntu-latest
+    # Hard gate: only deploy if Playwright tests passed (or this is a
+    # manual workflow_dispatch override). Without this guard a failed
+    # test run would still trigger the deploy via the `completed`
+    # event, defeating the gate.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        # `workflow_run` runs in the default-branch's workflow-file
+        # context. Without an explicit `ref`, `actions/checkout`
+        # would grab the default branch's HEAD — which can drift
+        # from the SHA the tests actually ran against if a second
+        # push lands while tests are still running. Pinning the
+        # checkout to `head_sha` guarantees we deploy the exact
+        # commit that just passed tests. Falls back to `github.sha`
+        # for the workflow_dispatch path.
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Setup Node
         uses: actions/setup-node@v4

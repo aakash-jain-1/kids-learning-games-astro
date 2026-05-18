@@ -1,16 +1,28 @@
 name: Playwright tests
 
-# Smoke tests for the three game layouts (card-machine / grid / story).
-# Runs against the production build via `astro preview` (Playwright's
-# webServer config takes care of starting + tearing it down).
+# Smoke tests for the three shipped game layouts (card-machine / grid
+# / story) plus per-game behaviour for Counting Friends and the quiz
+# games. Runs against the production build via `astro preview`
+# (Playwright's webServer config takes care of starting + tearing it
+# down).
 #
 # Track 2 of post-migration polish — see `PROGRESS.md` → "Rough order
-# of payoff" → item 4 (Add tests). Currently a soft gate: failures
-# don't block deploys (the deploy workflow runs in parallel on push)
-# but the red ❌ on the PR/commit makes regressions noisy.
+# of payoff" → item 4 (Add tests).
 #
-# Bumping this to a hard gate is one line: add `needs: test` to the
-# `build` job in `deploy.yml`.
+# Now a HARD deploy gate (closed T2.1 on 2026-05-18). `deploy.yml` is
+# triggered by this workflow's successful completion on `main` via
+# the `workflow_run` chain, NOT by push events directly. If this
+# workflow goes red, the live site does NOT update. PRs see test
+# results as PR checks but never trigger a deploy (deploy.yml only
+# triggers off main-branch workflow_run events). Note that
+# `workflow_dispatch` on deploy.yml is still available as an
+# emergency manual-deploy escape hatch that skips the gate.
+#
+# History: was a soft gate from 2026-05-11 (Track 2 ship) through
+# 2026-05-18; promoted after the Counting Friends ship demonstrated
+# the failure mode concretely (commit 1a66542's tests went red but
+# deploy went green, exposing users to a broken — though only
+# narration-stalled — game until the hotfix in 825181f landed).
 
 on:
   push:
