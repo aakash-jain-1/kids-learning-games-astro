@@ -3,11 +3,11 @@
 [![Deploy to GitHub Pages](https://github.com/aakash-jain-1/kids-learning-games-astro/actions/workflows/deploy.yml/badge.svg)](https://github.com/aakash-jain-1/kids-learning-games-astro/actions/workflows/deploy.yml)
 [![Playwright tests](https://github.com/aakash-jain-1/kids-learning-games-astro/actions/workflows/test.yml/badge.svg)](https://github.com/aakash-jain-1/kids-learning-games-astro/actions/workflows/test.yml)
 
-A proof-of-concept migration of the [kids-learning-games](../kids-learning-games) vanilla HTML/CSS/JS PWA to **Astro + TypeScript + @vite-pwa/astro (Workbox)**. **All thirteen vanilla games ported end-to-end** — the migration is now complete — **plus one new preschool-math game (Counting Friends, ages 3–4) added 2026-05-15** as the first feature-driven build after the migration arc closed. Fourteen games across **three shared layouts**:
+A proof-of-concept migration of the [kids-learning-games](../kids-learning-games) vanilla HTML/CSS/JS PWA to **Astro + TypeScript + @vite-pwa/astro (Workbox)**. **All thirteen vanilla games ported end-to-end** — the migration is now complete — **plus two new preschool-math games (Counting Friends + More Friends, ages 3–4) added 2026-05-15 / 2026-05-18** as the first feature-driven builds after the migration arc closed. Fifteen games across **three shared layouts**:
 
 - `CardMachineLayout.astro` — **reference-catalogue games** (browse a deck of fact cards). Hosts Dinosaurs, Flashcards, Solar System, Weather.
 - `GridLayout.astro` — **foundational-set games** (scan a fixed chart, tap to hear). Hosts all 7 grid games: Alphabets, Numbers, Colors, Shapes, Animals, Birds, and Hindi.
-- `StoryLayout.astro` — **story-flow games** + **single-scene stage games** (follow a linear narrative — paginated for Routines, single hero scene for Woodcutter — then take a quick comprehension quiz; the new Counting Friends game also rides this shell because the wiring it needs is identical). Hosts Daily Routines (paginated, 10 scenes), the Honest Woodcutter (single scene + 4 prose paragraphs + moral panel), and **Counting Friends (preschool addition, 8 round-based scenes per session)**.
+- `StoryLayout.astro` — **story-flow games** + **single-scene stage games** (follow a linear narrative — paginated for Routines, single hero scene for Woodcutter — then take a quick comprehension quiz; the two new preschool-math games (Counting Friends + More Friends) also ride this shell because the wiring it needs is identical, gated by a `theme: 'addition' | 'comparison'` prop). Hosts Daily Routines (paginated, 10 scenes), the Honest Woodcutter (single scene + 4 prose paragraphs + moral panel), **Counting Friends (preschool addition, 8 round-based scenes per session)**, and **More Friends (preschool magnitude comparison, 8 side-by-side scenes per session — sister/precursor to Counting Friends)**.
 
 All three layouts share the same head/meta, PWA wiring, nav, settings modal, build-info footer, and TS/lib utilities — only the core interaction surface differs.
 
@@ -31,7 +31,7 @@ All three layouts share the same head/meta, PWA wiring, nav, settings modal, bui
 - **Three shared layouts, thirteen games, thirteen themes**:
   - `CardMachineLayout.astro` hosts Dinosaurs, Flashcards, Solar System, Weather — a reference-catalogue deck with filter + press-to-hear.
   - `GridLayout.astro` hosts Alphabets (image detail), Numbers (CSS count-objects detail), Colors (CSS shape-gallery detail), Shapes (CSS shape-figure-hero detail), Animals (Fluent UI 3D image detail with emoji-tile face), Birds (same emoji-tile + Fluent UI 3D image pattern as Animals, distinct sunset palette), and Hindi (Devanagari-script tile face + Fluent UI 3D image detail + bilingual filter pills + tricolor saffron/cream/green theme + `hi-IN` speech) — a foundational-set tile chart with filter + inline detail card + per-tile learned-state tracking via `kids_progress_v1:<gameId>`. Five deck variants in `grid.css`: `--capped` for medium-to-large decks (handles alphabets's 26 *and* hindi's 48 with a Hindi-only +12 % Devanagari font-size override), `--numbers` 5-column fixed for small decks, `--colors` auto-fill for swatch tiles, `--shapes` auto-fill for shape-tile + name label, and a single shared `--animals, --birds` rule for the two emoji-tile + name label decks.
-  - `StoryLayout.astro` hosts Daily Routines (paginated 10-scene narrative + 8-question quiz), the Honest Woodcutter (single CSS-animated hero scene + 4-paragraph prose + moral panel + 6-question quiz), and **Counting Friends** (preschool-math addition for ages 3–4 — 8 single-scene rounds per session, two groups of friendly objects per scene that the child can tap-to-count, then pick a numeral from three five-frame buttons; errorless answer flow narrates a guided count when the child taps wrong; no scoring/timers/failures). Both feed through the same shell — header → optional progress bar → scene panel with per-game CSS art → optional Prev / 🔊 Listen / Next controls → comprehension quiz. The body background gradient morphs between sunrise / midday / evening / night palettes per scene for Routines via a `--st-bg` CSS custom property; Woodcutter sets it once at load to the deep navy → purple twilight gradient. Per-game scene art (`.sun`, `.bed`, `.fairy`, `.golden-axe`, etc.) lives in a per-game CSS file (`routines.css` / `woodcutter.css`), every selector scoped under `.routines-art` / `.woodcutter-art` and every keyframe prefixed `routines-*` / `woodcutter-*` so the two flat-named art systems can never collide. Scene-visited progress (Routines only) flows through `progress.ts` (`kids_progress_v1:routines`); quiz state (`{ attempts, bestScore, lastPlayed }`) flows through `src/lib/quiz.ts` (`<gameId>_quiz_v1`) — extracted as a shared library at the Woodcutter port time, per the "second consumer triggers a refactor" rule.
+  - `StoryLayout.astro` hosts Daily Routines (paginated 10-scene narrative + 8-question quiz), the Honest Woodcutter (single CSS-animated hero scene + 4-paragraph prose + moral panel + 6-question quiz), **Counting Friends** (preschool-math addition for ages 3–4 — 8 single-scene rounds per session, two groups of friendly objects per scene that the child can tap-to-count, then pick a numeral from three five-frame buttons; errorless answer flow narrates a guided count when the child taps wrong; no scoring/timers/failures), and **More Friends** (preschool-math magnitude comparison for ages 3–4 — 8 single-scene rounds per session, two groups of friendly objects shown side-by-side with sizes 1–4 each (always unequal); the child taps the bigger group; errorless flow narrates a guided count of *both* groups on a wrong tap, then reveals the correct side with a pulsing ring; sister game / developmental precursor to Counting Friends — children master "more vs less" comparison ~6–12 months before they consolidate cardinality enough to add). All four games feed through the same shell — header → optional progress bar → scene panel with per-game CSS art → optional Prev / 🔊 Listen / Next controls → comprehension quiz (or per-round answer flow for the two preschool-math games). The body background gradient morphs between sunrise / midday / evening / night palettes per scene for Routines via a `--st-bg` CSS custom property; Woodcutter sets it once at load to the deep navy → purple twilight gradient; Counting Friends and More Friends each pick a per-round palette from a shared 4-theme set (Pond / Orchard / Sea / Garden) extracted into `src/lib/preschool-themes.ts` at the More Friends ship as the second-consumer carve. Per-game scene art (`.sun`, `.bed`, `.fairy`, `.golden-axe`, `.cf-item`, `.mf-item`, etc.) lives in a per-game CSS file (`routines.css` / `woodcutter.css` / `addition.css` / `comparison.css`), every selector scoped under `.routines-art` / `.woodcutter-art` / `body.story[data-theme='addition']` / `body.story[data-theme='comparison']` and (for the two story games' art) every keyframe prefixed `routines-*` / `woodcutter-*` so the four flat-named art systems can never collide. Scene-visited progress (Routines only) flows through `progress.ts` (`kids_progress_v1:routines`); quiz state (`{ attempts, bestScore, lastPlayed }`) flows through `src/lib/quiz.ts` (`<gameId>_quiz_v1`) — extracted as a shared library at the Woodcutter port time, per the "second consumer triggers a refactor" rule. The two preschool-math games keep their own bespoke stats schemas (`counting_friends_stats_v1` / `more_friends_stats_v1`) because `mountQuiz`'s 4-option text-question shape doesn't fit a 2-or-3-option visual game for a 3yo.
   - Together they replace the ~500-line shell the vanilla project copy-pastes across each of its 13 game HTML files.
 - **Three themeable shared stylesheets**:
   - `card-machine.css` exposes ~25 `--cm-*` CSS custom properties; each theme is a ~35-line `body.card-machine[data-theme='<game>']` block plus ~10 lines of type-pill colours.
@@ -78,7 +78,8 @@ All three layouts share the same head/meta, PWA wiring, nav, settings modal, bui
 │   │   ├── solar-system.ts       # typed planet cards + type filters
 │   │   ├── weather.ts            # typed weather cards + season filters
 │   │   ├── woodcutter.ts         # typed Honest Woodcutter single-scene art + 4-para STORY + MORAL + 6-question QUIZ
-│   │   └── addition.ts           # Counting Friends — 4 themes + sums-2-to-5 round generator + per-round narration script
+│   │   ├── addition.ts           # Counting Friends — sums-2-to-5 round generator + per-round narration script (re-exports themes from preschool-themes lib)
+│   │   └── comparison.ts         # More Friends — magnitude-comparison round generator + per-round narration script (imports themes from preschool-themes lib)
 │   ├── layouts/
 │   │   ├── CardMachineLayout.astro  # reference-catalogue games
 │   │   ├── GridLayout.astro         # foundational-set games
@@ -86,8 +87,9 @@ All three layouts share the same head/meta, PWA wiring, nav, settings modal, bui
 │   ├── lib/
 │   │   ├── achievements.ts       # toast + localStorage helper
 │   │   ├── audio.ts              # singleton AudioContext
+│   │   ├── preschool-themes.ts   # PreschoolTheme catalog + ThemeMeta + numberWord helpers — shared by Counting Friends + More Friends (second-consumer carve 2026-05-18)
 │   │   ├── progress.ts           # kids_progress_v1:<gameId> store (alphabets, numbers, colors, shapes, animals, birds, hindi, routines)
-│   │   ├── quiz.ts               # <gameId>_quiz_v1 store + mountQuiz controller (13-way: every game)
+│   │   ├── quiz.ts               # <gameId>_quiz_v1 store + mountQuiz controller (13-way: every vanilla-port game; preschool-math games skip it for their own per-round flows)
 │   │   ├── settings.ts           # unified settings store
 │   │   └── speech.ts             # Web Speech wrapper
 │   ├── pages/
@@ -105,7 +107,8 @@ All three layouts share the same head/meta, PWA wiring, nav, settings modal, bui
 │   │   │   ├── solar-system-game.astro    # CardMachineLayout
 │   │   │   ├── weather-game.astro         # CardMachineLayout
 │   │   │   ├── woodcutter-story.astro     # StoryLayout (single-scene)
-│   │   │   └── counting-friends-game.astro # StoryLayout (theme=addition; first feature-driven game)
+│   │   │   ├── counting-friends-game.astro # StoryLayout (theme=addition; first feature-driven game — preschool addition)
+│   │   │   └── magnitude-comparison-game.astro # StoryLayout (theme=comparison; second feature-driven game — preschool magnitude comparison)
 │   │   └── index.astro
 │   ├── styles/
 │   │   ├── card-machine.css      # themeable card-machine visual system + --quiz-* token block per cm theme
@@ -115,6 +118,7 @@ All three layouts share the same head/meta, PWA wiring, nav, settings modal, bui
 │   │   ├── routines.css          # Daily Routines per-scene CSS art (scoped under .routines-art)
 │   │   ├── woodcutter.css        # Honest Woodcutter hero-scene CSS art + prose/moral cards (scoped under .woodcutter-art)
 │   │   ├── addition.css          # Counting Friends visual system — 4 scene palettes, five-frame numeral buttons, fly-in/pulse/celebrate animations (scoped under body.story[data-theme='addition'] .cf-*)
+│   │   ├── comparison.css        # More Friends visual system — same 4 scene palettes, side-by-side group panels as answer buttons, fly-in/pulse/celebrate animations (scoped under body.story[data-theme='comparison'] .mf-*)
 │   │   ├── planets.css           # solar-system-only CSS planet art
 │   │   └── global.css            # base reset + shared chrome primitives
 │   └── pages/                    # (see above)
@@ -123,6 +127,7 @@ All three layouts share the same head/meta, PWA wiring, nav, settings modal, bui
 │   ├── grid.spec.ts              # 7 themes × {SSR deck, tile-tap progress, quiz flow, close}
 │   ├── story.spec.ts             # routines (scene nav + quiz reveal) + woodcutter (auto-quiz + reset)
 │   ├── addition.spec.ts          # counting-friends (SSR groups + sum invariant + correct/wrong-answer flows + home-card link)
+│   ├── comparison.spec.ts        # more-friends (SSR groups + bigger-side invariant + correct/wrong-answer flows + home-card link)
 │   ├── helpers.ts                # shared waiters: answerQuizUntilResult, readQuizState, readLearned, modal open/close
 │   └── tsconfig.json             # extends ../tsconfig.json + adds @playwright/test types
 ├── playwright.config.ts          # webServer (astro preview) | PLAYWRIGHT_BASE_URL override | chromium-only | ignoreHTTPSErrors for Zscaler MitM
