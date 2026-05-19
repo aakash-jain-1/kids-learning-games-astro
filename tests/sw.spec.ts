@@ -308,16 +308,6 @@ test.describe('service worker (T8)', () => {
   test('offline + cached URL: plain fetch returns the real page from precache (the offline-PWA promise)', async ({ page, context }) => {
     await page.goto('');
     await waitForSWControl(page);
-    // Belt-and-braces: drive one online navigation through the SW so
-    // the precache route handler has materialised the entry into
-    // an addressable response. `precacheAndRoute` populates the
-    // precache during install and `waitForSWControl` waits past
-    // activate, so the precache should already be fully populated —
-    // but the extra navigation makes the test self-contained against
-    // any future Workbox version that defers entry materialisation
-    // until first request.
-    await page.goto('games/counting-friends-game.html');
-    await expect(page.locator('.cf-title')).toContainText('Counting Friends');
 
     await context.setOffline(true);
 
@@ -330,23 +320,48 @@ test.describe('service worker (T8)', () => {
     // regress if precacheAndRoute is misconfigured (e.g. base-URL
     // resolution drift, manifest globPatterns regression).
     //
-    // Critically, we pass an ABSOLUTE URL with the Astro base prefix
-    // baked in. The previous page.goto already navigated the page
-    // to `<base>/games/counting-friends-game.html`, so a relative
-    // fetch like `'games/counting-friends-game.html'` would resolve
-    // against the current page's URL and produce
-    // `<base>/games/games/counting-friends-game.html` (double
-    // `games/`) — a precache miss which then falls through to
-    // network → fails offline → not the test we're trying to run.
-    // Absolute path with the literal `/kids-learning-games-astro/`
-    // prefix is the safest form and matches the precache key
-    // resolution path exactly. If `BASE` ever flips in
+    // Critically, we fetch the `.html`-LESS URL form. The precache
+    // manifest, by `@vite-pwa/astro` convention, stores HTML pages
+    // with their extension stripped — entry key
+    // `games/counting-friends-game`, not
+    // `games/counting-friends-game.html`. Workbox's built-in URL
+    // matching strategies (`cleanUrls` / `directoryIndex`) only
+    // transform requests by *adding* `.html` or `/index.html` —
+    // never by *stripping* `.html`. So a request for
+    // `<base>/games/counting-friends-game.html` doesn't match the
+    // `<base>/games/counting-friends-game` precache key; it falls
+    // through to network and fails offline. (An earlier iteration
+    // of this test used the `.html`-suffixed form; CI on `6b03963`
+    // surfaced the resulting `TypeError: Failed to fetch` — caught
+    // because the prior `page.goto` step succeeded online via the
+    // network fall-through, masking the precache miss until the
+    // offline flip surfaced it.)
+    //
+    // The `.html`-less URL is also the form production users
+    // actually navigate via — the home-page nav and every internal
+    // link in `dist/` emits `<a href="…/games/counting-friends-game">`
+    // (no `.html`), via Astro's `build.format: 'file'` + the page
+    // routing convention. So this test is faithful to the path
+    // production navigations actually take through the SW.
+    //
+    // ABSOLUTE URL is still required (not a relative form): the
+    // page is currently at `<base>/` after `page.goto('')`, and
+    // a relative fetch of `'games/counting-friends-game'` would
+    // resolve correctly here — but the explicit base prefix
+    // documents the URL shape unambiguously and survives the
+    // hypothetical rebrand cleanly. If `BASE` ever flips in
     // `astro.config.mjs`, this string needs to flip too — flagged
     // here so a future grep for `kids-learning-games-astro` finds
-    // it during a hypothetical rebrand.
+    // it during the rebrand.
+    //
+    // Belt-and-braces precache warming was removed — `precacheAndRoute`
+    // populates the precache during SW install (synchronous,
+    // happens-before activate), and `waitForSWControl` waits past
+    // activate. The earlier intermediate `page.goto` was redundant
+    // and added one more URL form to keep aligned across the test.
     const result = await page.evaluate(async () => {
       try {
-        const r = await fetch('/kids-learning-games-astro/games/counting-friends-game.html');
+        const r = await fetch('/kids-learning-games-astro/games/counting-friends-game');
         const text = await r.text();
         return { ok: r.ok, status: r.status, length: text.length, snippet: text.slice(0, 4000) };
       } catch (e) {
