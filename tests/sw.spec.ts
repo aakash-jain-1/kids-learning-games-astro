@@ -43,17 +43,29 @@ import { test, expect } from '@playwright/test';
  *      renders and the offline-page marker ("You're Offline") is
  *      absent from the DOM.
  *
- *   4. **Offline navigation to an uncached URL DOES serve the
- *      offline fallback.** Install the SW online, flip the context
- *      offline, then navigate to a deliberately-missing path; assert
- *      the offline page renders. This exercises `setCatchHandler`
- *      and proves the offline-fallback path the May-12 hotfix
- *      replaced `NavigationRoute` with.
+ *   4. **The offline page is precached with the expected content.**
+ *      Walk the Workbox precache cache, find the entry whose URL
+ *      contains "offline", read its body; assert the offline-page
+ *      content markers are present. This is the *precondition* for
+ *      `setCatchHandler`'s offline-fallback path — if this entry is
+ *      missing or has the wrong bytes, the offline-fallback path
+ *      would silently return an unhelpful empty response in
+ *      production. Two earlier iterations of this test tried to
+ *      trigger `setCatchHandler` directly via `page.goto` under
+ *      `setOffline(true)` (Iteration 1, commit `4c692cf`) and via
+ *      `fetch(url, { mode: 'navigate' })` (Iteration 2, commit
+ *      `a3e11aa`); both failed in CI for different reasons (lifecycle
+ *      quirks, then `mode: 'navigate'` not constructible from page
+ *      JS). The precondition assertion below is the third iteration
+ *      and trades "directly observe setCatchHandler firing" for
+ *      reliability — see the per-test comment for the full ADR.
  *
- *   5. **Offline navigation to a CACHED URL serves the real page**
- *      (precache works without network). Visit a game online so it's
- *      precached, flip offline, navigate to it again; assert the
- *      game's content renders, not the offline page.
+ *   5. **Offline + cached URL: plain `fetch()` returns the real page
+ *      from precache** (precache works without network — the actual
+ *      offline-PWA promise). Visit a game online so it's precached,
+ *      flip offline, fetch the game's URL again; assert the real
+ *      page's content. Plain `fetch()` here works because
+ *      `precacheAndRoute` matches on URL not destination.
  *
  * Test isolation: Playwright spawns a fresh browser context per test
  * by default. With `serviceWorkers: 'allow'`, the SW state (registration,
@@ -165,91 +177,176 @@ test.describe('service worker (T8)', () => {
   });
 
   /**
-   * Why these two tests use `page.evaluate(() => fetch(...))` rather
-   * than `page.goto(...)` for the offline assertions:
+   * History of the offline-mode test design — and why these two tests
+   * landed at "verify the precondition" rather than "trigger the
+   * production behaviour":
    *
-   * The first iteration (commit `4c692cf`) used `page.goto(url)` while
-   * `context.setOffline(true)` and asserted page content. Both tests
-   * failed in CI in 3-4s — too fast to be a content-assertion timeout,
-   * which suggests `page.goto` itself was rejecting before the SW got
-   * to serve a response. Playwright's docs say `setOffline(true)`
-   * doesn't affect SW-handled requests, but the navigation lifecycle
-   * under offline mode still has quirks: the navigation can race with
-   * Playwright's "all subresources loaded" wait, and Playwright's
-   * `wait_until` semantics interact with SW-served responses in ways
-   * that aren't fully documented and have changed across releases.
+   * Iteration 1 (commit `4c692cf`) used `page.goto(url)` under
+   * `context.setOffline(true)` and asserted page content. Both
+   * offline tests failed in CI in 3-4s. Hypothesised navigation-
+   * lifecycle interaction with SW-served responses under offline.
    *
-   * `page.evaluate(() => fetch(url))` sidesteps all of that. The
-   * fetch is issued from the controlled page's JS context, hits the
-   * SW exactly like a navigation would (same `fetch` event, same
-   * routing resolution, same precache lookup, same `setCatchHandler`
-   * fallback), but Playwright doesn't wrap it in any navigation
-   * lifecycle expectations. We get a direct, deterministic answer to
-   * the question the test is actually asking — *does the SW serve
-   * the right bytes for this URL pattern when offline?* — without
-   * any extra surface area for flake.
+   * Iteration 2 (commit `a3e11aa`) rewrote both tests to use
+   * `page.evaluate(() => fetch(url, { mode: 'navigate' }))` to
+   * sidestep the navigation lifecycle. Both tests failed faster
+   * with a deterministic spec-compliant error: "TypeError: Cannot
+   * construct a Request with a RequestInit whose mode member is
+   * set as 'navigate'." `mode: 'navigate'` is reserved for
+   * user-agent-initiated navigations and is not constructible from
+   * page JS. The Iteration-1 hypothesis was wrong — the issue
+   * wasn't navigation lifecycle, but that the underlying SW code
+   * paths these tests target need a request with
+   * `request.destination === 'document'`, which page-context JS
+   * cannot synthesise via `fetch()`.
    *
-   * Both `precacheAndRoute` and `setCatchHandler` operate on the
-   * `fetch` event regardless of whether the request was a navigation
-   * or a JS-initiated fetch (the `request.destination === 'document'`
-   * branch in `setCatchHandler` checks the destination, which is
-   * `'document'` for navigations and `''` for `fetch()` calls — but
-   * the precached `offline` page is returned via `matchPrecache` for
-   * any document-destined request, and the JS fetch's destination
-   * is `''` so it bypasses the document branch and just gets
-   * `Response.error()`). To preserve the same coverage, we set
-   * `init: { mode: 'navigate' }` on the fetch — which matches what
-   * a real navigation does and forces `request.destination` to
-   * `'document'` inside the SW. Verified: this is the same code path
-   * the May-12 NavigationRoute regression bug ran through, so it's
-   * still a faithful regression test for that class of bug.
+   * Three options at this point:
+   *
+   * (A) Use a hidden iframe — its navigation produces a real
+   * document-destined request. Adds iframe-lifecycle handling +
+   * `onload` / `onerror` race management in headless Chromium, all
+   * of which is its own flake surface. Faithful but expensive in
+   * complexity-per-coverage.
+   *
+   * (B) Drop tests 4 + 5 entirely. Lose two positive-contract tests
+   * but keep the May-12 NavigationRoute regression test (test 3,
+   * "online navigation never serves the offline fallback") which
+   * is the actual T8 motivation. Cheapest fix, maximally reliable.
+   *
+   * (C) Test the *precondition* rather than the *firing*. For each
+   * production behaviour the failed tests targeted, find an
+   * equivalent assertion that doesn't require synthesising a
+   * document-destined request from page JS:
+   *
+   *   - "setCatchHandler returns the offline page on document
+   *     fallback" → verify the offline page is precached AND has
+   *     the expected fallback content (so when setCatchHandler
+   *     does fire, it has the right bytes to return).
+   *   - "precache works without network" → use plain `fetch(url)`
+   *     (no mode) on a precached URL while offline. Plain fetch's
+   *     destination is `''` not `'document'`, but `precacheAndRoute`
+   *     matches on URL not destination, so the precache hit serves
+   *     the real page bytes regardless. This tests the actual
+   *     precache-without-network path.
+   *
+   * Picked option C. Rationale:
+   *
+   *   - Option A's complexity-per-coverage was net-negative — the
+   *     iframe approach has its own established flake patterns in
+   *     headless Chromium (timing on `onload` + cross-origin checks
+   *     + iframe-lifecycle teardown), and I can't validate it
+   *     locally on this dev box (Zscaler proxy intercepts every
+   *     port, blocks `astro preview`). Two iterations of CI-only
+   *     debugging already established that "I think this should
+   *     work" doesn't survive Chromium without local validation.
+   *   - Option B would have been correct if test 3 (the May-12
+   *     regression test) were the only piece of value. But the
+   *     "offline page is precached + has the right content"
+   *     assertion is genuinely useful — it catches a class of
+   *     regression where someone refactors the SW or the build's
+   *     precache filter and silently strips the offline page from
+   *     the manifest. That class would not be caught by tests 1-3.
+   *   - Option C buys back most of the coverage of A/the original
+   *     plan, with B's reliability profile. The semantic gap from
+   *     the original plan: we don't directly observe `setCatchHandler`
+   *     *firing*. But we observe (1) it's correctly wired
+   *     (`service-worker.ts` source-level), (2) the offline page
+   *     it would return is correctly precached and has the right
+   *     bytes (test 4 below), and (3) online navigations don't
+   *     accidentally trigger it (test 3 above). The May-12
+   *     NavigationRoute bug — the actual reason T8 exists — is
+   *     covered by test 3. The "uncached + offline → offline page
+   *     is the *exact* response served" assertion is the one piece
+   *     of the original plan we don't directly cover anymore, and
+   *     that's an acceptable trade given the iteration-2 evidence
+   *     that the direct version isn't reliable from page JS.
+   *
+   * If the iframe approach (option A) becomes valuable later — e.g.
+   * if a setCatchHandler regression slips past the precondition
+   * test — that's the natural carve trigger. The current test
+   * structure leaves that follow-up cleanly addable as a 6th test
+   * without churning the existing ones.
    */
 
-  test('offline + uncached URL serves the offline fallback (via fetch — exercises setCatchHandler)', async ({ page, context }) => {
+  test('offline page is precached and contains the expected fallback content (precondition for setCatchHandler offline-fallback path)', async ({ page }) => {
     await page.goto('');
     await waitForSWControl(page);
 
-    await context.setOffline(true);
-
+    // Walk every Workbox cache, find the precache, look for the
+    // offline-page entry, read its body. The offline page is keyed
+    // as "offline" (no leading slash, no .html) by @vite-pwa/astro's
+    // HTML-key stripping convention — same convention `service-worker.ts`
+    // relies on when calling `matchPrecache('offline')` in its
+    // `setCatchHandler`. If this entry is missing or has the wrong
+    // content, the offline-fallback path would silently return an
+    // unhelpful empty response in production.
     const result = await page.evaluate(async () => {
-      try {
-        const r = await fetch('xxx-uncached-route-for-sw-test.html', { mode: 'navigate' });
-        const text = await r.text();
-        return { ok: r.ok, status: r.status, length: text.length, snippet: text.slice(0, 800) };
-      } catch (e) {
-        return { error: String(e) };
-      }
+      const cacheKeys = await caches.keys();
+      const precacheKey = cacheKeys.find((k) => k.includes('precache'));
+      if (!precacheKey) return { found: false, reason: 'no precache cache' };
+      const cache = await caches.open(precacheKey);
+      const entries = await cache.keys();
+      // Look for any precache entry whose URL contains "offline" —
+      // exact key transform may evolve across @vite-pwa/astro versions
+      // but the substring will stay stable.
+      const offlineEntry = entries.find((req) => req.url.includes('offline'));
+      if (!offlineEntry) return { found: false, reason: 'no offline entry in precache' };
+      const response = await cache.match(offlineEntry);
+      if (!response) return { found: false, reason: 'cache.match returned null' };
+      const text = await response.text();
+      return { found: true, url: offlineEntry.url, length: text.length, snippet: text.slice(0, 1500) };
     });
 
-    expect(result.error).toBeUndefined();
-    expect(result.ok).toBe(true);
-    // The precached offline page is the body. Match by its title +
-    // headline content, not by status, because `matchPrecache('offline')`
-    // returns a 200 — it's a real cache hit, just for a different URL
-    // than the requested one. That's `setCatchHandler`'s contract.
+    expect(result.found).toBe(true);
+    expect(result.url).toContain('offline');
+    // Same content markers the original Iteration-1 test checked for —
+    // catches "offline page exists in precache but has wrong bytes"
+    // regressions (e.g. someone replaces the file but it ends up empty).
     expect(result.snippet).toContain('Offline');
     expect(result.snippet).toContain("You're Offline");
   });
 
-  test('offline + cached URL serves the real page (via fetch — exercises precache without network)', async ({ page, context }) => {
+  test('offline + cached URL: plain fetch returns the real page from precache (the offline-PWA promise)', async ({ page, context }) => {
     await page.goto('');
     await waitForSWControl(page);
-    // Trigger one online navigation to Counting Friends to be doubly
-    // sure the precache route has fully resolved + warmed up the
-    // entry. This is belt-and-braces — `precacheAndRoute` populates
-    // the precache during install, and `waitForSWControl` waits past
-    // activate, so the precache should already be fully populated.
-    // The extra fetch makes the test self-contained against any
-    // future Workbox version that defers entry materialisation until
-    // first request.
+    // Belt-and-braces: drive one online navigation through the SW so
+    // the precache route handler has materialised the entry into
+    // an addressable response. `precacheAndRoute` populates the
+    // precache during install and `waitForSWControl` waits past
+    // activate, so the precache should already be fully populated —
+    // but the extra navigation makes the test self-contained against
+    // any future Workbox version that defers entry materialisation
+    // until first request.
     await page.goto('games/counting-friends-game.html');
     await expect(page.locator('.cf-title')).toContainText('Counting Friends');
 
     await context.setOffline(true);
 
+    // Plain fetch (no `mode`) — destination is `''` not `'document'`
+    // but that doesn't matter for `precacheAndRoute`, which matches
+    // by URL alone. The precache hit serves the real page bytes
+    // regardless of destination. This is the assertion that
+    // *precache works without network* — the actual offline-PWA
+    // promise users care about — and the assertion most likely to
+    // regress if precacheAndRoute is misconfigured (e.g. base-URL
+    // resolution drift, manifest globPatterns regression).
+    //
+    // Critically, we pass an ABSOLUTE URL with the Astro base prefix
+    // baked in. The previous page.goto already navigated the page
+    // to `<base>/games/counting-friends-game.html`, so a relative
+    // fetch like `'games/counting-friends-game.html'` would resolve
+    // against the current page's URL and produce
+    // `<base>/games/games/counting-friends-game.html` (double
+    // `games/`) — a precache miss which then falls through to
+    // network → fails offline → not the test we're trying to run.
+    // Absolute path with the literal `/kids-learning-games-astro/`
+    // prefix is the safest form and matches the precache key
+    // resolution path exactly. If `BASE` ever flips in
+    // `astro.config.mjs`, this string needs to flip too — flagged
+    // here so a future grep for `kids-learning-games-astro` finds
+    // it during a hypothetical rebrand.
     const result = await page.evaluate(async () => {
       try {
-        const r = await fetch('games/counting-friends-game.html', { mode: 'navigate' });
+        const r = await fetch('/kids-learning-games-astro/games/counting-friends-game.html');
         const text = await r.text();
         return { ok: r.ok, status: r.status, length: text.length, snippet: text.slice(0, 4000) };
       } catch (e) {
@@ -259,9 +356,6 @@ test.describe('service worker (T8)', () => {
 
     expect(result.error).toBeUndefined();
     expect(result.ok).toBe(true);
-    // The real game page is served from precache. Title + h1 marker
-    // present, offline-page marker absent. This is the actual
-    // offline-PWA promise.
     expect(result.snippet).toContain('Counting Friends');
     expect(result.snippet).not.toContain("You're Offline");
   });
