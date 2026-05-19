@@ -97,18 +97,35 @@
   land with the hard gate active and the third stage-game overall —
   StageLayout carve deferred a third time with explicit re-evaluation
   conditions now locked into the layout's JSDoc. **Same-day evening
-  infra-hardening ship closed T7 + T8 in a single commit:** the
-  friendly 404 page (`src/pages/404.astro` — port of the vanilla
+  infra-hardening ship started closing T7 + T8 (commit `4c692cf`):**
+  the friendly 404 page (`src/pages/404.astro` — port of the vanilla
   `404.html` with three small upgrades: BASE_URL template, FOUC-safe
   dark-mode pre-paint, dark-mode override the vanilla page lacked)
   + the SW-aware Playwright spec (`tests/sw.spec.ts` — opts in to
-  `serviceWorkers: 'allow'` via `test.use({})`, asserts SW installs
-  and populates non-empty precache, online navigation never serves
-  the offline fallback (the May-12 NavigationRoute regression test),
-  offline + uncached → setCatchHandler offline page, offline +
-  cached → real page from precache without network). Queue drops
-  from 4 to 2 follow-ups (T6 Stats refactor, T9 MP3 narration —
-  both with explicit "defer until X" rationales).*
+  `serviceWorkers: 'allow'` via `test.use({})`). **The sw.spec.ts
+  shipped broken on first attempt** — the offline-mode tests took 4
+  iterations across 2 days to land green: iteration 1 (page.goto +
+  setOffline lifecycle hypothesis, wrong), iteration 2
+  (mode='navigate' fetch — Chromium spec-compliant TypeError), 
+  iteration 3 (precondition-not-firing rewrite using caches.keys()
+  + plain fetch, 3 of 4 passing), iteration 4 (`.html`-less URL —
+  precache key shape, by @vite-pwa/astro convention, strips .html;
+  Workbox's cleanUrls only adds .html, never strips). Final shape
+  asserts: SW installs + non-empty precache (T1), online navigation
+  never serves the offline fallback — the explicit May-12
+  NavigationRoute regression test (T2), offline page is precached
+  with the expected fallback content — precondition for setCatchHandler
+  (T3), offline + cached URL plain fetch returns the real page from
+  precache (T4 — uses the `.html`-less URL form to match the
+  precache key, same form production navigations use via Astro's
+  `build.format: 'file'` page routing). All 4 passing as of commit
+  `21d979d`, both badges green, **T7 + T8 fully closed**. Live
+  verification: 404.html serves 200 with friendly content,
+  unmatched paths return 404 with same friendly content via GH
+  Pages's static-hosting fallback layer. Queue drops from 4 to 2
+  follow-ups (T6 Stats refactor, T9 MP3 narration — both with
+  explicit "defer until X" rationales). Full iteration arc captured
+  in PROGRESS.md changelog **2026-05-19**.*
 - **Three shared layouts** in production:
   - `CardMachineLayout` (4 games — Dinosaurs, Flashcards, Solar System, Weather).
   - `GridLayout` (7 games — Alphabets, Numbers, Colors, Shapes, Animals, Birds, Hindi).

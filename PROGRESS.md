@@ -417,6 +417,167 @@ before deciding.
 
 ## Changelog
 
+### 2026-05-19 — fix(tests): 4-attempt iteration arc to land `sw.spec.ts` cleanly + live-verify T7 + T8 in production
+
+Yesterday's T7 + T8 ship (entry below, "2026-05-18 (latest, evening)")
+described `sw.spec.ts` as if it shipped working on first attempt.
+It didn't. The first push went red and it took 4 iterations across
+2 days to land all 4 SW tests passing in CI. This entry corrects
+the historical optimism and captures the root-cause + the lessons.
+
+#### Iteration history
+
+**Iteration 1** — commit `4c692cf` (the original T7 + T8 ship,
+2026-05-18 evening). Both offline-mode tests failed in 3-4s with
+no specific assertion error visible from the badge — just a red
+suite. Hypothesis at the time: `page.goto(url)` while
+`context.setOffline(true)` had a navigation-lifecycle quirk
+interacting with SW-served responses. Hypothesis was incorrect
+(see iteration 2 evidence) but plausible from the badge signal
+alone.
+
+**Iteration 2** — commit `a3e11aa` (2026-05-18 evening, ~30 min
+later). Rewrote both offline tests to use
+`page.evaluate(() => fetch(url, { mode: 'navigate' }))` to
+sidestep the navigation lifecycle. Tests now failed with a
+deterministic, spec-compliant Chromium error visible in CI:
+*"TypeError: Failed to execute 'fetch' on 'Window': Cannot
+construct a Request with a RequestInit whose mode member is set
+as 'navigate'."* `mode: 'navigate'` is reserved for user-agent-
+initiated navigations and is not constructible from page JS.
+The iteration 1 hypothesis was wrong — the issue wasn't
+navigation lifecycle per se, but that the underlying SW code
+paths these tests target need a request with
+`request.destination === 'document'`, which page-context JS
+cannot synthesise via `fetch()`.
+
+**Iteration 3** — commit `6b03963` (2026-05-19 afternoon, after
+overnight delay due to the Cursor IDE permission-prompt UI being
+broken — `["all"]`-permission shell calls timed out with
+"Timeout waiting for bubble creation", blocking the agent's
+ability to push). Recognised that no clean way exists to
+synthesise a document-destined request from page JS. Three
+options laid out in the per-test header comment: (A) hidden
+iframe navigation (faithful but iframe-lifecycle flake surface
+in headless Chromium, unverifiable locally on this dev box due
+to Zscaler proxy intercept), (B) drop the two offline tests
+entirely (loses positive-contract coverage but keeps the May-12
+NavigationRoute regression test which is the actual T8
+motivation), (C) test the *precondition* rather than the
+*firing* — for each behaviour the failed tests targeted, find
+an equivalent assertion that doesn't require synthesising a
+document-destined request. Picked C. Iteration 3 rewrote test 4
+("offline + uncached → setCatchHandler offline page") as
+"offline page is precached with the expected fallback content"
+(walks `caches.keys()`, finds the offline entry, asserts content
+markers — proves the bytes setCatchHandler would return are
+correctly precached) and rewrote test 5 ("offline + cached →
+real page") as a plain `fetch()` (no `mode`) of the cached URL
+under `setOffline(true)` (precacheAndRoute matches by URL not
+destination, so a precache hit serves the real page bytes
+regardless of whether `request.destination === 'document'`).
+
+Iteration 3 result: 3 of 4 SW tests passing (T1 SW lifecycle,
+T2 online-navigation-never-serves-offline a.k.a. May-12
+regression test, T3 offline-page-is-precached). T4 (offline +
+cached precache test) failing with `TypeError: Failed to fetch`.
+
+**Iteration 4** — commit `21d979d` (2026-05-19 afternoon, ~45
+min later). Root cause of the T4 `Failed to fetch`: precache
+URL-key shape mismatch. By `@vite-pwa/astro` convention, the
+precache manifest stores HTML pages with their extension
+stripped — the actual entry key for Counting Friends is
+`"games/counting-friends-game"`, no `.html`. Verified via
+`grep -oE '"games/counting-friends[^"]*"' dist/service-worker.js`
+returning the no-`.html` form. Workbox's built-in URL matching
+strategies (`cleanUrls` / `directoryIndex`) only transform
+requests by *adding* `.html` or `/index.html` — never by
+*stripping* `.html`. So a fetch of
+`<base>/games/counting-friends-game.html` doesn't match the
+`<base>/games/counting-friends-game` precache key; it falls
+through to network and fails offline. Iteration 4 changed the
+fetch URL from `.html`-suffixed to `.html`-less and removed the
+now-redundant intermediate `page.goto` warmup.
+
+**Why test 2 (online navigation to `.html` URL) passed
+throughout** despite using the same URL form: SW falls through
+to network on the precache miss, and online `astro preview`
+serves `dist/games/counting-friends-game.html` from disk so the
+navigation succeeds. The precache miss was masked online; only
+the offline flip in test 4 surfaced it. This is the same
+masking that hid the iteration-1 `mode: 'navigate'` constructor
+issue — the badge signal alone wasn't precise enough to
+diagnose without test-by-test failure detail.
+
+**Iteration 4 result**: all 4 SW tests passing, both badges
+green, deploy completed, **T7 + T8 fully closed**.
+
+#### Lessons
+
+- **URL form matters in SW tests.** When asserting against
+  `precacheAndRoute`, fetch the exact URL form the precache key
+  uses, which is also the form production navigations actually
+  use. The `.html`-less form is what every internal link in
+  `dist/` emits via `<a href="…/games/counting-friends-game">`
+  (Astro's `build.format: 'file'` + page routing convention).
+  Production users hit precache because they navigate via the
+  canonical form; tests must do the same.
+- **Online success masks precache misses.** A test that
+  navigates to a `.html` URL online may pass via SW
+  → network → astro preview, NOT via precache. The same test
+  offline reveals the miss. If the test doesn't differentiate,
+  it's claiming precache coverage it doesn't actually have.
+  This was the iteration-4 gotcha: T2 (online) passed for
+  iterations 1-3 even though the URL form would have failed
+  T4 (offline) every time.
+- **`mode: 'navigate'` is not constructible from page JS.**
+  Spec-compliant Chromium error. If a test needs a
+  document-destined request, an iframe navigation is the only
+  page-JS path. For most assertions, the precondition can be
+  tested without needing the document destination at all
+  (option C — what we shipped).
+- **CI iteration cadence is bound by the IDE permission UI.**
+  When `["all"]`-permission shell calls fail with "Timeout
+  waiting for bubble creation", the agent can't push from the
+  sandbox (corp Zscaler blocks the sandbox's HTTPS proxy).
+  Sequential CI iteration becomes "edit → wait for the UI to
+  recover → push → wait for CI → diagnose → repeat", which can
+  block for hours. Workaround: have the user run `git push`
+  manually if the agent's elevation requests time out
+  repeatedly. Surfaces as a session-pacing issue, not a code
+  issue — but worth noting because it shaped this iteration's
+  timeline (overnight delay between iterations 2 and 3).
+
+#### Live verification
+
+- **404 page (T7).** `https://aakash-jain-1.github.io/kids-learning-games-astro/404.html`
+  returns HTTP 200 with title "Page Not Found — Kids Learning
+  Games", h1 "Page Not Found", emoji 🔍 + 🏠, CTA href
+  `/kids-learning-games-astro/`. The unmatched-path fallback —
+  GH Pages's production-only behaviour we deliberately don't
+  assert in CI — verified working: a curl to
+  `…/games/xxx-this-route-does-not-exist.html` returns HTTP
+  **404** with the same friendly content body. So the GH Pages
+  fallback layer correctly serves `dist/404.html` for any
+  unmatched path with the right status code, exactly the
+  contract the T7 ship was meant to deliver.
+- **SW-aware spec (T8).** The consolidated test → build →
+  deploy gate ran the full Playwright suite at `21d979d` and
+  all 4 SW tests passed. The May-12 NavigationRoute regression
+  is now locked in by the deploy gate (test 2: "online
+  navigation never serves the offline fallback" — exactly the
+  bug 2026-05-12 hotfix `fce0380` fixed, would now fail CI
+  before reaching production).
+
+#### What's left in the queue after this ship
+
+Two standalone follow-ups (was four pre-T7+T8; queue closed
+T2.1 + T7 + T8 in this session arc):
+
+- **(T6)** Stats refactor.
+- **(T9)** MP3 narration for the preschool-math triad. Defer
+  until v1 retention validation with the actual 3yo user.
+
 ### 2026-05-18 (latest, evening) — chore: close T7 (Astro 404 page) + T8 (SW-aware Playwright spec) — two infra-hardening follow-ups in one ship
 
 After the Number Friends triad ship completed earlier this same session,
