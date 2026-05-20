@@ -15,7 +15,19 @@
  * Convention: callers convert their per-game ids (string letters,
  * numeric digits, etc.) to `string` before passing into this module so
  * the storage shape stays uniform across games.
+ *
+ * Retention instrumentation (T-retention, 2026-05-20): every
+ * successful `saveLearned` also calls `recordPlay(gameId)` from
+ * `@/lib/retention` so the sitewide `/stats` activity chart picks
+ * up card-set play even when the child doesn't open or finish the
+ * quiz. The recordPlay call is intentionally placed at the
+ * `saveLearned` level (one site) rather than per-tile-tap callsite
+ * (7 grid + 4 card-pure pages) so adding retention to a 17th game
+ * is automatic. Recording fails silently in SSR / private-mode
+ * contexts — same convention as `saveLearned` itself.
  */
+
+import { recordPlay } from '@/lib/retention';
 
 const KEY_PREFIX = 'kids_progress_v1:';
 
@@ -48,6 +60,7 @@ export const saveLearned = (gameId: string, learned: Set<string>): void => {
       keyFor(gameId),
       JSON.stringify([...learned].sort()),
     );
+    recordPlay(gameId);
   } catch {
     /* Storage quota / private mode — silently continue. */
   }

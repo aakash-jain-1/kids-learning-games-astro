@@ -164,6 +164,7 @@ const TOTAL_ROUNDS = 8;
     type RoundNarration,
   } from '@/data/numberfriends';
   import { THEME_BY_KEY, numberWord, type PreschoolTheme } from '@/lib/preschool-themes';
+  import { recordPlay } from '@/lib/retention';
 
   const TOTAL_ROUNDS = 8;
   // Confetti palette — same primaries as Counting Friends + More
@@ -503,6 +504,7 @@ const TOTAL_ROUNDS = 8;
       sessions: stats.sessions + 1,
       lastPlayed: new Date().toISOString().slice(0, 10),
     });
+    recordPlay('number-friends');
     doneEl.classList.add('nf-done--show');
     launchConfetti(NF_COLORS);
     narrate(`Wow! You found ${TOTAL_ROUNDS} number friends today! Great job!`);
@@ -526,6 +528,7 @@ const TOTAL_ROUNDS = 8;
       correctFirstTry: stats.correctFirstTry + (correctFirstTry ? 1 : 0),
       lastPlayed: new Date().toISOString().slice(0, 10),
     });
+    recordPlay('number-friends');
   };
 
   // ── Event wiring ───────────────────────────────────────────────────

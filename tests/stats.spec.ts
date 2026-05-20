@@ -130,19 +130,32 @@ test.describe('parent stats dashboard (T6)', () => {
   }) => {
     // Seed Counting Friends with a realistic 5-of-8 first-try score
     // and a Quiz attempt for Daily Routines so we cross two families.
+    // Using JS-computed today + yesterday so the relative-date
+    // assertions ("today" / "yesterday") below stay deterministic
+    // regardless of when the test suite runs (T-retention,
+    // 2026-05-20 — see `@/lib/retention.fmtRelativeDate`).
     await page.evaluate(() => {
+      const fmt = (d: Date): string => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      };
+      const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
       localStorage.setItem(
         'counting_friends_stats_v1',
         JSON.stringify({
           sessions: 1,
           rounds: 8,
           correctFirstTry: 5,
-          lastPlayed: '2026-05-20',
+          lastPlayed: fmt(today),
         }),
       );
       localStorage.setItem(
         'routines_quiz_v1',
-        JSON.stringify({ attempts: 3, bestScore: 88, lastPlayed: '2026-05-19' }),
+        JSON.stringify({ attempts: 3, bestScore: 88, lastPlayed: fmt(yesterday) }),
       );
     });
     await page.reload();
@@ -150,11 +163,12 @@ test.describe('parent stats dashboard (T6)', () => {
     const counting = page.locator('.stats-card[data-game-id="counting-friends"]');
     await expect(counting).not.toHaveClass(/is-empty/);
     await expect(counting.locator('[data-empty-badge]')).toBeHidden();
-    // 4 metric rows: sessions, rounds, first-try, lastPlayed
+    // 4 metric rows: sessions, rounds, first-try, lastPlayed (now
+    // formatted as relative time — "today" / "yesterday" / etc.).
     await expect(counting.locator('.stats-row-value').nth(0)).toHaveText('1');
     await expect(counting.locator('.stats-row-value').nth(1)).toHaveText('8');
     await expect(counting.locator('.stats-row-value').nth(2)).toHaveText('5 / 8 (63%)');
-    await expect(counting.locator('.stats-row-value').nth(3)).toHaveText('2026-05-20');
+    await expect(counting.locator('.stats-row-value').nth(3)).toHaveText('today');
 
     const routines = page.locator('.stats-card[data-game-id="routines"]');
     await expect(routines).not.toHaveClass(/is-empty/);
@@ -162,7 +176,7 @@ test.describe('parent stats dashboard (T6)', () => {
     // best score, last played.
     await expect(routines.locator('.stats-row-value').nth(1)).toHaveText('3');
     await expect(routines.locator('.stats-row-value').nth(2)).toHaveText('88%');
-    await expect(routines.locator('.stats-row-value').nth(3)).toHaveText('2026-05-19');
+    await expect(routines.locator('.stats-row-value').nth(3)).toHaveText('yesterday');
   });
 
   test('reset button clears one game\'s stats and re-renders the card to zero', async ({
@@ -280,6 +294,254 @@ test.describe('parent stats dashboard (T6)', () => {
     expect(cleared.b).toBeNull();
     expect(cleared.c).toBeNull();
     expect(cleared.d).toBeNull();
+  });
+
+  // ─── Retention instrumentation (T-retention, 2026-05-20) ───────────
+  //
+  // Locks in the contract of `src/lib/retention.ts` + the `/stats`
+  // activity panel:
+  //   - SSR ships 7 day cells × 4 family dots = 28 dots, all inactive.
+  //   - The grid renders oldest-first, today-last (so :last-child is
+  //     today and is visually highlighted).
+  //   - Seeding `kids_play_history_v1` with date→[gameIds] entries
+  //     hydrates the right dots into the `.is-active` state.
+  //   - "Reset everything" wipes the play-history key alongside the
+  //     per-game schemas, so the activity panel snaps back to all-empty.
+  //   - End-to-end: actually playing a Counting Friends round writes
+  //     today's date to `kids_play_history_v1` AND sets `lastPlayed`
+  //     on the per-game schema.
+
+  test('activity panel SSR: 7 day cells, 28 dots, all inactive, today highlighted', async ({
+    page,
+  }) => {
+    const grid = page.locator('#statsActivityGrid');
+    await expect(grid).toHaveCount(1);
+
+    const dayCells = grid.locator('.stats-activity-day');
+    await expect(dayCells).toHaveCount(7);
+
+    // 4 dots per day × 7 days = 28 dots.
+    const dots = grid.locator('.stats-activity-dot');
+    await expect(dots).toHaveCount(28);
+
+    // SSR ships every dot inactive (localStorage is undefined on the
+    // server, so every perFamily count is 0).
+    const activeCount = await grid.locator('.stats-activity-dot.is-active').count();
+    expect(activeCount).toBe(0);
+
+    // Each day cell has one dot per family in the declared family
+    // order — preschool-math, story, card-set, card-pure (top to bottom
+    // visually, but DOM order is the iteration order).
+    const firstCellDots = dayCells.nth(0).locator('.stats-activity-dot');
+    await expect(firstCellDots.nth(0)).toHaveAttribute('data-family', 'preschool-math');
+    await expect(firstCellDots.nth(1)).toHaveAttribute('data-family', 'story');
+    await expect(firstCellDots.nth(2)).toHaveAttribute('data-family', 'card-set');
+    await expect(firstCellDots.nth(3)).toHaveAttribute('data-family', 'card-pure');
+
+    // Legend has one swatch per family.
+    const legendItems = page.locator('.stats-activity-legend-item');
+    await expect(legendItems).toHaveCount(4);
+  });
+
+  test('activity panel hydration: seeded play history toggles the right family dots', async ({
+    page,
+  }) => {
+    // Seed two days of activity:
+    //   - Today: Counting Friends (preschool-math) + Daily Routines (story)
+    //   - Yesterday: Alphabets (card-set) only
+    // Result: today's cell has dots 0 + 1 active; yesterday has dot 2 only.
+    await page.evaluate(() => {
+      const fmt = (d: Date): string => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      };
+      const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      localStorage.setItem(
+        'kids_play_history_v1',
+        JSON.stringify({
+          [fmt(today)]: ['counting-friends', 'routines'],
+          [fmt(yesterday)]: ['alphabets'],
+        }),
+      );
+    });
+    await page.reload();
+
+    const dayCells = page.locator('.stats-activity-day');
+
+    // Today is the LAST cell (oldest-first ordering). dot 0
+    // (preschool-math) and dot 1 (story) should be active.
+    const todayCell = dayCells.last();
+    await expect(todayCell.locator('.stats-activity-dot').nth(0)).toHaveClass(/is-active/);
+    await expect(todayCell.locator('.stats-activity-dot').nth(1)).toHaveClass(/is-active/);
+    await expect(todayCell.locator('.stats-activity-dot').nth(2)).not.toHaveClass(/is-active/);
+    await expect(todayCell.locator('.stats-activity-dot').nth(3)).not.toHaveClass(/is-active/);
+
+    // Yesterday is the second-to-last cell. Only dot 2 (card-set) active.
+    const yesterdayCell = dayCells.nth(5);
+    await expect(yesterdayCell.locator('.stats-activity-dot').nth(0)).not.toHaveClass(/is-active/);
+    await expect(yesterdayCell.locator('.stats-activity-dot').nth(1)).not.toHaveClass(/is-active/);
+    await expect(yesterdayCell.locator('.stats-activity-dot').nth(2)).toHaveClass(/is-active/);
+    await expect(yesterdayCell.locator('.stats-activity-dot').nth(3)).not.toHaveClass(/is-active/);
+
+    // 6 days ago (the first cell) has no activity at all — sanity that
+    // unseeded cells stay inactive after hydration.
+    const oldestCell = dayCells.first();
+    const activeInOldest = await oldestCell.locator('.stats-activity-dot.is-active').count();
+    expect(activeInOldest).toBe(0);
+  });
+
+  test('"Reset everything" wipes the play-history key alongside per-game schemas', async ({
+    page,
+  }) => {
+    acceptDialogs(page);
+
+    // Seed both per-game stats AND the sitewide play history.
+    await page.evaluate(() => {
+      const fmt = (d: Date): string => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      };
+      const today = new Date();
+      localStorage.setItem(
+        'counting_friends_stats_v1',
+        JSON.stringify({ sessions: 1, rounds: 8, correctFirstTry: 7, lastPlayed: fmt(today) }),
+      );
+      localStorage.setItem(
+        'kids_play_history_v1',
+        JSON.stringify({ [fmt(today)]: ['counting-friends'] }),
+      );
+    });
+    await page.reload();
+
+    // Pre-condition: today's cell (last) has dot 0 active.
+    await expect(
+      page.locator('.stats-activity-day').last().locator('.stats-activity-dot').first(),
+    ).toHaveClass(/is-active/);
+
+    await page.locator('#btnResetAll').click();
+
+    // Activity grid snaps back to fully inactive.
+    const activeAfter = await page.locator('.stats-activity-dot.is-active').count();
+    expect(activeAfter).toBe(0);
+
+    // The sitewide history key is gone.
+    const historyKey = await page.evaluate(() =>
+      localStorage.getItem('kids_play_history_v1'),
+    );
+    expect(historyKey).toBeNull();
+
+    // Per-card "Reset" (single game) does NOT wipe the play history —
+    // verified separately so the design rationale in
+    // `src/lib/retention.ts` doesn't silently drift.
+  });
+
+  test('per-card reset preserves the sitewide play-history key', async ({
+    page,
+  }) => {
+    acceptDialogs(page);
+
+    // Seed Counting Friends stats + the sitewide history so that
+    // resetting the card alone does NOT erase the activity calendar.
+    // (See rationale at top of `src/lib/retention.ts` — the
+    // calendar is sitewide; per-game resets are scoped.)
+    await page.evaluate(() => {
+      const fmt = (d: Date): string => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      };
+      const today = new Date();
+      localStorage.setItem(
+        'counting_friends_stats_v1',
+        JSON.stringify({ sessions: 1, rounds: 8, correctFirstTry: 7, lastPlayed: fmt(today) }),
+      );
+      localStorage.setItem(
+        'kids_play_history_v1',
+        JSON.stringify({ [fmt(today)]: ['counting-friends', 'alphabets'] }),
+      );
+    });
+    await page.reload();
+
+    await page
+      .locator('.stats-card[data-game-id="counting-friends"]')
+      .locator('[data-reset]')
+      .click();
+
+    // The history key is intact — per-card reset should not clear it.
+    const historyKey = await page.evaluate(() =>
+      localStorage.getItem('kids_play_history_v1'),
+    );
+    expect(historyKey).not.toBeNull();
+
+    // And the activity grid still shows today's dots active (the
+    // panel doesn't re-read from per-card reset right now — but
+    // that's fine, because the page is also where the calendar
+    // lives, and the user expectation is "this game's stats only").
+    // Verify by reloading and checking the dots are still painted.
+    await page.reload();
+    const dotsActive = await page.locator('.stats-activity-dot.is-active').count();
+    // Today's preschool-math + card-set should both be active = 2 dots.
+    expect(dotsActive).toBe(2);
+  });
+
+  test('end-to-end: playing one Counting Friends round writes today\'s date to the play-history key and the per-game lastPlayed', async ({
+    page,
+  }) => {
+    // Drive a real Counting Friends round, then return to /stats and
+    // verify both the sitewide history key + the per-card "today"
+    // formatting picked up the play. This is the smoke test that
+    // ties the writer wiring (recordPlay in bumpStats) to the
+    // reader (getActivityByFamily / fmtRelativeDate).
+    await page.goto('games/counting-friends-game.html');
+    // Wait for the first round to render — the buttons are rendered
+    // by the page script after `generateSession()`.
+    await page.locator('.cf-opt').first().waitFor({ state: 'visible', timeout: 5_000 });
+
+    // Tap the first option. Whether it's correct or wrong, bumpStats
+    // is called either at the round end (correct) or after the
+    // guided-recount reveal (wrong). We don't need to wait for that
+    // full flow — recordPlay is also called by the per-round writer
+    // unconditionally, so a single round is enough.
+    await page.locator('.cf-opt').first().click();
+
+    // Give the per-round writer enough time to land. Round bookkeeping
+    // happens after the audio narration, so we wait until lastPlayed
+    // is written.
+    await page.waitForFunction(
+      () => !!localStorage.getItem('counting_friends_stats_v1'),
+      undefined,
+      { timeout: 8_000 },
+    );
+
+    // Sitewide history should have today's date with at least
+    // 'counting-friends' in it.
+    const history = await page.evaluate(() => {
+      const raw = localStorage.getItem('kids_play_history_v1');
+      return raw ? (JSON.parse(raw) as Record<string, string[]>) : null;
+    });
+    expect(history).not.toBeNull();
+    const dates = Object.keys(history ?? {});
+    expect(dates.length).toBeGreaterThan(0);
+    const todaysIds = (history ?? {})[dates[dates.length - 1] ?? ''] ?? [];
+    expect(todaysIds).toContain('counting-friends');
+
+    // Pop over to /stats and verify the relative-time formatting.
+    await page.goto('stats.html');
+    const counting = page.locator('.stats-card[data-game-id="counting-friends"]');
+    await expect(counting.locator('.stats-row-value').last()).toHaveText('today');
+
+    // And the activity panel's last cell (today) has dot 0
+    // (preschool-math) lit up.
+    await expect(
+      page.locator('.stats-activity-day').last().locator('.stats-activity-dot').first(),
+    ).toHaveClass(/is-active/);
   });
 
   test('home page links to /stats and the GameNav on a game page links to /stats', async ({

@@ -32,6 +32,8 @@
  * different pages without sharing state at any point.
  */
 
+import { recordPlay } from '@/lib/retention';
+
 /** Multiple-choice question shape. Shared by every story game's quiz. */
 export interface QuizQuestion {
   /** Question text (plain string; this module HTML-escapes it before insertion). */
@@ -77,6 +79,13 @@ export const loadQuizState = (gameId: string): QuizState => {
 export const saveQuizState = (gameId: string, s: QuizState): void => {
   try {
     localStorage.setItem(storageKey(gameId), JSON.stringify(s));
+    // Retention instrumentation (T-retention, 2026-05-20): every
+    // quiz completion records a sitewide play datapoint for the
+    // `/stats` activity chart. Placed at the saveQuizState level
+    // (one site) rather than per-onComplete callsite so all 13
+    // mountQuiz games inherit retention recording for free.
+    // recordPlay handles SSR + storage-failure noops internally.
+    recordPlay(gameId);
   } catch {
     /* LocalStorage full or disabled (Safari private mode) — silently noop. */
   }

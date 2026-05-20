@@ -168,6 +168,7 @@ const TOTAL_ROUNDS = 8;
     type RoundNarration,
   } from '@/data/comparison';
   import { THEME_BY_KEY, type PreschoolTheme } from '@/lib/preschool-themes';
+  import { recordPlay } from '@/lib/retention';
 
   const TOTAL_ROUNDS = 8;
   // Confetti palette — same as Counting Friends so the two games feel
@@ -463,6 +464,7 @@ const TOTAL_ROUNDS = 8;
       sessions: stats.sessions + 1,
       lastPlayed: new Date().toISOString().slice(0, 10),
     });
+    recordPlay('more-friends');
     doneEl.classList.add('mf-done--show');
     launchConfetti(MF_COLORS);
     narrate(`Wow! You compared ${TOTAL_ROUNDS} groups of friends today! Great job!`);
@@ -486,6 +488,7 @@ const TOTAL_ROUNDS = 8;
       correctFirstTry: stats.correctFirstTry + (correctFirstTry ? 1 : 0),
       lastPlayed: new Date().toISOString().slice(0, 10),
     });
+    recordPlay('more-friends');
   };
 
   // ── Event wiring ───────────────────────────────────────────────────

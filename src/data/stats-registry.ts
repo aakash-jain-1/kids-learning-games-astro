@@ -76,6 +76,7 @@ import {
 
 import { loadQuizState } from '@/lib/quiz';
 import { loadLearned } from '@/lib/progress';
+import { fmtRelativeDate, getPlayHistory, lastNDays } from '@/lib/retention';
 
 /** A single bullet on a stats card: emoji + label + formatted value. */
 export interface MetricRow {
@@ -122,8 +123,15 @@ const fmtRatio = (numer: number, denom: number): string => {
   return `${numer} / ${denom} (${pct}%)`;
 };
 
-/** "2026-05-20" or "never" — matches the in-page alert convention. */
-const fmtLastPlayed = (iso: string): string => (iso ? iso : 'never');
+/**
+ * "today" / "yesterday" / "3 days ago" / "last week" / "2 weeks ago"
+ * / ISO-fallback / "never" — answers the parent question *"when did
+ * my child last play this game?"* in plain English without making
+ * them mentally subtract dates. Upgraded from raw ISO display
+ * 2026-05-20 (T-retention) — see `@/lib/retention.fmtRelativeDate`
+ * for the exact thresholds.
+ */
+const fmtLastPlayed = fmtRelativeDate;
 
 /** SSR-safe `localStorage.removeItem` — never throws. */
 const safeRemove = (key: string): void => {
@@ -467,4 +475,93 @@ export const FAMILY_LABELS: Readonly<Record<StatsFamily, string>> = {
   story: 'Story games',
   'card-set': 'Card-set games (collect what you learn)',
   'card-pure': 'Card-pure games (explore the deck)',
+};
+
+// ─── Retention / activity (T-retention, 2026-05-20) ──────────────────
+//
+// The sitewide `kids_play_history_v1` key (owned by `@/lib/retention`)
+// maps each YYYY-MM-DD date to an array of gameIds played that day.
+// Here we project that map through `STATS_REGISTRY` to answer the
+// chart question: *for the last N days, which families had any
+// activity each day, and how many of that family's games were
+// touched?*
+//
+// Why expose this from the registry rather than from `retention.ts`?
+// Because the family-grouping is a registry concern (the registry
+// owns the gameId → family mapping). Keeping the family-aware
+// projection here means `retention.ts` stays a pure-storage layer
+// and the page-side rendering code is one call: `getActivityByFamily(7)`.
+
+/** Map gameId → family, derived from STATS_REGISTRY at module load. */
+const FAMILY_BY_ID: Readonly<Record<string, StatsFamily>> =
+  Object.fromEntries(STATS_REGISTRY.map((e) => [e.id, e.family]));
+
+/**
+ * One day in the activity chart — a date string + a count of
+ * games-touched per family that day. Counts are number-of-games
+ * (deduped), not number-of-rounds, so the cap per family is the
+ * size of that family in the registry (1–7).
+ */
+export interface DailyActivity {
+  /** YYYY-MM-DD. */
+  readonly date: string;
+  /** How many games in each family were played that day (deduped). */
+  readonly perFamily: Readonly<Record<StatsFamily, number>>;
+  /** Total games played that day across all families. */
+  readonly total: number;
+}
+
+/** Zero-state shape for SSR — every family at 0 plays. */
+const zeroPerFamily = (): Readonly<Record<StatsFamily, number>> => ({
+  'preschool-math': 0,
+  story: 0,
+  'card-set': 0,
+  'card-pure': 0,
+});
+
+/**
+ * Project the sitewide play history into the last `daysBack`
+ * calendar days. Each entry is `{ date, perFamily, total }`,
+ * oldest first (so `[0]` is `daysBack - 1` days ago and the last
+ * entry is today). SSR-safe: returns all-zero entries when
+ * `localStorage` is unavailable.
+ */
+export const getActivityByFamily = (daysBack = 7): readonly DailyActivity[] => {
+  const days = lastNDays(daysBack);
+  const history = getPlayHistory();
+  return days.map((date) => {
+    const ids = history[date] ?? [];
+    const perFamily: Record<StatsFamily, number> = zeroPerFamily() as Record<StatsFamily, number>;
+    // Dedup the bucket defensively — `recordPlay` already guarantees
+    // no duplicates per day, but parsing untrusted LocalStorage state
+    // means we shouldn't bake that assumption into rendering.
+    const seen = new Set<string>();
+    for (const id of ids) {
+      if (seen.has(id)) continue;
+      seen.add(id);
+      const fam = FAMILY_BY_ID[id];
+      if (fam) perFamily[fam] += 1;
+    }
+    const total = perFamily['preschool-math']
+      + perFamily.story
+      + perFamily['card-set']
+      + perFamily['card-pure'];
+    return { date, perFamily, total };
+  });
+};
+
+/** Hex color per family — used for the activity chart's dots and legend. */
+export const FAMILY_COLORS: Readonly<Record<StatsFamily, string>> = {
+  'preschool-math': '#22c55e', // green-500 — matches the new shake-feedback ring
+  story: '#3b82f6',            // blue-500 — matches the existing story theme
+  'card-set': '#f59e0b',       // amber-500 — warm tint distinct from the green
+  'card-pure': '#a855f7',      // purple-500 — distinct from the other three
+};
+
+/** How many games are in each family — useful for chart denominators. */
+export const FAMILY_SIZES: Readonly<Record<StatsFamily, number>> = {
+  'preschool-math': STATS_REGISTRY.filter((e) => e.family === 'preschool-math').length,
+  story: STATS_REGISTRY.filter((e) => e.family === 'story').length,
+  'card-set': STATS_REGISTRY.filter((e) => e.family === 'card-set').length,
+  'card-pure': STATS_REGISTRY.filter((e) => e.family === 'card-pure').length,
 };

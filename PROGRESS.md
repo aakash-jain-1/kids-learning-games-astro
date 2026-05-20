@@ -417,7 +417,186 @@ before deciding.
 
 ## Changelog
 
-### 2026-05-20 (latest, post-ship docs) — docs(queue): capture next-session candidates + deep-dive on T9 (pre-recorded MP3 narration)
+### 2026-05-20 (latest) — feat(stats): retention instrumentation — sitewide play-history + 7-day activity panel + relative-time "last played" (T-retention)
+
+**Why now.** Picked from the post-T9-park "what next?" candidate
+set (see "next session candidates" entry below). Of the five
+agent-actionable options on the queue (after T9 was parked
+waiting on the user's recording session), retention
+instrumentation was the smallest piece of work AND had the
+highest leverage on the parked T9 decision: shipping it converts
+the *"is the 3yo coming back?"* question from gut-check to a
+chart, so when the user records the T9 voiceover, the call to
+ship vs. wait is data-backed instead of vibes-based.
+
+#### What landed
+
+1. **New lib `src/lib/retention.ts`** — single source of truth
+   for the sitewide retention key.
+   - Storage: `kids_play_history_v1` = `Record<YYYY-MM-DD, string[]>`
+     (date → array of gameIds played that day, deduped).
+   - Public API: `recordPlay(gameId)`, `getPlayHistory()`,
+     `clearPlayHistory()`, `fmtRelativeDate(iso)`, `lastNDays(n)`,
+     `weekdayShort(iso)`. All SSR-safe (noop / zero-state when
+     `localStorage` is undefined). All write paths swallow
+     storage failures (private mode, quota) silently — same
+     convention as the rest of the site.
+   - Rolling window: `PLAY_HISTORY_MAX_DAYS = 30`. Buckets
+     older than 30 days get trimmed on every write so storage
+     stays bounded across years of use.
+   - **Local-time YYYY-MM-DD**, not UTC — retention from the
+     parent's perspective tracks "did they play today" relative
+     to the parent's wall clock; midnight-UTC boundary feels
+     wrong if the child plays at 11pm on what the parent
+     considers Monday but UTC already calls Tuesday.
+   - **Dedup is recordPlay's responsibility, not the caller's** —
+     calling `recordPlay('counting-friends')` 100 times in a
+     single round still results in exactly one entry for that
+     game today. Means writers can fire it from per-round and
+     per-session writers without coordination.
+
+2. **Why a sitewide key (not per-schema bumps).**
+   Each per-game schema already tracks `lastPlayed` (the ISO
+   date string), which is enough for "last played: today" on
+   the per-card row. Cross-game activity (the chart question:
+   "which families had any play today, yesterday, etc.?") is
+   one level up — it's a **sitewide** datapoint by definition.
+   The alternative — adding `playHistory: readonly string[]` to
+   the 3 preschool-math schemas + the shared `quiz` schema +
+   the shared `learned` schema — meant 3+ schema bumps with
+   backward-compat defaults across 5 loaders, coordinating
+   writes in 5+ writer call sites, and a registry that
+   iterates every entry's history to merge dates. The single
+   sitewide key is dramatically simpler:
+   - One new lib (this file).
+   - One write call per game writer: `recordPlay(gameId)`.
+   - One read for the chart: `getPlayHistory()`.
+   - Per-card "last played" stays unchanged — reuses the
+     existing `lastPlayed` field via `fmtRelativeDate`.
+
+3. **Wiring `recordPlay` into the existing writers** — five
+   sites total, all wired through one-call indirection so a
+   17th game inherits retention recording for free:
+   - `src/pages/games/counting-friends-game.astro` — per-round
+     bumpStats + per-session writer.
+   - `src/pages/games/magnitude-comparison-game.astro` — per-round
+     + per-session.
+   - `src/pages/games/number-friends-game.astro` — per-round
+     + per-session.
+   - `src/lib/quiz.ts` — `saveQuizState` (covers all 13
+     `mountQuiz` games via the shared controller).
+   - `src/lib/progress.ts` — `saveLearned` (covers card-set
+     game tile-taps; ensures we record activity even when the
+     child doesn't open the quiz).
+
+4. **`src/data/stats-registry.ts` upgrades.**
+   - `fmtLastPlayed` is now an alias for `fmtRelativeDate`. All
+     16 cards now show "today" / "yesterday" / "3 days ago" /
+     "last week" / "2 weeks ago" / ISO-fallback for >30 days /
+     "never" — instead of raw ISO. Same formatting rules used
+     across the four families so the page reads uniformly.
+   - New `getActivityByFamily(daysBack = 7)` — projects the
+     sitewide history through the registry's gameId → family
+     mapping, returns `readonly DailyActivity[]` (oldest first,
+     today last) where each entry has `{ date, perFamily,
+     total }`. SSR-safe: returns all-zero entries on the server.
+   - New `FAMILY_COLORS` (hex per family) and `FAMILY_SIZES`
+     (denominator: how many games are in each family) — used
+     by the activity panel for dot tinting and the legend.
+
+5. **`src/pages/stats.astro` — new "📅 7-day activity" panel.**
+   - Sits at the top of `<main class="stats-main">`, above the
+     family sections. Single row of 7 day cells (oldest left,
+     today right with a highlighted background + outline).
+     Each cell stacks **4 family-coloured dots**: an active
+     dot (`.is-active`) means at least one game in that family
+     was played that day. Includes a 4-item legend below the
+     grid. Mobile breakpoint at 480px tightens the gap and
+     hides the date row.
+   - SSR ships all 28 dots (7 days × 4 families) inactive
+     (because `localStorage` is undefined on the server, every
+     `perFamily` count is 0). Hydration replays
+     `getActivityByFamily(7)` and toggles `.is-active` per dot.
+     **No DOM rebuild** — pure class toggle, so no layout
+     shift on hydration.
+   - "Reset everything" now also calls `clearPlayHistory()`.
+     Per-card "Reset" does NOT clear the history (rationale:
+     erasing the activity calendar when a parent resets one
+     game's stats would be unhelpful). Locked into tests.
+
+6. **Tests in `tests/stats.spec.ts`** — 5 new test cases
+   covering the activity panel + retention behaviour:
+   - SSR: 7 day cells × 4 dots = 28 dots, all inactive,
+     today is `:last-child`, dots in declared family order.
+   - Hydration: seed `kids_play_history_v1` with 2 days of
+     activity; assert the right family dots flip active in the
+     right cells.
+   - "Reset everything" wipes the history key and the
+     activity panel snaps back to all-empty.
+   - Per-card reset preserves the sitewide history key
+     (locks the design rationale into a test so it can't
+     silently drift).
+   - End-to-end: actually playing a Counting Friends round
+     writes today's date to `kids_play_history_v1` and the
+     per-card "last played" cell reads "today".
+   - Updated 1 existing test (`hydration: seeded preschool-math
+     stats appear`) to use JS-computed today/yesterday and
+     assert the new "today"/"yesterday" relative format
+     instead of raw ISO.
+
+#### Build deltas
+
+- `npm run check` — 0 errors / 0 warnings / 0 hints across all
+  55 Astro files.
+- `npm run build` — 19 pages built in ~9s. Service worker still
+  precaches 93 entries / 588.92 KiB. New `_astro/retention.<hash>.js`
+  bundle is shared across all game pages (saveQuizState,
+  saveLearned, the 3 preschool-math pages all import it).
+- `dist/stats.html` ships:
+  - 35 `stats-activity-dot` substring matches (28 dot elements
+    + 7 from CSS / JS selector strings).
+  - 7 `stats-activity-day"` substring matches (7 day cells).
+  - 11 `data-family="preschool-math"` substring matches (3
+    cards + 1 section + 7 dots in the activity grid = 11).
+
+#### What's NOT shipped (deliberate)
+
+- **No per-day rounds count.** The chart shows "did this
+  family play today" as a binary signal per family, not "how
+  many rounds were played in this family today". For the
+  v1 retention question (*is the child coming back?*) the
+  binary signal is sufficient and clearer; the data layer
+  retains the full gameId list per day for free, so a future
+  upgrade to a stacked bar chart with rounds-per-day is a
+  registry-level change, not a schema migration.
+- **No per-game playHistory.** Every per-game schema is
+  unchanged. The sitewide key is the source of truth for
+  cross-game activity; per-game `lastPlayed` (ISO string)
+  remains the source of truth for per-card "last played"
+  formatting.
+- **No retention chart on individual game pages.** The chart
+  lives only on `/stats`. In-page Stats alerts (the per-game
+  alert() buttons) still work and show the same `lastPlayed`
+  field as before — no UI churn there.
+- **No streak / "longest week" stats.** Just the rolling 7-day
+  view. If retention turns out to be the right primary metric
+  long-term, streak counts are a 1-hour follow-up off this
+  data shape.
+
+#### Key invariants locked into tests
+
+- 16 cards rendered (one per registry entry, in registry order).
+- 7 day cells × 4 dots × 4 families per cell.
+- Today is the rightmost cell (`:last-child`).
+- Per-card reset does NOT clear `kids_play_history_v1`.
+- "Reset everything" DOES clear `kids_play_history_v1`.
+- `recordPlay(gameId)` from a real game writer round-trips
+  through `getPlayHistory()` → `getActivityByFamily(7)` →
+  `.is-active` class on the right dot.
+
+---
+
+### 2026-05-20 — docs(queue): capture next-session candidates + deep-dive on T9 (pre-recorded MP3 narration)
 
 User asked *"what next?"* immediately after the T-extra
 triad-extension landed. Captured the candidate set into

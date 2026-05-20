@@ -28,9 +28,12 @@ import GameNav from '@/components/GameNav.astro';
 import {
   STATS_REGISTRY,
   FAMILY_LABELS,
+  FAMILY_COLORS,
+  getActivityByFamily,
   type StatsFamily,
   type StatsRegistryEntry,
 } from '@/data/stats-registry';
+import { weekdayShort } from '@/lib/retention';
 
 const base = import.meta.env.BASE_URL;
 const href = (p: string): string => `${base}${base.endsWith('/') ? '' : '/'}${p}`;
@@ -53,6 +56,14 @@ const entriesByFamily: Record<StatsFamily, StatsRegistryEntry[]> = {
 for (const entry of STATS_REGISTRY) {
   entriesByFamily[entry.family].push(entry);
 }
+
+// SSR shape for the 7-day activity panel: 7 days, all family
+// counts at 0. The hydrating script replaces this with real data
+// from `kids_play_history_v1` once `localStorage` is available.
+// Returning the array here (rather than just rendering 7 fixed
+// elements) keeps the panel SSR-correct even on the server (where
+// `getPlayHistory()` returns `{}` and every day's perFamily is 0).
+const activityDays = getActivityByFamily(7);
 ---
 
 <!DOCTYPE html>
@@ -112,6 +123,56 @@ for (const entry of STATS_REGISTRY) {
     <GameNav />
 
     <main class="stats-main">
+      <section class="stats-activity" id="statsActivity" aria-label="7-day play activity">
+        <header class="stats-activity-head">
+          <h2 class="stats-activity-title">📅 7-day activity</h2>
+          <p class="stats-activity-sub">
+            Did your child come back this week? Each dot is one game family that
+            saw any play that day.
+          </p>
+        </header>
+
+        <ol class="stats-activity-grid" id="statsActivityGrid">
+          {
+            activityDays.map((day) => (
+              <li class="stats-activity-day" data-date={day.date}>
+                <div class="stats-activity-dots" data-dots>
+                  {FAMILY_ORDER.map((family) => (
+                    <span
+                      class={`stats-activity-dot ${day.perFamily[family] > 0 ? 'is-active' : ''}`}
+                      style={`--family-color: ${FAMILY_COLORS[family]};`}
+                      data-family={family}
+                      title={`${FAMILY_LABELS[family]} — ${day.perFamily[family]} game(s) played`}
+                    />
+                  ))}
+                </div>
+                <div class="stats-activity-day-label">
+                  {weekdayShort(day.date)}
+                </div>
+                <div class="stats-activity-day-date">
+                  {day.date.slice(5)}
+                </div>
+              </li>
+            ))
+          }
+        </ol>
+
+        <ul class="stats-activity-legend" aria-label="Family colour legend">
+          {
+            FAMILY_ORDER.map((family) => (
+              <li class="stats-activity-legend-item">
+                <span
+                  class="stats-activity-legend-swatch"
+                  style={`--family-color: ${FAMILY_COLORS[family]};`}
+                  aria-hidden="true"
+                />
+                <span class="stats-activity-legend-label">{FAMILY_LABELS[family]}</span>
+              </li>
+            ))
+          }
+        </ul>
+      </section>
+
       {
         FAMILY_ORDER.map((family) => {
           const entries = entriesByFamily[family];
@@ -171,7 +232,11 @@ for (const entry of STATS_REGISTRY) {
 
     <script>
       import { initSettings } from '@/lib/settings';
-      import { STATS_REGISTRY } from '@/data/stats-registry';
+      import {
+        STATS_REGISTRY,
+        getActivityByFamily,
+      } from '@/data/stats-registry';
+      import { clearPlayHistory } from '@/lib/retention';
 
       initSettings();
       document.documentElement.classList.remove('pre-dark');
@@ -210,6 +275,36 @@ for (const entry of STATS_REGISTRY) {
       const allCards = document.querySelectorAll<HTMLElement>('.stats-card');
       allCards.forEach(renderCard);
 
+      // ─── Activity panel hydration ────────────────────────────────────
+      // SSR rendered all 7 day cells with `is-active = false` (because
+      // `localStorage` is undefined on the server). Re-run the projector
+      // on the client and toggle the `.is-active` class on each dot
+      // based on real per-family activity. No DOM rebuild — pure class
+      // toggle, no layout shift.
+      const FAMILY_ORDER_JS = ['preschool-math', 'story', 'card-set', 'card-pure'] as const;
+      const renderActivity = (): void => {
+        const days = getActivityByFamily(7);
+        const grid = document.getElementById('statsActivityGrid');
+        if (!grid) return;
+        const dayCells = grid.querySelectorAll<HTMLElement>('.stats-activity-day');
+        dayCells.forEach((cell, i) => {
+          const day = days[i];
+          if (!day) return;
+          // Update the date attribute in case the user crosses midnight
+          // mid-session (rare but free to handle).
+          cell.dataset.date = day.date;
+          const dots = cell.querySelectorAll<HTMLElement>('.stats-activity-dot');
+          dots.forEach((dot, j) => {
+            const family = FAMILY_ORDER_JS[j];
+            if (!family) return;
+            const count = day.perFamily[family];
+            dot.classList.toggle('is-active', count > 0);
+            dot.title = `${family} — ${count} game(s) played`;
+          });
+        });
+      };
+      renderActivity();
+
       // ─── Per-card reset wiring ───────────────────────────────────────
       allCards.forEach((card) => {
         const btn = card.querySelector<HTMLButtonElement>('[data-reset]');
@@ -237,7 +332,13 @@ for (const entry of STATS_REGISTRY) {
         STATS_REGISTRY.forEach((e) => {
           e.clear();
         });
+        // Per-card `clear()` does NOT remove the sitewide play
+        // history (see rationale in `@/lib/retention`); the
+        // "Reset everything" button is the one place we wipe
+        // both the per-card schemas AND the activity calendar.
+        clearPlayHistory();
         allCards.forEach(renderCard);
+        renderActivity();
       });
     </script>
 
@@ -317,6 +418,146 @@ for (const entry of STATS_REGISTRY) {
         display: flex;
         flex-direction: column;
         gap: 28px;
+      }
+
+      /* ─── Activity panel (T-retention, 2026-05-20) ───────────────── */
+      /* The 7-day activity strip lives at the top of `/stats` and
+         answers the *"is the child coming back?"* question at a glance.
+         Each day cell stacks four family-coloured dots; an active dot
+         (`.is-active`) means at least one game in that family was
+         played that day. SSR ships the cells in their inactive shape;
+         the hydrating script toggles `.is-active` once `localStorage`
+         is available. */
+      .stats-activity {
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 18px;
+        padding: 18px 20px 16px;
+        backdrop-filter: blur(10px);
+      }
+
+      .stats-activity-head {
+        margin: 0 0 14px;
+      }
+
+      .stats-activity-title {
+        margin: 0;
+        font-size: 1.15em;
+        font-weight: 600;
+        letter-spacing: 0.2px;
+      }
+
+      .stats-activity-sub {
+        margin: 4px 0 0;
+        font-size: 0.88em;
+        opacity: 0.78;
+        line-height: 1.45;
+      }
+
+      .stats-activity-grid {
+        list-style: none;
+        margin: 0 0 14px;
+        padding: 0;
+        display: grid;
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .stats-activity-day {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        padding: 10px 4px 8px;
+        border-radius: 10px;
+        background: rgba(0, 0, 0, 0.18);
+        min-width: 0;
+      }
+
+      /* Highlight today (the rightmost cell). The grid renders oldest
+         first, today last, so :last-child is correct. */
+      .stats-activity-day:last-child {
+        background: rgba(255, 255, 255, 0.16);
+        outline: 1px solid rgba(255, 255, 255, 0.28);
+      }
+
+      .stats-activity-dots {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        align-items: center;
+        min-height: 56px;
+        justify-content: flex-end;
+      }
+
+      .stats-activity-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.16);
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+      }
+
+      .stats-activity-dot.is-active {
+        background: var(--family-color, #fff);
+        border-color: var(--family-color, #fff);
+        box-shadow: 0 0 6px var(--family-color, #fff);
+      }
+
+      .stats-activity-day-label {
+        font-size: 0.78em;
+        font-weight: 600;
+        opacity: 0.85;
+        letter-spacing: 0.3px;
+      }
+
+      .stats-activity-day-date {
+        font-size: 0.7em;
+        opacity: 0.55;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .stats-activity-legend {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 14px;
+        font-size: 0.78em;
+        opacity: 0.78;
+      }
+
+      .stats-activity-legend-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .stats-activity-legend-swatch {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--family-color, #fff);
+        flex-shrink: 0;
+      }
+
+      /* Tighter day cells on small screens so 7 columns still fit
+         without horizontal scroll. */
+      @media (max-width: 480px) {
+        .stats-activity {
+          padding: 14px 14px 12px;
+        }
+        .stats-activity-grid {
+          gap: 4px;
+        }
+        .stats-activity-day {
+          padding: 8px 2px 6px;
+        }
+        .stats-activity-day-date {
+          display: none;
+        }
       }
 
       .stats-section-title {

@@ -187,6 +187,7 @@ const TOTAL_ROUNDS = 8;
     type Round,
     type RoundNarration,
   } from '@/data/addition';
+  import { recordPlay } from '@/lib/retention';
 
   const TOTAL_ROUNDS = 8;
   // Confetti palette — happy primaries that read on every scene bg.
@@ -590,6 +591,7 @@ const TOTAL_ROUNDS = 8;
       sessions: stats.sessions + 1,
       lastPlayed: new Date().toISOString().slice(0, 10),
     });
+    recordPlay('counting-friends');
     doneEl.classList.add('cf-done--show');
     launchConfetti(CF_COLORS);
     narrate(`Wow! You counted with ${TOTAL_ROUNDS} groups of friends today! Great job!`);
@@ -613,6 +615,7 @@ const TOTAL_ROUNDS = 8;
       correctFirstTry: stats.correctFirstTry + (correctFirstTry ? 1 : 0),
       lastPlayed: new Date().toISOString().slice(0, 10),
     });
+    recordPlay('counting-friends');
   };
 
   // ── Event wiring ───────────────────────────────────────────────────
