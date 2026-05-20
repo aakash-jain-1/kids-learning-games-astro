@@ -73,6 +73,10 @@ import {
   STATS_KEY as NUMBER_FRIENDS_KEY,
   loadNumberFriendsStats,
 } from '@/data/numberfriends';
+import {
+  STATS_KEY as PATTERNS_KEY,
+  loadPatternStats,
+} from '@/data/patterns';
 
 import { loadQuizState } from '@/lib/quiz';
 import { loadLearned } from '@/lib/progress';
@@ -359,6 +363,14 @@ export const STATS_REGISTRY: readonly StatsRegistryEntry[] = [
     hrefPath: 'games/number-friends-game',
     storageKey: NUMBER_FRIENDS_KEY,
     load: loadNumberFriendsStats,
+  }),
+  preschoolMathEntry({
+    id: 'pattern-sequences',
+    title: 'Pattern Sequences',
+    emoji: '🎨',
+    hrefPath: 'games/pattern-sequences-game',
+    storageKey: PATTERNS_KEY,
+    load: loadPatternStats,
   }),
 
   // Family B — story

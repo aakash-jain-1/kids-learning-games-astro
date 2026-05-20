@@ -1,0 +1,614 @@
+/* Pattern Sequences — fourth preschool-math game (added 2026-05-20),
+   sister to the cardinality triad. Sequential pattern recognition for
+   ages 3–4 using colored circles as the visual primitive.
+
+   Uses `StoryLayout` with `theme='patterns'` so the body class is
+   `body.story[data-theme='patterns']`. All `ps-*` (pattern-sequences)
+   classes scope themselves under that body selector so they can never
+   collide with Routines / Woodcutter / Counting Friends / More
+   Friends / Number Friends.
+
+   Design constraints worth re-stating in a comment block here so the
+   next reader doesn't have to dig through PROGRESS.md to find them:
+
+   - **The pattern primitive is colored circles** — universal across
+     all four themes. Theme = bg + caption tone + ambient flavor; the
+     pattern items themselves are colored circles whose fill comes
+     from `--ps-color-<key>` custom properties scoped to body. This
+     is the deliberate split documented in `src/data/patterns.ts`'s
+     header.
+
+   - **Five visible items + a "?" slot** — six total positions across
+     the sequence row. Sized to fit comfortably on a 320 px phone
+     (44 px circles + 8 px gap → 6×44 + 5×8 = 304 px, fits in the
+     padded shell). Desktop scales up to 60 px.
+
+   - **The whole option button is the answer button** — same pattern
+     as More Friends / Number Friends. The colored disc inside is a
+     decorative span with `pointer-events: none`; taps always land
+     on the button.
+
+   - **Reduced motion**: every animation has a
+     `@media (prefers-reduced-motion: reduce)` fallback that
+     collapses the keyframes to instant fades. Same convention as the
+     triad CSS files.
+
+   - **All `ps-*` classes scope themselves under
+     `body.story[data-theme='patterns']`** — so this file can never
+     leak into other games even if a class name accidentally
+     shadowed.
+*/
+
+/* ── Scene-theme background tokens ─────────────────────────────────── */
+
+body.story[data-theme='patterns'] {
+  --st-bg: linear-gradient(135deg, #d8e8ff 0%, #f0e6ff 100%);
+
+  /* The four pattern colors. Tuned for high contrast on the scene
+     bg AND for accessibility (each pair of colors has WCAG AAA
+     contrast against the white circle outline). Same hex values
+     mirrored on the option buttons and the sequence circles so
+     children pattern-match by color, not by tint. */
+  --ps-color-red:    #e53935;
+  --ps-color-blue:   #1976d2;
+  --ps-color-yellow: #fbc02d;
+  --ps-color-green:  #43a047;
+
+  /* Sequence-row tokens — the strip holding the five colored
+     circles + the "?" slot. */
+  --ps-seq-bg: rgba(255, 255, 255, 0.18);
+  --ps-seq-border: rgba(255, 255, 255, 0.32);
+  --ps-circle-border: rgba(255, 255, 255, 0.65);
+  --ps-circle-shadow: 0 4px 14px rgba(20, 30, 70, 0.25);
+
+  /* Slot tokens — the dashed "?" placeholder. Calmer outline than
+     the filled circles so the eye reads it as "missing", not as
+     just another item. */
+  --ps-slot-border: rgba(255, 255, 255, 0.85);
+  --ps-slot-bg: rgba(255, 255, 255, 0.08);
+  --ps-slot-text: rgba(255, 255, 255, 0.92);
+
+  /* Option-button tokens — the three answer buttons below the
+     sequence. Translucent white panel with a colored disc inside.
+     Mirrors the More Friends / Number Friends panel palette. */
+  --ps-opt-bg: rgba(255, 255, 255, 0.18);
+  --ps-opt-border: rgba(255, 255, 255, 0.4);
+  --ps-opt-bg-hover: rgba(255, 255, 255, 0.32);
+  --ps-opt-border-correct: #2e7d32;
+  --ps-opt-border-glow: #1976d2;
+  --ps-opt-fill-correct: rgba(76, 175, 80, 0.22);
+  --ps-opt-fill-glow: rgba(25, 118, 210, 0.18);
+
+  --ps-caption-bg: rgba(255, 255, 255, 0.92);
+  --ps-caption-text: #1a1f3a;
+  --ps-caption-shadow: 0 8px 24px rgba(20, 30, 70, 0.18);
+}
+
+/* Same per-theme backgrounds as the triad — four games sharing the
+   pond/orchard/sea/garden palette so the parent toggling between
+   games sees a consistent visual grammar. Pattern circle colors are
+   theme-INDEPENDENT (the pattern primitive is universal) so the
+   `--ps-color-*` tokens don't change per scene. */
+body.story[data-theme='patterns'] .ps-stage[data-scene='pond'] {
+  --st-bg: linear-gradient(180deg, #b8e0ff 0%, #6fb6e6 60%, #4a8c4a 100%);
+}
+body.story[data-theme='patterns'] .ps-stage[data-scene='orchard'] {
+  --st-bg: linear-gradient(180deg, #ffe6c8 0%, #ffb88c 50%, #88b94a 100%);
+}
+body.story[data-theme='patterns'] .ps-stage[data-scene='sea'] {
+  --st-bg: linear-gradient(180deg, #b3e8ec 0%, #4dc4cf 60%, #f4d97a 100%);
+}
+body.story[data-theme='patterns'] .ps-stage[data-scene='garden'] {
+  --st-bg: linear-gradient(180deg, #fff4b8 0%, #ffd666 60%, #6fbf3a 100%);
+}
+
+body.story[data-theme='patterns'] {
+  background: var(--st-bg);
+}
+
+/* ── Layout shell ─────────────────────────────────────────────────── */
+
+body.story[data-theme='patterns'] .ps-shell {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 16px 20px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: calc(100vh - 36px);
+}
+
+body.story[data-theme='patterns'] .ps-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+body.story[data-theme='patterns'] .ps-title {
+  margin: 0;
+  font-size: clamp(1.6em, 4vw, 2.2em);
+  color: #fff;
+  text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+body.story[data-theme='patterns'] .ps-progress-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.85);
+  color: #1a1f3a;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.95em;
+}
+
+body.story[data-theme='patterns'] .ps-progress-bar {
+  width: 80px;
+  height: 8px;
+  background: rgba(20, 30, 70, 0.15);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+body.story[data-theme='patterns'] .ps-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: #4caf50;
+  border-radius: 999px;
+  transition: width 0.4s ease-out;
+}
+
+/* ── Stage — sequence on top, options below ──────────────────────── */
+
+body.story[data-theme='patterns'] .ps-stage {
+  position: relative;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 24px;
+  padding: 24px 16px;
+  min-height: 380px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.32);
+}
+
+/* The sequence row — five colored circles + "?" slot. Flexbox keeps
+   them on one line and centred; on small phones the gap shrinks. */
+body.story[data-theme='patterns'] .ps-sequence {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 14px 18px;
+  background: var(--ps-seq-bg);
+  border: 1px solid var(--ps-seq-border);
+  border-radius: 24px;
+  flex-wrap: nowrap;
+  /* Allow horizontal scroll on extreme small viewports rather than
+     collapsing the items, but in practice the @media query below
+     shrinks the items enough that scroll is never needed. */
+  overflow-x: auto;
+}
+
+body.story[data-theme='patterns'] .ps-circle {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: currentColor;
+  border: 3px solid var(--ps-circle-border);
+  box-shadow: var(--ps-circle-shadow);
+  /* fly-in entrance — staggered via inline `--ps-i` per item, mirrors
+     the triad's nfFlyIn. */
+  animation: psFlyIn 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation-delay: var(--ps-i, 0s);
+}
+
+/* Color tints applied by data-color attribute. CurrentColor on the
+   `.ps-circle` rule fills the disc with these. */
+body.story[data-theme='patterns'] .ps-circle[data-color='red']    { color: var(--ps-color-red); }
+body.story[data-theme='patterns'] .ps-circle[data-color='blue']   { color: var(--ps-color-blue); }
+body.story[data-theme='patterns'] .ps-circle[data-color='yellow'] { color: var(--ps-color-yellow); }
+body.story[data-theme='patterns'] .ps-circle[data-color='green']  { color: var(--ps-color-green); }
+
+/* Pulse highlight for the wrong-tap walk-through — applied
+   sequentially to each `.ps-circle` while the narration speaks
+   that item's color. Same shape as `nf-item--pulse`. */
+body.story[data-theme='patterns'] .ps-circle.ps-circle--pulse {
+  animation: psPulse 0.6s ease-out;
+}
+
+/* The "?" slot at the end of the sequence — dashed outline so the
+   eye reads it as "missing", not just another item. Reveals the
+   correct color after the wrong-tap walk-through completes (via
+   .ps-slot--reveal). */
+body.story[data-theme='patterns'] .ps-slot {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--ps-slot-bg);
+  border: 3px dashed var(--ps-slot-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ps-slot-text);
+  font-weight: 700;
+  font-size: 28px;
+  line-height: 1;
+  animation: psSlotPulse 2.4s ease-in-out infinite;
+}
+
+body.story[data-theme='patterns'] .ps-slot.ps-slot--reveal {
+  background: currentColor;
+  border-style: solid;
+  border-color: var(--ps-circle-border);
+  color: var(--ps-color-red); /* default; per-color overrides below */
+  box-shadow: var(--ps-circle-shadow);
+  animation: psBounce 0.5s ease-out;
+}
+
+/* Color tints when the slot is revealed. */
+body.story[data-theme='patterns'] .ps-slot.ps-slot--reveal[data-reveal-color='red']    { color: var(--ps-color-red); }
+body.story[data-theme='patterns'] .ps-slot.ps-slot--reveal[data-reveal-color='blue']   { color: var(--ps-color-blue); }
+body.story[data-theme='patterns'] .ps-slot.ps-slot--reveal[data-reveal-color='yellow'] { color: var(--ps-color-yellow); }
+body.story[data-theme='patterns'] .ps-slot.ps-slot--reveal[data-reveal-color='green']  { color: var(--ps-color-green); }
+
+/* Hide the "?" glyph inside the slot once it's revealed. */
+body.story[data-theme='patterns'] .ps-slot.ps-slot--reveal .ps-slot-glyph {
+  opacity: 0;
+}
+
+/* ── Options row — three colored answer buttons ──────────────────── */
+
+body.story[data-theme='patterns'] .ps-options {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  align-items: stretch;
+  width: 100%;
+  max-width: 520px;
+  gap: 12px;
+}
+
+body.story[data-theme='patterns'] .ps-opt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 96px;
+  padding: 14px;
+  background: var(--ps-opt-bg);
+  border: 3px solid var(--ps-opt-border);
+  border-radius: 20px;
+  cursor: pointer;
+  font-family: inherit;
+  color: inherit;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s ease;
+}
+
+body.story[data-theme='patterns'] .ps-opt:hover {
+  background: var(--ps-opt-bg-hover);
+  transform: translateY(-2px);
+}
+
+body.story[data-theme='patterns'] .ps-opt:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+body.story[data-theme='patterns'] .ps-opt:disabled {
+  cursor: default;
+  opacity: 0.85;
+}
+
+body.story[data-theme='patterns'] .ps-opt-disc {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: currentColor;
+  border: 3px solid var(--ps-circle-border);
+  box-shadow: var(--ps-circle-shadow);
+  pointer-events: none;
+}
+
+body.story[data-theme='patterns'] .ps-opt[data-color='red']    .ps-opt-disc { color: var(--ps-color-red); }
+body.story[data-theme='patterns'] .ps-opt[data-color='blue']   .ps-opt-disc { color: var(--ps-color-blue); }
+body.story[data-theme='patterns'] .ps-opt[data-color='yellow'] .ps-opt-disc { color: var(--ps-color-yellow); }
+body.story[data-theme='patterns'] .ps-opt[data-color='green']  .ps-opt-disc { color: var(--ps-color-green); }
+
+body.story[data-theme='patterns'] .ps-opt.ps-opt--correct {
+  background: var(--ps-opt-fill-correct);
+  border-color: var(--ps-opt-border-correct);
+  animation: psBounce 0.5s ease-out;
+}
+
+body.story[data-theme='patterns'] .ps-opt.ps-opt--reveal {
+  background: var(--ps-opt-fill-glow);
+  border-color: var(--ps-opt-border-glow);
+  animation: psPulseRing 1.4s ease-in-out infinite;
+}
+
+/* Age-safe wrong-tap kinesthetic feedback (T-extra triad-extension
+   2026-05-20 pattern, applied to this game from day one). Mirrors
+   the triad's `nfShake`/`mfShake`/`cfShake` keyframes — namespaced
+   here as `psShake`. NO color shift, NO desaturation, NO negative
+   tone. Visual confirmation that the tap registered, runs in
+   parallel with the narration channel. */
+body.story[data-theme='patterns'] .ps-opt.ps-opt--wrong {
+  animation: psShake 250ms ease-in-out;
+}
+
+/* ── Caption — accessibility/parent-readable mirror of TTS narration ─── */
+
+body.story[data-theme='patterns'] .ps-caption {
+  background: var(--ps-caption-bg);
+  color: var(--ps-caption-text);
+  border-radius: 16px;
+  padding: 12px 18px;
+  font-size: clamp(1em, 2.4vw, 1.2em);
+  font-weight: 600;
+  text-align: center;
+  box-shadow: var(--ps-caption-shadow);
+  max-width: 720px;
+  margin: 0 auto;
+  min-height: 1.4em;
+  animation: psCaptionIn 0.4s ease-out;
+}
+
+@keyframes psCaptionIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Footer row — Replay + Next ────────────────────────────────────── */
+
+body.story[data-theme='patterns'] .ps-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+body.story[data-theme='patterns'] .ps-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 22px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(255, 255, 255, 0.92);
+  color: #1a1f3a;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 1em;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(20, 30, 70, 0.15);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+body.story[data-theme='patterns'] .ps-action:hover {
+  transform: translateY(-1px);
+  background: #ffffff;
+}
+
+body.story[data-theme='patterns'] .ps-action:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+body.story[data-theme='patterns'] .ps-action--primary {
+  background: #4caf50;
+  color: #ffffff;
+}
+
+body.story[data-theme='patterns'] .ps-action--primary:hover {
+  background: #43a047;
+}
+
+/* ── Session-complete overlay — appears after the 8th round ───────── */
+
+body.story[data-theme='patterns'] .ps-done {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 30, 70, 0.55);
+  z-index: 50;
+  padding: 20px;
+}
+
+body.story[data-theme='patterns'] .ps-done.ps-done--show {
+  display: flex;
+}
+
+body.story[data-theme='patterns'] .ps-done-card {
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 32px 28px;
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+  color: #1a1f3a;
+  box-shadow: 0 24px 80px rgba(20, 30, 70, 0.4);
+  animation: psDoneIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes psDoneIn {
+  from { opacity: 0; transform: scale(0.7) translateY(20px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+body.story[data-theme='patterns'] .ps-done-emoji {
+  font-size: 72px;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+body.story[data-theme='patterns'] .ps-done-title {
+  margin: 0 0 8px;
+  font-size: 1.6em;
+  color: #2e7d32;
+}
+
+body.story[data-theme='patterns'] .ps-done-text {
+  margin: 0 0 24px;
+  font-size: 1.1em;
+  color: #555;
+}
+
+body.story[data-theme='patterns'] .ps-done-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ── Animations ──────────────────────────────────────────────────── */
+
+@keyframes psFlyIn {
+  0%   { opacity: 0; transform: translateY(-20px) scale(0.4); }
+  60%  { opacity: 1; transform: translateY(4px) scale(1.08); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes psPulse {
+  0%   { transform: scale(1);    box-shadow: 0 0 0 0 currentColor; }
+  50%  { transform: scale(1.18); box-shadow: 0 0 0 6px transparent; }
+  100% { transform: scale(1);    box-shadow: 0 0 0 0 transparent; }
+}
+
+@keyframes psSlotPulse {
+  0%, 100% { transform: scale(1);    border-color: var(--ps-slot-border); }
+  50%      { transform: scale(1.05); border-color: rgba(255, 255, 255, 1); }
+}
+
+@keyframes psBounce {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.06); }
+  60%  { transform: scale(0.98); }
+  100% { transform: scale(1); }
+}
+
+@keyframes psPulseRing {
+  0%, 100% {
+    box-shadow:
+      0 4px 12px rgba(20, 30, 70, 0.15),
+      0 0 0 0 rgba(25, 118, 210, 0.55);
+  }
+  50% {
+    box-shadow:
+      0 4px 12px rgba(20, 30, 70, 0.15),
+      0 0 0 12px rgba(25, 118, 210, 0);
+  }
+}
+
+@keyframes psShake {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-7px); }
+  40%      { transform: translateX( 7px); }
+  60%      { transform: translateX(-5px); }
+  80%      { transform: translateX( 4px); }
+}
+
+/* ── Reduced motion fallback ──────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  body.story[data-theme='patterns'] .ps-circle,
+  body.story[data-theme='patterns'] .ps-circle.ps-circle--pulse,
+  body.story[data-theme='patterns'] .ps-slot,
+  body.story[data-theme='patterns'] .ps-slot.ps-slot--reveal,
+  body.story[data-theme='patterns'] .ps-caption,
+  body.story[data-theme='patterns'] .ps-opt.ps-opt--correct,
+  body.story[data-theme='patterns'] .ps-opt.ps-opt--reveal,
+  body.story[data-theme='patterns'] .ps-opt.ps-opt--wrong,
+  body.story[data-theme='patterns'] .ps-done-card {
+    animation: none;
+  }
+  body.story[data-theme='patterns'] .ps-opt:hover {
+    transform: none;
+  }
+  body.story[data-theme='patterns'] {
+    transition: none;
+  }
+}
+
+/* ── Dark mode ────────────────────────────────────────────────────── */
+
+body.dark-mode.story[data-theme='patterns'] {
+  --ps-seq-bg: rgba(255, 255, 255, 0.06);
+  --ps-seq-border: rgba(180, 200, 255, 0.25);
+  --ps-circle-border: rgba(180, 200, 255, 0.55);
+  --ps-slot-border: rgba(180, 200, 255, 0.6);
+  --ps-slot-bg: rgba(255, 255, 255, 0.04);
+  --ps-slot-text: rgba(220, 230, 255, 0.92);
+  --ps-opt-bg: rgba(255, 255, 255, 0.08);
+  --ps-opt-bg-hover: rgba(255, 255, 255, 0.16);
+  --ps-opt-border: rgba(180, 200, 255, 0.3);
+  --ps-opt-fill-correct: rgba(46, 125, 50, 0.35);
+  --ps-opt-fill-glow: rgba(25, 118, 210, 0.32);
+  --ps-caption-bg: rgba(20, 25, 50, 0.92);
+  --ps-caption-text: #f0f4ff;
+}
+
+body.dark-mode.story[data-theme='patterns'] .ps-done-card {
+  background: #1a1f3a;
+  color: #f0f4ff;
+}
+
+body.dark-mode.story[data-theme='patterns'] .ps-done-text {
+  color: #b8c2e0;
+}
+
+body.dark-mode.story[data-theme='patterns'] .ps-action {
+  background: #232847;
+  color: #f0f4ff;
+}
+
+body.dark-mode.story[data-theme='patterns'] .ps-action--primary {
+  background: #2e7d32;
+  color: #f0f4ff;
+}
+
+/* ── Responsive — tighter spacing on small phones ─────────────────── */
+
+@media (max-width: 480px) {
+  body.story[data-theme='patterns'] .ps-shell {
+    padding: 12px 12px 60px;
+    gap: 14px;
+  }
+  body.story[data-theme='patterns'] .ps-stage {
+    min-height: auto;
+    padding: 18px 10px;
+  }
+  body.story[data-theme='patterns'] .ps-sequence {
+    gap: 8px;
+    padding: 10px 10px;
+  }
+  body.story[data-theme='patterns'] .ps-circle,
+  body.story[data-theme='patterns'] .ps-slot {
+    width: 44px;
+    height: 44px;
+  }
+  body.story[data-theme='patterns'] .ps-slot {
+    font-size: 22px;
+  }
+  body.story[data-theme='patterns'] .ps-opt-disc {
+    width: 52px;
+    height: 52px;
+  }
+  body.story[data-theme='patterns'] .ps-opt {
+    min-height: 84px;
+  }
+}

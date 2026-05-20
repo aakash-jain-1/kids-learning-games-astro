@@ -1,0 +1,580 @@
+---
+import StoryLayout from '@/layouts/StoryLayout.astro';
+import GameControls from '@/components/GameControls.astro';
+import '@/styles/patterns.css';
+
+import { generateSession } from '@/data/patterns';
+import { THEME_BY_KEY } from '@/lib/preschool-themes';
+
+const title = 'Pattern Sequences — Kids Learning Games';
+const description =
+  'A gentle pattern-recognition game for ages 3–4. Five colored circles plus a "?" slot — tap the colored option that fits the pattern. Audio narration, no scoring, no failures. Sister to the Counting Friends / More Friends / Number Friends triad.';
+
+// SSR a deterministic first round so the page never paints blank.
+// The page script reads round 0 directly from the SSR'd DOM (matching
+// pattern from the cardinality triad — see counting-friends-game.astro
+// for the kickoff-race rationale that motivated this approach), then
+// continues with random rounds 1..N after the user clicks Next.
+const SSR_FIRST_ROUND = generateSession(() => 0.42)[0]!;
+const ssrTheme = THEME_BY_KEY[SSR_FIRST_ROUND.theme];
+
+const TOTAL_ROUNDS = 8;
+---
+
+<StoryLayout
+  title={title}
+  description={description}
+  themeColor="#5d4caf"
+  theme="patterns"
+>
+  <main class="ps-shell" aria-label="Pattern Sequences game">
+    <header class="ps-header">
+      <h1 class="ps-title">
+        <span aria-hidden="true">🎨</span>
+        <span>Pattern Sequences</span>
+      </h1>
+
+      <div class="ps-header-right" style="display: flex; gap: 10px; align-items: center;">
+        <span
+          class="ps-progress-pill"
+          id="psProgressPill"
+          aria-label={`Round 1 of ${TOTAL_ROUNDS}`}
+        >
+          <span id="psProgressText">1 / {TOTAL_ROUNDS}</span>
+          <span class="ps-progress-bar" aria-hidden="true">
+            <span class="ps-progress-fill" id="psProgressFill"></span>
+          </span>
+        </span>
+        <GameControls />
+      </div>
+    </header>
+
+    <section
+      class="ps-stage"
+      id="psStage"
+      data-scene={SSR_FIRST_ROUND.theme}
+      data-kind={SSR_FIRST_ROUND.kind}
+      aria-label={`Pattern Sequences scene — ${ssrTheme.label}`}
+    >
+      <div
+        class="ps-caption"
+        id="psCaption"
+        role="status"
+        aria-live="polite"
+      >
+        What comes next? Look at the pattern!
+      </div>
+
+      <div
+        class="ps-sequence"
+        id="psSequence"
+        aria-label="Pattern sequence — five colored circles, then a question mark"
+      >
+        {
+          SSR_FIRST_ROUND.sequence.map((color, i) => (
+            <span
+              class="ps-circle"
+              data-color={color}
+              data-i={i}
+              style={`--ps-i: ${i * 0.08}s`}
+              aria-label={`Item ${i + 1}: ${color}`}
+            />
+          ))
+        }
+        <span
+          class="ps-slot"
+          id="psSlot"
+          aria-label="Missing item — what comes next?"
+        >
+          <span class="ps-slot-glyph" aria-hidden="true">?</span>
+        </span>
+      </div>
+
+      <div
+        class="ps-options"
+        aria-label="Three colored options — tap the one that comes next"
+      >
+        {
+          SSR_FIRST_ROUND.options.map((color, idx) => (
+            <button
+              type="button"
+              class="ps-opt"
+              id={`psOpt${idx}`}
+              data-i={idx}
+              data-color={color}
+              aria-label={`Option ${idx + 1}: ${color} — tap if this comes next`}
+            >
+              <span class="ps-opt-disc" aria-hidden="true" />
+            </button>
+          ))
+        }
+      </div>
+    </section>
+
+    <footer class="ps-footer">
+      <button type="button" class="ps-action" id="psReplayBtn" aria-label="Replay this round's narration">
+        🔊 Replay
+      </button>
+      <button type="button" class="ps-action ps-action--primary" id="psNextBtn" aria-label="Next round" disabled>
+        Next round →
+      </button>
+    </footer>
+
+    <div class="ps-done" id="psDone" role="dialog" aria-live="polite" aria-labelledby="psDoneTitle">
+      <div class="ps-done-card">
+        <div class="ps-done-emoji" aria-hidden="true">🎨</div>
+        <h2 class="ps-done-title" id="psDoneTitle">Pattern champion!</h2>
+        <p class="ps-done-text" id="psDoneText">
+          You spotted {TOTAL_ROUNDS} patterns today!
+        </p>
+        <div class="ps-done-actions">
+          <button type="button" class="ps-action ps-action--primary" id="psPlayAgainBtn">
+            ▶ Play again
+          </button>
+          <a class="ps-action" href={import.meta.env.BASE_URL}>
+            🏠 Home
+          </a>
+        </div>
+      </div>
+    </div>
+  </main>
+</StoryLayout>
+
+<script>
+  import { playTap, playCorrect } from '@/lib/audio';
+  import { speak, cancelSpeech, isSpeechSupported } from '@/lib/speech';
+  import { launchConfetti } from '@/lib/achievements';
+  import { getSettings } from '@/lib/settings';
+  import {
+    generateSession,
+    buildNarration,
+    loadPatternStats,
+    savePatternStats,
+    VISIBLE_LENGTH,
+    type PatternRound,
+    type PatternColor,
+    type RoundNarration,
+  } from '@/data/patterns';
+  import { recordPlay } from '@/lib/retention';
+
+  const TOTAL_ROUNDS = 8;
+  // Confetti palette — same primaries as the cardinality triad so
+  // all four preschool-math games feel visually consistent.
+  const PS_COLORS = ['#4caf50', '#1976d2', '#ffd54f', '#e91e63', '#ff7043'];
+
+  /**
+   * Read round 0 from the SSR'd DOM so the JS session starts in sync
+   * with whatever Astro rendered. Avoids the same kickoff-race that
+   * bit Counting Friends on 2026-05-15 — without this, a tap on an
+   * option button during the first interaction could land on a
+   * button whose color has just been rewritten by a freshly-
+   * randomised JS session. Same prophylactic fix the rest of the
+   * preschool-math triad now uses.
+   */
+  const readSSRRound = (): PatternRound => {
+    const stageEl = document.getElementById('psStage');
+    const seqEl = document.getElementById('psSequence');
+    if (!stageEl || !seqEl) return generateSession()[0]!;
+
+    const themeKey =
+      (stageEl.dataset.scene ?? 'pond') as PatternRound['theme'];
+    const kind =
+      (stageEl.dataset.kind ?? 'AB') as PatternRound['kind'];
+
+    const sequence: PatternColor[] = [];
+    for (let i = 0; i < VISIBLE_LENGTH; i++) {
+      const c = seqEl.querySelector<HTMLElement>(
+        `.ps-circle[data-i="${i}"]`,
+      );
+      if (!c) return generateSession()[0]!;
+      sequence.push(c.dataset.color as PatternColor);
+    }
+
+    const optEls: HTMLElement[] = [];
+    for (let i = 0; i < 3; i++) {
+      const o = document.getElementById(`psOpt${i}`);
+      if (!o) return generateSession()[0]!;
+      optEls.push(o);
+    }
+    const options = optEls.map((el) => el.dataset.color as PatternColor);
+    if (options.length !== 3) return generateSession()[0]!;
+
+    // The SSR'd round was generated by the page-level seed; we DON'T
+    // have its true `correctColor` in the DOM. Reconstruct by
+    // running the same deterministic seed (Math is not exposed
+    // through the DOM, but the seeded `generateSession(() => 0.42)`
+    // call from the .astro is reproducible here in JS). This keeps
+    // the SSR/JS shapes in sync so the kickoff click doesn't pick
+    // up a stale-correctIndex round.
+    const ssrRound = generateSession(() => 0.42)[0]!;
+
+    return {
+      kind,
+      sequence,
+      correctColor: ssrRound.correctColor,
+      options: [options[0]!, options[1]!, options[2]!],
+      correctIndex: ssrRound.correctIndex,
+      theme: themeKey,
+    };
+  };
+
+  // ── State ──────────────────────────────────────────────────────────
+  let session: PatternRound[] = [readSSRRound(), ...generateSession().slice(1)];
+  let roundIdx = 0;
+  let answered = false;
+  let currentNarration: RoundNarration | null = null;
+  /** Most recent post-answer phrase, cached so Replay re-narrates the
+   *  round summary regardless of which post-answer phase fired last
+   *  (correct vs reveal). */
+  let lastPostAnswerText = '';
+
+  // ── DOM refs ───────────────────────────────────────────────────────
+  const stage = document.getElementById('psStage') as HTMLElement;
+  const captionEl = document.getElementById('psCaption') as HTMLElement;
+  const seqEl = document.getElementById('psSequence') as HTMLElement;
+  // The slot is re-fetched on demand (its DOM identity is stable but
+  // it gets re-rendered as part of the sequence row each round, so
+  // a stale reference would point at the previous round's node).
+  const optEls = [
+    document.getElementById('psOpt0') as HTMLButtonElement,
+    document.getElementById('psOpt1') as HTMLButtonElement,
+    document.getElementById('psOpt2') as HTMLButtonElement,
+  ];
+  const progressText = document.getElementById('psProgressText') as HTMLElement;
+  const progressFill = document.getElementById('psProgressFill') as HTMLElement;
+  const progressPill = document.getElementById('psProgressPill') as HTMLElement;
+  const replayBtn = document.getElementById('psReplayBtn') as HTMLButtonElement;
+  const nextBtn = document.getElementById('psNextBtn') as HTMLButtonElement;
+  const doneEl = document.getElementById('psDone') as HTMLElement;
+  const playAgainBtn = document.getElementById('psPlayAgainBtn') as HTMLButtonElement;
+
+  // ── Audio helpers ──────────────────────────────────────────────────
+
+  /**
+   * Speak `text` if the user has sound enabled. Same shape as the
+   * cardinality triad's narrate(): silent-mode setTimeout fallback,
+   * watchdog alongside speechSynthesis.onend so headless CI runners
+   * without a system TTS engine don't deadlock the round-progression
+   * chain. See counting-friends-game.astro for the full rationale.
+   */
+  const narrate = (text: string, opts?: { onEnd?: () => void }): void => {
+    const onEnd = opts?.onEnd;
+    if (!isSpeechSupported() || !getSettings().sound) {
+      if (onEnd) setTimeout(onEnd, 500);
+      return;
+    }
+    let fired = false;
+    const wrap = (): void => {
+      if (fired) return;
+      fired = true;
+      onEnd?.();
+    };
+    const watchdogMs = Math.max(700, text.length * 90 + 500);
+    if (onEnd) setTimeout(wrap, watchdogMs);
+    speak(text, { rate: 0.85, pitch: 1.15, onEnd: onEnd ? wrap : undefined });
+  };
+
+  const setCaption = (text: string): void => {
+    captionEl.textContent = text;
+    captionEl.style.animation = 'none';
+    void captionEl.offsetWidth;
+    captionEl.style.removeProperty('animation');
+  };
+
+  // ── Render helpers ─────────────────────────────────────────────────
+
+  const renderSequence = (round: PatternRound): void => {
+    let html = '';
+    round.sequence.forEach((color, i) => {
+      html += `<span class="ps-circle" data-color="${color}" data-i="${i}" style="--ps-i: ${i * 0.08}s" aria-label="Item ${i + 1}: ${color}"></span>`;
+    });
+    // The slot — keep its DOM identity stable so the reveal-color
+    // attribute swap doesn't fight the entrance animation.
+    html += '<span class="ps-slot" id="psSlot" aria-label="Missing item — what comes next?"><span class="ps-slot-glyph" aria-hidden="true">?</span></span>';
+    seqEl.innerHTML = html;
+  };
+
+  const renderOptions = (round: PatternRound): void => {
+    round.options.forEach((color, idx) => {
+      const el = optEls[idx]!;
+      el.dataset.color = color;
+      el.dataset.i = String(idx);
+      el.setAttribute(
+        'aria-label',
+        `Option ${idx + 1}: ${color} — tap if this comes next`,
+      );
+      el.disabled = false;
+      el.classList.remove('ps-opt--correct', 'ps-opt--reveal', 'ps-opt--wrong');
+      // Re-render the inner disc so its CSS selector matches the
+      // new data-color (the disc inherits color via the [data-color]
+      // selector chain on the parent).
+      el.innerHTML = '<span class="ps-opt-disc" aria-hidden="true"></span>';
+    });
+  };
+
+  const renderRound = (): void => {
+    const round = session[roundIdx]!;
+
+    progressText.textContent = `${roundIdx + 1} / ${TOTAL_ROUNDS}`;
+    progressFill.style.width = `${((roundIdx + 1) / TOTAL_ROUNDS) * 100}%`;
+    progressPill.setAttribute('aria-label', `Round ${roundIdx + 1} of ${TOTAL_ROUNDS}`);
+
+    stage.dataset.scene = round.theme;
+    stage.dataset.kind = round.kind;
+
+    renderSequence(round);
+    renderOptions(round);
+
+    answered = false;
+    currentNarration = buildNarration(round);
+    lastPostAnswerText = '';
+    nextBtn.disabled = true;
+    replayBtn.disabled = false;
+  };
+
+  /** Speak the round's intro phrase. Single-phase narration here. */
+  const speakIntroSequence = (): void => {
+    const n = currentNarration;
+    if (!n) return;
+    setCaption(n.intro);
+    narrate(n.intro);
+  };
+
+  /**
+   * Walk through the visible sequence, highlighting each item and
+   * speaking its color. Used by the errorless wrong-tap flow before
+   * the reveal. Mirrors the triad's `speakGuidedGroupCount` shape.
+   */
+  const speakGuidedSequenceWalk = (
+    round: PatternRound,
+    onDone: () => void,
+  ): void => {
+    const items = Array.from(seqEl.querySelectorAll<HTMLElement>('.ps-circle'));
+    let i = 0;
+
+    const step = (): void => {
+      if (i >= items.length) {
+        onDone();
+        return;
+      }
+      const item = items[i]!;
+      item.classList.add('ps-circle--pulse');
+      const color = round.sequence[i]!;
+      const word = currentNarration?.colorWord(color) ?? color;
+      setCaption(word);
+      narrate(word, {
+        onEnd: () => {
+          item.classList.remove('ps-circle--pulse');
+          i++;
+          setTimeout(step, 160);
+        },
+      });
+    };
+
+    step();
+  };
+
+  // ── Answer handler ─────────────────────────────────────────────────
+
+  const onOptionTap = (idx: 0 | 1 | 2): void => {
+    if (answered) return;
+    const round = session[roundIdx]!;
+    playTap();
+
+    const tappedEl = optEls[idx]!;
+    const correctEl = optEls[round.correctIndex]!;
+
+    if (idx === round.correctIndex) {
+      // Correct.
+      answered = true;
+      tappedEl.classList.add('ps-opt--correct');
+      for (const el of optEls) el.disabled = true;
+      // Fill the slot with the correct color so the kid sees the
+      // pattern complete before the next round.
+      const slot = document.getElementById('psSlot') as HTMLElement | null;
+      if (slot) {
+        slot.classList.add('ps-slot--reveal');
+        slot.dataset.revealColor = round.correctColor;
+      }
+      playCorrect();
+      cancelSpeech();
+      const correctText = currentNarration?.correct ?? 'Yes!';
+      lastPostAnswerText = correctText;
+      setCaption(correctText);
+      narrate(correctText);
+      launchConfetti(PS_COLORS);
+      bumpStats(true);
+      nextBtn.disabled = false;
+    } else {
+      // Wrong — errorless rerun. Sequence:
+      //   1) Kinesthetic shake on the tapped wrong option (250 ms,
+      //      no color/tone shift — age-safe).
+      //   2) "Hmm! Let's look at the pattern." (rerun)
+      //   3) Walk the visible sequence, narrating each color.
+      //   4) Reveal the correct option AND fill the slot.
+      //   5) "<Color>! It was <color>." (reveal)
+      //   6) Enable Next.
+      answered = true;
+      for (const el of optEls) el.disabled = true;
+      tappedEl.classList.add('ps-opt--wrong');
+      cancelSpeech();
+      const rerunText = currentNarration?.rerun ?? "Let's look at the pattern.";
+      setCaption(rerunText);
+      narrate(rerunText, {
+        onEnd: () => {
+          speakGuidedSequenceWalk(round, () => {
+            // Reveal the correct option AND fill the slot with the
+            // correct color so the pattern reads as "complete".
+            correctEl.classList.add('ps-opt--reveal');
+            const slot = document.getElementById('psSlot') as HTMLElement | null;
+            if (slot) {
+              slot.classList.add('ps-slot--reveal');
+              slot.dataset.revealColor = round.correctColor;
+            }
+            const revealText = currentNarration?.reveal ?? round.correctColor;
+            lastPostAnswerText = revealText;
+            setCaption(revealText);
+            narrate(revealText, {
+              onEnd: () => {
+                bumpStats(false);
+                nextBtn.disabled = false;
+              },
+            });
+          });
+        },
+      });
+    }
+  };
+
+  // ── Round progression ──────────────────────────────────────────────
+
+  const startRound = (): void => {
+    cancelSpeech();
+    renderRound();
+    requestAnimationFrame(() => speakIntroSequence());
+  };
+
+  const onNext = (): void => {
+    playTap();
+    if (roundIdx >= TOTAL_ROUNDS - 1) {
+      showSessionComplete();
+      return;
+    }
+    roundIdx++;
+    startRound();
+  };
+
+  const showSessionComplete = (): void => {
+    cancelSpeech();
+    const stats = loadPatternStats();
+    savePatternStats({
+      ...stats,
+      sessions: stats.sessions + 1,
+      lastPlayed: new Date().toISOString().slice(0, 10),
+    });
+    recordPlay('pattern-sequences');
+    doneEl.classList.add('ps-done--show');
+    launchConfetti(PS_COLORS);
+    narrate(`Wow! You spotted ${TOTAL_ROUNDS} patterns today! Great job!`);
+  };
+
+  const onPlayAgain = (): void => {
+    playTap();
+    doneEl.classList.remove('ps-done--show');
+    session = generateSession();
+    roundIdx = 0;
+    startRound();
+  };
+
+  // ── Stats persistence ──────────────────────────────────────────────
+
+  const bumpStats = (correctFirstTry: boolean): void => {
+    const stats = loadPatternStats();
+    savePatternStats({
+      ...stats,
+      rounds: stats.rounds + 1,
+      correctFirstTry: stats.correctFirstTry + (correctFirstTry ? 1 : 0),
+      lastPlayed: new Date().toISOString().slice(0, 10),
+    });
+    recordPlay('pattern-sequences');
+  };
+
+  // ── Event wiring ───────────────────────────────────────────────────
+
+  for (const el of optEls) {
+    el.addEventListener('click', () => {
+      if (el.disabled) return;
+      const idx = Number(el.dataset.i);
+      if (idx === 0 || idx === 1 || idx === 2) {
+        onOptionTap(idx as 0 | 1 | 2);
+      }
+    });
+  }
+
+  replayBtn.addEventListener('click', () => {
+    playTap();
+    cancelSpeech();
+    if (!answered) {
+      speakIntroSequence();
+    } else {
+      const text = lastPostAnswerText || (currentNarration?.intro ?? '');
+      setCaption(text);
+      narrate(text);
+    }
+  });
+
+  nextBtn.addEventListener('click', onNext);
+  playAgainBtn.addEventListener('click', onPlayAgain);
+
+  document.getElementById('btnSettings')?.addEventListener('click', () => {
+    playTap();
+    (window as unknown as { openSettings?: () => void }).openSettings?.();
+  });
+
+  document.getElementById('btnQuiz')?.addEventListener('click', () => {
+    playTap();
+    cancelSpeech();
+    speakIntroSequence();
+  });
+
+  document.getElementById('btnStats')?.addEventListener('click', () => {
+    playTap();
+    const stats = loadPatternStats();
+    const ratio =
+      stats.rounds === 0
+        ? 0
+        : Math.round((stats.correctFirstTry / stats.rounds) * 100);
+    const lines = [
+      `🎨 Sessions completed: ${stats.sessions}`,
+      `🌟 Rounds played: ${stats.rounds}`,
+      `🎯 First-try correct: ${stats.correctFirstTry} (${ratio}%)`,
+      stats.lastPlayed ? `📅 Last played: ${stats.lastPlayed}` : '📅 Last played: never',
+    ];
+    alert(lines.join('\n'));
+  });
+
+  // ── Initial state binding ──────────────────────────────────────────
+  // The SSR'd DOM is round 0; we don't re-render it. We just bind the
+  // JS state so subsequent logic — option clicks, replay button, etc. —
+  // has the expected references.
+  currentNarration = buildNarration(session[0]!);
+  progressText.textContent = `1 / ${TOTAL_ROUNDS}`;
+  progressFill.style.width = `${(1 / TOTAL_ROUNDS) * 100}%`;
+  progressPill.setAttribute('aria-label', `Round 1 of ${TOTAL_ROUNDS}`);
+
+  // Don't auto-speak on first paint — browsers block speechSynthesis
+  // until the first user gesture. Wait for the *first* tap (anywhere
+  // on the page body) to kick off the intro narration. Critically,
+  // kickoff does NOT call renderRound() — that would race with the
+  // click event when the user's first interaction is a tap on an
+  // option. Same prophylactic kickoff fix the rest of the
+  // preschool-math triad now uses.
+  let kickedOff = false;
+  const kickoff = (): void => {
+    if (kickedOff) return;
+    kickedOff = true;
+    requestAnimationFrame(() => speakIntroSequence());
+  };
+  document.addEventListener('pointerdown', kickoff, { once: true });
+  document.addEventListener('keydown', kickoff, { once: true });
+</script>

@@ -212,7 +212,7 @@ or (b) document a one-off exception.
 
 > **▶ Resume here next session:** the **migration is complete (13/13)** as of 2026-05-08; **Tracks 1, 2, 3, and 4 of post-migration polish are all closed** as of 2026-05-12; **the project is now in its feature-driven phase.** **First feature-driven game shipped 2026-05-15: Counting Friends — preschool addition for ages 3–4 (8 single-scene rounds per session, two groups of friendly objects, errorless answer flow, 4 themes — Pond/Orchard/Sea/Garden).** **Second feature-driven game shipped 2026-05-18: More Friends — preschool magnitude comparison for ages 3–4 (8 rounds, two side-by-side groups with sizes 1–4 each (always unequal), tap the bigger group, errorless guided-count-of-both-sides on miss; sister game / developmental precursor to Counting Friends — children master "more vs less" comparison ~6–12 months before consolidating cardinality enough to add).** **Third feature-driven game shipped 2026-05-18 (later): Number Friends — preschool numeral recognition for ages 3–4 (8 rounds, one numeral target 2–5 displayed at the top of the stage, three group panels with distinct sizes below where exactly one matches the target; tap the matching group, errorless wrong-tap flow that counts the *tapped wrong* group then the *correct* group with narration between; completes the cardinality triad — Counting Friends asks set→numeral, More Friends asks set vs set, Number Friends asks numeral→set).** Counting Friends triggered by a direct user request ("game for addition, simple addition for 3 year old boy"); More Friends + Number Friends shipped immediately after as natural sister mechanics, completing the "compare → count → recognise" cognitive triangle for age 3. All three games' design + research grounded in 2025 RCT findings on cardinality instruction (Springer), preschool-math best practices (five-frames before ten-frames, counting-all not counting-on, story-context framing), and shipping-app patterns (Endless Numbers, Khan Academy Kids — self-paced, no scoring, no failures). All three shipped on `StoryLayout` with new theme keys (`'addition'`, `'comparison'`, `'numberfriends'`); the `StageLayout` carve held a **third time** with explicit re-evaluation conditions now locked into `StoryLayout.astro`'s JSDoc — chrome differences between StoryLayout and a hypothetical StageLayout still amount to a body-class rename (`body.story` → `body.stage`) and nothing else, because all three games already scope every game-specific class under `body.story[data-theme='X']`. Carve trigger conditions: a fourth stage-game ships AND its chrome needs differ meaningfully (different head meta, different header, different settings panel, etc.); OR the theme union grows to ≥6 keys; OR a stage-only style primitive emerges. The **second-consumer carve that DID happen** at the More Friends ship — `src/lib/preschool-themes.ts` extracting `PreschoolTheme` + `ThemeMeta` + `THEMES` + `THEME_BY_KEY` + `numberWord` / `cap` / `nounFor` — got its **third consumer** with the Number Friends ship at zero changes (validates the carve: if any primitive needed reshaping, the carve would have been premature; none did). **16 games total now.** Track 1: 11 of 11 non-story games wired with `mountQuiz` (closed 2026-05-11). Track 2: 47-test Playwright smoke suite + soft-gate CI (closed 2026-05-11; **5 clean CI runs** on `main` — Track 2 push, Track 3 feat + docs, Track 4 Phase 1+2 feat + docs — so the T2.1 follow-up to promote Playwright to a hard deploy gate is now unblocked; one-line tweak adds `needs: test` to the `build` job in `.github/workflows/deploy.yml`). Track 3: Option C unified `DeckLayout` decided NO-GO with full ADR-style rationale captured under "Rough order of payoff → 5"; productive smaller win — `<GameControls />` extracted from 13 game pages (closed 2026-05-11). Track 4: cut-over plan **closed 2026-05-12 with the cut-over cancelled** — full ADR-style rationale captured under "Rough order of payoff → 6". **Decision: cut-over cancelled, Astro stays at `https://aakash-jain-1.github.io/kids-learning-games-astro/` as the permanent canonical URL; the vanilla `kids-learning-games` repo stays live independently as a legacy app, no cross-repo writes.** The morning's session of 2026-05-12 had shipped Phase 1 (decision: Option A — Astro takes over the vanilla URL) + Phase 2 (groundwork code: SW rename, 4 redirect aliases, offline-fallback bug fix) and queued Phase 3 (URL flip + cross-repo deploy) for the next session pending user OK. The afternoon pivot reversed Phase 1's decision and cancelled Phase 3 entirely; Track 4 closes here. The Phase 2 code changes stay in the codebase (all three are independently fine — see "Rough order of payoff → 6" → "Pivot 2026-05-12 (afternoon)" callout for the reversal rationale). **Next session: no queued track.** **Smaller follow-ups available, all standalone (queue: 1 — T2.1 closed 2026-05-18 via the consolidated test-job-in-`deploy.yml` approach (after a same-day-earlier `workflow_run` chain attempt in `dccf36d` + `8428ae3` + `9be0318` empirically failed to fire across two consecutive pushes; pivoted in `fc4e7e2`); T7 + T8 both closed 2026-05-18 (evening) in a single infra-hardening ship — `src/pages/404.astro` (friendly "Go Home" port of the vanilla 404, with three small upgrades: `BASE_URL` template literal, FOUC-safe dark-mode pre-paint, and a dark-mode override the vanilla page lacked) + `tests/not-found.spec.ts` (1-test smoke for direct navigation to 404.html; the "missing-path → 404" fallback is GH-Pages-layer behaviour and deliberately not coupled to `astro preview` to avoid CI risk) + `tests/sw.spec.ts` (4-test SW-behavior suite under `test.use({ serviceWorkers: 'allow' })`: SW installs + takes control + populates non-empty precache; online navigation does NOT serve the offline fallback — the explicit May-12 NavigationRoute regression test; offline navigation to an UNCACHED URL serves the offline fallback via `setCatchHandler`; offline navigation to a CACHED URL serves the real page from precache without network); **T6 closed 2026-05-20** with `src/pages/stats.astro` + `src/data/stats-registry.ts` + `tests/stats.spec.ts` (6 tests) — parent-facing `/stats` dashboard at `/kids-learning-games-astro/stats` with one card per registry entry across 4 family sections (preschool-math / story / card-set / card-pure), each card surfaces the same numbers the per-game `alert()` shows, plus per-card Reset + global "Reset everything", per-game alert buttons stay in place as the additive immediate-feedback view; registry is single-source-of-truth so adding a 17th game is a one-entry edit; **T-extra closed 2026-05-20 (later)** — added age-safe wrong-answer feedback to all 13 `mountQuiz` games (story + card-set + card-pure) by upgrading `src/lib/quiz.ts`'s `onAnswer` from a silent instant advance to a 250 ms shake on the tapped wrong button (`quiz-opt--wrong`) + a 600 ms green-ring pulse on the actual correct button (`quiz-opt--reveal`) + a 700 ms advance gate (correct taps get a 450 ms pop on the tapped button via `quiz-opt--correct` and advance after 450 ms — was 0 ms previously); 3 new test cases on woodcutter Q1 (deterministic `ans: 1`) cover the wrong path, the correct path, and double-tap re-entrancy guarding (buttons are disabled during the feedback gate so a fast second tap can't fire `onAnswer` twice); the helper `tests/helpers.ts → answerQuizUntilResult` upgraded to poll for the new feedback gate to settle between clicks instead of clicking through synchronously. **Initial T-extra ship deliberately skipped the preschool-math triad** (Counting Friends, More Friends, Number Friends) — it doesn't use `mountQuiz`, it has its own page-local errorless flow (guided-count rerun + correct-answer reveal) which is the research-grounded standard for ages 3–4 (Skinner / Touchette errorless-learning). **T-extra triad-extension closed 2026-05-20 (latest)** after the user noticed the gap: the *strictly age-safe* shake variant (no color, no desaturation, no negative tone — purely kinesthetic) is, by design, age-safe; the original "don't touch the triad" rationale (shake competing with the audio narration) doesn't survive scrutiny because the 250 ms shake and 1–2 s narration aren't on the same timescale and use different channels (visual vs audio). Each triad game now adds a per-game `cf-opt--wrong` / `mf-group--wrong` / `nf-group--wrong` class in the wrong branch with a matching `cfShake` / `mfShake` / `nfShake` keyframe (byte-for-byte identical 4-frame translateX, namespaced per the existing `<prefix>Bounce` / `<prefix>PulseRing` convention). The rest of the errorless-rerun flow (narrate → guided count → reveal correct with pulse ring) stays exactly as-is — the shake is purely additive and runs in parallel with the audio. The new feedback rules live in `src/styles/global.css` as `.quiz-opt--correct` / `.quiz-opt--wrong` / `.quiz-opt--reveal` with three keyframes (`quiz-pop-correct` / `quiz-pulse-reveal` / `quiz-shake`); the existing global `prefers-reduced-motion` block at the bottom of `global.css` already nullifies all three to 0.01 ms, so no per-rule reduced-motion override is needed. Visual design: NO red, NO desaturation, NO negative tone — the shake reads kinesthetically as "not this one" without shame-coding, the reveal celebrates the correct answer (#22c55e green outline + box-shadow expand). The remaining one follow-up is):** (T9, **new — filed by the Counting Friends ship, scope expanded to all three preschool-math games at the More Friends + Number Friends ships**) v2 polish for Counting Friends + More Friends + Number Friends — replace Web Speech API with pre-recorded MP3 narration in a kid-friendly voice (warmer for the actual 3yo user; ~2–3 hr of recording/encoding + a small narration-asset registry; defer until v1 retention is validated). **Live regression context (2026-05-12):** the Phase 2 SW-install fix unmasked a latent `NavigationRoute(createHandlerBoundToURL('offline'))` bug that served the offline page on every navigation; hotfix `fce0380` replaced `NavigationRoute` with `setCatchHandler`, deploy verified live (badge `passing`, home returns 200 with HTML, SW has 0 NavigationRoute references and 1 setCatchHandler call). T8's third + fourth assertions now lock that hotfix in via the deploy gate — a NavigationRoute-class regression would fail CI before reaching production. Both remaining follow-ups are small (~15 min – 3 hr of work each) and safe to defer. **Or pick a new feature game** — Counting Friends established the feature-driven pattern; Magnitude Comparison ("which group has more?") and Number Bond Pop ("how many more to make 5?") are earmarked as natural follow-up sister games that would reuse most of `addition.css`. **Same-day hotfix shipped 2026-05-15 afternoon (commit `825181f`):** the post-push CI on the Counting Friends feat (`1a66542`) went red on every option-click test in `tests/addition.spec.ts` (deploy stayed green — soft gate). Two independent root causes: (1) the page's first-gesture `kickoff()` handler synchronously called `renderRound()` which mutated `optionsEl.innerHTML`, racing every `pointerdown → click` sequence and replacing the SSR'd numeral buttons with ones from a freshly-randomized JS session before the click could resolve — fixed by adding `readSSRRound()` to seed JS round 0 directly from the SSR'd DOM (data-scene + #cfGroupA/B item counts + option `data-n` reads), and changing `kickoff` to only fire `speakIntroSequence()` without re-rendering; (2) `speechSynthesis.speak()` in headless Chromium (no system TTS engine on CI runners) doesn't reliably fire `utterance.onend`, stalling the wrong-answer rerun chain `narrate(rerun) → speakGuidedCount → narrate(rerunDone) → reveal` — fixed by adding a length-based watchdog `setTimeout` to `narrate()` (real browsers fire onend long before the watchdog so it's a no-op in production; headless and TTS-disabled paths fall through deterministically) and by muting `kids_settings_v1.sound` in the test `beforeEach` (deterministic silent-mode path, no dependence on speech engine *or* watchdog). Live deploy post-push: `Deploy to GitHub Pages` `passing`, `Playwright tests` **`passing`**, live JS bundle contains `cfStage` + `cfGroupA` literals (proves `readSSRRound` shipped). Full ADR under "Changelog → 2026-05-15 (afternoon, hotfix)" below.
 
-**Build is clean:** 19 pages built on a clean rebuild (16 game pages — 13 vanilla ports + Counting Friends + More Friends + Number Friends — plus index, the `404.html`, and the new parent-facing `stats.html`), `npm run check` 0 errors / 0 warnings / 0 hints across **53 Astro files** (added: `src/pages/stats.astro`; previous T7 + T8 + Number Friends additions stay tracked here too), all chunk-dedup invariants still verified at the bundle level (quiz **13-way** — no preschool-math game uses `mountQuiz`, all three implement their own per-round answer flow; progress 8-way; fluent 6-way; achievements **16-way** since all three preschool-math games consume `launchConfetti`; layout pre-paint 3-way — 404 page + `stats.astro` both deliberately ship their own self-contained inline pre-paint scripts for resilience and are NOT counted as additional consumers of the shared chunk), precache **90 entries** (the +4 redirect HTMLs at the legacy vanilla paths from Phase 2 stay in dist as harmless robustness aliases — see the pivot callout for why they stay; the Counting Friends ship added +4 entries 2026-05-15; the More Friends ship added another +4 — page HTML + page-specific JS chunk + new `comparison.css` + a Vite re-emitted shared chunk for the new `preschool-themes.ts` module; the Number Friends ship added +3 — page HTML + page-specific JS chunk + new `numberfriends.css`, the existing `preschool-themes` shared chunk gained its third consumer with no re-emit, verifiable via `grep -l preschool-themes dist/games/*.html | wc -l` returning 3; the T7 ship added +2 — `dist/404.html` itself plus a small page-specific JS chunk for the `initSettings` import; the T6 ship added the largest precache delta (+17) because the `/stats` page imports the new `stats-registry.ts` *and* the existing `progress.ts` + `quiz.ts` + every game's data file (for `ALL_CARDS.length` denominators), so Vite emits dedicated chunks for the per-game data imports that the registry pulls in — but well under the 100-entry safety budget the project carries for `@vite-pwa/astro`'s default `globPatterns`). The 404 precache key is `"404"` (no leading slash, no `.html`) — same convention as `"offline"`, verified via `grep -oE '"404"|"offline"' dist/service-worker.js` returning both keys; the new `/stats` page follows the same convention with key `"stats"`.
+**Build is clean:** 20 pages built on a clean rebuild (17 game pages — 13 vanilla ports + Counting Friends + More Friends + Number Friends + Pattern Sequences — plus index, the `404.html`, and the parent-facing `stats.html`), `npm run check` 0 errors / 0 warnings / 0 hints across **53 Astro files** (added: `src/pages/stats.astro`; previous T7 + T8 + Number Friends additions stay tracked here too), all chunk-dedup invariants still verified at the bundle level (quiz **13-way** — no preschool-math game uses `mountQuiz`, all three implement their own per-round answer flow; progress 8-way; fluent 6-way; achievements **16-way** since all three preschool-math games consume `launchConfetti`; layout pre-paint 3-way — 404 page + `stats.astro` both deliberately ship their own self-contained inline pre-paint scripts for resilience and are NOT counted as additional consumers of the shared chunk), precache **90 entries** (the +4 redirect HTMLs at the legacy vanilla paths from Phase 2 stay in dist as harmless robustness aliases — see the pivot callout for why they stay; the Counting Friends ship added +4 entries 2026-05-15; the More Friends ship added another +4 — page HTML + page-specific JS chunk + new `comparison.css` + a Vite re-emitted shared chunk for the new `preschool-themes.ts` module; the Number Friends ship added +3 — page HTML + page-specific JS chunk + new `numberfriends.css`, the existing `preschool-themes` shared chunk gained its third consumer with no re-emit, verifiable via `grep -l preschool-themes dist/games/*.html | wc -l` returning 3; the T7 ship added +2 — `dist/404.html` itself plus a small page-specific JS chunk for the `initSettings` import; the T6 ship added the largest precache delta (+17) because the `/stats` page imports the new `stats-registry.ts` *and* the existing `progress.ts` + `quiz.ts` + every game's data file (for `ALL_CARDS.length` denominators), so Vite emits dedicated chunks for the per-game data imports that the registry pulls in — but well under the 100-entry safety budget the project carries for `@vite-pwa/astro`'s default `globPatterns`). The 404 precache key is `"404"` (no leading slash, no `.html`) — same convention as `"offline"`, verified via `grep -oE '"404"|"offline"' dist/service-worker.js` returning both keys; the new `/stats` page follows the same convention with key `"stats"`.
 
 ### Per-game layout decisions for the 5 pending ports
 
@@ -417,7 +417,229 @@ before deciding.
 
 ## Changelog
 
-### 2026-05-20 (latest) — feat(stats): retention instrumentation — sitewide play-history + 7-day activity panel + relative-time "last played" (T-retention)
+### 2026-05-20 (latest) — feat(games): Pattern Sequences — fourth preschool-math game; sequential pattern recognition for ages 3–4 (T-patterns)
+
+**Why now.** Picked from the post-T-retention "what next?" candidate
+set (see "next session candidates" entry below). Of the remaining
+agent-actionable options after the user parked T9 to record
+voiceovers offline, Pattern Sequences was the only candidate that
+gave the 3yo a genuinely **new mechanic to play** AND generated
+fresh signal on the activity panel that just shipped (T-retention).
+The next time the parent opens `/stats`, a new family-coloured dot
+lights up on the 7-day grid, validating both the new game and the
+panel in one return visit.
+
+#### Design fork resolved before build
+
+Three candidates considered for the pattern primitive (the visual
+element that gets repeated and varied):
+
+1. **Colored circles** — universal across all themes (red/blue/yellow/green dots).
+2. **Theme-flavored objects** — ducks vs turtles in pond, apples vs cherries in orchard.
+3. **Colored shapes** — red circle, blue square, yellow triangle.
+
+Picked **colored circles** for these reasons:
+
+- **Pre-attentive discriminability**: color is the fastest visual
+  feature for the brain to parse (<200 ms vs ~400 ms for emoji
+  shape recognition). For a 3yo, that 200 ms difference is the
+  difference between "this is a game" and "this is a puzzle".
+- **Working-memory load**: single attribute per item (just color).
+  Colored shapes (option 3) double the attribute count (color AND
+  shape), pushing into age-5+ territory. Theme objects (option 2)
+  add visual detail per item that competes with the pattern
+  signal.
+- **Curricular alignment**: colors as primitive REINFORCES the
+  existing `/games/colors-game` card-set (kid hears "red", "blue",
+  "yellow", "green" in narration and recognises them from the
+  Colors flashcards). Shapes-as-primitive would do the same for
+  Shapes, but at age 3-4 the colors path is the canonical one.
+- **Pedagogical precedent**: Piaget seriation tasks (1960s),
+  Montessori bead-stringing (1910s), modern preschool-math curricula
+  (Common Core preschool, EYFS, Reggio Emilia) ALL use colored
+  primitives for ages 3–4. Shapes get introduced age 5+. The
+  research is unambiguous.
+- **Audio rhythm**: "Red... blue... red... blue... red..." — short
+  monosyllabic words easy for the kid to say-along during the
+  errorless wrong-tap walk-through. Colored shapes ("red circle...
+  blue square...") double the syllable count and slow the rhythm.
+  Theme objects ("duck... turtle... duck... turtle...") have
+  emoji-to-word recognition load.
+- **Cross-browser rendering risk**: zero (CSS color values render
+  identically everywhere). Theme objects rely on system emoji
+  which vary across iOS / Android / Win.
+- **Implementation simplicity**: smallest data layer (just the
+  4-color enum), fastest to ship — actually delivered in the
+  estimated 3 hr window rather than busting it.
+
+The downside of color-as-primitive — "less visually playful than
+ducks" — is mitigated by the **4 theme backgrounds + caption tone +
+ambient chrome emoji** carrying all the theme-flavour. The pattern
+primitive itself doesn't need to also be themed. Same architecture
+as `numberfriends.css` (the numerals 1–10 are theme-independent;
+theme = bg / caption / ambience). Number Friends ship validated
+this split; Pattern Sequences inherits it.
+
+#### What landed
+
+1. **New data layer `src/data/patterns.ts`** — pure, framework-free
+   data module for the game.
+   - `PatternColor = 'red' | 'blue' | 'yellow' | 'green'`.
+   - `PatternKind = 'AB' | 'AAB' | 'ABB' | 'ABC'` — the four
+     difficulty tiers; cycle definitions in `CYCLE_FOR` map each
+     kind to an index array (e.g. AAB → [0,0,1]) that gets
+     applied to the round's chosen color set.
+   - `VISIBLE_LENGTH = 5` — five colored circles + a "?" slot at
+     position 5. Tuned for a 320 px phone (44 px circles + 8 px
+     gap fits with margin); gives each cycle ≥1 full repetition
+     in the visible portion (1.5× for 3-cycles, 2.5× for AB).
+   - `generateSession(rand)` — produces 8 rounds, 2 of each tier,
+     with a Fisher–Yates shuffle of tier order. Per-round: pick
+     2 or 3 distinct colors, apply the cycle for VISIBLE_LENGTH
+     positions, evaluate at position 5 for the correct answer,
+     pick 2 distractors from the remaining 3 colors, shuffle into
+     a 3-option display order. Themes rotate with no-two-in-a-row.
+     Same shape as the cardinality triad's `generateSession`.
+   - `buildNarration(round)` — `{ intro, correct, rerun, reveal,
+     colorWord(c) }`. Note: theme is intentionally NOT in the
+     narration phrasing here. The pattern primitive (color) is
+     theme-independent, and "What comes next, ducks?" would feel
+     bolted-on. Theme reads visually, not in spoken words.
+   - Stats schema = `pattern_sequences_stats_v1`, shape `{ sessions,
+     rounds, correctFirstTry, lastPlayed }` — IDENTICAL to the
+     triad. This was a deliberate design choice so the existing
+     `preschoolMathEntry` factory in the stats registry takes the
+     new game with zero shape changes (just one factory call).
+
+2. **New page `src/pages/games/pattern-sequences-game.astro`** —
+   uses StoryLayout with `theme='patterns'`. Errorless wrong-tap
+   flow: cancel speech → kinesthetic `ps-opt--wrong` 250 ms shake
+   → "Hmm! Let's look at the pattern" → walk the visible
+   sequence highlighting each item while speaking its color
+   ("red... blue... red... blue... red...") → reveal the correct
+   option AND fill the slot with the correct color (so the kid
+   sees the pattern *complete* visually) → narrate the answer →
+   enable Next. Same SSR-derived round 0 + readSSRRound kickoff
+   pattern as the triad (avoids the kickoff-race that bit
+   Counting Friends 2026-05-15).
+
+3. **New stylesheet `src/styles/patterns.css`** — `.ps-*` namespace
+   under `body.story[data-theme='patterns']`. Mirrors the triad
+   CSS shape (per-theme bg tokens, panel translucency, fly-in /
+   pulse / bounce / pulse-ring keyframes, age-safe `psShake`
+   keyframe with NO color shift — same constraint as
+   `nfShake` / `mfShake` / `cfShake`). Reduced-motion
+   fallback collapses every animation. Dark-mode token
+   overrides included from day one. Mobile responsive:
+   sequence circles shrink from 56 → 44 px below 480 px viewport.
+
+4. **StoryLayout theme union widened to include `'patterns'`**.
+   Pre-dark FOUC handler matches the triad's dark-bg token. **4th
+   stage-game StageLayout deferral documented** with revised
+   trigger conditions: the "Nth game count" alone is no longer
+   sufficient to justify the carve — through 4 games we've proven
+   the body-class scope IS the deduplication mechanism, so the
+   carve has to deduplicate something REAL (different head meta,
+   different header, different settings panel) to pay for the
+   migration churn. Updated triggers are in the StoryLayout
+   header comment.
+
+5. **GameNav, home page, stats registry, EXPECTED_GAME_IDS** — one
+   line each, in lockstep with how Number Friends was added. Game
+   ID is `'pattern-sequences'`, family is `'preschool-math'`
+   (broadly construed: pattern recognition is part of the
+   early-math foundations curriculum — sequencing, ordering,
+   prediction).
+
+6. **Test suite `tests/patterns.spec.ts`** — 5 tests modeled on
+   `numberfriends.spec.ts`:
+   - SSR shape: 5 `.ps-circle` + 1 `#psSlot`, 3 distinct option
+     colors, recognised data-kind ∈ `{AB,AAB,ABB,ABC}`.
+   - Next button gated on an answer.
+   - Tap any option → Next eventually enables + rounds bump.
+   - **Deterministic correct-tap path** — reconstructs the
+     correct color from `data-kind` + the visible sequence (apply
+     the cycle at position VISIBLE_LENGTH), taps the matching
+     option, asserts `ps-opt--correct` + slot reveal +
+     `correctFirstTry` bumps. This pattern (cycle-replay
+     reconstruction) is more robust than the SSR-seed-replay
+     approach and avoids hard-coding the seeded round's answer.
+   - Wrong-tap path → 250 ms `ps-opt--wrong` shake assertion
+     before the slow reveal chain, then `ps-opt--reveal` on the
+     correct option, then `correctFirstTry === 0` assertion.
+   - Home card linked by `href*=` (description references the
+     cardinality triad explicitly so a `hasText` filter would
+     overmatch).
+
+#### Build deltas
+
+- **Files added**: `src/data/patterns.ts` (~280 LOC),
+  `src/pages/games/pattern-sequences-game.astro` (~430 LOC),
+  `src/styles/patterns.css` (~440 LOC), `tests/patterns.spec.ts`
+  (~270 LOC).
+- **Files modified**: `src/layouts/StoryLayout.astro` (theme
+  union + pre-dark FOUC + ADR comment), `src/components/GameNav.astro`
+  (one new link), `src/pages/index.astro` (one new home card),
+  `src/data/stats-registry.ts` (one factory call),
+  `tests/stats.spec.ts` (`EXPECTED_GAME_IDS` += 1).
+- **`npm run check`**: 0 errors, 0 warnings, 0 hints.
+- **`npm run build`**: 20 page(s) built, 8.42 s. Service worker
+  precache 97 entries (621 KiB). New page `dist/games/pattern-
+  sequences-game.html` ~21 KB.
+- **Verified dist artifacts**: SSR'd HTML has `data-theme="patterns"`,
+  5 `ps-circle` instances, 3 `ps-opt` buttons, home card link to
+  `pattern-sequences-game`, stats registry includes the new entry.
+
+#### What was deliberately NOT shipped
+
+- **No new theme additions to `preschool-themes.ts`.** Pattern
+  Sequences uses the existing 4 themes as bg context only. Adding
+  themes for "more variety" only matters once we see the kid
+  actually playing through the existing 4 enough to notice
+  repetition — until then it's premature.
+- **No 5th tier (e.g. ABBA palindrome, ABCB)**. Research suggests
+  palindromes and non-cyclic patterns are age-5+ territory. The
+  current 4 tiers (AB/AAB/ABB/ABC) cover the entire age-3-to-4
+  curriculum. If the kid masters all 4 by the time they're 4.5,
+  THAT is the trigger to add a harder tier — not "we have
+  capacity to add more tiers".
+- **No persistence of which tier the kid struggles on.** The
+  `correctFirstTry` ratio captures overall difficulty fit; per-
+  tier breakdowns are easy to add later if the parent dashboard
+  wants them, but for v1 we follow the triad's "minimal stats
+  schema" precedent.
+
+#### Next session candidates (post-T-patterns)
+
+In rough order of payoff:
+
+1. **T9 — MP3 narration for the triad** *(blocked: user is
+   recording voiceover offline, no agent-side work pending until
+   files arrive; see `docs/T9-RECORDING-GUIDE.md`)*. Apply to
+   Pattern Sequences in the same pass — the narration shape is
+   simpler here (4 color words + 4 fixed phrases) so the recording
+   list is shorter than the triad's.
+2. **MP3 narration for Pattern Sequences specifically** — same
+   shape as T9, smaller scope (4 color words + 4 phrases vs the
+   triad's per-numeral + per-theme phrases). Could ship together
+   with T9 or independently if the user records the colors first.
+3. **Number Bond Pop** — earmarked v1 candidate. Pedagogy: "how
+   many more to make 5?" Re-evaluate age-3 fitness; this requires
+   abstract part-whole reasoning that the cardinality triad's
+   evidence suggests is age-4+. May need re-design before ship.
+4. **Alphabet/letter recognition game** — broaden the foundational-
+   set roster. Card-set genre, well-trodden territory.
+5. **Accessibility audit** — comprehensive sweep of WCAG 2.2 AA
+   across all 17 games (was 13 before the cardinality triad +
+   Pattern Sequences shipped).
+6. **Per-tier difficulty stats on `/stats`** — break down Pattern
+   Sequences's `correctFirstTry` by AB/AAB/ABB/ABC. Useful for
+   the parent to see "kid masters AB but struggles with ABC", but
+   only after observing actual play data first.
+
+---
+
+### 2026-05-20 — feat(stats): retention instrumentation — sitewide play-history + 7-day activity panel + relative-time "last played" (T-retention)
 
 **Why now.** Picked from the post-T9-park "what next?" candidate
 set (see "next session candidates" entry below). Of the five

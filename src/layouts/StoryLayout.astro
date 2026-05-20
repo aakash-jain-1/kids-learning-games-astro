@@ -41,21 +41,23 @@ interface Props {
    * default theme. Add new keys here as more story games land.
    *
    * `'addition'` (added 2026-05-15 for the Counting Friends game),
-   * `'comparison'` (added 2026-05-18 for the More Friends game), and
+   * `'comparison'` (added 2026-05-18 for the More Friends game),
    * `'numberfriends'` (added 2026-05-18 — same day, later — for the
-   * Number Friends game) are not strictly story games, but reuse
+   * Number Friends game), and `'patterns'` (added 2026-05-20 for the
+   * Pattern Sequences game) are not strictly story games, but reuse
    * StoryLayout's wiring (head, GameNav, SettingsModal, BuildInfo,
    * SW registration, FOUC handling) which is exactly what a
    * single-scene-per-round stage game needs.
    *
-   * THIRD-CONSUMER STAGELAYOUT DEFERRAL (2026-05-18, 3rd time deferred).
+   * FOURTH-CONSUMER STAGELAYOUT DEFERRAL (2026-05-20, 4th time deferred).
    *
    * Per rule #5 ("refactor on second consumer"), the More Friends
    * ship was the natural trigger to carve a `StageLayout` sister
-   * shell. We deferred. Number Friends is the third stage-game ship,
-   * which would normally make a "third strike" carve overdue. We're
-   * deferring AGAIN, with the following explicit reasoning so the
-   * next reader doesn't need to repeat the analysis:
+   * shell. We deferred. Number Friends was the third stage-game
+   * ship; we deferred again. Pattern Sequences (2026-05-20) is the
+   * fourth stage-game ship — at the original "fourth-game" trigger
+   * condition. We're STILL deferring, because the underlying logic
+   * that drove the previous deferrals hasn't changed:
    *
    *   1. The chrome differences between StoryLayout and a
    *      hypothetical StageLayout still amount to ONE thing: the
@@ -63,36 +65,48 @@ interface Props {
    *      specific style is already scoped under
    *      `body.story[data-theme='X']`, so the prefix is doing the
    *      isolation work that a body-class differentiator would do.
+   *      Pattern Sequences ships using the exact same body-class
+   *      shape as the triad — no novel chrome requirement.
    *   2. The hypothetical StageLayout would re-import all the same
    *      head meta, GameNav, SettingsModal, BuildInfo, FOUC script,
    *      and SW registration — the entire `<head>` and `<body>`
    *      shell would be duplicated, not shared. So the carve
    *      doesn't actually deduplicate anything; it just relocates.
    *   3. Migrating addition.css + comparison.css + numberfriends.css
-   *      from `body.story[...]` to `body.stage[...]` is mechanical
-   *      churn (3 files × ~30 selectors each ≈ 90 replacements,
-   *      one-time but irreversible without re-doing the same
-   *      churn). And every stage-game test would need an updated
-   *      body-class assertion.
+   *      + patterns.css from `body.story[...]` to `body.stage[...]`
+   *      is mechanical churn (4 files × ~30 selectors each ≈ 120
+   *      replacements, one-time but irreversible without re-doing
+   *      the same churn). And every stage-game test would need an
+   *      updated body-class assertion.
    *
-   * Trigger conditions for actually carving StageLayout:
-   *   - A fourth stage-game ships AND a meaningful chrome
+   * Updated trigger conditions for actually carving StageLayout
+   * (revised after the 4-game data point):
+   *   - A FIFTH stage-game ships AND a meaningful chrome
    *     difference emerges (different head meta, different
-   *     header, a different settings panel, etc.). At that
-   *     point the carve has real payoff.
+   *     header, a different settings panel, etc.). The "Nth game
+   *     count" alone is no longer sufficient — the carve has to
+   *     deduplicate something real. Through 4 games we've proven
+   *     the body-class scope IS the deduplication mechanism.
    *   - OR the theme union grows to ≥6 keys and starts to feel
    *     genuinely unwieldy in code review.
    *   - OR a stage-only style primitive emerges that would belong
    *     in a stage-only stylesheet (none today: every game style
    *     is per-game).
    *
-   * The shared *content* primitives across these three games (theme
+   * The shared *content* primitives across these games (theme
    * catalog, number-word helpers, common pedagogical patterns) ARE
    * refactored — see `src/lib/preschool-themes.ts`. That's where the
-   * second-consumer carve actually happened. Number Friends was the
-   * third consumer of that lib, validating the carve.
+   * second-consumer carve actually happened. Pattern Sequences is
+   * the fourth consumer of that lib (after Counting Friends, More
+   * Friends, Number Friends), validating the carve once more.
    */
-  theme?: 'routines' | 'woodcutter' | 'addition' | 'comparison' | 'numberfriends';
+  theme?:
+    | 'routines'
+    | 'woodcutter'
+    | 'addition'
+    | 'comparison'
+    | 'numberfriends'
+    | 'patterns';
 }
 
 const {
@@ -202,6 +216,10 @@ const canonicalUrl =
     color: #d4e0ff;
   }
   html.pre-dark body.story[data-theme='numberfriends'] {
+    background: #0a1020;
+    color: #d4e0ff;
+  }
+  html.pre-dark body.story[data-theme='patterns'] {
     background: #0a1020;
     color: #d4e0ff;
   }

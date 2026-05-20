@@ -40,6 +40,7 @@ const EXPECTED_GAME_IDS = [
   'counting-friends',
   'more-friends',
   'number-friends',
+  'pattern-sequences',
   // Family B — story
   'routines',
   'woodcutter',
