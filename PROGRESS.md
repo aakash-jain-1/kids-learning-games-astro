@@ -417,6 +417,241 @@ before deciding.
 
 ## Changelog
 
+### 2026-05-20 (latest, post-ship docs) — docs(queue): capture next-session candidates + deep-dive on T9 (pre-recorded MP3 narration)
+
+User asked *"what next?"* immediately after the T-extra
+triad-extension landed. Captured the candidate set into
+`SESSION-HANDOFF.md` (top section, "NEXT SESSION CANDIDATES")
+and this dedicated entry below so the rationale is
+permanently preserved. **No code changes** — this is a
+queue-snapshot + T9 deep-dive entry.
+
+#### The 6 candidates the user was offered (full rationale)
+
+1. **New game: Number Bond Pop** ("How many more to make 5?")
+   — earmarked since Counting Friends as the natural fourth
+   preschool-math game; completes the arc compare → count →
+   recognise → decompose. Reuses `preschool-themes.ts`,
+   `StoryLayout`, the shake pattern, errorless flow. **~3–4 hr.**
+   Open question: a previous session's notes flagged the
+   missing-addend partitioning as age 4+ — re-evaluate before
+   committing (could be made age-3-safe with ten-frame-style
+   filled-vs-empty dots so the kid SEES the gap rather than
+   abstractly partitioning).
+2. **New game: Pattern Sequences** — different cognitive
+   mechanic from the triad (red-blue-red-?, big-small-big-?).
+   Fresh stimulus, lowest "another counting game" fatigue
+   risk for the 3yo. ~3 hr.
+3. **T9: pre-recorded MP3 narration for the triad.** Full
+   deep-dive below. ~2–6 hr depending on recording approach.
+4. **Retention instrumentation** — last-played-at + 7-day
+   rolling chart on `/stats`, to empirically validate whether
+   the 3yo voluntarily returns. Unblocks T9's deferral logic.
+   ~1–2 hr.
+5. **New domain: alphabet / letter recognition** — pivot to
+   early literacy. ~5–8 hr v1. Higher long-term payoff,
+   lower payoff today vs. closing the math arc.
+6. **Accessibility audit** — keyboard nav, focus, contrast,
+   screen-reader. Defer unless audience widens beyond the 3yo.
+
+**Default order** if the user is undecided: 2 → 1 → 4 → 3 → 5 → 6.
+**Do not pick autonomously without user confirmation** — each
+option has a different bet (1+2 widen v1 scope, 3 deepens v1
+quality, 4 derisks T9 decision, 5 widens domain, 6 widens
+audience), and the user's read on the actual 3yo's engagement
+is the input no agent has.
+
+#### T9 deep-dive: pre-recorded MP3 narration for the preschool-math triad
+
+##### What it replaces
+
+The triad (Counting Friends, More Friends, Number Friends)
+currently does **all** narration via the **Web Speech API**:
+`window.speechSynthesis.speak(new SpeechSynthesisUtterance(text))`,
+wrapped in `src/lib/speech.ts → narrate(text, opts)`. Every
+spoken phrase ("Look! Two apples!", "Count them!", "Yes!
+Three!", "Let's count them together", "one… two… three…",
+"Three apples! That was three, not four", etc.) is synthesised
+at runtime by whatever TTS engine the OS provides. A length-
+based watchdog `setTimeout` (added 2026-05-15 afternoon
+hotfix) keeps the silent-mode + headless-Chromium paths
+deterministic.
+
+T9 ships **pre-recorded MP3 audio** for every triad phrase,
+indexed in a registry, played via `<audio>` instead of Web
+Speech.
+
+##### Why Web Speech is the v1 weak link
+
+| Problem | 3yo impact |
+|---|---|
+| Voice quality varies wildly by OS — macOS Daniel/Samantha sound passable, iOS Safari is OK, Android default voices are noticeably robotic, Linux Chromium often has none at all | Same game sounds polished on the parent's iPad and robotic on a hand-me-down Android tablet |
+| Inconsistent prosody — emphasis, intonation, pacing differ per engine | "Yes! Three apples!" lands as celebration on one device and a flat statement on another |
+| No emotional warmth — synthetic voices can't convey "I'm so excited you got that right" | A 3yo's engagement loop is heavily emotional; flat voice halves the dopamine hit |
+| Voice loading is async + sometimes flaky (`voices` array empty until `voiceschanged` fires) | Already worked around but adds complexity to the speech.ts layer |
+| Doesn't work in headless Chromium on CI runners | Already worked around (watchdog), but proves the API isn't dependable |
+| Indian-English / regional accents not available on every OS | A child raised hearing the parent's accent gets a confusing-sounding stranger reading their game |
+
+##### Phrase inventory (estimate ~120–180 unique phrases across the triad)
+
+Per game, structured as `<game>:<category>:<key>`:
+
+```
+counting-friends/
+  intro:{pond,orchard,sea,garden}                   # 4 — one per theme
+  prompt:count-them                                 # 1 — "Count the apples!"
+  correct:{1..10}                                   # 10 — "Yes! Three!"
+  rerun:lets-count                                  # 1 — "Let's count them together"
+  count-cadence:{1..10}                             # 10 — "one" "two" ...
+  rerun-done:{1..10}                                # 10 — "...five!"
+  session-complete                                  # 1
+                                                    # total: ~37
+more-friends/
+  intro:{pond,orchard,sea,garden}                   # 4
+  prompt:which-has-more                             # 1
+  correct:{this-side,that-side}-has-{1..4}          # ~8 — "This side has three!"
+  rerun:lets-count                                  # 1
+  count-cadence:{1..4}                              # (shared with counting-friends; reuse)
+  rerun-done:{1..4}-has-more                        # 4
+  session-complete                                  # 1
+                                                    # total: ~19 unique
+number-friends/
+  intro:{pond,orchard,sea,garden}                   # 4
+  prompt:find-{2..5}                                # 4 — "Find three apples!"
+  correct:{2..5}                                    # 4
+  rerun:hmm-lets-count                              # 1
+  rerun-wrong-was-{1..5}-not-{2..5}                 # ~8 — varies by tap mismatch
+  count-cadence:{1..5}                              # (shared; reuse)
+  rerun-done-look-{2..5}                            # 4
+  session-complete                                  # 1
+                                                    # total: ~26 unique
+```
+
+**Estimate: ~80 unique phrases after de-dup of the count-cadence
+and shared cadence sub-phrases**. The current 120–180 figure
+in the candidate-list is an upper bound for un-dedup'd recording;
+the recording session itself can reuse `count-cadence:1`
+across all three games (the way the kid hears "one" should
+NOT change between games).
+
+##### Architecture
+
+###### 1. Asset registry
+
+`src/lib/narration-assets.ts` — single source of truth
+mapping phrase keys → MP3 URLs (Vite resolves to hashed URLs
+at build time):
+
+```ts
+import introPond from '@/assets/narration/cf/intro-pond.mp3';
+import correctOne from '@/assets/narration/shared/correct-1.mp3';
+import countOne from '@/assets/narration/shared/count-1.mp3';
+// ... ~80 imports
+
+export const NARRATION: Record<string, string> = {
+  'cf:intro:pond': introPond,
+  'shared:correct:1': correctOne,
+  'shared:count:1': countOne,
+  // ...
+};
+```
+
+###### 2. `narrate()` upgrade in `src/lib/speech.ts`
+
+Currently `narrate(text, opts)` accepts free-form text. After
+T9, the signature widens to support either a phrase key (with
+optional fallback text) or the existing free-form text path:
+
+```ts
+narrate(
+  phraseKeyOrText: string,
+  opts?: NarrateOpts & { fallbackText?: string },
+)
+```
+
+If `NARRATION[phraseKeyOrText]` exists → play the MP3 via a
+shared `<audio>` element pool (one element per game page,
+reused across calls to avoid HTML decode overhead). On `ended`,
+fire `opts.onEnd`. On `error` or missing-asset → fall back to
+Web Speech with `opts.fallbackText` (graceful degradation —
+keeps the watchdog safety net intact for any phrase the
+registry doesn't cover).
+
+###### 3. Service-worker precaching
+
+The narration MP3s get added to `@vite-pwa/astro`'s `globPatterns`
+so the entire triad works **fully offline** after first load.
+Estimated asset weight: ~80 phrases × ~10–25 KB each = **0.8–2 MB**
+total. Precache budget headroom: currently 91 entries; safety
+limit ~100; T9 adds ~80 entries → would push past the limit.
+**Mitigation:** widen `maximumFileSizeToCacheInBytes` and either
+(a) accept the precache count growth, or (b) bundle related
+phrases into a few `.mp3` files with timestamp offsets and use
+the Web Audio API to play sub-ranges (more complex, smaller
+precache). Leaning toward (a) — keep one phrase per file for
+debuggability and let the precache count grow.
+
+###### 4. Tests
+
+Per triad spec gets one new test: `narration plays the recorded
+MP3, not Web Speech, for canonical phrases`. Stub
+`window.speechSynthesis.speak` to a Playwright spy via
+`page.addInitScript`, click through Q1, assert the spy was NOT
+called for the canonical phrases (intro, prompt, correct), and
+assert at least one `<audio>` element fired `play`. Headless
+Chromium can decode MP3 deterministically (unlike Web Speech),
+so this also makes the suite robust without the watchdog
+fallback.
+
+##### Why T9 was deferred (the v1 retention gate)
+
+T9 was deferred not because it's hard but because **the
+recording effort is large and only pays off if the 3yo is
+actually engaged with v1.** The deferral logic:
+
+| Risk | Wasted effort if v1 doesn't land |
+|---|---|
+| Recording ~80 unique phrases (warm parent voice, retakes for the awkward ones) | ~2 hr recording + ~1 hr trim/normalise/encode |
+| Asset registry + speech.ts upgrade + per-game wiring | ~1.5 hr |
+| Tests + PROGRESS docs | ~0.5 hr |
+| **Total** | **~5 hr + storage cost in the precache budget** |
+
+The smart call: ship v1 with Web Speech, **observe**, then
+invest the recording time when the 3yo's engagement is proven.
+
+##### Reopen conditions (any one is sufficient)
+
+- The user has **observed the 3yo voluntarily return to the
+  triad ≥3 times across ≥3 separate days**.
+- Or: **retention instrumentation (candidate option 4) shows
+  the same empirically** — last-played-at + return-visit count.
+- Or: the user **finds Web Speech narration noticeably
+  awkward / robotic on the 3yo's actual device** and judges
+  that the recording investment is worth it pre-retention-
+  proof (acceptable override of the deferral logic).
+
+##### Recording approach trade-offs
+
+| Approach | Time | Cost | Quality | Why |
+|---|---|---|---|---|
+| **User records themselves** (warm parent voice, phone in a quiet room) | ~30 min recording + 1 hr trim/encode | $0 | **Highest for THIS 3yo** | Sesame Workshop + Khan Academy Kids design notes consistently show familiar warm voices outperform polished VO for retention in the 3–5 age range. The 3yo's primary attachment voice is the parent's. **Strongly recommended for v1.** |
+| **AI voice (ElevenLabs / Play.ht / similar)** | ~2–3 hr (design voice profile + regenerate per phrase + QA each) | $5–30 (API credits) | High but uncanny-valley risk | OK if user is voice-shy; quality is good but the voice is generic. Worth considering if user wants consistency across re-recordings (no need to re-do takes; rerun the script). |
+| **Hire VO artist (Fiverr / Voice123)** | 5–6 hr elapsed (one-day turnaround) | $50–150 | Polished but generic | Overkill for the 3yo; the polish doesn't beat parent-voice familiarity. Worth it later if the games scale to non-parent-known kids. |
+
+##### What T9 does NOT change
+
+- Caption fallback in the triad (always-visible text mirroring
+  what's spoken, accessibility + parents-listening-from-the-
+  next-room use cases). T9 keeps captions; they synchronise to
+  the MP3 the same way they sync to Web Speech today.
+- The errorless rerun flow, the guided-count animation cadence,
+  the wrong-tap shake (just shipped 2026-05-20 latest). T9 is
+  purely an audio backend swap.
+- The first-try stats schemas (`<game>_stats_v1`). No
+  schema changes.
+- The 13 `mountQuiz` games. They never used Web Speech to begin
+  with — the only triad games are the ones T9 covers.
+
 ### 2026-05-20 (latest) — feat(triad): extend the age-safe wrong-tap shake to Counting Friends + More Friends + Number Friends (T-extra triad-extension)
 
 User-driven follow-up filed minutes after the T-extra ship
