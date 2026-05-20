@@ -524,6 +524,15 @@ const TOTAL_ROUNDS = 8;
       // a second wrong tap doesn't re-trigger the rerun.
       answered = true;
       firstTryCorrect = false;
+      // Add a 250ms kinesthetic shake on the tapped wrong button so
+      // the child gets immediate visual confirmation that their tap
+      // registered. Mirrors the `mountQuiz`-game pattern shipped
+      // 2026-05-20 (T-extra) — same age-safety guarantees: NO color
+      // shift, NO desaturation, NO negative tone. The shake runs in
+      // parallel with the audio narration that follows; they don't
+      // compete for the same channel. The existing guided-count +
+      // reveal-correct flow below stays exactly as-is.
+      btn.classList.add('cf-opt--wrong');
       cancelSpeech();
       setCaption(currentNarration?.rerun ?? "Let's count them together!");
       narrate(currentNarration?.rerun ?? "Let's count them together!", {

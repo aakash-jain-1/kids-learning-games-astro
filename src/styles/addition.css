@@ -364,6 +364,19 @@ body.story[data-theme='addition'] .cf-opt.cf-opt--reveal {
   animation: cfPulseRing 1.4s ease-in-out infinite;
 }
 
+/* Age-safe wrong-tap kinesthetic feedback (2026-05-20, T-extra
+   triad-extension). Mirrors the global `quiz-shake` keyframe used
+   by the `mountQuiz`-driven games, but namespaced as `cfShake` to
+   match the per-game keyframe convention (`cfBounce` / `cfPulseRing`
+   etc) the rest of this file uses. NO background / border-color
+   override — a wrong tap must NOT read as a punishment for a 3yo;
+   the shake purely confirms "tap registered, but not this one"
+   kinesthetically. Removed automatically on next `renderRound` via
+   the innerHTML rewrite of `optionsEl`. */
+body.story[data-theme='addition'] .cf-opt.cf-opt--wrong {
+  animation: cfShake 250ms ease-in-out;
+}
+
 @keyframes cfBounce {
   0%   { transform: scale(1); }
   30%  { transform: scale(1.16); }
@@ -382,6 +395,14 @@ body.story[data-theme='addition'] .cf-opt.cf-opt--reveal {
       var(--cf-btn-shadow),
       0 0 0 12px rgba(25, 118, 210, 0);
   }
+}
+
+@keyframes cfShake {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-7px); }
+  40%      { transform: translateX( 7px); }
+  60%      { transform: translateX(-5px); }
+  80%      { transform: translateX( 4px); }
 }
 
 /* ── Footer row — Replay + Next + Stats ───────────────────────────── */

@@ -211,6 +211,16 @@ body.story[data-theme='comparison'] .mf-group.mf-group--reveal {
   animation: mfPulseRing 1.4s ease-in-out infinite;
 }
 
+/* Age-safe wrong-tap kinesthetic feedback (2026-05-20, T-extra
+   triad-extension). Mirrors the global `quiz-shake` keyframe used
+   by the `mountQuiz`-driven games, but namespaced as `mfShake` to
+   match this file's per-game keyframe convention. NO background /
+   border-color override — preserves the errorless-learning principle
+   (a wrong tap must NOT read as a punishment for a 3yo). */
+body.story[data-theme='comparison'] .mf-group.mf-group--wrong {
+  animation: mfShake 250ms ease-in-out;
+}
+
 body.story[data-theme='comparison'] .mf-vs {
   font-size: 1.6em;
   color: var(--mf-vs-color);
@@ -289,6 +299,14 @@ body.story[data-theme='comparison'] .mf-item.mf-item--pulse {
       0 4px 12px rgba(20, 30, 70, 0.15),
       0 0 0 12px rgba(25, 118, 210, 0);
   }
+}
+
+@keyframes mfShake {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-7px); }
+  40%      { transform: translateX( 7px); }
+  60%      { transform: translateX(-5px); }
+  80%      { transform: translateX( 4px); }
 }
 
 /* ── Caption — accessibility/parent-readable mirror of TTS narration ─── */

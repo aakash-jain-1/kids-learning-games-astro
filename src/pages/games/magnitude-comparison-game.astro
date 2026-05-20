@@ -281,7 +281,7 @@ const TOTAL_ROUNDS = 8;
       `Left side — ${round.left} ${round.left === 1 ? theme.singular : theme.plural} — tap if this side has more`,
     );
     groupLeftEl.disabled = false;
-    groupLeftEl.classList.remove('mf-group--correct', 'mf-group--reveal');
+    groupLeftEl.classList.remove('mf-group--correct', 'mf-group--reveal', 'mf-group--wrong');
 
     let rightHtml = '';
     for (let i = 0; i < round.right; i++) {
@@ -293,7 +293,7 @@ const TOTAL_ROUNDS = 8;
       `Right side — ${round.right} ${round.right === 1 ? theme.singular : theme.plural} — tap if this side has more`,
     );
     groupRightEl.disabled = false;
-    groupRightEl.classList.remove('mf-group--correct', 'mf-group--reveal');
+    groupRightEl.classList.remove('mf-group--correct', 'mf-group--reveal', 'mf-group--wrong');
 
     answered = false;
     firstTryCorrect = false;
@@ -401,6 +401,14 @@ const TOTAL_ROUNDS = 8;
       firstTryCorrect = false;
       groupLeftEl.disabled = true;
       groupRightEl.disabled = true;
+      // 250ms kinesthetic shake on the tapped (wrong) panel — confirms
+      // the tap registered before the audio narration starts. Same
+      // age-safe design as the `mountQuiz`-game shake (T-extra
+      // 2026-05-20): NO color shift, NO desaturation, NO negative
+      // tone. Runs in parallel with the rerun audio chain below
+      // (visual + audio channels don't compete). Removed on next
+      // `renderRound` via the innerHTML / class reset.
+      tappedEl.classList.add('mf-group--wrong');
       cancelSpeech();
       setCaption(currentNarration?.rerun ?? "Let's count them together!");
       narrate(currentNarration?.rerun ?? "Let's count them together!", {

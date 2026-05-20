@@ -171,6 +171,16 @@ test.describe('number friends (preschool numeral recognition)', () => {
 
     await page.locator(`#nfGroup${wrongIdx}`).click();
 
+    // T-extra (2026-05-20, triad extension): the tapped wrong panel
+    // gets a 250ms `nf-group--wrong` shake immediately on tap, before
+    // the two-phase rerun narration starts. Assert this BEFORE
+    // waiting for the long reveal chain — the class is removed on
+    // the next round render (`renderRound` calls `classList.remove`).
+    await expect(page.locator(`#nfGroup${wrongIdx}`)).toHaveClass(
+      /nf-group--wrong/,
+      { timeout: 1_000 },
+    );
+
     // Same long timeout rationale as the "any group" test — the
     // wrong-tap rerun chain has two count phases plus phrase
     // narrations between. `nf-group--reveal` lands on the *correct*

@@ -331,7 +331,7 @@ const TOTAL_ROUNDS = 8;
         `Group ${g + 1} — ${size} ${size === 1 ? theme.singular : theme.plural} — tap if this group matches`,
       );
       el.disabled = false;
-      el.classList.remove('nf-group--correct', 'nf-group--reveal');
+      el.classList.remove('nf-group--correct', 'nf-group--reveal', 'nf-group--wrong');
     }
 
     answered = false;
@@ -428,6 +428,12 @@ const TOTAL_ROUNDS = 8;
       //   6) Reveal the correct group with a pulsing ring; enable Next.
       answered = true;
       for (const el of groupEls) el.disabled = true;
+      // 250ms kinesthetic shake on the tapped (wrong) panel — confirms
+      // the tap registered before the audio narration starts. Mirrors
+      // the `mountQuiz`-game pattern (T-extra 2026-05-20): NO color
+      // shift, NO desaturation, NO negative tone. Removed via the
+      // class reset on next `renderRound`.
+      tappedEl.classList.add('nf-group--wrong');
       cancelSpeech();
       const rerunText = currentNarration?.rerun ?? "Let's count them together.";
       setCaption(rerunText);

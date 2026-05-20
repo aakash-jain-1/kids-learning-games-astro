@@ -138,6 +138,19 @@ test.describe('counting friends (preschool addition)', () => {
     const wrong = expected === 1 ? expected + 1 : expected - 1;
     await page.locator(`#cfOptions .cf-opt[data-n="${wrong}"]`).click();
 
+    // T-extra (2026-05-20, triad extension): the tapped wrong button
+    // gets a 250ms `cf-opt--wrong` shake immediately on tap, before
+    // the rerun narration starts. Same age-safe pattern as the
+    // mountQuiz games — kinesthetic confirmation that "tap registered,
+    // but not this one" without color/punishment cues. Class is
+    // removed automatically when the next round renders (innerHTML
+    // rewrite of `optionsEl`), so we assert it BEFORE waiting for the
+    // long reveal chain.
+    await expect(page.locator(`#cfOptions .cf-opt[data-n="${wrong}"]`)).toHaveClass(
+      /cf-opt--wrong/,
+      { timeout: 1_000 },
+    );
+
     // The reveal class lands on the *correct* option after the guided
     // count completes.
     await expect(page.locator(`#cfOptions .cf-opt[data-n="${expected}"]`)).toHaveClass(

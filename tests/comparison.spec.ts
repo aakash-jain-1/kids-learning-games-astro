@@ -119,6 +119,15 @@ test.describe('more friends (preschool magnitude comparison)', () => {
 
     await page.locator(smallerSel).click();
 
+    // T-extra (2026-05-20, triad extension): the tapped wrong panel
+    // gets a 250ms `mf-group--wrong` shake immediately on tap, before
+    // the rerun narration starts. Assert this BEFORE waiting for the
+    // long guided-count + reveal chain. The class is removed on the
+    // next round render (`renderRound` calls `classList.remove`).
+    await expect(page.locator(smallerSel)).toHaveClass(/mf-group--wrong/, {
+      timeout: 1_000,
+    });
+
     await expect(page.locator(biggerSel)).toHaveClass(/mf-group--reveal/, {
       timeout: 20_000,
     });

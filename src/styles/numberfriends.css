@@ -278,6 +278,18 @@ body.story[data-theme='numberfriends'] .nf-group.nf-group--reveal {
   animation: nfPulseRing 1.4s ease-in-out infinite;
 }
 
+/* Age-safe wrong-tap kinesthetic feedback (2026-05-20, T-extra
+   triad-extension). Mirrors the global `quiz-shake` keyframe used
+   by the `mountQuiz`-driven games, but namespaced as `nfShake` to
+   match this file's per-game keyframe convention. NO background /
+   border-color override — preserves the errorless-learning principle
+   (a wrong tap must NOT read as a punishment for a 3yo). The shake
+   runs in parallel with the audio narration that follows; visual
+   and audio channels don't compete. */
+body.story[data-theme='numberfriends'] .nf-group.nf-group--wrong {
+  animation: nfShake 250ms ease-in-out;
+}
+
 body.story[data-theme='numberfriends'] .nf-item {
   /* Items here are smaller than Counting Friends / More Friends
      because there are 3 panels per stage and panels can hold up to
@@ -346,6 +358,14 @@ body.story[data-theme='numberfriends'] .nf-item.nf-item--pulse {
       0 4px 12px rgba(20, 30, 70, 0.15),
       0 0 0 12px rgba(25, 118, 210, 0);
   }
+}
+
+@keyframes nfShake {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-7px); }
+  40%      { transform: translateX( 7px); }
+  60%      { transform: translateX(-5px); }
+  80%      { transform: translateX( 4px); }
 }
 
 /* ── Caption — accessibility/parent-readable mirror of TTS narration ─── */
