@@ -199,13 +199,29 @@ export const mountQuiz = (cfg: QuizControllerConfig): QuizController => {
   const ADVANCE_MS_CORRECT = 450;
   const ADVANCE_MS_WRONG = 700;
 
+  // Re-entrancy guard for `onAnswer`. The `disabled` attribute on
+  // every option button blocks user-initiated clicks during the
+  // feedback gate, but a programmatic `dispatchEvent('click')` (used
+  // by the re-entrancy regression test, and conceivable in a fast
+  // assistive-tech repeat scenario) bypasses that suppression. The
+  // closure flag below is the canonical guard — every entry path
+  // checks it and the timeout that ends the feedback window resets
+  // it, so a second tap mid-transition is a hard no-op rather than
+  // a state-mutating second invocation.
+  let answering = false;
+
   const onAnswer = (i: number): void => {
+    if (answering) return;
     const q = cfg.questions[idx];
     if (!q) return;
+    answering = true;
 
     const buttons = cfg.bodyEl.querySelectorAll<HTMLButtonElement>('.quiz-opt');
-    // Disable every option during the feedback window so a fast
-    // double-tap can't fire `onAnswer` twice mid-transition.
+    // Disable every option during the feedback window. Belt-and-
+    // braces with `answering`: the disabled attribute keeps the
+    // user-visible affordance correct (cursor: not-allowed,
+    // unresponsive hover) while `answering` is the actual hard
+    // guard against re-entrant `onAnswer` calls.
     for (const b of buttons) b.disabled = true;
 
     let advanceMs: number;
@@ -220,6 +236,7 @@ export const mountQuiz = (cfg: QuizControllerConfig): QuizController => {
     }
 
     setTimeout(() => {
+      answering = false;
       idx++;
       renderQuestion();
     }, advanceMs);
