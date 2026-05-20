@@ -210,7 +210,7 @@ or (b) document a one-off exception.
 
 ## What still needs doing
 
-> **▶ Resume here next session:** the **migration is complete (13/13)** as of 2026-05-08; **Tracks 1, 2, 3, and 4 of post-migration polish are all closed** as of 2026-05-12; **the project is now in its feature-driven phase.** **First feature-driven game shipped 2026-05-15: Counting Friends — preschool addition for ages 3–4 (8 single-scene rounds per session, two groups of friendly objects, errorless answer flow, 4 themes — Pond/Orchard/Sea/Garden).** **Second feature-driven game shipped 2026-05-18: More Friends — preschool magnitude comparison for ages 3–4 (8 rounds, two side-by-side groups with sizes 1–4 each (always unequal), tap the bigger group, errorless guided-count-of-both-sides on miss; sister game / developmental precursor to Counting Friends — children master "more vs less" comparison ~6–12 months before consolidating cardinality enough to add).** **Third feature-driven game shipped 2026-05-18 (later): Number Friends — preschool numeral recognition for ages 3–4 (8 rounds, one numeral target 2–5 displayed at the top of the stage, three group panels with distinct sizes below where exactly one matches the target; tap the matching group, errorless wrong-tap flow that counts the *tapped wrong* group then the *correct* group with narration between; completes the cardinality triad — Counting Friends asks set→numeral, More Friends asks set vs set, Number Friends asks numeral→set).** Counting Friends triggered by a direct user request ("game for addition, simple addition for 3 year old boy"); More Friends + Number Friends shipped immediately after as natural sister mechanics, completing the "compare → count → recognise" cognitive triangle for age 3. All three games' design + research grounded in 2025 RCT findings on cardinality instruction (Springer), preschool-math best practices (five-frames before ten-frames, counting-all not counting-on, story-context framing), and shipping-app patterns (Endless Numbers, Khan Academy Kids — self-paced, no scoring, no failures). All three shipped on `StoryLayout` with new theme keys (`'addition'`, `'comparison'`, `'numberfriends'`); the `StageLayout` carve held a **third time** with explicit re-evaluation conditions now locked into `StoryLayout.astro`'s JSDoc — chrome differences between StoryLayout and a hypothetical StageLayout still amount to a body-class rename (`body.story` → `body.stage`) and nothing else, because all three games already scope every game-specific class under `body.story[data-theme='X']`. Carve trigger conditions: a fourth stage-game ships AND its chrome needs differ meaningfully (different head meta, different header, different settings panel, etc.); OR the theme union grows to ≥6 keys; OR a stage-only style primitive emerges. The **second-consumer carve that DID happen** at the More Friends ship — `src/lib/preschool-themes.ts` extracting `PreschoolTheme` + `ThemeMeta` + `THEMES` + `THEME_BY_KEY` + `numberWord` / `cap` / `nounFor` — got its **third consumer** with the Number Friends ship at zero changes (validates the carve: if any primitive needed reshaping, the carve would have been premature; none did). **16 games total now.** Track 1: 11 of 11 non-story games wired with `mountQuiz` (closed 2026-05-11). Track 2: 47-test Playwright smoke suite + soft-gate CI (closed 2026-05-11; **5 clean CI runs** on `main` — Track 2 push, Track 3 feat + docs, Track 4 Phase 1+2 feat + docs — so the T2.1 follow-up to promote Playwright to a hard deploy gate is now unblocked; one-line tweak adds `needs: test` to the `build` job in `.github/workflows/deploy.yml`). Track 3: Option C unified `DeckLayout` decided NO-GO with full ADR-style rationale captured under "Rough order of payoff → 5"; productive smaller win — `<GameControls />` extracted from 13 game pages (closed 2026-05-11). Track 4: cut-over plan **closed 2026-05-12 with the cut-over cancelled** — full ADR-style rationale captured under "Rough order of payoff → 6". **Decision: cut-over cancelled, Astro stays at `https://aakash-jain-1.github.io/kids-learning-games-astro/` as the permanent canonical URL; the vanilla `kids-learning-games` repo stays live independently as a legacy app, no cross-repo writes.** The morning's session of 2026-05-12 had shipped Phase 1 (decision: Option A — Astro takes over the vanilla URL) + Phase 2 (groundwork code: SW rename, 4 redirect aliases, offline-fallback bug fix) and queued Phase 3 (URL flip + cross-repo deploy) for the next session pending user OK. The afternoon pivot reversed Phase 1's decision and cancelled Phase 3 entirely; Track 4 closes here. The Phase 2 code changes stay in the codebase (all three are independently fine — see "Rough order of payoff → 6" → "Pivot 2026-05-12 (afternoon)" callout for the reversal rationale). **Next session: no queued track.** **Smaller follow-ups available, all standalone (queue: 1 — T2.1 closed 2026-05-18 via the consolidated test-job-in-`deploy.yml` approach (after a same-day-earlier `workflow_run` chain attempt in `dccf36d` + `8428ae3` + `9be0318` empirically failed to fire across two consecutive pushes; pivoted in `fc4e7e2`); T7 + T8 both closed 2026-05-18 (evening) in a single infra-hardening ship — `src/pages/404.astro` (friendly "Go Home" port of the vanilla 404, with three small upgrades: `BASE_URL` template literal, FOUC-safe dark-mode pre-paint, and a dark-mode override the vanilla page lacked) + `tests/not-found.spec.ts` (1-test smoke for direct navigation to 404.html; the "missing-path → 404" fallback is GH-Pages-layer behaviour and deliberately not coupled to `astro preview` to avoid CI risk) + `tests/sw.spec.ts` (4-test SW-behavior suite under `test.use({ serviceWorkers: 'allow' })`: SW installs + takes control + populates non-empty precache; online navigation does NOT serve the offline fallback — the explicit May-12 NavigationRoute regression test; offline navigation to an UNCACHED URL serves the offline fallback via `setCatchHandler`; offline navigation to a CACHED URL serves the real page from precache without network); **T6 closed 2026-05-20** with `src/pages/stats.astro` + `src/data/stats-registry.ts` + `tests/stats.spec.ts` (6 tests) — parent-facing `/stats` dashboard at `/kids-learning-games-astro/stats` with one card per registry entry across 4 family sections (preschool-math / story / card-set / card-pure), each card surfaces the same numbers the per-game `alert()` shows, plus per-card Reset + global "Reset everything", per-game alert buttons stay in place as the additive immediate-feedback view; registry is single-source-of-truth so adding a 17th game is a one-entry edit. The remaining one follow-up is):** (T9, **new — filed by the Counting Friends ship, scope expanded to all three preschool-math games at the More Friends + Number Friends ships**) v2 polish for Counting Friends + More Friends + Number Friends — replace Web Speech API with pre-recorded MP3 narration in a kid-friendly voice (warmer for the actual 3yo user; ~2–3 hr of recording/encoding + a small narration-asset registry; defer until v1 retention is validated). **Live regression context (2026-05-12):** the Phase 2 SW-install fix unmasked a latent `NavigationRoute(createHandlerBoundToURL('offline'))` bug that served the offline page on every navigation; hotfix `fce0380` replaced `NavigationRoute` with `setCatchHandler`, deploy verified live (badge `passing`, home returns 200 with HTML, SW has 0 NavigationRoute references and 1 setCatchHandler call). T8's third + fourth assertions now lock that hotfix in via the deploy gate — a NavigationRoute-class regression would fail CI before reaching production. Both remaining follow-ups are small (~15 min – 3 hr of work each) and safe to defer. **Or pick a new feature game** — Counting Friends established the feature-driven pattern; Magnitude Comparison ("which group has more?") and Number Bond Pop ("how many more to make 5?") are earmarked as natural follow-up sister games that would reuse most of `addition.css`. **Same-day hotfix shipped 2026-05-15 afternoon (commit `825181f`):** the post-push CI on the Counting Friends feat (`1a66542`) went red on every option-click test in `tests/addition.spec.ts` (deploy stayed green — soft gate). Two independent root causes: (1) the page's first-gesture `kickoff()` handler synchronously called `renderRound()` which mutated `optionsEl.innerHTML`, racing every `pointerdown → click` sequence and replacing the SSR'd numeral buttons with ones from a freshly-randomized JS session before the click could resolve — fixed by adding `readSSRRound()` to seed JS round 0 directly from the SSR'd DOM (data-scene + #cfGroupA/B item counts + option `data-n` reads), and changing `kickoff` to only fire `speakIntroSequence()` without re-rendering; (2) `speechSynthesis.speak()` in headless Chromium (no system TTS engine on CI runners) doesn't reliably fire `utterance.onend`, stalling the wrong-answer rerun chain `narrate(rerun) → speakGuidedCount → narrate(rerunDone) → reveal` — fixed by adding a length-based watchdog `setTimeout` to `narrate()` (real browsers fire onend long before the watchdog so it's a no-op in production; headless and TTS-disabled paths fall through deterministically) and by muting `kids_settings_v1.sound` in the test `beforeEach` (deterministic silent-mode path, no dependence on speech engine *or* watchdog). Live deploy post-push: `Deploy to GitHub Pages` `passing`, `Playwright tests` **`passing`**, live JS bundle contains `cfStage` + `cfGroupA` literals (proves `readSSRRound` shipped). Full ADR under "Changelog → 2026-05-15 (afternoon, hotfix)" below.
+> **▶ Resume here next session:** the **migration is complete (13/13)** as of 2026-05-08; **Tracks 1, 2, 3, and 4 of post-migration polish are all closed** as of 2026-05-12; **the project is now in its feature-driven phase.** **First feature-driven game shipped 2026-05-15: Counting Friends — preschool addition for ages 3–4 (8 single-scene rounds per session, two groups of friendly objects, errorless answer flow, 4 themes — Pond/Orchard/Sea/Garden).** **Second feature-driven game shipped 2026-05-18: More Friends — preschool magnitude comparison for ages 3–4 (8 rounds, two side-by-side groups with sizes 1–4 each (always unequal), tap the bigger group, errorless guided-count-of-both-sides on miss; sister game / developmental precursor to Counting Friends — children master "more vs less" comparison ~6–12 months before consolidating cardinality enough to add).** **Third feature-driven game shipped 2026-05-18 (later): Number Friends — preschool numeral recognition for ages 3–4 (8 rounds, one numeral target 2–5 displayed at the top of the stage, three group panels with distinct sizes below where exactly one matches the target; tap the matching group, errorless wrong-tap flow that counts the *tapped wrong* group then the *correct* group with narration between; completes the cardinality triad — Counting Friends asks set→numeral, More Friends asks set vs set, Number Friends asks numeral→set).** Counting Friends triggered by a direct user request ("game for addition, simple addition for 3 year old boy"); More Friends + Number Friends shipped immediately after as natural sister mechanics, completing the "compare → count → recognise" cognitive triangle for age 3. All three games' design + research grounded in 2025 RCT findings on cardinality instruction (Springer), preschool-math best practices (five-frames before ten-frames, counting-all not counting-on, story-context framing), and shipping-app patterns (Endless Numbers, Khan Academy Kids — self-paced, no scoring, no failures). All three shipped on `StoryLayout` with new theme keys (`'addition'`, `'comparison'`, `'numberfriends'`); the `StageLayout` carve held a **third time** with explicit re-evaluation conditions now locked into `StoryLayout.astro`'s JSDoc — chrome differences between StoryLayout and a hypothetical StageLayout still amount to a body-class rename (`body.story` → `body.stage`) and nothing else, because all three games already scope every game-specific class under `body.story[data-theme='X']`. Carve trigger conditions: a fourth stage-game ships AND its chrome needs differ meaningfully (different head meta, different header, different settings panel, etc.); OR the theme union grows to ≥6 keys; OR a stage-only style primitive emerges. The **second-consumer carve that DID happen** at the More Friends ship — `src/lib/preschool-themes.ts` extracting `PreschoolTheme` + `ThemeMeta` + `THEMES` + `THEME_BY_KEY` + `numberWord` / `cap` / `nounFor` — got its **third consumer** with the Number Friends ship at zero changes (validates the carve: if any primitive needed reshaping, the carve would have been premature; none did). **16 games total now.** Track 1: 11 of 11 non-story games wired with `mountQuiz` (closed 2026-05-11). Track 2: 47-test Playwright smoke suite + soft-gate CI (closed 2026-05-11; **5 clean CI runs** on `main` — Track 2 push, Track 3 feat + docs, Track 4 Phase 1+2 feat + docs — so the T2.1 follow-up to promote Playwright to a hard deploy gate is now unblocked; one-line tweak adds `needs: test` to the `build` job in `.github/workflows/deploy.yml`). Track 3: Option C unified `DeckLayout` decided NO-GO with full ADR-style rationale captured under "Rough order of payoff → 5"; productive smaller win — `<GameControls />` extracted from 13 game pages (closed 2026-05-11). Track 4: cut-over plan **closed 2026-05-12 with the cut-over cancelled** — full ADR-style rationale captured under "Rough order of payoff → 6". **Decision: cut-over cancelled, Astro stays at `https://aakash-jain-1.github.io/kids-learning-games-astro/` as the permanent canonical URL; the vanilla `kids-learning-games` repo stays live independently as a legacy app, no cross-repo writes.** The morning's session of 2026-05-12 had shipped Phase 1 (decision: Option A — Astro takes over the vanilla URL) + Phase 2 (groundwork code: SW rename, 4 redirect aliases, offline-fallback bug fix) and queued Phase 3 (URL flip + cross-repo deploy) for the next session pending user OK. The afternoon pivot reversed Phase 1's decision and cancelled Phase 3 entirely; Track 4 closes here. The Phase 2 code changes stay in the codebase (all three are independently fine — see "Rough order of payoff → 6" → "Pivot 2026-05-12 (afternoon)" callout for the reversal rationale). **Next session: no queued track.** **Smaller follow-ups available, all standalone (queue: 1 — T2.1 closed 2026-05-18 via the consolidated test-job-in-`deploy.yml` approach (after a same-day-earlier `workflow_run` chain attempt in `dccf36d` + `8428ae3` + `9be0318` empirically failed to fire across two consecutive pushes; pivoted in `fc4e7e2`); T7 + T8 both closed 2026-05-18 (evening) in a single infra-hardening ship — `src/pages/404.astro` (friendly "Go Home" port of the vanilla 404, with three small upgrades: `BASE_URL` template literal, FOUC-safe dark-mode pre-paint, and a dark-mode override the vanilla page lacked) + `tests/not-found.spec.ts` (1-test smoke for direct navigation to 404.html; the "missing-path → 404" fallback is GH-Pages-layer behaviour and deliberately not coupled to `astro preview` to avoid CI risk) + `tests/sw.spec.ts` (4-test SW-behavior suite under `test.use({ serviceWorkers: 'allow' })`: SW installs + takes control + populates non-empty precache; online navigation does NOT serve the offline fallback — the explicit May-12 NavigationRoute regression test; offline navigation to an UNCACHED URL serves the offline fallback via `setCatchHandler`; offline navigation to a CACHED URL serves the real page from precache without network); **T6 closed 2026-05-20** with `src/pages/stats.astro` + `src/data/stats-registry.ts` + `tests/stats.spec.ts` (6 tests) — parent-facing `/stats` dashboard at `/kids-learning-games-astro/stats` with one card per registry entry across 4 family sections (preschool-math / story / card-set / card-pure), each card surfaces the same numbers the per-game `alert()` shows, plus per-card Reset + global "Reset everything", per-game alert buttons stay in place as the additive immediate-feedback view; registry is single-source-of-truth so adding a 17th game is a one-entry edit; **T-extra closed 2026-05-20 (later)** — added age-safe wrong-answer feedback to all 13 `mountQuiz` games (story + card-set + card-pure) by upgrading `src/lib/quiz.ts`'s `onAnswer` from a silent instant advance to a 250 ms shake on the tapped wrong button (`quiz-opt--wrong`) + a 600 ms green-ring pulse on the actual correct button (`quiz-opt--reveal`) + a 700 ms advance gate (correct taps get a 450 ms pop on the tapped button via `quiz-opt--correct` and advance after 450 ms — was 0 ms previously); 3 new test cases on woodcutter Q1 (deterministic `ans: 1`) cover the wrong path, the correct path, and double-tap re-entrancy guarding (buttons are disabled during the feedback gate so a fast second tap can't fire `onAnswer` twice); the helper `tests/helpers.ts → answerQuizUntilResult` upgraded to poll for the new feedback gate to settle between clicks instead of clicking through synchronously. **The preschool-math triad (Counting Friends, More Friends, Number Friends) is intentionally NOT touched** — it doesn't use `mountQuiz`, it has its own page-local errorless flow (guided-count rerun + correct-answer reveal) which is the research-grounded standard for ages 3–4 (Skinner / Touchette errorless-learning) and would actively regress if a desaturate / red / negative tone were added there. The new feedback rules live in `src/styles/global.css` as `.quiz-opt--correct` / `.quiz-opt--wrong` / `.quiz-opt--reveal` with three keyframes (`quiz-pop-correct` / `quiz-pulse-reveal` / `quiz-shake`); the existing global `prefers-reduced-motion` block at the bottom of `global.css` already nullifies all three to 0.01 ms, so no per-rule reduced-motion override is needed. Visual design: NO red, NO desaturation, NO negative tone — the shake reads kinesthetically as "not this one" without shame-coding, the reveal celebrates the correct answer (#22c55e green outline + box-shadow expand). The remaining one follow-up is):** (T9, **new — filed by the Counting Friends ship, scope expanded to all three preschool-math games at the More Friends + Number Friends ships**) v2 polish for Counting Friends + More Friends + Number Friends — replace Web Speech API with pre-recorded MP3 narration in a kid-friendly voice (warmer for the actual 3yo user; ~2–3 hr of recording/encoding + a small narration-asset registry; defer until v1 retention is validated). **Live regression context (2026-05-12):** the Phase 2 SW-install fix unmasked a latent `NavigationRoute(createHandlerBoundToURL('offline'))` bug that served the offline page on every navigation; hotfix `fce0380` replaced `NavigationRoute` with `setCatchHandler`, deploy verified live (badge `passing`, home returns 200 with HTML, SW has 0 NavigationRoute references and 1 setCatchHandler call). T8's third + fourth assertions now lock that hotfix in via the deploy gate — a NavigationRoute-class regression would fail CI before reaching production. Both remaining follow-ups are small (~15 min – 3 hr of work each) and safe to defer. **Or pick a new feature game** — Counting Friends established the feature-driven pattern; Magnitude Comparison ("which group has more?") and Number Bond Pop ("how many more to make 5?") are earmarked as natural follow-up sister games that would reuse most of `addition.css`. **Same-day hotfix shipped 2026-05-15 afternoon (commit `825181f`):** the post-push CI on the Counting Friends feat (`1a66542`) went red on every option-click test in `tests/addition.spec.ts` (deploy stayed green — soft gate). Two independent root causes: (1) the page's first-gesture `kickoff()` handler synchronously called `renderRound()` which mutated `optionsEl.innerHTML`, racing every `pointerdown → click` sequence and replacing the SSR'd numeral buttons with ones from a freshly-randomized JS session before the click could resolve — fixed by adding `readSSRRound()` to seed JS round 0 directly from the SSR'd DOM (data-scene + #cfGroupA/B item counts + option `data-n` reads), and changing `kickoff` to only fire `speakIntroSequence()` without re-rendering; (2) `speechSynthesis.speak()` in headless Chromium (no system TTS engine on CI runners) doesn't reliably fire `utterance.onend`, stalling the wrong-answer rerun chain `narrate(rerun) → speakGuidedCount → narrate(rerunDone) → reveal` — fixed by adding a length-based watchdog `setTimeout` to `narrate()` (real browsers fire onend long before the watchdog so it's a no-op in production; headless and TTS-disabled paths fall through deterministically) and by muting `kids_settings_v1.sound` in the test `beforeEach` (deterministic silent-mode path, no dependence on speech engine *or* watchdog). Live deploy post-push: `Deploy to GitHub Pages` `passing`, `Playwright tests` **`passing`**, live JS bundle contains `cfStage` + `cfGroupA` literals (proves `readSSRRound` shipped). Full ADR under "Changelog → 2026-05-15 (afternoon, hotfix)" below.
 
 **Build is clean:** 19 pages built on a clean rebuild (16 game pages — 13 vanilla ports + Counting Friends + More Friends + Number Friends — plus index, the `404.html`, and the new parent-facing `stats.html`), `npm run check` 0 errors / 0 warnings / 0 hints across **53 Astro files** (added: `src/pages/stats.astro`; previous T7 + T8 + Number Friends additions stay tracked here too), all chunk-dedup invariants still verified at the bundle level (quiz **13-way** — no preschool-math game uses `mountQuiz`, all three implement their own per-round answer flow; progress 8-way; fluent 6-way; achievements **16-way** since all three preschool-math games consume `launchConfetti`; layout pre-paint 3-way — 404 page + `stats.astro` both deliberately ship their own self-contained inline pre-paint scripts for resilience and are NOT counted as additional consumers of the shared chunk), precache **90 entries** (the +4 redirect HTMLs at the legacy vanilla paths from Phase 2 stay in dist as harmless robustness aliases — see the pivot callout for why they stay; the Counting Friends ship added +4 entries 2026-05-15; the More Friends ship added another +4 — page HTML + page-specific JS chunk + new `comparison.css` + a Vite re-emitted shared chunk for the new `preschool-themes.ts` module; the Number Friends ship added +3 — page HTML + page-specific JS chunk + new `numberfriends.css`, the existing `preschool-themes` shared chunk gained its third consumer with no re-emit, verifiable via `grep -l preschool-themes dist/games/*.html | wc -l` returning 3; the T7 ship added +2 — `dist/404.html` itself plus a small page-specific JS chunk for the `initSettings` import; the T6 ship added the largest precache delta (+17) because the `/stats` page imports the new `stats-registry.ts` *and* the existing `progress.ts` + `quiz.ts` + every game's data file (for `ALL_CARDS.length` denominators), so Vite emits dedicated chunks for the per-game data imports that the registry pulls in — but well under the 100-entry safety budget the project carries for `@vite-pwa/astro`'s default `globPatterns`). The 404 precache key is `"404"` (no leading slash, no `.html`) — same convention as `"offline"`, verified via `grep -oE '"404"|"offline"' dist/service-worker.js` returning both keys; the new `/stats` page follows the same convention with key `"stats"`.
 
@@ -416,6 +416,225 @@ before deciding.
 ---
 
 ## Changelog
+
+### 2026-05-20 (later) — feat(quiz): age-safe wrong-answer feedback on all 13 `mountQuiz` games (T-extra)
+
+User-driven follow-up filed at the close of T6. The user noticed
+that **a correct answer celebrates, but a wrong answer is silent
+and instant** — and asked what the standard is. Diagnosing the
+asymmetry revealed it was real: every option click on the 13
+`mountQuiz` games (2 story + 7 grid + 4 card-machine) ran the
+same `onAnswer` body — `if (i === q.ans) correct++; idx++;
+renderQuestion();` — so a wrong tap got *zero* visual feedback,
+the screen just jumped to the next question. (The preschool-math
+triad is *not* affected — it has its own page-local errorless
+flow with a guided-count rerun on miss; see `counting-friends-game.astro`
+lines ~519+ for the documented "*Don't punish; run a guided count
+and then highlight the correct numeral*" comment.)
+
+#### The pedagogy decision (why this is the answer it is)
+
+The user explicitly pushed back on the first proposal — "is it
+okay to do this for a 3 year old? You said it is not okay right?"
+— which forced an honest split of the design space:
+
+- **Ages 3–4 (errorless learning, Skinner / Touchette).** Red flash
+  + buzzer + "Wrong!" framing trigger shame/avoidance, reduce
+  willingness to try, and (counterintuitively) reinforce the wrong
+  choice in memory because negative attention is still attention.
+  Modern preschool apps (Khan Academy Kids, Endless Numbers, Sago
+  Mini, Lingokids) all moved away from red-flash designs — the
+  2025 standard for this age is *silent neutralization + guided
+  correction + correct-answer reveal*.
+- **Ages 5–7 (early elementary).** Standard pattern is *subtle*
+  wrong feedback, never harsh: gentle shake animation (200–300 ms
+  wobble) + brief desaturate + reveal-correct. The shake says
+  "not this one" kinesthetically without shame-coding.
+- **Ages 8+ (Kahoot / Quizlet / Duolingo territory).** Red flash
+  + buzzer is age-appropriate because self-regulation has
+  developed enough.
+
+The 13 quiz games use 4-option text questions a 3yo cannot read,
+so they nominally target ages 6+ — but **the actual user is the
+3yo**. So the original early-elementary proposal (shake +
+desaturate + downward tone) was downgraded to an **age-safe
+variant** that's safe across all ages including the 3yo:
+
+- **Shake only on the tapped wrong button** — kinesthetic, not
+  color-coded, reads as "not this one" without negative valence.
+- **Green pulse + outline on the correct button** — purely
+  positive, shows the child the right answer.
+- **No desaturate, no downward tone, no red, no negative cue.**
+
+This is what Khan Academy Kids actually does for ages 4–6.
+
+#### What shipped
+
+**`src/lib/quiz.ts` (modified, +30 / −2 lines net).** `onAnswer`
+upgraded from the silent two-statement instant advance to a class-
+adding + button-disabling + delayed-render flow:
+
+- Lock all four `.quiz-opt` buttons (`disabled = true`) during
+  the feedback gate so a fast double-tap can't fire `onAnswer`
+  twice mid-transition.
+- On correct tap: add `quiz-opt--correct` to the tapped button,
+  advance after `ADVANCE_MS_CORRECT = 450 ms`.
+- On wrong tap: add `quiz-opt--wrong` to the tapped button **and**
+  `quiz-opt--reveal` to the correct option (so the child sees
+  what was right), advance after `ADVANCE_MS_WRONG = 700 ms`.
+- A multi-paragraph JSDoc above the function documents the
+  research grounding so future contributors don't re-introduce
+  shame-coded feedback by accident.
+
+**`src/styles/global.css` (modified, +52 lines).** Three feedback
+classes + three keyframes added directly above the existing
+global `prefers-reduced-motion` block (which already nullifies
+all `animation-duration` to 0.01 ms — so no per-rule reduced-
+motion override is needed):
+
+- `.quiz-opt--correct` (45 0ms scale-pop): `0% scale(1) → 40%
+  scale(1.06) → 100% scale(1)` + `outline: 3px solid #22c55e`.
+- `.quiz-opt--reveal` (600 ms green-ring pulse): `0% scale(1) +
+  box-shadow 0 0 0 0 rgba(34,197,94,0.55) → 60% scale(1.04) +
+  box-shadow 0 0 0 12px transparent → 100% scale(1)` + same
+  green outline.
+- `.quiz-opt--wrong` (250 ms 4-frame translateX shake): `0%/100%
+  0px → 20% −7px → 40% +7px → 60% −5px → 80% +4px`. **No color
+  shift, no opacity change** — purely kinesthetic.
+- Outline color is `#22c55e` (Tailwind green-500) — works on
+  light + dark mode without theme-token plumbing because the
+  outline is rendered above the button background regardless of
+  contrast.
+
+The rules are scoped under `.quiz-opt`, which only exists inside
+`mountQuiz`-rendered DOM, so there's no leakage to any other
+component. All three layouts (CardMachineLayout, GridLayout,
+StoryLayout) already import `global.css` so the rules ship to
+every quiz game with zero per-layout CSS work — verified at
+build time: `dist/_astro/dinosaurs-game.DgDE2SZE.css` (the
+shared chunk emitted under one entry's name by Vite) is
+referenced by every page (`grep -lF dinosaurs-game.DgDE2SZE.css
+dist/**/*.html` matches all 19 pages).
+
+**`tests/story.spec.ts` (modified, +90 lines).** New
+`describe('wrong-answer feedback (mountQuiz)')` block with three
+test cases pinned to Woodcutter Q1 — the question shape `{ q:
+'What did the woodcutter drop in the river?', opts: ['His shoes',
+'His axe', 'A golden coin', 'His hat'], ans: 1 }` lets us
+deterministically map `data-i="0"` to a wrong tap and `data-i="1"`
+to a correct tap without injecting test fixtures:
+
+1. **Wrong tap test.** Click `data-i="0"` ("His shoes"); assert
+   the tapped button has `quiz-opt--wrong` and *not* `--correct`
+   or `--reveal`; assert exactly one button in the body has
+   `--reveal` (the correct option, `data-i="1"`); assert all four
+   options are `disabled` during the feedback window; wait for
+   Q2 to render (within 2 s); assert all three feedback classes
+   are gone after re-render and no buttons are disabled.
+2. **Correct tap test.** Click `data-i="1"` ("His axe"); assert
+   the tapped button has `quiz-opt--correct`; assert no
+   `--wrong` or `--reveal` anywhere in the body (correct taps
+   don't reveal, because the tapped button IS the correct one);
+   assert disabled during the feedback window; assert Q2 renders
+   within the 450 ms advance gate.
+3. **Re-entrancy test.** Click wrong, then immediately
+   `dispatchEvent('click')` on a different option (bypassing
+   Playwright's actionability check to simulate a fast double-
+   tap); assert state is unchanged — still one `--wrong`, still
+   one `--reveal`, still no `--correct`. Q2 still renders
+   cleanly through the gate.
+
+Smoke-testing on woodcutter (one consumer of `mountQuiz`)
+suffices because the feedback CSS is global and the controller
+is shared across all 13 `mountQuiz` games — no behavioural
+divergence per layout.
+
+**`tests/helpers.ts → answerQuizUntilResult` (modified).** The
+existing helper clicked `[data-i="0"]` repeatedly until the
+result panel un-hid. After the upgrade, every click introduces
+a 450 / 700 ms feedback gate with all buttons disabled. The
+helper now polls between clicks for either (a) a fresh enabled
+`.quiz-opt[data-i="0"]:not([disabled])` (next question rendered
+= previous transition completed) or (b) the result panel un-
+hidden. Final-click handling extended to allow up to 1.5 s for
+the post-tap gate before declaring the helper hung. The
+existing 7 quiz tests (3 routines + 4 woodcutter) still pass
+without modification because their assertions are about
+end-state (state persists, result visible, score recorded), not
+inter-click timing.
+
+#### What is NOT touched (and why)
+
+- **The preschool-math triad** (Counting Friends, More Friends,
+  Number Friends) does not use `mountQuiz`. Its wrong-tap flow
+  is page-local errorless: tap wrong → narrate "Let's count
+  them together" → guided count of both groups → reveal correct
+  numeral with a pulsing ring. **No red, no shake, no negative
+  cue.** The age-safe shake variant added here is a strict
+  superset of the triad's safety bar (no negative valence
+  either), so adding it to the triad would be a *cosmetic*
+  upgrade at best — but the triad's wrong-tap flow is already
+  carefully tuned (narration timing + guided-count cadence +
+  correct-answer ring reveal), and inserting an additional
+  pre-narration shake would risk competing for the child's
+  attention with the verbal "Let's count them together" cue.
+  Defer until v2 (when MP3 narration also lands) and treat as
+  an integrated polish pass.
+- **The `mountQuiz`-internal correct-tap behaviour for `idx
+  === questions.length` (final question).** The existing
+  `showResult()` flow runs after the 450 ms gate (last question
+  was correct) or 700 ms gate (last question was wrong) — same
+  timing as the inter-question advance. No additional confetti
+  or sound is added per-question; the existing 100 % `onPerfect`
+  callback (which fires confetti via the page-supplied palette)
+  remains the only celebratory state.
+- **Negative-tone audio (the descending blip from the original
+  proposal).** Dropped at the user-pushback step. `src/lib/audio.ts`
+  is not modified. Sound-mute users hear nothing different from
+  before; sound-on users hear the existing `playTap` (already
+  fired by every option click; not animal-coded so it stays
+  age-safe). Adding a negative tone only to `mountQuiz` while
+  the triad has none would also create cross-game inconsistency
+  for the actual 3yo user.
+
+#### Build deltas
+
+- **Source LoC:** `quiz.ts` +30 / −2; `global.css` +52; story
+  spec +90; helpers +20 / −9. Net **+181 LoC** of source +
+  tests + docs.
+- **CSS chunk size:** the shared `global.css`-bearing chunk
+  (`dist/_astro/dinosaurs-game.DgDE2SZE.css`) gained ~410 bytes
+  (the three new rules + three keyframes after Vite's gzip).
+  All other `*.css` bundles unchanged.
+- **JS chunk size:** the shared `quiz.<hash>.js` bundle gained
+  ~170 bytes (gzipped) for the class-adding + setTimeout
+  scaffolding.
+- **Precache entries:** unchanged at 90 (no new files emitted —
+  all changes mutate existing chunks). `npm run check`: 0 errors
+  / 0 warnings / 0 hints across 53 Astro files. `npm run build`:
+  19 pages built in 8.6 s; SW precache 91 entries (was 90 —
+  one chunk re-hashed, no count change in practice).
+- **Local test suite:** Playwright is blocked by the corporate
+  proxy on this dev box (documented in `playwright.config.ts`).
+  Build sanity: shared CSS chunk grep confirms all three classes
+  + three keyframes are emitted into the deployed bundle.
+  CI verification deferred to post-push.
+
+#### Reopen conditions
+
+- If the actual 3yo user starts playing the 13 quiz games
+  regularly (as opposed to the triad), and feedback observation
+  shows the shake itself is upsetting, the shake can be dropped
+  from the wrong path (just keep the `--reveal` on the correct
+  option) without any other code change — `quiz.ts` would
+  remove one `classList.add` line.
+- If a future audience-aged-up game lands (text questions for
+  ages 6+ where shame-coding is age-appropriate), a separate
+  `mountQuizForOlderKids` variant could opt into red + buzzer
+  by accepting an extra `intensity: 'gentle' | 'standard'` config
+  flag. Don't retrofit the existing controller — the gentle
+  variant is the right baseline for the 3yo-and-up audience this
+  project actually serves.
 
 ### 2026-05-20 — feat(stats): close T6 with a parent-facing `/stats` dashboard backed by a single-source-of-truth registry
 

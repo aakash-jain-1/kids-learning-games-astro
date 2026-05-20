@@ -173,7 +173,13 @@ running from a different repo.
    / records to LocalStorage, and the per-game progress writes hit
    `kids_progress_v1:<gameId>` where applicable. Themes parameterised inside
    each suite, so a regression in any one of the 13 vanilla-port games shows
-   up as a single failing row in the report.
+   up as a single failing row in the report. **Story spec also covers the
+   age-safe wrong-answer feedback (T-extra, 2026-05-20)** — three test cases
+   pinned to Woodcutter Q1 (deterministic `ans: 1`) verify the
+   `quiz-opt--wrong` shake on the tapped wrong button + `quiz-opt--reveal`
+   green pulse on the correct option + double-tap re-entrancy guarding;
+   feedback CSS is global and `mountQuiz` is shared, so smoke-testing on
+   one consumer covers all 13 quiz games.
 2. **Per-game (preschool-math triad)** — `tests/addition.spec.ts`,
    `tests/comparison.spec.ts`, `tests/numberfriends.spec.ts`. Each asserts
    the SSR'd round shape (groups, sums/sizes, target+matching panel),
