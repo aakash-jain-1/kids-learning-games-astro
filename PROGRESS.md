@@ -722,8 +722,30 @@ single 3yo.
 
 ##### Recording session checklist (when T9 unblocks and the user records)
 
-Locked in here so the next session doesn't have to
-re-research the specs. Run through this in order:
+> **2026-05-20 (latest, post-VO-research) — full recording
+> walkthrough now lives in `docs/T9-RECORDING-GUIDE.md` and the
+> literal phrase inventory in `docs/T9-PHRASE-SCRIPT.md`.** The
+> bullet list below is the condensed version preserved here for
+> quick reference; the dedicated docs are the source of truth
+> when the user actually records (they're written to be read on
+> a phone/tablet during the recording session).
+>
+> **Tier A scope locked in** (13 phrases, ~30 min recording
+> session, ~30 min post-processing): numbers `one` through `ten`
+> + `Let's count them together!` + `Hmm! Let's count them
+> together.` + `Look!`. These cover ~80% of the parent-voice
+> exposure the 3yo will perceive in a typical play session
+> (count cadence + the two most-spoken constant phrases). Tier B
+> is explicitly deferred — it's combinatorial (4 themes × 10
+> (a, b) pairs × 5 narration phases per CF round = up to 200
+> phrases for full coverage) and not worth doing in v1; Web
+> Speech is adequate for the celebration phrases that play once
+> per round. **Strong recommendation locked into the recording
+> guide: ship Tier A, observe the 3yo, decide on Tier B from
+> data not completionist instinct.**
+>
+> Run through this in order (full version in
+> `docs/T9-RECORDING-GUIDE.md`):
 
 1. **Quiet room** — bedroom with closed curtains beats a
    kitchen / open-plan living room. Soft furnishings absorb
