@@ -1,0 +1,492 @@
+---
+/**
+ * Parent-facing stats dashboard (T6, 2026-05-20).
+ *
+ * Lives at `/stats` — a single page that shows one card per game,
+ * organised by family (preschool-math / story / card-set / card-pure).
+ * The card content comes from `src/data/stats-registry.ts` so adding a
+ * 17th game is a one-entry edit.
+ *
+ * The page is **additive** to the per-game `alert(...)` Stats buttons
+ * (which still work and are still useful for "quick check while my kid
+ * is playing this specific game"). `/stats` is the cross-game
+ * aggregation view — at-a-glance "what's been played, what's been
+ * mastered, what hasn't been touched yet".
+ *
+ * SSR strategy: render the zero-state values (since `localStorage` is
+ * undefined on the server, every `read()` returns zero / "never").
+ * The hydrating script then re-runs `entry.read()` and patches the DOM
+ * with real values. For first-time visitors there is no flicker (zero
+ * is the correct value); returning parents see a brief flash of zero
+ * before the real numbers appear, which matches how the in-page Stats
+ * alerts already work today.
+ */
+import '@/styles/global.css';
+import BuildInfo from '@/components/BuildInfo.astro';
+import SettingsModal from '@/components/SettingsModal.astro';
+import GameNav from '@/components/GameNav.astro';
+import {
+  STATS_REGISTRY,
+  FAMILY_LABELS,
+  type StatsFamily,
+  type StatsRegistryEntry,
+} from '@/data/stats-registry';
+
+const base = import.meta.env.BASE_URL;
+const href = (p: string): string => `${base}${base.endsWith('/') ? '' : '/'}${p}`;
+
+// Group the registry by family while preserving insertion order so the
+// page render order matches the array order in stats-registry.ts.
+const FAMILY_ORDER: readonly StatsFamily[] = [
+  'preschool-math',
+  'story',
+  'card-set',
+  'card-pure',
+];
+
+const entriesByFamily: Record<StatsFamily, StatsRegistryEntry[]> = {
+  'preschool-math': [],
+  story: [],
+  'card-set': [],
+  'card-pure': [],
+};
+for (const entry of STATS_REGISTRY) {
+  entriesByFamily[entry.family].push(entry);
+}
+---
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#667eea" />
+    <meta
+      name="description"
+      content="Parent-facing stats dashboard for Kids Learning Games — at-a-glance progress across every game (sessions played, first-try rate, learned-set, quiz best score)."
+    />
+    <title>Parent Stats — Kids Learning Games</title>
+
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>"
+    />
+
+    <script is:inline>
+      (function () {
+        try {
+          var raw = localStorage.getItem('kids_settings_v1');
+          if (!raw) return;
+          var s = JSON.parse(raw);
+          if (s && s.dark) document.documentElement.classList.add('pre-dark');
+        } catch (e) {
+          /* noop */
+        }
+      })();
+    </script>
+  </head>
+
+  <body class="stats-page">
+    <header class="stats-hero">
+      <h1>📊 Parent Stats</h1>
+      <p class="tagline">
+        At-a-glance progress across every game. Tap a card title to open the game,
+        or "Reset" to clear that game's stats on this device.
+      </p>
+      <div class="stats-actions">
+        <a class="ctrl-pill" href={href('')}>🏠 Home</a>
+        <button class="ctrl-pill" id="btnSettings" type="button" aria-label="Open settings">
+          ⚙️ Settings
+        </button>
+        <button
+          class="ctrl-pill ctrl-danger"
+          id="btnResetAll"
+          type="button"
+          aria-label="Reset stats for every game"
+        >
+          🗑️ Reset everything
+        </button>
+      </div>
+    </header>
+
+    <GameNav />
+
+    <main class="stats-main">
+      {
+        FAMILY_ORDER.map((family) => {
+          const entries = entriesByFamily[family];
+          if (entries.length === 0) return null;
+          return (
+            <section class={`stats-section family-${family}`} data-family={family}>
+              <h2 class="stats-section-title">{FAMILY_LABELS[family]}</h2>
+              <div class="stats-grid">
+                {entries.map((entry) => {
+                  // SSR shape: zero-state metric rows, real labels and emoji.
+                  const rows = entry.read();
+                  return (
+                    <article
+                      class="stats-card"
+                      data-game-id={entry.id}
+                      data-family={entry.family}
+                    >
+                      <header class="stats-card-head">
+                        <a class="stats-card-title" href={href(entry.hrefPath)}>
+                          <span class="stats-card-emoji" aria-hidden="true">{entry.emoji}</span>
+                          <span class="stats-card-name">{entry.title}</span>
+                          <span class="stats-card-arrow" aria-hidden="true">→</span>
+                        </a>
+                        <span class="stats-card-empty" data-empty-badge hidden>
+                          No plays yet
+                        </span>
+                      </header>
+                      <ul class="stats-card-rows" data-rows>
+                        {rows.map((row, i) => (
+                          <li class="stats-row">
+                            <span class="stats-row-emoji" aria-hidden="true">{row.emoji}</span>
+                            <span class="stats-row-label">{row.label}</span>
+                            <span class="stats-row-value" data-value-index={i}>{row.value}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      <button
+                        class="stats-reset"
+                        type="button"
+                        data-reset
+                        aria-label={`Reset stats for ${entry.title}`}
+                      >
+                        🗑️ Reset
+                      </button>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+          );
+        })
+      }
+    </main>
+
+    <SettingsModal />
+    <BuildInfo />
+
+    <script>
+      import { initSettings } from '@/lib/settings';
+      import { STATS_REGISTRY } from '@/data/stats-registry';
+
+      initSettings();
+      document.documentElement.classList.remove('pre-dark');
+
+      // ─── Settings modal trigger ──────────────────────────────────────
+      document.getElementById('btnSettings')?.addEventListener('click', () => {
+        (window as unknown as { openSettings?: () => void }).openSettings?.();
+      });
+
+      // ─── Per-card hydration ──────────────────────────────────────────
+      // Walk each card, ask its registry entry for fresh metric rows,
+      // and patch the value spans + empty-state badge. SSR already
+      // populated zero-state values + correct labels, so this is a
+      // pure value swap (no DOM rebuild → no layout shift).
+      const REGISTRY_BY_ID = new Map(STATS_REGISTRY.map((e) => [e.id, e]));
+
+      const renderCard = (card: HTMLElement): void => {
+        const id = card.dataset.gameId;
+        if (!id) return;
+        const entry = REGISTRY_BY_ID.get(id);
+        if (!entry) return;
+
+        const rows = entry.read();
+        const valueEls = card.querySelectorAll<HTMLElement>('[data-value-index]');
+        valueEls.forEach((el) => {
+          const i = Number(el.dataset.valueIndex);
+          const row = rows[i];
+          if (row) el.textContent = row.value;
+        });
+
+        const empty = card.querySelector<HTMLElement>('[data-empty-badge]');
+        if (empty) empty.hidden = entry.hasData();
+        card.classList.toggle('is-empty', !entry.hasData());
+      };
+
+      const allCards = document.querySelectorAll<HTMLElement>('.stats-card');
+      allCards.forEach(renderCard);
+
+      // ─── Per-card reset wiring ───────────────────────────────────────
+      allCards.forEach((card) => {
+        const btn = card.querySelector<HTMLButtonElement>('[data-reset]');
+        if (!btn) return;
+        const id = card.dataset.gameId ?? '';
+        const entry = REGISTRY_BY_ID.get(id);
+        if (!entry) return;
+
+        btn.addEventListener('click', () => {
+          const ok = window.confirm(
+            `Reset stats for "${entry.title}"? This clears progress for this game on this device only.`,
+          );
+          if (!ok) return;
+          entry.clear();
+          renderCard(card);
+        });
+      });
+
+      // ─── Reset-everything button ─────────────────────────────────────
+      document.getElementById('btnResetAll')?.addEventListener('click', () => {
+        const ok = window.confirm(
+          'Reset stats for ALL games? This clears progress for every game on this device only.',
+        );
+        if (!ok) return;
+        STATS_REGISTRY.forEach((e) => {
+          e.clear();
+        });
+        allCards.forEach(renderCard);
+      });
+    </script>
+
+    <script>
+      import { registerSW } from 'virtual:pwa-register';
+      registerSW({ immediate: true });
+    </script>
+
+    <style is:global>
+      /* FOUC-safe pre-paint background — applied by the inline <head>
+         script before any deferred CSS loads. Mirrors the same pattern
+         used by index.astro / 404.astro / every game layout. */
+      html.pre-dark body.stats-page {
+        background: #1a1a2e;
+        color: #e8e4ff;
+      }
+
+      body.stats-page {
+        min-height: 100dvh;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #fff;
+        padding: 32px 20px 80px;
+      }
+
+      body.stats-page.dark-mode {
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        color: #e8e4ff;
+      }
+
+      .stats-hero {
+        max-width: 1024px;
+        margin: 0 auto 24px;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .stats-hero h1 {
+        font-size: clamp(1.8em, 4.5vw, 2.6em);
+        margin: 0;
+        letter-spacing: 0.5px;
+        text-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
+      }
+
+      .stats-hero .tagline {
+        opacity: 0.85;
+        font-size: 0.95em;
+        max-width: 720px;
+        line-height: 1.5;
+      }
+
+      .stats-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      .stats-actions .ctrl-pill {
+        text-decoration: none;
+      }
+
+      .stats-actions .ctrl-danger {
+        background: rgba(255, 80, 80, 0.18);
+        border-color: rgba(255, 80, 80, 0.45);
+      }
+
+      .stats-actions .ctrl-danger:hover {
+        background: rgba(255, 80, 80, 0.28);
+      }
+
+      .stats-main {
+        max-width: 1024px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 28px;
+      }
+
+      .stats-section-title {
+        margin: 0 0 12px;
+        padding-bottom: 8px;
+        font-size: 1.15em;
+        font-weight: 600;
+        letter-spacing: 0.2px;
+        opacity: 0.92;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+      }
+
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 14px;
+      }
+
+      .stats-card {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 18px 18px 14px;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-left-width: 4px;
+        color: #fff;
+        transition: transform 0.18s, box-shadow 0.18s, background 0.18s;
+      }
+
+      .stats-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
+        background: rgba(255, 255, 255, 0.14);
+      }
+
+      /* Family-tinted left border so the section grouping is visible
+         even when scrolling and section headers are above the fold. */
+      .stats-card[data-family='preschool-math'] {
+        border-left-color: #ffd166;
+      }
+      .stats-card[data-family='story'] {
+        border-left-color: #ef476f;
+      }
+      .stats-card[data-family='card-set'] {
+        border-left-color: #06d6a0;
+      }
+      .stats-card[data-family='card-pure'] {
+        border-left-color: #4cc9f0;
+      }
+
+      .stats-card.is-empty {
+        opacity: 0.78;
+      }
+
+      .stats-card-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .stats-card-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: inherit;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 1.05em;
+      }
+
+      .stats-card-title:hover {
+        text-decoration: underline;
+        text-underline-offset: 3px;
+      }
+
+      .stats-card-emoji {
+        font-size: 1.35em;
+        line-height: 1;
+      }
+
+      .stats-card-arrow {
+        opacity: 0.6;
+        font-size: 0.9em;
+        transition: transform 0.18s, opacity 0.18s;
+      }
+
+      .stats-card-title:hover .stats-card-arrow {
+        opacity: 1;
+        transform: translateX(2px);
+      }
+
+      .stats-card-empty {
+        font-size: 0.7em;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 3px 8px;
+        border-radius: 50px;
+        background: rgba(0, 0, 0, 0.35);
+      }
+
+      .stats-card-rows {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .stats-row {
+        display: grid;
+        grid-template-columns: 22px 1fr auto;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.92em;
+        line-height: 1.4;
+      }
+
+      .stats-row-emoji {
+        font-size: 1em;
+      }
+
+      .stats-row-label {
+        opacity: 0.85;
+      }
+
+      .stats-row-value {
+        font-variant-numeric: tabular-nums;
+        font-weight: 600;
+      }
+
+      .stats-reset {
+        align-self: flex-end;
+        font-size: 0.78em;
+        padding: 4px 10px;
+        border-radius: 50px;
+        background: rgba(0, 0, 0, 0.25);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: #fff;
+        cursor: pointer;
+        transition: background 0.18s, border-color 0.18s;
+      }
+
+      .stats-reset:hover {
+        background: rgba(255, 80, 80, 0.32);
+        border-color: rgba(255, 80, 80, 0.55);
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .stats-card,
+        .stats-card-arrow,
+        .stats-reset {
+          transition: none;
+        }
+      }
+
+      @media (max-width: 480px) {
+        body.stats-page {
+          padding: 20px 14px 60px;
+        }
+        .stats-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </body>
+</html>
