@@ -30,6 +30,13 @@ import { expect, type Page, type Locator } from '@playwright/test';
  * NB: clicking `data-i="0"` every time is intentional. The smoke
  * suite asserts that the wiring works end-to-end, not that the
  * quiz-correct logic produces a particular score.
+ *
+ * Feedback-aware (2026-05-20): `mountQuiz` now plays a 450ms (correct)
+ * or 700ms (wrong) feedback animation before advancing — buttons are
+ * disabled during that window. Between clicks we poll for either the
+ * result panel to un-hide or a fresh enabled `.quiz-opt[data-i="0"]`
+ * to render, which means the previous question's transition has
+ * fully completed.
  */
 export const answerQuizUntilResult = async (
   bodyEl: Locator,
@@ -39,26 +46,42 @@ export const answerQuizUntilResult = async (
   for (let i = 0; i < maxClicks; i++) {
     if (await resultEl.evaluate((el) => !el.hasAttribute('hidden'))) return;
 
-    const firstOpt = bodyEl.locator('.quiz-opt[data-i="0"]');
-    const count = await firstOpt.count();
-    if (count === 0) {
-      // Either the result already revealed between checks above, or
-      // the quiz body was hidden via `display:none` (story games show
-      // the result panel and hide the body). Re-check the result
-      // panel one more time before giving up.
+    const firstOpt = bodyEl.locator('.quiz-opt[data-i="0"]:not([disabled])');
+    // Wait until either the result panel reveals or a fresh enabled
+    // first option exists — this rides through the per-tap feedback
+    // animation without flake.
+    let advanced = false;
+    for (let waitMs = 0; waitMs < 3000; waitMs += 100) {
+      if (await resultEl.evaluate((el) => !el.hasAttribute('hidden'))) return;
+      if ((await firstOpt.count()) > 0) {
+        advanced = true;
+        break;
+      }
+      await firstOpt.page().waitForTimeout(100);
+    }
+    if (!advanced) {
+      // Still not advanced after 3s. Either the result revealed in
+      // the meantime (final check) or the quiz hung — story games
+      // also hide the bodyEl via `display:none` when showing the
+      // result panel, so re-check before giving up.
       if (await resultEl.evaluate((el) => !el.hasAttribute('hidden'))) return;
       throw new Error(
-        `answerQuizUntilResult: no '.quiz-opt[data-i="0"]' button found and result panel still hidden after ${i} clicks`,
+        `answerQuizUntilResult: feedback animation did not settle and result panel still hidden after ${i} clicks`,
       );
     }
     await firstOpt.first().click();
   }
   // Final check: did the last click reveal the result panel?
-  if (!(await resultEl.evaluate((el) => !el.hasAttribute('hidden')))) {
-    throw new Error(
-      `answerQuizUntilResult: exhausted ${maxClicks} clicks without revealing the result panel`,
-    );
+  // Allow up to 1s for the post-click feedback delay before the result
+  // panel un-hides (the last-question advance still goes through the
+  // 450/700ms feedback gate).
+  for (let waitMs = 0; waitMs < 1500; waitMs += 100) {
+    if (await resultEl.evaluate((el) => !el.hasAttribute('hidden'))) return;
+    await resultEl.page().waitForTimeout(100);
   }
+  throw new Error(
+    `answerQuizUntilResult: exhausted ${maxClicks} clicks without revealing the result panel`,
+  );
 };
 
 /**

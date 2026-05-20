@@ -178,12 +178,51 @@ export const mountQuiz = (cfg: QuizControllerConfig): QuizController => {
     cfg.bodyEl.innerHTML = headHtml + optsHtml;
   };
 
+  /**
+   * Per-tap feedback timings (2026-05-20). Before this date the function
+   * advanced to the next question instantly, which left wrong answers
+   * with **zero** visible feedback — the screen just jumped, asymmetric
+   * to the celebratory state on correct (perfect-score confetti via
+   * `onPerfect`). The age-safe variant added here:
+   *   - On correct: a 450ms `quiz-opt--correct` pop on the tapped button.
+   *   - On wrong:   a 250ms shake on the tapped button (`--wrong`) + a
+   *                 600ms green-ring pulse on the actual correct option
+   *                 (`--reveal`) so the child sees what was right.
+   * No red, no desaturation, no negative tone — research consensus is
+   * that shame-coded feedback (red flash, buzzer) reduces willingness
+   * to try in early-elementary learners and is actively harmful at
+   * preschool ages. The shake reads kinesthetically as "not this one"
+   * without negative valence; the reveal celebrates the correct answer.
+   * See PROGRESS.md → 2026-05-20 entry. The preschool-math triad
+   * (Counting Friends, More Friends, Number Friends) does NOT use
+   * `mountQuiz` — its errorless guided-count flow is page-local. */
+  const ADVANCE_MS_CORRECT = 450;
+  const ADVANCE_MS_WRONG = 700;
+
   const onAnswer = (i: number): void => {
     const q = cfg.questions[idx];
     if (!q) return;
-    if (i === q.ans) correct++;
-    idx++;
-    renderQuestion();
+
+    const buttons = cfg.bodyEl.querySelectorAll<HTMLButtonElement>('.quiz-opt');
+    // Disable every option during the feedback window so a fast
+    // double-tap can't fire `onAnswer` twice mid-transition.
+    for (const b of buttons) b.disabled = true;
+
+    let advanceMs: number;
+    if (i === q.ans) {
+      correct++;
+      buttons[i]?.classList.add('quiz-opt--correct');
+      advanceMs = ADVANCE_MS_CORRECT;
+    } else {
+      buttons[i]?.classList.add('quiz-opt--wrong');
+      buttons[q.ans]?.classList.add('quiz-opt--reveal');
+      advanceMs = ADVANCE_MS_WRONG;
+    }
+
+    setTimeout(() => {
+      idx++;
+      renderQuestion();
+    }, advanceMs);
   };
 
   const showResult = (): void => {

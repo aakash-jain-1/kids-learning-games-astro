@@ -129,4 +129,108 @@ test.describe('story layout', () => {
       await expect(body.locator('.quiz-question')).toContainText(/^1\s*\//);
     });
   });
+
+  /**
+   * Wrong-answer feedback (T-extra, 2026-05-20).
+   *
+   * Pinned to Woodcutter because Q1 has a deterministic answer
+   * (`{ q: 'What did the woodcutter drop in the river?',
+   *      opts: ['His shoes', 'His axe', 'A golden coin', 'His hat'],
+   *      ans: 1 }` — see `src/data/woodcutter.ts`). That lets us
+   * exercise both branches without having to know per-game data:
+   *   - Tap `data-i="0"` ("His shoes") → wrong tap.
+   *   - Tap `data-i="1"` ("His axe")  → correct tap.
+   *
+   * The feedback rules are global (`src/styles/global.css`) and the
+   * controller (`src/lib/quiz.ts`) is shared by all 13 quiz games
+   * (story + card-set + card-pure), so smoke-testing the wiring on
+   * one consumer is sufficient. The preschool-math triad has its
+   * own page-local errorless flow and is intentionally NOT covered
+   * by this suite — see `tests/addition.spec.ts` etc.
+   */
+  test.describe('wrong-answer feedback (mountQuiz)', () => {
+    test.beforeEach(async ({ page }) => {
+      await page.goto('games/woodcutter-story.html');
+      await page.evaluate(() => localStorage.clear());
+      await page.reload();
+      // Quiz auto-starts on Woodcutter; ensure Q1 is rendered before
+      // we tap.
+      await expect(page.locator('#quizBody .quiz-question')).toContainText(/^1\s*\//);
+    });
+
+    test('wrong tap: shakes the tapped button + reveals the correct one + advances', async ({ page }) => {
+      const body = page.locator('#quizBody');
+      const wrongBtn = body.locator('.quiz-opt[data-i="0"]'); // "His shoes" — wrong (ans: 1)
+      const correctBtn = body.locator('.quiz-opt[data-i="1"]'); // "His axe"   — correct
+
+      await wrongBtn.click();
+
+      // Synchronous part of `onAnswer`: classes are written, every
+      // option is disabled.
+      await expect(wrongBtn).toHaveClass(/quiz-opt--wrong/);
+      await expect(correctBtn).toHaveClass(/quiz-opt--reveal/);
+      // Tapped button is NOT also marked correct/reveal.
+      await expect(wrongBtn).not.toHaveClass(/quiz-opt--correct/);
+      await expect(wrongBtn).not.toHaveClass(/quiz-opt--reveal/);
+      // Exactly one --reveal in the body (only the correct option).
+      await expect(body.locator('.quiz-opt--reveal')).toHaveCount(1);
+      // All four options disabled during the feedback window.
+      await expect(body.locator('.quiz-opt[disabled]')).toHaveCount(4);
+
+      // After the 700ms wrong-feedback gate, Q2 renders with fresh
+      // enabled buttons and the feedback classes are gone (innerHTML
+      // is fully rewritten by `renderQuestion`).
+      await expect(body.locator('.quiz-question')).toContainText(/^2\s*\//, { timeout: 2000 });
+      await expect(body.locator('.quiz-opt--wrong')).toHaveCount(0);
+      await expect(body.locator('.quiz-opt--reveal')).toHaveCount(0);
+      await expect(body.locator('.quiz-opt[disabled]')).toHaveCount(0);
+    });
+
+    test('correct tap: pops the tapped button (no --reveal anywhere) + advances', async ({ page }) => {
+      const body = page.locator('#quizBody');
+      const correctBtn = body.locator('.quiz-opt[data-i="1"]');
+
+      await correctBtn.click();
+
+      await expect(correctBtn).toHaveClass(/quiz-opt--correct/);
+      // No --wrong class at all on a correct tap.
+      await expect(body.locator('.quiz-opt--wrong')).toHaveCount(0);
+      // No --reveal class either — we only reveal the correct answer
+      // when the child got it wrong; no need on a correct tap because
+      // the tapped button IS the correct one.
+      await expect(body.locator('.quiz-opt--reveal')).toHaveCount(0);
+      await expect(body.locator('.quiz-opt[disabled]')).toHaveCount(4);
+
+      // After the 450ms correct-feedback gate, Q2 renders.
+      await expect(body.locator('.quiz-question')).toContainText(/^2\s*\//, { timeout: 2000 });
+      await expect(body.locator('.quiz-opt--correct')).toHaveCount(0);
+      await expect(body.locator('.quiz-opt[disabled]')).toHaveCount(0);
+    });
+
+    test('double-tap during feedback window cannot fire onAnswer twice', async ({ page }) => {
+      // Tap wrong, then immediately try to tap a different option
+      // while the 700ms gate is still active. The second tap must
+      // NOT mutate state — Q2 should still render normally and the
+      // counter should still read 2/N (not 3/N).
+      const body = page.locator('#quizBody');
+      const wrongBtn = body.locator('.quiz-opt[data-i="0"]');
+      const otherBtn = body.locator('.quiz-opt[data-i="2"]');
+
+      await wrongBtn.click();
+      // Buttons are now disabled — Playwright's default click would
+      // wait for re-enable, which we don't want here. We explicitly
+      // dispatch a click event bypassing actionability (force) to
+      // simulate a fast double-tap.
+      await otherBtn.dispatchEvent('click');
+
+      // Still only one --wrong (the original tap), still one --reveal,
+      // still no --correct.
+      await expect(body.locator('.quiz-opt--wrong')).toHaveCount(1);
+      await expect(body.locator('.quiz-opt--reveal')).toHaveCount(1);
+      await expect(body.locator('.quiz-opt--correct')).toHaveCount(0);
+
+      // Q2 still renders cleanly after the gate.
+      await expect(body.locator('.quiz-question')).toContainText(/^2\s*\//, { timeout: 2000 });
+    });
+  });
 });

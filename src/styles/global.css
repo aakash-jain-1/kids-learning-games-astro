@@ -312,6 +312,59 @@ body.dark-mode .build-info {
   outline-offset: 2px;
 }
 
+/* ── Quiz answer feedback (`mountQuiz`) ────────────────────────────
+   Applied by `src/lib/quiz.ts` after every option tap. Three classes,
+   stripped on next-question render via innerHTML rewrite:
+     - `--correct`: tapped and right (gentle scale pop + green ring)
+     - `--wrong`  : tapped and wrong (kinesthetic shake; NO color shift)
+     - `--reveal` : the correct option, highlighted after a wrong tap
+                   (so the child sees what the right answer was)
+
+   Age-safe by design: NO red, NO desaturation, NO negative tone. The
+   shake says "not this one" kinesthetically without shame-coding; the
+   reveal says "here is the right one" by celebrating the answer. The
+   preschool-math triad (Counting/More/Number Friends) keeps its own
+   errorless guided-count flow — these rules don't apply there because
+   those games don't use `.quiz-opt`. See PROGRESS.md → 2026-05-20
+   "T-extra: wrong-answer feedback" entry. */
+.quiz-opt--correct,
+.quiz-opt--reveal {
+  outline: 3px solid #22c55e;
+  outline-offset: 2px;
+}
+
+.quiz-opt--correct {
+  animation: quiz-pop-correct 450ms ease-out;
+}
+
+.quiz-opt--reveal {
+  animation: quiz-pulse-reveal 600ms ease-out;
+}
+
+.quiz-opt--wrong {
+  animation: quiz-shake 250ms ease-in-out;
+}
+
+@keyframes quiz-pop-correct {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+
+@keyframes quiz-pulse-reveal {
+  0%   { transform: scale(1);    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.55); }
+  60%  { transform: scale(1.04); box-shadow: 0 0 0 12px rgba(34, 197, 94, 0); }
+  100% { transform: scale(1);    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+}
+
+@keyframes quiz-shake {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-7px); }
+  40%      { transform: translateX( 7px); }
+  60%      { transform: translateX(-5px); }
+  80%      { transform: translateX( 4px); }
+}
+
 /* Reduced-motion users get minimal animation */
 @media (prefers-reduced-motion: reduce) {
   *,
