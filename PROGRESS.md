@@ -630,13 +630,134 @@ invest the recording time when the 3yo's engagement is proven.
   that the recording investment is worth it pre-retention-
   proof (acceptable override of the deferral logic).
 
-##### Recording approach trade-offs
+##### Industry recording standards (de facto across kids' educational apps)
 
-| Approach | Time | Cost | Quality | Why |
+Surveyed 2026-05-20 (after the user asked "what are the
+standards?") via web search + cross-referenced against
+ElevenLabs / Play.ht / KidsStoryteller.ai documentation
+and the public design notes from Sesame Workshop, Khan
+Academy Kids, ABCmouse, Endless Alphabet, Lingokids,
+Duolingo ABC. Consistent standard across all of them:
+
+| Spec | Industry standard | Rationale |
+|---|---|---|
+| Format | **MP3 mono** (some use AAC, fewer Opus) | Universal browser support; AAC is comparable but MP3 still wins on iOS Safari + older Android compat. Opus is smaller but iOS Safari support was patchy until ~2023 and still less universal. |
+| Bitrate | **64–96 kbps** for voice-only | 128 kbps is overkill for spoken voice (where speech intelligibility plateaus around 64 kbps); 64 kbps is the sweet spot for kids' apps. |
+| Sample rate | **44.1 kHz** (CD) or **22.05 kHz** acceptable for voice-only | 44.1 is the safe default; 22.05 cuts file size further at no perceptible quality loss for speech. |
+| Loudness | **−16 LUFS** (target normalisation) | Spotify/YouTube standard; loud enough on a tablet without being shouty. Audacity built-in loudness-normalisation filter or `ffmpeg -filter:a loudnorm=I=-16` produces this. |
+| Channels | **Mono** | Voice doesn't need stereo; halves file size with zero perceptible quality loss. |
+| Phrase length | **0.5–3 sec** typical, **~1.5 sec average** | Matches the cognitive attention window for ages 3–5. |
+| Trim padding | **Aggressive** — head/tail silence ≤ 50 ms | Prevents perceived lag between tap and voice; "tap → voice" delay above ~150 ms reads as "the game didn't hear me." |
+
+##### What real apps do (single-narrator pattern is the dominant choice)
+
+| App | Voice approach | Notes |
+|---|---|---|
+| **Khan Academy Kids** | Pro VO + recurring character voices (Kodi, Peck, Sandy, Reya). **Single consistent narrator** for instructions. | Highest research investment in the category; uses character continuity to build attachment. |
+| **ABCmouse** | Full pro VO across ~10,000+ activities. | $10M+ invested in content production over years. |
+| **Endless Alphabet / Numbers** (Originator Inc.) | **One warm female narrator** across the entire app library. | The "kindergarten teacher" voice — single voice across all their apps for cross-app brand consistency. |
+| **Duolingo ABC** | Single warm female narrator + character voices for activities. | Same single-narrator pattern as Endless. |
+| **PBS Kids apps** | Show-character VO (when applicable) + standard pro VO otherwise. | Reuses TV-show talent. |
+| **Lingokids** | Bright British/American English studio VO. | Professional polish, multi-accent support. |
+| **Sesame Workshop content** | Muppet voice actors + parent-style narrators. | Their research is the source of "warm familiar voice" claims widely cited in the category. |
+
+**Dominant pattern: one consistent warm adult narrator**
+(usually female, ~−16 LUFS mono MP3), pro-recorded, with
+character voices layered in only for animated bits. **Actual
+*child* voices are rare and reserved for character dialogue,
+NOT instructional narration** — adults teaching kids
+outperforms kids teaching kids in the 3–5 range per the
+research, because adult narrators model proper articulation
+and don't compete for attention with the content.
+
+##### AI VO market in 2026 (surveyed for T9-relevance)
+
+| Service | Pricing (entry tier, 2026) | Strengths | Weaknesses for kid-narration |
+|---|---|---|---|
+| **ElevenLabs** ($11B valuation, market leader, $330M ARR as of Feb 2026) | $5/mo Starter (30K credits ≈ 30 min TTS), $22/mo Creator (~100 min, 192 kbps) | 5,000+ voices, voice cloning, multilingual, best emotional expressiveness in the category | **No actual child voices** — has "Youthful" + "Cute" young-adult voice categories instead (e.g. "The Bubbly Optimist", "The Enthusiastic Best Friend"). Real-world credit consumption is ~1.75× raw character count due to regenerations. |
+| **Play.ht** | $39/mo entry | More polished/neutral, e-learning focused, 832+ voices, 142 languages | More clinical tone, fewer warm voices, no child voices. |
+| **WellSaid Labs** | Premium B2B (~$99–500/mo) | Broadcast-quality, used by enterprise e-learning (LinkedIn Learning, Pearson). | Expensive; no kid-specific voices. |
+| **Google Cloud TTS** (Studio voices) | Pay-per-char (~$16/1M chars) | API-driven, very high quality, scales to zero cost when idle. | Programmatic only, no UI for casual users. |
+| **Microsoft Azure Speech** (Neural) | Pay-per-char (~$16/1M chars) | **Has actual child voices** (e.g. "Jane" en-US child neural voice). | Programmatic only, slightly less expressive than ElevenLabs. |
+| **Amazon Polly** (Neural) | Pay-per-char (~$16/1M chars) | Cheapest reliable option, AWS integration. | Less expressive than competitors. |
+| **KidsStoryteller.ai** | Free tier (3K chars/mo), paid tiers | **Purpose-built for kids' apps**, has actual "Kid Girl" + "Kid British" voices + warm adult storytellers. | Niche product, longevity uncertain, smaller voice catalog. |
+| **ResponsiveVoice** | Free with attribution | Browser-based JS lib, no API key needed. | Lower quality, attribution requirement awkward. |
+| **Coqui TTS / OpenVoice** (open source) | $0 (self-hosted) | Free, no rate limits, full control. | Lower quality, requires technical setup. |
+
+##### VO marketplace landscape (real human VO, hired)
+
+| Marketplace | Price for ~80 phrases | Quality | Turnaround |
+|---|---|---|---|
+| **Voices.com** | $100–500 | Professional, vetted talent | 2–5 business days |
+| **Voice123** | $80–400 | Professional | 2–5 days |
+| **Bodalgo** (EU/India-friendly) | €60–€300 | Professional | 2–5 days |
+| **Fiverr** | $15–80 | Variable; need to vet samples carefully | 1–3 days |
+| **Backstage** | $100–300 | Solid, more screen-talent-leaning | 3–7 days |
+
+##### Recording approach trade-offs (decision matrix presented to user 2026-05-20)
+
+| Approach | Time | Cost | Quality for THIS 3yo | Quality for general users |
 |---|---|---|---|---|
-| **User records themselves** (warm parent voice, phone in a quiet room) | ~30 min recording + 1 hr trim/encode | $0 | **Highest for THIS 3yo** | Sesame Workshop + Khan Academy Kids design notes consistently show familiar warm voices outperform polished VO for retention in the 3–5 age range. The 3yo's primary attachment voice is the parent's. **Strongly recommended for v1.** |
-| **AI voice (ElevenLabs / Play.ht / similar)** | ~2–3 hr (design voice profile + regenerate per phrase + QA each) | $5–30 (API credits) | High but uncanny-valley risk | OK if user is voice-shy; quality is good but the voice is generic. Worth considering if user wants consistency across re-recordings (no need to re-do takes; rerun the script). |
-| **Hire VO artist (Fiverr / Voice123)** | 5–6 hr elapsed (one-day turnaround) | $50–150 | Polished but generic | Overkill for the 3yo; the polish doesn't beat parent-voice familiarity. Worth it later if the games scale to non-parent-known kids. |
+| **A. User records themselves** (warm parent voice, phone in a quiet room) — **✅ USER-CONFIRMED CHOICE FOR T9 v1 (2026-05-20)** | ~30 min recording + ~1 hr trim/encode | **$0** | **Highest** (parent attachment voice; Sesame Workshop + Khan Academy Kids research repeatedly shows familiar warm voices outperform polished VO for retention in the 3–5 range — the 3yo's primary attachment voice is the parent's) | Lower (variable production quality vs. studio recording) |
+| **B. ElevenLabs Creator tier** ($22/mo, $11 first month with 50% off) — pick a "Youthful Female" voice (e.g. "The Bubbly Optimist"), or use Voice Lab to design a custom voice profile, generate all phrases, then cancel | ~1–2 hr (write phrase list + generate + QA) | **$11–22** | High (warm AI voice with consistent prosody, 192 kbps audio at Creator tier) | High (broadcast-quality) |
+| **C. ElevenLabs Voice Cloning** (Creator tier, $22/mo) — record 30 min of yourself reading aloud, train an instant clone, generate all 80 phrases from text | ~2–3 hr (record training + generate + QA) | **$22** | **Highest + scalable** — sounds like the parent, never tires, can extend phrase inventory later without re-recording | Same as the parent's real voice but consistent across re-records |
+| **D. Hire on Fiverr** — Indian-English warm female VO with brief "ages 3–5 audience, kindergarten-teacher style, ~80 short phrases" | 2–3 days elapsed | **$30–80** | High (professional but not parent voice) | High |
+| **E. Hire on Voices.com** — vetted pro VO | 3–5 days | **$120–200** | Highest production quality | Highest |
+
+**User-confirmed decision (2026-05-20, after the
+"what's the standard?" / "are there widely-used VOs?"
+research questions)**: **Option A — record themselves.**
+Locked in because (a) the 3yo target user is THE
+specific user, not a generic kid, so the
+parent-attachment-voice argument carries decisive
+weight; (b) zero cost vs. $11–200 for the alternatives;
+(c) the recording-quality risk (variable home-studio
+quality) is a smaller error than the
+not-the-parent's-voice risk for a 3yo; (d) Option C
+(voice cloning) is a clean upgrade path if the
+parent ever wants to extend the phrase inventory
+later without re-recording — locked in as the **v2
+upgrade path** if the games ever scale beyond the
+single 3yo.
+
+##### Recording session checklist (when T9 unblocks and the user records)
+
+Locked in here so the next session doesn't have to
+re-research the specs. Run through this in order:
+
+1. **Quiet room** — bedroom with closed curtains beats a
+   kitchen / open-plan living room. Soft furnishings absorb
+   reflections. Avoid rooms with lots of hard surfaces (tile
+   floors, glass tables, mirrors).
+2. **Phone or laptop mic** — phone held ~6 inches from
+   mouth, off-axis (slightly to the side, not directly into
+   the mic, to avoid plosives). Recent iPhones / Pixels are
+   broadcast-adequate for voice. A USB mic (Blue Yeti, Audio-
+   Technica AT2020) is a tier above but not required for v1.
+3. **One sitting** — record the full inventory (~80 phrases)
+   in a single session. Voice tone changes day-to-day;
+   single-session captures consistency. Budget ~45 min: read
+   each phrase 2–3 times, keep the best take.
+4. **Aim for warm, slightly slow, slightly higher pitch than
+   your normal voice** — research-backed for ages 3–5. Read
+   each phrase as if you're saying it to your 3yo right now,
+   not as if you're recording for an app.
+5. **Trim aggressively + normalise loudness** — Audacity:
+   `Effect → Loudness Normalization → −16 LUFS, mono`.
+   Or `ffmpeg -i in.wav -filter:a loudnorm=I=-16:TP=-1.5:LRA=11
+   -ar 44100 -ac 1 -b:a 64k out.mp3`.
+   Trim head/tail silence ≤ 50 ms. Save as MP3 64 kbps mono.
+6. **File naming** — `<game>-<category>-<key>.mp3`
+   (e.g. `cf-correct-3.mp3`, `mf-rerun-lets-count.mp3`,
+   `nf-find-3.mp3`, `shared-count-1.mp3`). Lowercase, hyphen-
+   separated, no spaces.
+7. **Drop into `src/assets/narration/<game>/`** — Vite
+   resolves the `import` statements to hashed URLs at build
+   time, so the file paths can be moved later without
+   breaking the registry consumers.
+8. **Listen to each take on the 3yo's actual device** before
+   committing — phone speakers + tablet speakers + parent's
+   ear monitoring all differ.
 
 ##### What T9 does NOT change
 
