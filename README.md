@@ -185,6 +185,16 @@ running from a different repo.
    the SSR'd round shape (groups, sums/sizes, target+matching panel),
    correct/wrong tap flows, errorless rerun behaviour, and home-card link.
    Bespoke schemas (`<game>_stats_v1`) tested in addition to round invariants.
+   **Each spec's wrong-tap test was extended 2026-05-20 (latest, T-extra
+   triad-extension) to also assert the per-game `cf-opt--wrong` /
+   `mf-group--wrong` / `nf-group--wrong` kinesthetic-shake class lands on
+   the tapped element within 1 s of the click**, BEFORE the existing
+   reveal-chain assertion — the shake is the same age-safe shape as the
+   `mountQuiz`-game shake but namespaced per-game (matching the existing
+   `<prefix>Bounce` / `<prefix>PulseRing` convention) and is purely
+   additive on top of the errorless-rerun flow (narrate "Let's count
+   them together" → guided count → reveal correct), which itself stays
+   byte-for-byte unchanged.
 3. **Infra-hardening** — `tests/not-found.spec.ts` (T7, the friendly 404
    page) + `tests/sw.spec.ts` (T8, the service-worker behaviour suite) +
    `tests/stats.spec.ts` (T6, the parent-facing `/stats` dashboard).
