@@ -499,46 +499,54 @@ test.describe('parent stats dashboard (T6)', () => {
     // formatting picked up the play. This is the smoke test that
     // ties the writer wiring (recordPlay in bumpStats) to the
     // reader (getActivityByFamily / fmtRelativeDate).
+    //
+    // Deterministic correct-tap path (fast). Mirrors the pattern in
+    // `tests/addition.spec.ts` — we count the items in the two
+    // groups, compute a + b, click the option whose data-n matches,
+    // then wait for #cfNextBtn to enable (the existing signal that
+    // the round resolved + bumpStats has fired). Avoids the
+    // wrong-tap rerun flow which is up to ~15s long in CI (different
+    // path, same end result for retention purposes — but slow enough
+    // that an 8s waitForFunction times out, which is exactly what
+    // bit the first version of this test on 2026-05-20).
     await page.goto('games/counting-friends-game.html');
-    // Wait for the first round to render — the buttons are rendered
-    // by the page script after `generateSession()`.
-    await page.locator('.cf-opt').first().waitFor({ state: 'visible', timeout: 5_000 });
+    await page.locator('#cfOptions .cf-opt').first().waitFor({ state: 'visible', timeout: 5_000 });
 
-    // Tap the first option. Whether it's correct or wrong, bumpStats
-    // is called either at the round end (correct) or after the
-    // guided-recount reveal (wrong). We don't need to wait for that
-    // full flow — recordPlay is also called by the per-round writer
-    // unconditionally, so a single round is enough.
-    await page.locator('.cf-opt').first().click();
+    const a = await page.locator('#cfGroupA .cf-item').count();
+    const b = await page.locator('#cfGroupB .cf-item').count();
+    const expected = a + b;
+    await page.locator(`#cfOptions .cf-opt[data-n="${expected}"]`).click();
 
-    // Give the per-round writer enough time to land. Round bookkeeping
-    // happens after the audio narration, so we wait until lastPlayed
-    // is written.
-    await page.waitForFunction(
-      () => !!localStorage.getItem('counting_friends_stats_v1'),
-      undefined,
-      { timeout: 8_000 },
-    );
+    // The correct-tap flow lands `cf-opt--correct` and enables
+    // #cfNextBtn after the per-round bumpStats writer fires. Same
+    // gate addition.spec.ts uses — proven reliable in CI.
+    await expect(page.locator('#cfNextBtn')).toBeEnabled({ timeout: 10_000 });
 
-    // Sitewide history should have today's date with at least
-    // 'counting-friends' in it.
-    const history = await page.evaluate(() => {
-      const raw = localStorage.getItem('kids_play_history_v1');
-      return raw ? (JSON.parse(raw) as Record<string, string[]>) : null;
-    });
-    expect(history).not.toBeNull();
-    const dates = Object.keys(history ?? {});
+    // Both writers should have landed by now: the per-game schema
+    // and the sitewide play-history key.
+    const stored = await page.evaluate(() => ({
+      stats: localStorage.getItem('counting_friends_stats_v1'),
+      history: localStorage.getItem('kids_play_history_v1'),
+    }));
+    expect(stored.stats).not.toBeNull();
+    expect(stored.history).not.toBeNull();
+
+    // Sitewide history must contain today's date with
+    // 'counting-friends' in the array.
+    const history = JSON.parse(stored.history ?? '{}') as Record<string, string[]>;
+    const dates = Object.keys(history);
     expect(dates.length).toBeGreaterThan(0);
-    const todaysIds = (history ?? {})[dates[dates.length - 1] ?? ''] ?? [];
-    expect(todaysIds).toContain('counting-friends');
+    // Sort to find the newest date deterministically — Object.keys
+    // order isn't guaranteed across engines for our shape.
+    const newest = dates.sort().reverse()[0] ?? '';
+    expect(history[newest] ?? []).toContain('counting-friends');
 
-    // Pop over to /stats and verify the relative-time formatting.
+    // Pop over to /stats and verify the relative-time formatting +
+    // the activity panel's last cell (today) has dot 0
+    // (preschool-math) lit up.
     await page.goto('stats.html');
     const counting = page.locator('.stats-card[data-game-id="counting-friends"]');
     await expect(counting.locator('.stats-row-value').last()).toHaveText('today');
-
-    // And the activity panel's last cell (today) has dot 0
-    // (preschool-math) lit up.
     await expect(
       page.locator('.stats-activity-day').last().locator('.stats-activity-dot').first(),
     ).toHaveClass(/is-active/);
