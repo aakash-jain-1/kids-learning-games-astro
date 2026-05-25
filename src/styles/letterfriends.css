@@ -1,0 +1,588 @@
+/* Letter Friends — first preschool-LITERACY game (added 2026-05-25,
+   T-letters). Uppercase letter recognition for ages 3–4 using a
+   3-tile forced-choice hunt. Sister to Number Friends (same UI
+   grammar, different domain).
+
+   Uses `StoryLayout` with `theme='letterfriends'` so the body class
+   is `body.story[data-theme='letterfriends']`. All `lf-*`
+   (letter-friends) classes scope themselves under that body
+   selector so they can never collide with Routines / Woodcutter /
+   Counting / More / Number / Pattern.
+
+   Design constraints worth re-stating in a comment block here so
+   the next reader doesn't have to dig through PROGRESS.md to find
+   them:
+
+   - **Each whole letter tile is the answer button.** The letter
+     glyph + word + emoji inside are decorative `<span>`s with
+     `pointer-events: none`. Tap target = the entire tile, well
+     above the ≥88px floor for ≤4yo touch targets.
+
+   - **The target prompt** sits at the top of the stage in a
+     prominent white card showing the target letter LARGE plus the
+     picture-mnemonic word ("A is for Apple" 🍎). Mirrors the
+     Number Friends `.nf-target` shape so a parent toggling between
+     the two games sees a familiar visual grammar.
+
+   - **Letter glyphs use a sans-serif system font stack** with
+     `font-feature-settings: 'ss01' off` to avoid double-story
+     forms — but since we're uppercase-only for v1, this is moot
+     in practice. Glyphs are deliberately NOT in a serif face: at
+     age 3 the visual noise from serifs adds working-memory load
+     for letter discrimination.
+
+   - **Reduced motion**: every animation has a
+     `@media (prefers-reduced-motion: reduce)` fallback that
+     collapses keyframes to instant fades.
+
+   - **All `lf-*` classes scope under
+     `body.story[data-theme='letterfriends']`** — so this file can
+     never leak into other games even if a class name accidentally
+     shadowed.
+*/
+
+/* ── Scene-theme background tokens ─────────────────────────────────── */
+
+body.story[data-theme='letterfriends'] {
+  --st-bg: linear-gradient(135deg, #fff0e6 0%, #fee6f0 100%);
+
+  /* Tile surface tokens — translucent white card per tile, mirrors
+     the Number Friends `.nf-group` palette intentionally so a
+     parent toggling between the two games sees a familiar visual
+     grammar. */
+  --lf-tile-bg: rgba(255, 255, 255, 0.92);
+  --lf-tile-border: rgba(255, 255, 255, 0.4);
+  --lf-tile-bg-hover: rgba(255, 255, 255, 1);
+  --lf-tile-border-correct: #2e7d32;
+  --lf-tile-border-glow: #ef476f;
+  --lf-tile-fill-correct: rgba(76, 175, 80, 0.22);
+  --lf-tile-fill-glow: rgba(239, 71, 111, 0.18);
+  --lf-tile-text: #1a1f3a;
+
+  /* Target card — solid white with a hairline. Higher-contrast than
+     the answer tiles because it's the "question" of the round and
+     must read as a foreground anchor against any scene bg. */
+  --lf-target-bg: #ffffff;
+  --lf-target-text: #1a1f3a;
+  --lf-target-accent: #ef476f; /* literacy family accent — pink to
+     differentiate from the green preschool-math accent. */
+  --lf-target-border: rgba(30, 50, 100, 0.12);
+  --lf-target-shadow: 0 8px 24px rgba(20, 30, 70, 0.18);
+
+  --lf-caption-bg: rgba(255, 255, 255, 0.92);
+  --lf-caption-text: #1a1f3a;
+  --lf-caption-shadow: 0 8px 24px rgba(20, 30, 70, 0.18);
+}
+
+/* Same per-theme backgrounds as the cardinality triad — five games
+   sharing a consistent pond/orchard/sea/garden palette. Theme drives
+   the background ambience only; letters themselves are theme-
+   independent (unlike Counting Friends's countable objects). */
+body.story[data-theme='letterfriends'] .lf-stage[data-scene='pond'] {
+  --st-bg: linear-gradient(180deg, #b8e0ff 0%, #6fb6e6 60%, #4a8c4a 100%);
+}
+body.story[data-theme='letterfriends'] .lf-stage[data-scene='orchard'] {
+  --st-bg: linear-gradient(180deg, #ffe6c8 0%, #ffb88c 50%, #88b94a 100%);
+}
+body.story[data-theme='letterfriends'] .lf-stage[data-scene='sea'] {
+  --st-bg: linear-gradient(180deg, #b3e8ec 0%, #4dc4cf 60%, #f4d97a 100%);
+}
+body.story[data-theme='letterfriends'] .lf-stage[data-scene='garden'] {
+  --st-bg: linear-gradient(180deg, #fff4b8 0%, #ffd666 60%, #6fbf3a 100%);
+}
+
+body.story[data-theme='letterfriends'] {
+  background: var(--st-bg);
+}
+
+/* ── Layout shell ─────────────────────────────────────────────────── */
+
+body.story[data-theme='letterfriends'] .lf-shell {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 16px 20px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: calc(100vh - 36px);
+}
+
+body.story[data-theme='letterfriends'] .lf-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+body.story[data-theme='letterfriends'] .lf-title {
+  margin: 0;
+  font-size: clamp(1.6em, 4vw, 2.2em);
+  color: #fff;
+  text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+body.story[data-theme='letterfriends'] .lf-progress-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.85);
+  color: #1a1f3a;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.95em;
+}
+
+body.story[data-theme='letterfriends'] .lf-progress-bar {
+  width: 80px;
+  height: 8px;
+  background: rgba(20, 30, 70, 0.15);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+body.story[data-theme='letterfriends'] .lf-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--lf-target-accent);
+  border-radius: 999px;
+  transition: width 0.4s ease-out;
+}
+
+/* ── Stage — target letter on top, 3 letter tiles below ───────────── */
+
+body.story[data-theme='letterfriends'] .lf-stage {
+  position: relative;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 24px;
+  padding: 24px 16px;
+  min-height: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.32);
+}
+
+body.story[data-theme='letterfriends'] .lf-target {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 32px;
+  border-radius: 24px;
+  background: var(--lf-target-bg);
+  color: var(--lf-target-text);
+  border: 2px solid var(--lf-target-border);
+  box-shadow: var(--lf-target-shadow);
+  /* Pulse gently to draw the eye to the question. Matches the
+     Number Friends `.nf-target` cadence so the two games feel
+     visually paired. */
+  animation: lfTargetPulse 2.4s ease-in-out infinite;
+}
+
+body.story[data-theme='letterfriends'] .lf-target-prompt {
+  font-size: 0.95em;
+  font-weight: 600;
+  color: rgba(30, 50, 100, 0.7);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+body.story[data-theme='letterfriends'] .lf-target-glyph {
+  /* The big target letter. ~96px lets the glyph dominate the prompt
+     so the child's first pass is "find this shape" before reading
+     the mnemonic word below. Sans-serif system stack for clarity at
+     age 3. */
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  font-size: 96px;
+  font-weight: 700;
+  line-height: 1;
+  margin: 0;
+  color: var(--lf-target-accent);
+  letter-spacing: 0.02em;
+}
+
+body.story[data-theme='letterfriends'] .lf-target-mnemonic {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1em;
+  font-weight: 600;
+  color: rgba(30, 50, 100, 0.78);
+}
+
+body.story[data-theme='letterfriends'] .lf-target-mnemonic-emoji {
+  font-size: 1.4em;
+  line-height: 1;
+}
+
+@keyframes lfTargetPulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.04); }
+}
+
+/* The three letter tiles below the target. */
+body.story[data-theme='letterfriends'] .lf-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  align-items: stretch;
+  width: 100%;
+  max-width: 720px;
+  gap: 12px;
+}
+
+body.story[data-theme='letterfriends'] .lf-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 180px;
+  padding: 18px 12px;
+  background: var(--lf-tile-bg);
+  border: 3px solid var(--lf-tile-border);
+  border-radius: 20px;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--lf-tile-text);
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s ease;
+  animation: lfFlyIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation-delay: var(--lf-i, 0s);
+}
+
+body.story[data-theme='letterfriends'] .lf-tile:hover {
+  background: var(--lf-tile-bg-hover);
+  transform: translateY(-2px);
+}
+
+body.story[data-theme='letterfriends'] .lf-tile:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+body.story[data-theme='letterfriends'] .lf-tile:disabled {
+  cursor: default;
+  opacity: 0.85;
+}
+
+body.story[data-theme='letterfriends'] .lf-tile.lf-tile--correct {
+  background: var(--lf-tile-fill-correct);
+  border-color: var(--lf-tile-border-correct);
+  animation: lfBounce 0.5s ease-out;
+}
+
+body.story[data-theme='letterfriends'] .lf-tile.lf-tile--reveal {
+  background: var(--lf-tile-fill-glow);
+  border-color: var(--lf-tile-border-glow);
+  animation: lfPulseRing 1.4s ease-in-out infinite;
+}
+
+/* Age-safe wrong-tap kinesthetic feedback. Mirrors `nfShake` from
+   Number Friends: 250ms shake, NO color shift, NO desaturation, NO
+   negative tone. Preserves the errorless-learning principle (a
+   wrong tap must NOT read as a punishment for a 3yo). The shake
+   runs in parallel with the audio narration that follows. */
+body.story[data-theme='letterfriends'] .lf-tile.lf-tile--wrong {
+  animation: lfShake 250ms ease-in-out;
+}
+
+body.story[data-theme='letterfriends'] .lf-tile-glyph {
+  /* The big letter glyph on each tile. Same font stack as the
+     target prompt for visual consistency. ~72px lets all three
+     tiles fit on a small phone while keeping the glyph dominant. */
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  font-size: 72px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--lf-target-accent);
+  letter-spacing: 0.02em;
+  pointer-events: none;
+}
+
+body.story[data-theme='letterfriends'] .lf-tile-word {
+  font-size: 0.95em;
+  font-weight: 600;
+  color: rgba(30, 50, 100, 0.78);
+  pointer-events: none;
+}
+
+body.story[data-theme='letterfriends'] .lf-tile-emoji {
+  font-size: 32px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+@keyframes lfFlyIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-30px) scale(0.4);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(6px) scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes lfBounce {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.06); }
+  60%  { transform: scale(0.98); }
+  100% { transform: scale(1); }
+}
+
+@keyframes lfPulseRing {
+  0%, 100% {
+    box-shadow:
+      0 4px 12px rgba(20, 30, 70, 0.15),
+      0 0 0 0 rgba(239, 71, 111, 0.55);
+  }
+  50% {
+    box-shadow:
+      0 4px 12px rgba(20, 30, 70, 0.15),
+      0 0 0 12px rgba(239, 71, 111, 0);
+  }
+}
+
+@keyframes lfShake {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-7px); }
+  40%      { transform: translateX( 7px); }
+  60%      { transform: translateX(-5px); }
+  80%      { transform: translateX( 4px); }
+}
+
+/* ── Caption — accessibility/parent-readable mirror of TTS narration ─── */
+
+body.story[data-theme='letterfriends'] .lf-caption {
+  background: var(--lf-caption-bg);
+  color: var(--lf-caption-text);
+  border-radius: 16px;
+  padding: 12px 18px;
+  font-size: clamp(1em, 2.4vw, 1.2em);
+  font-weight: 600;
+  text-align: center;
+  box-shadow: var(--lf-caption-shadow);
+  max-width: 720px;
+  margin: 0 auto;
+  min-height: 1.4em;
+  animation: lfCaptionIn 0.4s ease-out;
+}
+
+@keyframes lfCaptionIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Footer row — Replay + Next ────────────────────────────────────── */
+
+body.story[data-theme='letterfriends'] .lf-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+body.story[data-theme='letterfriends'] .lf-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 22px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(255, 255, 255, 0.92);
+  color: #1a1f3a;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 1em;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(20, 30, 70, 0.15);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+body.story[data-theme='letterfriends'] .lf-action:hover {
+  transform: translateY(-1px);
+  background: #ffffff;
+}
+
+body.story[data-theme='letterfriends'] .lf-action:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+body.story[data-theme='letterfriends'] .lf-action--primary {
+  background: var(--lf-target-accent);
+  color: #ffffff;
+}
+
+body.story[data-theme='letterfriends'] .lf-action--primary:hover {
+  background: #d63a5d;
+}
+
+/* ── Session-complete overlay — appears after the 8th round ───────── */
+
+body.story[data-theme='letterfriends'] .lf-done {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 30, 70, 0.55);
+  z-index: 50;
+  padding: 20px;
+}
+
+body.story[data-theme='letterfriends'] .lf-done.lf-done--show {
+  display: flex;
+}
+
+body.story[data-theme='letterfriends'] .lf-done-card {
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 32px 28px;
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+  color: #1a1f3a;
+  box-shadow: 0 24px 80px rgba(20, 30, 70, 0.4);
+  animation: lfDoneIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes lfDoneIn {
+  from { opacity: 0; transform: scale(0.7) translateY(20px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+body.story[data-theme='letterfriends'] .lf-done-emoji {
+  font-size: 72px;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+body.story[data-theme='letterfriends'] .lf-done-title {
+  margin: 0 0 8px;
+  font-size: 1.6em;
+  color: var(--lf-target-accent);
+}
+
+body.story[data-theme='letterfriends'] .lf-done-text {
+  margin: 0 0 24px;
+  font-size: 1.1em;
+  color: #555;
+}
+
+body.story[data-theme='letterfriends'] .lf-done-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ── Reduced motion fallback ──────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  body.story[data-theme='letterfriends'] .lf-target,
+  body.story[data-theme='letterfriends'] .lf-tile,
+  body.story[data-theme='letterfriends'] .lf-caption,
+  body.story[data-theme='letterfriends'] .lf-tile.lf-tile--correct,
+  body.story[data-theme='letterfriends'] .lf-tile.lf-tile--reveal,
+  body.story[data-theme='letterfriends'] .lf-done-card {
+    animation: none;
+  }
+  body.story[data-theme='letterfriends'] .lf-tile:hover {
+    transform: none;
+  }
+  body.story[data-theme='letterfriends'] {
+    transition: none;
+  }
+}
+
+/* ── Dark mode ────────────────────────────────────────────────────── */
+
+body.dark-mode.story[data-theme='letterfriends'] {
+  --lf-tile-bg: rgba(255, 255, 255, 0.08);
+  --lf-tile-bg-hover: rgba(255, 255, 255, 0.16);
+  --lf-tile-border: rgba(180, 200, 255, 0.3);
+  --lf-tile-fill-correct: rgba(46, 125, 50, 0.35);
+  --lf-tile-fill-glow: rgba(239, 71, 111, 0.32);
+  --lf-tile-text: #f0f4ff;
+  --lf-target-bg: #1a1f3a;
+  --lf-target-text: #f0f4ff;
+  --lf-target-border: rgba(180, 200, 255, 0.18);
+  --lf-caption-bg: rgba(20, 25, 50, 0.92);
+  --lf-caption-text: #f0f4ff;
+}
+
+body.dark-mode.story[data-theme='letterfriends'] .lf-target-prompt {
+  color: rgba(180, 200, 255, 0.7);
+}
+
+body.dark-mode.story[data-theme='letterfriends'] .lf-target-mnemonic {
+  color: rgba(180, 200, 255, 0.78);
+}
+
+body.dark-mode.story[data-theme='letterfriends'] .lf-tile-word {
+  color: rgba(180, 200, 255, 0.78);
+}
+
+body.dark-mode.story[data-theme='letterfriends'] .lf-done-card {
+  background: #1a1f3a;
+  color: #f0f4ff;
+}
+
+body.dark-mode.story[data-theme='letterfriends'] .lf-done-text {
+  color: #b8c2e0;
+}
+
+body.dark-mode.story[data-theme='letterfriends'] .lf-action {
+  background: #232847;
+  color: #f0f4ff;
+}
+
+body.dark-mode.story[data-theme='letterfriends'] .lf-action--primary {
+  background: var(--lf-target-accent);
+  color: #ffffff;
+}
+
+/* ── Responsive — stack tiles on small phones ─────────────────────── */
+
+@media (max-width: 600px) {
+  body.story[data-theme='letterfriends'] .lf-tiles {
+    grid-template-columns: 1fr;
+  }
+  body.story[data-theme='letterfriends'] .lf-tile {
+    min-height: 140px;
+    flex-direction: row;
+    justify-content: center;
+    gap: 12px;
+  }
+  body.story[data-theme='letterfriends'] .lf-tile-glyph {
+    font-size: 60px;
+  }
+  body.story[data-theme='letterfriends'] .lf-target-glyph {
+    font-size: 72px;
+  }
+  body.story[data-theme='letterfriends'] .lf-shell {
+    padding: 12px 12px 60px;
+    gap: 14px;
+  }
+  body.story[data-theme='letterfriends'] .lf-stage {
+    min-height: auto;
+  }
+}

@@ -28,9 +28,20 @@
  *
  * Storage-shape recap (catalogued during T6 survey):
  *
- *   Family A — preschool-math (3 games): bespoke `<game>_stats_v1` key
- *     holding `{ sessions, rounds, correctFirstTry, lastPlayed }`.
- *     Owned by `@/data/{addition,comparison,numberfriends}.ts`.
+ *   Family A — preschool-math (4 games): bespoke `<game>_stats_v1`
+ *     key holding `{ sessions, rounds, correctFirstTry, lastPlayed }`.
+ *     Owned by `@/data/{addition,comparison,numberfriends,patterns}.ts`.
+ *
+ *   Family A2 — preschool-literacy (1 game, added 2026-05-25 with
+ *     T-letters): IDENTICAL stats schema to preschool-math but
+ *     pedagogically scoped to letter recognition rather than
+ *     numeracy. Carved as a separate family (rather than slotting
+ *     under preschool-math) because the parent dashboard's whole
+ *     point is "what KIND of skill is my child building?" — mixing
+ *     math and literacy under one bucket would lose that signal.
+ *     Owned by `@/data/letterfriends.ts`. Reuses the same
+ *     `preschoolStatsEntry` factory (renamed from `preschoolMathEntry`
+ *     so it's family-agnostic) since the schemas are identical.
  *
  *   Family B — story games (2 games): shared `<gameId>_quiz_v1` from
  *     `@/lib/quiz` holding `{ attempts, bestScore, lastPlayed }`. Daily
@@ -77,6 +88,10 @@ import {
   STATS_KEY as PATTERNS_KEY,
   loadPatternStats,
 } from '@/data/patterns';
+import {
+  STATS_KEY as LETTER_FRIENDS_KEY,
+  loadLetterFriendsStats,
+} from '@/data/letterfriends';
 
 import { loadQuizState } from '@/lib/quiz';
 import { loadLearned } from '@/lib/progress';
@@ -92,9 +107,19 @@ export interface MetricRow {
   readonly value: string;
 }
 
-/** The four families used to group cards on the page (and tint borders). */
+/** The five families used to group cards on the page (and tint borders).
+ *
+ *  `'preschool-literacy'` was added 2026-05-25 with the Letter Friends
+ *  ship. The schema is identical to `'preschool-math'` (so the
+ *  factory below is shared between them via a `family` parameter),
+ *  but the family is split for the parent-dashboard signal: a parent
+ *  glancing at /stats should be able to tell at a glance whether
+ *  their child has been doing math or literacy this week, not see
+ *  them mashed together under one ambiguous "preschool" bucket.
+ */
 export type StatsFamily =
   | 'preschool-math'
+  | 'preschool-literacy'
   | 'story'
   | 'card-set'
   | 'card-pure';
@@ -147,22 +172,24 @@ const safeRemove = (key: string): void => {
   }
 };
 
-// ─── Family A: preschool-math (3 games) ──────────────────────────────
+// ─── Families A + A2: preschool-math (4 games) + preschool-literacy (1) ──
 //
-// Identical-shape stats across all three games — they were designed as
-// a triad and share `{ sessions, rounds, correctFirstTry, lastPlayed }`.
-// The only per-game variation is which `load*Stats()` function we call
-// and which emoji/title we show. A factory function would be tempting
-// here, but typing each entry explicitly makes the registry trivially
-// greppable ("where does Counting Friends's stats come from?") and
-// keeps the tree-shaking footprint clean.
+// Identical-shape stats across all five games — they share
+// `{ sessions, rounds, correctFirstTry, lastPlayed }`. A single
+// factory takes a `family` parameter so we don't duplicate the
+// read/clear/hasData wiring per family. The factory is intentionally
+// family-agnostic now (renamed from `preschoolMathEntry` 2026-05-25
+// when Letter Friends shipped as the first preschool-literacy
+// game) — adding a future preschool-{numeracy,vocabulary,...} game
+// is a one-arg change.
 
-const preschoolMathEntry = (cfg: {
+const preschoolStatsEntry = (cfg: {
   id: string;
   title: string;
   emoji: string;
   hrefPath: string;
   storageKey: string;
+  family: 'preschool-math' | 'preschool-literacy';
   load: () => {
     sessions: number;
     rounds: number;
@@ -174,7 +201,7 @@ const preschoolMathEntry = (cfg: {
   title: cfg.title,
   emoji: cfg.emoji,
   hrefPath: cfg.hrefPath,
-  family: 'preschool-math',
+  family: cfg.family,
   read: () => {
     const s = cfg.load();
     return [
@@ -340,37 +367,52 @@ const FLASHCARDS_DECK_VALUE = `${FLASHCARD_DECKS.length} decks · ${FLASHCARDS_T
 
 export const STATS_REGISTRY: readonly StatsRegistryEntry[] = [
   // Family A — preschool-math
-  preschoolMathEntry({
+  preschoolStatsEntry({
     id: 'counting-friends',
     title: 'Counting Friends',
     emoji: '🧮',
     hrefPath: 'games/counting-friends-game',
     storageKey: ADDITION_KEY,
+    family: 'preschool-math',
     load: loadAdditionStats,
   }),
-  preschoolMathEntry({
+  preschoolStatsEntry({
     id: 'more-friends',
     title: 'More Friends',
     emoji: '🔍',
     hrefPath: 'games/magnitude-comparison-game',
     storageKey: COMPARISON_KEY,
+    family: 'preschool-math',
     load: loadComparisonStats,
   }),
-  preschoolMathEntry({
+  preschoolStatsEntry({
     id: 'number-friends',
     title: 'Number Friends',
     emoji: '🔢',
     hrefPath: 'games/number-friends-game',
     storageKey: NUMBER_FRIENDS_KEY,
+    family: 'preschool-math',
     load: loadNumberFriendsStats,
   }),
-  preschoolMathEntry({
+  preschoolStatsEntry({
     id: 'pattern-sequences',
     title: 'Pattern Sequences',
     emoji: '🎨',
     hrefPath: 'games/pattern-sequences-game',
     storageKey: PATTERNS_KEY,
+    family: 'preschool-math',
     load: loadPatternStats,
+  }),
+
+  // Family A2 — preschool-literacy
+  preschoolStatsEntry({
+    id: 'letter-friends',
+    title: 'Letter Friends',
+    emoji: '🔤',
+    hrefPath: 'games/letter-friends-game',
+    storageKey: LETTER_FRIENDS_KEY,
+    family: 'preschool-literacy',
+    load: loadLetterFriendsStats,
   }),
 
   // Family B — story
@@ -483,7 +525,8 @@ export const STATS_REGISTRY: readonly StatsRegistryEntry[] = [
 
 /** Human-readable family headers shown above each section on `/stats`. */
 export const FAMILY_LABELS: Readonly<Record<StatsFamily, string>> = {
-  'preschool-math': 'Preschool math (the cardinality triad)',
+  'preschool-math': 'Preschool math (cardinality + pattern)',
+  'preschool-literacy': 'Preschool literacy (letter recognition)',
   story: 'Story games',
   'card-set': 'Card-set games (collect what you learn)',
   'card-pure': 'Card-pure games (explore the deck)',
@@ -526,6 +569,7 @@ export interface DailyActivity {
 /** Zero-state shape for SSR — every family at 0 plays. */
 const zeroPerFamily = (): Readonly<Record<StatsFamily, number>> => ({
   'preschool-math': 0,
+  'preschool-literacy': 0,
   story: 0,
   'card-set': 0,
   'card-pure': 0,
@@ -555,6 +599,7 @@ export const getActivityByFamily = (daysBack = 7): readonly DailyActivity[] => {
       if (fam) perFamily[fam] += 1;
     }
     const total = perFamily['preschool-math']
+      + perFamily['preschool-literacy']
       + perFamily.story
       + perFamily['card-set']
       + perFamily['card-pure'];
@@ -562,17 +607,26 @@ export const getActivityByFamily = (daysBack = 7): readonly DailyActivity[] => {
   });
 };
 
-/** Hex color per family — used for the activity chart's dots and legend. */
+/** Hex color per family — used for the activity chart's dots and legend.
+ *
+ *  Pink (#ef476f) for preschool-literacy intentionally matches the
+ *  Letter Friends accent (`--lf-target-accent` in letterfriends.css).
+ *  A parent who plays a Letter Friends round and then visits /stats
+ *  should see the same pink tone on the activity dot — visual
+ *  continuity from gameplay to dashboard.
+ */
 export const FAMILY_COLORS: Readonly<Record<StatsFamily, string>> = {
-  'preschool-math': '#22c55e', // green-500 — matches the new shake-feedback ring
-  story: '#3b82f6',            // blue-500 — matches the existing story theme
-  'card-set': '#f59e0b',       // amber-500 — warm tint distinct from the green
-  'card-pure': '#a855f7',      // purple-500 — distinct from the other three
+  'preschool-math': '#22c55e',     // green-500 — matches the shake-feedback ring
+  'preschool-literacy': '#ef476f', // pink — matches Letter Friends accent
+  story: '#3b82f6',                // blue-500 — matches the existing story theme
+  'card-set': '#f59e0b',           // amber-500 — warm tint distinct from the green
+  'card-pure': '#a855f7',          // purple-500 — distinct from the other four
 };
 
 /** How many games are in each family — useful for chart denominators. */
 export const FAMILY_SIZES: Readonly<Record<StatsFamily, number>> = {
   'preschool-math': STATS_REGISTRY.filter((e) => e.family === 'preschool-math').length,
+  'preschool-literacy': STATS_REGISTRY.filter((e) => e.family === 'preschool-literacy').length,
   story: STATS_REGISTRY.filter((e) => e.family === 'story').length,
   'card-set': STATS_REGISTRY.filter((e) => e.family === 'card-set').length,
   'card-pure': STATS_REGISTRY.filter((e) => e.family === 'card-pure').length,

@@ -40,8 +40,16 @@ const href = (p: string): string => `${base}${base.endsWith('/') ? '' : '/'}${p}
 
 // Group the registry by family while preserving insertion order so the
 // page render order matches the array order in stats-registry.ts.
+//
+// `'preschool-literacy'` sits next to `'preschool-math'` (rather than
+// at the end) so the parent's eye groups the preschool work
+// together — both are 3yo-targeted, both share the
+// `{ sessions, rounds, correctFirstTry, lastPlayed }` shape, and a
+// parent reading the dashboard wants to see "math + literacy" as a
+// pair rather than scattered across the page.
 const FAMILY_ORDER: readonly StatsFamily[] = [
   'preschool-math',
+  'preschool-literacy',
   'story',
   'card-set',
   'card-pure',
@@ -49,6 +57,7 @@ const FAMILY_ORDER: readonly StatsFamily[] = [
 
 const entriesByFamily: Record<StatsFamily, StatsRegistryEntry[]> = {
   'preschool-math': [],
+  'preschool-literacy': [],
   story: [],
   'card-set': [],
   'card-pure': [],
@@ -281,7 +290,13 @@ const activityDays = getActivityByFamily(7);
       // on the client and toggle the `.is-active` class on each dot
       // based on real per-family activity. No DOM rebuild — pure class
       // toggle, no layout shift.
-      const FAMILY_ORDER_JS = ['preschool-math', 'story', 'card-set', 'card-pure'] as const;
+      const FAMILY_ORDER_JS = [
+        'preschool-math',
+        'preschool-literacy',
+        'story',
+        'card-set',
+        'card-pure',
+      ] as const;
       const renderActivity = (): void => {
         const days = getActivityByFamily(7);
         const grid = document.getElementById('statsActivityGrid');
@@ -598,9 +613,16 @@ const activityDays = getActivityByFamily(7);
       }
 
       /* Family-tinted left border so the section grouping is visible
-         even when scrolling and section headers are above the fold. */
+         even when scrolling and section headers are above the fold.
+         The five accent colors are deliberately distinct from the
+         FAMILY_COLORS palette in stats-registry.ts (which paints the
+         activity dots) — those are functional colour-coding for the
+         calendar; these are decorative tints for card edges. */
       .stats-card[data-family='preschool-math'] {
         border-left-color: #ffd166;
+      }
+      .stats-card[data-family='preschool-literacy'] {
+        border-left-color: #f78fb3;
       }
       .stats-card[data-family='story'] {
         border-left-color: #ef476f;

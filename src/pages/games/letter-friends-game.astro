@@ -1,0 +1,539 @@
+---
+import StoryLayout from '@/layouts/StoryLayout.astro';
+import GameControls from '@/components/GameControls.astro';
+import '@/styles/letterfriends.css';
+
+import { generateSession, lookupLetter } from '@/data/letterfriends';
+
+const title = 'Letter Friends — Kids Learning Games';
+const description =
+  'A gentle uppercase letter-recognition game for ages 3–4. A letter appears at the top with a picture mnemonic; tap the matching letter tile from three options. Audio narration, no scoring, no failures. First preschool-literacy game, sister to Number Friends.';
+
+// SSR a deterministic first round so the page never paints blank. The
+// page script reads round 0 directly from the SSR'd DOM (matching
+// pattern from Number Friends + Pattern Sequences — see those pages
+// for the kickoff-race rationale that motivated this approach), and
+// continues with random rounds 1..N after the user clicks Next.
+const SSR_FIRST_ROUND = generateSession(() => 0.42)[0]!;
+const ssrTargetMeta = lookupLetter(SSR_FIRST_ROUND.target);
+const ssrCaption = `Find ${SSR_FIRST_ROUND.target}! Show me the letter ${SSR_FIRST_ROUND.target}.`;
+
+const TOTAL_ROUNDS = 8;
+---
+
+<StoryLayout
+  title={title}
+  description={description}
+  themeColor="#ef476f"
+  theme="letterfriends"
+>
+  <main class="lf-shell" aria-label="Letter Friends game">
+    <header class="lf-header">
+      <h1 class="lf-title">
+        <span aria-hidden="true">🔤</span>
+        <span>Letter Friends</span>
+      </h1>
+
+      <div class="lf-header-right" style="display: flex; gap: 10px; align-items: center;">
+        <span
+          class="lf-progress-pill"
+          id="lfProgressPill"
+          aria-label={`Round 1 of ${TOTAL_ROUNDS}`}
+        >
+          <span id="lfProgressText">1 / {TOTAL_ROUNDS}</span>
+          <span class="lf-progress-bar" aria-hidden="true">
+            <span class="lf-progress-fill" id="lfProgressFill"></span>
+          </span>
+        </span>
+        <GameControls />
+      </div>
+    </header>
+
+    <section
+      class="lf-stage"
+      id="lfStage"
+      data-scene={SSR_FIRST_ROUND.theme}
+      data-target={SSR_FIRST_ROUND.target}
+      aria-label="Letter Friends scene"
+    >
+      <div
+        class="lf-target"
+        id="lfTarget"
+        aria-label={`Find letter ${SSR_FIRST_ROUND.target} — ${SSR_FIRST_ROUND.target} is for ${ssrTargetMeta.word}`}
+      >
+        <span class="lf-target-prompt" aria-hidden="true">Find</span>
+        <span class="lf-target-glyph" id="lfTargetGlyph" aria-hidden="true">
+          {SSR_FIRST_ROUND.target}
+        </span>
+        <span class="lf-target-mnemonic" id="lfTargetMnemonic" aria-hidden="true">
+          <span class="lf-target-mnemonic-emoji">{ssrTargetMeta.emoji}</span>
+          <span>{SSR_FIRST_ROUND.target} is for {ssrTargetMeta.word}</span>
+        </span>
+      </div>
+
+      <div
+        class="lf-caption"
+        id="lfCaption"
+        role="status"
+        aria-live="polite"
+      >
+        {ssrCaption}
+      </div>
+
+      <div class="lf-tiles" aria-label="Three letter tiles — tap the one that matches the target letter">
+        {
+          SSR_FIRST_ROUND.tiles.map((letter, idx) => {
+            const meta = lookupLetter(letter);
+            return (
+              <button
+                type="button"
+                class="lf-tile"
+                id={`lfTile${idx}`}
+                data-i={idx}
+                data-letter={letter}
+                style={`--lf-i: ${idx * 0.1}s`}
+                aria-label={`Tile ${idx + 1} — letter ${letter}, ${letter} is for ${meta.word} — tap if this matches`}
+              >
+                <span class="lf-tile-glyph" aria-hidden="true">{letter}</span>
+                <span class="lf-tile-word" aria-hidden="true">{meta.word}</span>
+                <span class="lf-tile-emoji" aria-hidden="true">{meta.emoji}</span>
+              </button>
+            );
+          })
+        }
+      </div>
+    </section>
+
+    <footer class="lf-footer">
+      <button type="button" class="lf-action" id="lfReplayBtn" aria-label="Replay this round's narration">
+        🔊 Replay
+      </button>
+      <button type="button" class="lf-action lf-action--primary" id="lfNextBtn" aria-label="Next round" disabled>
+        Next round →
+      </button>
+    </footer>
+
+    <div class="lf-done" id="lfDone" role="dialog" aria-live="polite" aria-labelledby="lfDoneTitle">
+      <div class="lf-done-card">
+        <div class="lf-done-emoji" aria-hidden="true">⭐</div>
+        <h2 class="lf-done-title" id="lfDoneTitle">Letter champion!</h2>
+        <p class="lf-done-text" id="lfDoneText">
+          You found {TOTAL_ROUNDS} letter friends today!
+        </p>
+        <div class="lf-done-actions">
+          <button type="button" class="lf-action lf-action--primary" id="lfPlayAgainBtn">
+            ▶ Play again
+          </button>
+          <a class="lf-action" href={import.meta.env.BASE_URL}>
+            🏠 Home
+          </a>
+        </div>
+      </div>
+    </div>
+  </main>
+</StoryLayout>
+
+<script>
+  import { playTap, playCorrect } from '@/lib/audio';
+  import { speak, cancelSpeech, isSpeechSupported } from '@/lib/speech';
+  import { launchConfetti } from '@/lib/achievements';
+  import { getSettings } from '@/lib/settings';
+  import {
+    generateSession,
+    buildNarration,
+    lookupLetter,
+    loadLetterFriendsStats,
+    saveLetterFriendsStats,
+    type LetterRound,
+    type LetterId,
+    type RoundNarration,
+    type PreschoolTheme,
+  } from '@/data/letterfriends';
+  import { recordPlay } from '@/lib/retention';
+
+  const TOTAL_ROUNDS = 8;
+  // Confetti palette — pink-leaning to match the literacy family
+  // accent (--lf-target-accent #ef476f). Distinct from the
+  // preschool-math triad's green palette so a parent toggling
+  // between the two families sees a clearly different "win" tone.
+  const LF_COLORS = ['#ef476f', '#ffd166', '#06d6a0', '#118ab2', '#f78fb3'];
+
+  /**
+   * Read round 0 from the SSR'd DOM so the JS session starts in sync
+   * with whatever Astro rendered. Avoids the same kickoff-race that
+   * bit Counting Friends on 2026-05-15 — without this, a tap on a
+   * tile during the first interaction could land on a tile whose
+   * letter has just been rewritten by a freshly-randomised JS
+   * session. See counting-friends-game.astro for the empirical
+   * proof of that race; Letter Friends inherits the prophylactic
+   * fix from Number Friends + Pattern Sequences.
+   */
+  const readSSRRound = (): LetterRound => {
+    const stageEl = document.getElementById('lfStage');
+    if (!stageEl) return generateSession()[0]!;
+
+    const themeKey = (stageEl.dataset.scene ?? 'pond') as PreschoolTheme;
+    const target = stageEl.dataset.target as LetterId | undefined;
+
+    const tileEls = [
+      document.getElementById('lfTile0'),
+      document.getElementById('lfTile1'),
+      document.getElementById('lfTile2'),
+    ];
+    if (!target || tileEls.some((el) => !el)) {
+      return generateSession()[0]!;
+    }
+
+    const tiles = tileEls.map(
+      (el) => el!.dataset.letter as LetterId,
+    ) as [LetterId, LetterId, LetterId];
+    const correctIndex = tiles.indexOf(target);
+    if (correctIndex < 0 || correctIndex > 2) {
+      return generateSession()[0]!;
+    }
+
+    return {
+      target,
+      tiles,
+      correctIndex: correctIndex as 0 | 1 | 2,
+      // `tier` isn't used by the page controller (only by parent
+      // stats / debug); 0 is a safe placeholder for the SSR-derived
+      // round.
+      tier: 0,
+      theme: themeKey,
+    };
+  };
+
+  // ── State ──────────────────────────────────────────────────────────
+  let session: LetterRound[] = [readSSRRound(), ...generateSession().slice(1)];
+  let roundIdx = 0;
+  let answered = false;
+  let currentNarration: RoundNarration | null = null;
+  /**
+   * Most recent post-answer phrase, cached so Replay re-narrates the
+   * round summary. Mirrors the `lastPostAnswerText` cache pattern
+   * from Number Friends.
+   */
+  let lastPostAnswerText = '';
+
+  // ── DOM refs ───────────────────────────────────────────────────────
+  const stage = document.getElementById('lfStage') as HTMLElement;
+  const targetEl = document.getElementById('lfTarget') as HTMLElement;
+  const targetGlyph = document.getElementById('lfTargetGlyph') as HTMLElement;
+  const targetMnemonic = document.getElementById('lfTargetMnemonic') as HTMLElement;
+  const captionEl = document.getElementById('lfCaption') as HTMLElement;
+  const tileEls = [
+    document.getElementById('lfTile0') as HTMLButtonElement,
+    document.getElementById('lfTile1') as HTMLButtonElement,
+    document.getElementById('lfTile2') as HTMLButtonElement,
+  ];
+  const progressText = document.getElementById('lfProgressText') as HTMLElement;
+  const progressFill = document.getElementById('lfProgressFill') as HTMLElement;
+  const progressPill = document.getElementById('lfProgressPill') as HTMLElement;
+  const replayBtn = document.getElementById('lfReplayBtn') as HTMLButtonElement;
+  const nextBtn = document.getElementById('lfNextBtn') as HTMLButtonElement;
+  const doneEl = document.getElementById('lfDone') as HTMLElement;
+  const playAgainBtn = document.getElementById('lfPlayAgainBtn') as HTMLButtonElement;
+
+  // ── Audio helpers ──────────────────────────────────────────────────
+
+  /**
+   * Speak `text` if the user has sound enabled. Same shape as the
+   * triad + Pattern Sequences narrate(): silent-mode setTimeout
+   * fallback, watchdog alongside speechSynthesis.onend so headless
+   * CI runners without a system TTS engine don't deadlock the
+   * round-progression chain. See counting-friends-game.astro for
+   * the full rationale.
+   */
+  const narrate = (text: string, opts?: { onEnd?: () => void }): void => {
+    const onEnd = opts?.onEnd;
+    if (!isSpeechSupported() || !getSettings().sound) {
+      if (onEnd) setTimeout(onEnd, 600);
+      return;
+    }
+    let fired = false;
+    const wrap = (): void => {
+      if (fired) return;
+      fired = true;
+      onEnd?.();
+    };
+    const watchdogMs = Math.max(800, text.length * 100 + 600);
+    if (onEnd) setTimeout(wrap, watchdogMs);
+    speak(text, { rate: 0.85, pitch: 1.15, onEnd: onEnd ? wrap : undefined });
+  };
+
+  const setCaption = (text: string): void => {
+    captionEl.textContent = text;
+    captionEl.style.animation = 'none';
+    void captionEl.offsetWidth;
+    captionEl.style.removeProperty('animation');
+  };
+
+  // ── Render helpers ─────────────────────────────────────────────────
+
+  const renderTarget = (target: LetterId): void => {
+    const meta = lookupLetter(target);
+    stage.dataset.target = target;
+    targetEl.setAttribute(
+      'aria-label',
+      `Find letter ${target} — ${target} is for ${meta.word}`,
+    );
+    targetGlyph.textContent = target;
+    targetMnemonic.innerHTML =
+      `<span class="lf-target-mnemonic-emoji">${meta.emoji}</span>` +
+      `<span>${target} is for ${meta.word}</span>`;
+  };
+
+  const renderRound = (): void => {
+    const round = session[roundIdx]!;
+
+    progressText.textContent = `${roundIdx + 1} / ${TOTAL_ROUNDS}`;
+    progressFill.style.width = `${((roundIdx + 1) / TOTAL_ROUNDS) * 100}%`;
+    progressPill.setAttribute('aria-label', `Round ${roundIdx + 1} of ${TOTAL_ROUNDS}`);
+
+    stage.dataset.scene = round.theme;
+
+    renderTarget(round.target);
+
+    for (let g = 0; g < 3; g++) {
+      const letter = round.tiles[g]!;
+      const meta = lookupLetter(letter);
+      const el = tileEls[g]!;
+      el.dataset.letter = letter;
+      el.style.setProperty('--lf-i', `${g * 0.1}s`);
+      el.setAttribute(
+        'aria-label',
+        `Tile ${g + 1} — letter ${letter}, ${letter} is for ${meta.word} — tap if this matches`,
+      );
+      el.innerHTML =
+        `<span class="lf-tile-glyph" aria-hidden="true">${letter}</span>` +
+        `<span class="lf-tile-word" aria-hidden="true">${meta.word}</span>` +
+        `<span class="lf-tile-emoji" aria-hidden="true">${meta.emoji}</span>`;
+      el.disabled = false;
+      el.classList.remove('lf-tile--correct', 'lf-tile--reveal', 'lf-tile--wrong');
+      // Force re-trigger of the fly-in animation on each render.
+      el.style.animation = 'none';
+      void el.offsetWidth;
+      el.style.removeProperty('animation');
+    }
+
+    answered = false;
+    currentNarration = buildNarration(round);
+    lastPostAnswerText = '';
+    nextBtn.disabled = true;
+    replayBtn.disabled = false;
+  };
+
+  /** Speak the round's intro phrase. Single-phase — Letter Friends has
+   *  one question to ask: "Find A". The picture-mnemonic ("A is for
+   *  Apple") is part of the same intro string. */
+  const speakIntroSequence = (): void => {
+    const n = currentNarration;
+    if (!n) return;
+    setCaption(n.intro);
+    narrate(n.intro);
+  };
+
+  // ── Answer handler ─────────────────────────────────────────────────
+
+  const onTileTap = (idx: 0 | 1 | 2): void => {
+    if (answered) return;
+    const round = session[roundIdx]!;
+    playTap();
+
+    const tappedEl = tileEls[idx]!;
+    const correctEl = tileEls[round.correctIndex]!;
+    const tappedLetter = round.tiles[idx]!;
+
+    if (idx === round.correctIndex) {
+      // Correct — celebrate.
+      answered = true;
+      tappedEl.classList.add('lf-tile--correct');
+      for (const el of tileEls) el.disabled = true;
+      playCorrect();
+      cancelSpeech();
+      const correctText = currentNarration?.correct ?? `Yes!`;
+      lastPostAnswerText = correctText;
+      setCaption(correctText);
+      narrate(correctText);
+      launchConfetti(LF_COLORS);
+      bumpStats(true);
+      nextBtn.disabled = false;
+    } else {
+      // Wrong — errorless rerun. Sequence:
+      //   1) 250ms shake on the tapped (wrong) tile.
+      //   2) "Hmm! Let's look together." (rerun)
+      //   3) "This is B. B is for Ball. We're looking for A." (rerunDoneWrong)
+      //   4) "Look! This is A. A is for Apple." (rerunDoneRight)
+      //   5) Reveal the correct tile with a pulsing pink ring; enable Next.
+      // No score penalty, no red X — preserves errorless learning.
+      answered = true;
+      for (const el of tileEls) el.disabled = true;
+      tappedEl.classList.add('lf-tile--wrong');
+      cancelSpeech();
+      const rerunText = currentNarration?.rerun ?? "Let's look together.";
+      setCaption(rerunText);
+      narrate(rerunText, {
+        onEnd: () => {
+          const wrongDoneText =
+            currentNarration?.rerunDoneWrong(tappedLetter) ??
+            `This is ${tappedLetter}.`;
+          setCaption(wrongDoneText);
+          lastPostAnswerText = wrongDoneText;
+          narrate(wrongDoneText, {
+            onEnd: () => {
+              // Brief pause so the child registers the transition
+              // from "wrong letter" to "correct letter".
+              setTimeout(() => {
+                const rightDoneText =
+                  currentNarration?.rerunDoneRight ??
+                  `Look — ${round.target}!`;
+                setCaption(rightDoneText);
+                lastPostAnswerText = rightDoneText;
+                correctEl.classList.add('lf-tile--reveal');
+                narrate(rightDoneText, {
+                  onEnd: () => {
+                    bumpStats(false);
+                    nextBtn.disabled = false;
+                  },
+                });
+              }, 350);
+            },
+          });
+        },
+      });
+    }
+  };
+
+  // ── Round progression ──────────────────────────────────────────────
+
+  const startRound = (): void => {
+    cancelSpeech();
+    renderRound();
+    requestAnimationFrame(() => speakIntroSequence());
+  };
+
+  const onNext = (): void => {
+    playTap();
+    if (roundIdx >= TOTAL_ROUNDS - 1) {
+      showSessionComplete();
+      return;
+    }
+    roundIdx++;
+    startRound();
+  };
+
+  const showSessionComplete = (): void => {
+    cancelSpeech();
+    const stats = loadLetterFriendsStats();
+    saveLetterFriendsStats({
+      ...stats,
+      sessions: stats.sessions + 1,
+      lastPlayed: new Date().toISOString().slice(0, 10),
+    });
+    recordPlay('letter-friends');
+    doneEl.classList.add('lf-done--show');
+    launchConfetti(LF_COLORS);
+    narrate(`Wow! You found ${TOTAL_ROUNDS} letter friends today! Great job!`);
+  };
+
+  const onPlayAgain = (): void => {
+    playTap();
+    doneEl.classList.remove('lf-done--show');
+    session = generateSession();
+    roundIdx = 0;
+    startRound();
+  };
+
+  // ── Stats persistence ──────────────────────────────────────────────
+
+  const bumpStats = (correctFirstTry: boolean): void => {
+    const stats = loadLetterFriendsStats();
+    saveLetterFriendsStats({
+      ...stats,
+      rounds: stats.rounds + 1,
+      correctFirstTry: stats.correctFirstTry + (correctFirstTry ? 1 : 0),
+      lastPlayed: new Date().toISOString().slice(0, 10),
+    });
+    recordPlay('letter-friends');
+  };
+
+  // ── Event wiring ───────────────────────────────────────────────────
+
+  for (const el of tileEls) {
+    el.addEventListener('click', () => {
+      if (el.disabled) return;
+      const idx = Number(el.dataset.i);
+      if (idx === 0 || idx === 1 || idx === 2) {
+        onTileTap(idx as 0 | 1 | 2);
+      }
+    });
+  }
+
+  replayBtn.addEventListener('click', () => {
+    playTap();
+    cancelSpeech();
+    if (!answered) {
+      speakIntroSequence();
+    } else {
+      const text = lastPostAnswerText || (currentNarration?.intro ?? '');
+      setCaption(text);
+      narrate(text);
+    }
+  });
+
+  nextBtn.addEventListener('click', onNext);
+  playAgainBtn.addEventListener('click', onPlayAgain);
+
+  document.getElementById('btnSettings')?.addEventListener('click', () => {
+    playTap();
+    (window as unknown as { openSettings?: () => void }).openSettings?.();
+  });
+
+  document.getElementById('btnQuiz')?.addEventListener('click', () => {
+    playTap();
+    cancelSpeech();
+    speakIntroSequence();
+  });
+
+  document.getElementById('btnStats')?.addEventListener('click', () => {
+    playTap();
+    const stats = loadLetterFriendsStats();
+    const ratio =
+      stats.rounds === 0
+        ? 0
+        : Math.round((stats.correctFirstTry / stats.rounds) * 100);
+    const lines = [
+      `🔤 Sessions completed: ${stats.sessions}`,
+      `🌟 Rounds played: ${stats.rounds}`,
+      `🎯 First-try correct: ${stats.correctFirstTry} (${ratio}%)`,
+      stats.lastPlayed ? `📅 Last played: ${stats.lastPlayed}` : '📅 Last played: never',
+    ];
+    alert(lines.join('\n'));
+  });
+
+  // ── Initial state binding ──────────────────────────────────────────
+  // The SSR'd DOM is round 0; we don't re-render it. Bind JS state
+  // (currentNarration, header progress) so subsequent logic — tile
+  // clicks, replay button, etc. — has the expected references.
+  currentNarration = buildNarration(session[0]!);
+  progressText.textContent = `1 / ${TOTAL_ROUNDS}`;
+  progressFill.style.width = `${(1 / TOTAL_ROUNDS) * 100}%`;
+  progressPill.setAttribute('aria-label', `Round 1 of ${TOTAL_ROUNDS}`);
+
+  // Don't auto-speak on first paint — browsers block speechSynthesis
+  // until the first user gesture. Wait for the *first* tap (anywhere
+  // on the page body) to kick off the intro narration. Critically,
+  // kickoff does NOT call renderRound() — that would race with the
+  // click event when the user's first interaction is a tap on a
+  // tile. Same race that bit Counting Friends on 2026-05-15 — same
+  // fix here, applied prophylactically.
+  let kickedOff = false;
+  const kickoff = (): void => {
+    if (kickedOff) return;
+    kickedOff = true;
+    requestAnimationFrame(() => speakIntroSequence());
+  };
+  document.addEventListener('pointerdown', kickoff, { once: true });
+  document.addEventListener('keydown', kickoff, { once: true });
+</script>
