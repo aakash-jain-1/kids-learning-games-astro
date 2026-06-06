@@ -45,6 +45,8 @@ const EXPECTED_GAME_IDS = [
   // Family A2 — preschool-literacy (added 2026-05-25 with T-letters)
   'letter-friends',
   'sound-friends',
+  // Family A3 — preschool-cognitive (added 2026-06-06 with Sorting Friends)
+  'sorting-friends',
   // Family B — story
   'routines',
   'woodcutter',
@@ -77,23 +79,26 @@ test.describe('parent stats dashboard (T6)', () => {
     await page.reload();
   });
 
-  test('SSR renders the page header, all five family sections, and one card per registry entry', async ({
+  test('SSR renders the page header, all six family sections, and one card per registry entry', async ({
     page,
   }) => {
     await expect(page).toHaveTitle(/Parent Stats/);
     await expect(page.locator('body.stats-page')).toHaveCount(1);
     await expect(page.locator('h1')).toContainText('Parent Stats');
 
-    // Five family sections, in declared order. `'preschool-literacy'`
-    // (added 2026-05-25 with T-letters) sits next to `'preschool-math'`
-    // so the parent's eye groups all preschool work together.
+    // Six family sections, in declared order. The three preschool
+    // families sit together first — `'preschool-literacy'` (2026-05-25,
+    // T-letters) and `'preschool-cognitive'` (2026-06-06, Sorting
+    // Friends) both slot next to `'preschool-math'` so the parent's eye
+    // groups all preschool work together.
     const sections = page.locator('.stats-section');
-    await expect(sections).toHaveCount(5);
+    await expect(sections).toHaveCount(6);
     await expect(sections.nth(0)).toHaveAttribute('data-family', 'preschool-math');
     await expect(sections.nth(1)).toHaveAttribute('data-family', 'preschool-literacy');
-    await expect(sections.nth(2)).toHaveAttribute('data-family', 'story');
-    await expect(sections.nth(3)).toHaveAttribute('data-family', 'card-set');
-    await expect(sections.nth(4)).toHaveAttribute('data-family', 'card-pure');
+    await expect(sections.nth(2)).toHaveAttribute('data-family', 'preschool-cognitive');
+    await expect(sections.nth(3)).toHaveAttribute('data-family', 'story');
+    await expect(sections.nth(4)).toHaveAttribute('data-family', 'card-set');
+    await expect(sections.nth(5)).toHaveAttribute('data-family', 'card-pure');
 
     // One card per registry entry, in registry order.
     const cards = page.locator('.stats-card');
@@ -348,7 +353,7 @@ test.describe('parent stats dashboard (T6)', () => {
   //     today's date to `kids_play_history_v1` AND sets `lastPlayed`
   //     on the per-game schema.
 
-  test('activity panel SSR: 7 day cells, 35 dots, all inactive, today highlighted', async ({
+  test('activity panel SSR: 7 day cells, 42 dots, all inactive, today highlighted', async ({
     page,
   }) => {
     const grid = page.locator('#statsActivityGrid');
@@ -357,10 +362,12 @@ test.describe('parent stats dashboard (T6)', () => {
     const dayCells = grid.locator('.stats-activity-day');
     await expect(dayCells).toHaveCount(7);
 
-    // 5 dots per day × 7 days = 35 dots (was 4×7=28 before
-    // `'preschool-literacy'` was carved on 2026-05-25 with T-letters).
+    // 6 dots per day × 7 days = 42 dots (was 5×7=35 before
+    // `'preschool-cognitive'` was carved on 2026-06-06 with Sorting
+    // Friends; itself up from 4×7=28 before `'preschool-literacy'` on
+    // 2026-05-25 with T-letters).
     const dots = grid.locator('.stats-activity-dot');
-    await expect(dots).toHaveCount(35);
+    await expect(dots).toHaveCount(42);
 
     // SSR ships every dot inactive (localStorage is undefined on the
     // server, so every perFamily count is 0).
@@ -368,38 +375,37 @@ test.describe('parent stats dashboard (T6)', () => {
     expect(activeCount).toBe(0);
 
     // Each day cell has one dot per family in the declared family
-    // order — preschool-math, preschool-literacy, story, card-set,
-    // card-pure (top to bottom visually, but DOM order is the
-    // iteration order).
+    // order — preschool-math, preschool-literacy, preschool-cognitive,
+    // story, card-set, card-pure (top to bottom visually, but DOM order
+    // is the iteration order).
     const firstCellDots = dayCells.nth(0).locator('.stats-activity-dot');
     await expect(firstCellDots.nth(0)).toHaveAttribute('data-family', 'preschool-math');
     await expect(firstCellDots.nth(1)).toHaveAttribute('data-family', 'preschool-literacy');
-    await expect(firstCellDots.nth(2)).toHaveAttribute('data-family', 'story');
-    await expect(firstCellDots.nth(3)).toHaveAttribute('data-family', 'card-set');
-    await expect(firstCellDots.nth(4)).toHaveAttribute('data-family', 'card-pure');
+    await expect(firstCellDots.nth(2)).toHaveAttribute('data-family', 'preschool-cognitive');
+    await expect(firstCellDots.nth(3)).toHaveAttribute('data-family', 'story');
+    await expect(firstCellDots.nth(4)).toHaveAttribute('data-family', 'card-set');
+    await expect(firstCellDots.nth(5)).toHaveAttribute('data-family', 'card-pure');
 
     // Legend has one swatch per family.
     const legendItems = page.locator('.stats-activity-legend-item');
-    await expect(legendItems).toHaveCount(5);
+    await expect(legendItems).toHaveCount(6);
   });
 
   test('activity panel hydration: seeded play history toggles the right family dots', async ({
     page,
   }) => {
-    // Seed three days of activity to exercise all five family dot
-    // positions (was 4 before T-letters carved preschool-literacy on
-    // 2026-05-25 — see EXPECTED_GAME_IDS for family-order rationale):
-    //   - Today: Counting Friends (preschool-math) + Letter Friends
-    //     (preschool-literacy) + Daily Routines (story)
-    //     → today dots 0 + 1 + 2 active.
-    //   - Yesterday: Alphabets (card-set) only → dot 3 active.
+    // Seed three days of activity to exercise the family dot positions
+    // (now 6 families — preschool-cognitive was carved at index 2 on
+    // 2026-06-06 with Sorting Friends, shifting story 2→3 and card-set
+    // 3→4; see EXPECTED_GAME_IDS for family-order rationale):
+    //   - Today: Counting Friends (preschool-math, dot 0) + Letter
+    //     Friends (preschool-literacy, dot 1) + Daily Routines (story,
+    //     dot 3) → today dots 0 + 1 + 3 active.
+    //   - Yesterday: Alphabets (card-set, dot 4) only → dot 4 active.
     //
-    // Why include Letter Friends here? It's the only dot index that
-    // moved when the family was added (preschool-literacy slotted in
-    // at index 1, shifting story from 1→2 and card-set from 2→3),
-    // so the hydration test needs to seed all three to lock in the
-    // ordering. Without it, a bug that mis-assigned letter-friends
-    // to "story" or "card-set" would silently pass.
+    // Letter Friends + Routines are seeded so the post-cognitive index
+    // shift (story at 3, card-set at 4) is locked in — a bug that
+    // mis-assigned a game to the wrong family dot would surface here.
     await page.evaluate(() => {
       const fmt = (d: Date): string => {
         const y = d.getFullYear();
@@ -423,22 +429,24 @@ test.describe('parent stats dashboard (T6)', () => {
     const dayCells = page.locator('.stats-activity-day');
 
     // Today is the LAST cell (oldest-first ordering). Dots 0
-    // (preschool-math), 1 (preschool-literacy), 2 (story) active;
-    // dots 3 (card-set) and 4 (card-pure) inactive.
+    // (preschool-math), 1 (preschool-literacy), 3 (story) active;
+    // dots 2 (preschool-cognitive), 4 (card-set), 5 (card-pure) inactive.
     const todayCell = dayCells.last();
     await expect(todayCell.locator('.stats-activity-dot').nth(0)).toHaveClass(/is-active/);
     await expect(todayCell.locator('.stats-activity-dot').nth(1)).toHaveClass(/is-active/);
-    await expect(todayCell.locator('.stats-activity-dot').nth(2)).toHaveClass(/is-active/);
-    await expect(todayCell.locator('.stats-activity-dot').nth(3)).not.toHaveClass(/is-active/);
+    await expect(todayCell.locator('.stats-activity-dot').nth(2)).not.toHaveClass(/is-active/);
+    await expect(todayCell.locator('.stats-activity-dot').nth(3)).toHaveClass(/is-active/);
     await expect(todayCell.locator('.stats-activity-dot').nth(4)).not.toHaveClass(/is-active/);
+    await expect(todayCell.locator('.stats-activity-dot').nth(5)).not.toHaveClass(/is-active/);
 
-    // Yesterday is the second-to-last cell. Only dot 3 (card-set) active.
+    // Yesterday is the second-to-last cell. Only dot 4 (card-set) active.
     const yesterdayCell = dayCells.nth(5);
     await expect(yesterdayCell.locator('.stats-activity-dot').nth(0)).not.toHaveClass(/is-active/);
     await expect(yesterdayCell.locator('.stats-activity-dot').nth(1)).not.toHaveClass(/is-active/);
     await expect(yesterdayCell.locator('.stats-activity-dot').nth(2)).not.toHaveClass(/is-active/);
-    await expect(yesterdayCell.locator('.stats-activity-dot').nth(3)).toHaveClass(/is-active/);
-    await expect(yesterdayCell.locator('.stats-activity-dot').nth(4)).not.toHaveClass(/is-active/);
+    await expect(yesterdayCell.locator('.stats-activity-dot').nth(3)).not.toHaveClass(/is-active/);
+    await expect(yesterdayCell.locator('.stats-activity-dot').nth(4)).toHaveClass(/is-active/);
+    await expect(yesterdayCell.locator('.stats-activity-dot').nth(5)).not.toHaveClass(/is-active/);
 
     // 6 days ago (the first cell) has no activity at all — sanity that
     // unseeded cells stay inactive after hydration.

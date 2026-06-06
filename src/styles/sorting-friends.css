@@ -1,0 +1,551 @@
+/* Sorting Friends — first preschool-COGNITIVE game (added 2026-06-06).
+   Single-attribute categorization for ages 3–4: a category prompt sits
+   at the top ("Find all that live in the sea") and the child taps EVERY
+   picture tile in the tray that belongs. Tap-all (multi-select) mechanic,
+   distinct from the single-answer tiles of Letter / Sound Friends.
+
+   Uses `StoryLayout` with `theme='sortingfriends'` so the body class is
+   `body.story[data-theme='sortingfriends']`. All `sort-*` classes scope
+   under that body selector so they can never collide with the literacy /
+   math / story games.
+
+   Design constraints worth re-stating here so the next reader doesn't
+   have to dig through PROGRESS.md:
+
+   - **The prompt is a CATEGORY card** (big habitat/kind/size emoji +
+     short label like "live in the sea"), the persistent anchor for the
+     round's single sorting rule.
+
+   - **Each tray tile is a PICTURE + LABEL** (emoji + word). Both target
+     and distractor tiles look identical so the child must reason about
+     the attribute, not visual salience. The whole tile is the tap
+     target, well above the ≥88px floor for ≤4yo touch targets.
+
+   - **Found tiles get a happy, permanent "collected" state** (green pop
+     + check badge, disabled) so the child can see progress accumulate.
+
+   - **Wrong tap = errorless** 250ms shake, NO colour shift, NO penalty;
+     the tile stays tappable. Audio narration names the tile's real home.
+
+   - **Reduced motion**: every animation has a
+     `@media (prefers-reduced-motion: reduce)` fallback.
+
+   - **Teal accent (#14b8a6)** marks the new cognitive family on /stats,
+     distinct from math (green) and literacy (pink).
+*/
+
+/* ── Scene-theme background tokens ─────────────────────────────────── */
+
+body.story[data-theme='sortingfriends'] {
+  --st-bg: linear-gradient(135deg, #e0fbf6 0%, #d6f0ee 100%);
+
+  --sort-accent: #14b8a6; /* cognitive family accent — teal. */
+
+  /* Tile surface tokens — translucent white card per tile. */
+  --sort-tile-bg: rgba(255, 255, 255, 0.92);
+  --sort-tile-border: rgba(255, 255, 255, 0.4);
+  --sort-tile-bg-hover: rgba(255, 255, 255, 1);
+  --sort-tile-border-found: #2e7d32;
+  --sort-tile-fill-found: rgba(76, 175, 80, 0.22);
+  --sort-tile-text: #143b36;
+
+  /* Prompt card — solid white with a hairline. Higher-contrast than the
+     tray tiles because it's the rule of the round. */
+  --sort-prompt-bg: #ffffff;
+  --sort-prompt-text: #143b36;
+  --sort-prompt-border: rgba(20, 80, 70, 0.12);
+  --sort-prompt-shadow: 0 8px 24px rgba(10, 50, 45, 0.18);
+
+  --sort-caption-bg: rgba(255, 255, 255, 0.92);
+  --sort-caption-text: #143b36;
+  --sort-caption-shadow: 0 8px 24px rgba(10, 50, 45, 0.18);
+}
+
+/* Six per-theme backgrounds shared with the rest of the preschool
+   family (pond / orchard / sea / garden / meadow / jungle). Theme drives
+   the background ambience only; tiles are theme-independent. */
+body.story[data-theme='sortingfriends'] .sort-stage[data-scene='pond'] {
+  --st-bg: linear-gradient(180deg, #b8e0ff 0%, #6fb6e6 60%, #4a8c4a 100%);
+}
+body.story[data-theme='sortingfriends'] .sort-stage[data-scene='orchard'] {
+  --st-bg: linear-gradient(180deg, #ffe6c8 0%, #ffb88c 50%, #88b94a 100%);
+}
+body.story[data-theme='sortingfriends'] .sort-stage[data-scene='sea'] {
+  --st-bg: linear-gradient(180deg, #b3e8ec 0%, #4dc4cf 60%, #f4d97a 100%);
+}
+body.story[data-theme='sortingfriends'] .sort-stage[data-scene='garden'] {
+  --st-bg: linear-gradient(180deg, #fff4b8 0%, #ffd666 60%, #6fbf3a 100%);
+}
+body.story[data-theme='sortingfriends'] .sort-stage[data-scene='meadow'] {
+  --st-bg: linear-gradient(180deg, #d6f5c8 0%, #9bd96f 55%, #5aa83a 100%);
+}
+body.story[data-theme='sortingfriends'] .sort-stage[data-scene='jungle'] {
+  --st-bg: linear-gradient(180deg, #c2f0d8 0%, #5cbf8a 55%, #2f7d52 100%);
+}
+
+body.story[data-theme='sortingfriends'] {
+  background: var(--st-bg);
+}
+
+/* ── Layout shell ─────────────────────────────────────────────────── */
+
+body.story[data-theme='sortingfriends'] .sort-shell {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 16px 20px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: calc(100vh - 36px);
+}
+
+body.story[data-theme='sortingfriends'] .sort-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+body.story[data-theme='sortingfriends'] .sort-title {
+  margin: 0;
+  font-size: clamp(1.6em, 4vw, 2.2em);
+  color: #fff;
+  text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+body.story[data-theme='sortingfriends'] .sort-progress-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.85);
+  color: #143b36;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.95em;
+}
+
+body.story[data-theme='sortingfriends'] .sort-progress-bar {
+  width: 80px;
+  height: 8px;
+  background: rgba(10, 50, 45, 0.15);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+body.story[data-theme='sortingfriends'] .sort-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--sort-accent);
+  border-radius: 999px;
+  transition: width 0.4s ease-out;
+}
+
+/* ── Stage — category prompt on top, picture tray below ───────────── */
+
+body.story[data-theme='sortingfriends'] .sort-stage {
+  position: relative;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 24px;
+  padding: 24px 16px;
+  min-height: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.32);
+}
+
+body.story[data-theme='sortingfriends'] .sort-prompt {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 14px 28px;
+  border-radius: 24px;
+  background: var(--sort-prompt-bg);
+  color: var(--sort-prompt-text);
+  border: 2px solid var(--sort-prompt-border);
+  box-shadow: var(--sort-prompt-shadow);
+  /* Gentle pulse to draw the eye to the rule. */
+  animation: sortPromptPulse 2.4s ease-in-out infinite;
+  flex-wrap: wrap;
+  text-align: center;
+}
+
+body.story[data-theme='sortingfriends'] .sort-prompt-emoji {
+  font-size: 64px;
+  line-height: 1;
+}
+
+body.story[data-theme='sortingfriends'] .sort-prompt-lead {
+  font-size: 0.95em;
+  font-weight: 600;
+  color: rgba(20, 80, 70, 0.7);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+body.story[data-theme='sortingfriends'] .sort-prompt-label {
+  font-size: 1.5em;
+  font-weight: 800;
+  color: var(--sort-accent);
+  letter-spacing: 0.01em;
+}
+
+@keyframes sortPromptPulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.03); }
+}
+
+/* The picture tray — a responsive grid that adapts to 4–6 tiles. */
+body.story[data-theme='sortingfriends'] .sort-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  align-items: stretch;
+  justify-content: center;
+  width: 100%;
+  max-width: 760px;
+  gap: 14px;
+}
+
+body.story[data-theme='sortingfriends'] .sort-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 150px;
+  padding: 18px 12px;
+  background: var(--sort-tile-bg);
+  border: 3px solid var(--sort-tile-border);
+  border-radius: 20px;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--sort-tile-text);
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s ease;
+  animation: sortFlyIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation-delay: var(--sort-i, 0s);
+}
+
+body.story[data-theme='sortingfriends'] .sort-tile:hover {
+  background: var(--sort-tile-bg-hover);
+  transform: translateY(-2px);
+}
+
+body.story[data-theme='sortingfriends'] .sort-tile:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+body.story[data-theme='sortingfriends'] .sort-tile:disabled {
+  cursor: default;
+}
+
+body.story[data-theme='sortingfriends'] .sort-tile-emoji {
+  font-size: 64px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+body.story[data-theme='sortingfriends'] .sort-tile-label {
+  font-size: 1.05em;
+  font-weight: 700;
+  color: var(--sort-tile-text);
+  pointer-events: none;
+}
+
+/* The check badge — hidden until the tile is collected. */
+body.story[data-theme='sortingfriends'] .sort-tile-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--sort-tile-border-found);
+  color: #fff;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1;
+  transform: scale(0);
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  pointer-events: none;
+}
+
+/* Collected (correct) tile — happy permanent state. */
+body.story[data-theme='sortingfriends'] .sort-tile.sort-tile--found {
+  background: var(--sort-tile-fill-found);
+  border-color: var(--sort-tile-border-found);
+  animation: sortBounce 0.5s ease-out;
+}
+
+body.story[data-theme='sortingfriends'] .sort-tile.sort-tile--found .sort-tile-check {
+  transform: scale(1);
+}
+
+/* Age-safe wrong-tap kinesthetic feedback: 250ms shake, NO color shift,
+   NO desaturation, NO negative tone. Preserves errorless learning (a
+   wrong tap must NOT read as punishment for a 3yo). Runs in parallel
+   with the audio narration that follows. */
+body.story[data-theme='sortingfriends'] .sort-tile.sort-tile--wrong {
+  animation: sortShake 250ms ease-in-out;
+}
+
+@keyframes sortFlyIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-30px) scale(0.4);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(6px) scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes sortBounce {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.08); }
+  60%  { transform: scale(0.97); }
+  100% { transform: scale(1); }
+}
+
+@keyframes sortShake {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-7px); }
+  40%      { transform: translateX( 7px); }
+  60%      { transform: translateX(-5px); }
+  80%      { transform: translateX( 4px); }
+}
+
+/* ── Caption — accessibility/parent-readable mirror of TTS narration ─── */
+
+body.story[data-theme='sortingfriends'] .sort-caption {
+  background: var(--sort-caption-bg);
+  color: var(--sort-caption-text);
+  border-radius: 16px;
+  padding: 12px 18px;
+  font-size: clamp(1em, 2.4vw, 1.2em);
+  font-weight: 600;
+  text-align: center;
+  box-shadow: var(--sort-caption-shadow);
+  max-width: 720px;
+  margin: 0 auto;
+  min-height: 1.4em;
+  animation: sortCaptionIn 0.4s ease-out;
+}
+
+@keyframes sortCaptionIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Footer row — Replay + Next ────────────────────────────────────── */
+
+body.story[data-theme='sortingfriends'] .sort-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+body.story[data-theme='sortingfriends'] .sort-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 22px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(255, 255, 255, 0.92);
+  color: #143b36;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 1em;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(10, 50, 45, 0.15);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+body.story[data-theme='sortingfriends'] .sort-action:hover {
+  transform: translateY(-1px);
+  background: #ffffff;
+}
+
+body.story[data-theme='sortingfriends'] .sort-action:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+body.story[data-theme='sortingfriends'] .sort-action[disabled] {
+  opacity: 0.5;
+  cursor: default;
+}
+
+body.story[data-theme='sortingfriends'] .sort-action--primary {
+  background: var(--sort-accent);
+  color: #ffffff;
+}
+
+body.story[data-theme='sortingfriends'] .sort-action--primary:hover {
+  background: #0f9488;
+}
+
+/* ── Session-complete overlay — appears after the 8th round ───────── */
+
+body.story[data-theme='sortingfriends'] .sort-done {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 50, 45, 0.55);
+  z-index: 50;
+  padding: 20px;
+}
+
+body.story[data-theme='sortingfriends'] .sort-done.sort-done--show {
+  display: flex;
+}
+
+body.story[data-theme='sortingfriends'] .sort-done-card {
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 32px 28px;
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+  color: #143b36;
+  box-shadow: 0 24px 80px rgba(10, 50, 45, 0.4);
+  animation: sortDoneIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes sortDoneIn {
+  from { opacity: 0; transform: scale(0.7) translateY(20px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+body.story[data-theme='sortingfriends'] .sort-done-emoji {
+  font-size: 72px;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+body.story[data-theme='sortingfriends'] .sort-done-title {
+  margin: 0 0 8px;
+  font-size: 1.6em;
+  color: var(--sort-accent);
+}
+
+body.story[data-theme='sortingfriends'] .sort-done-text {
+  margin: 0 0 24px;
+  font-size: 1.1em;
+  color: #555;
+}
+
+body.story[data-theme='sortingfriends'] .sort-done-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ── Reduced motion fallback ──────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  body.story[data-theme='sortingfriends'] .sort-prompt,
+  body.story[data-theme='sortingfriends'] .sort-tile,
+  body.story[data-theme='sortingfriends'] .sort-caption,
+  body.story[data-theme='sortingfriends'] .sort-tile.sort-tile--found,
+  body.story[data-theme='sortingfriends'] .sort-done-card {
+    animation: none;
+  }
+  body.story[data-theme='sortingfriends'] .sort-tile-check {
+    transition: none;
+  }
+  body.story[data-theme='sortingfriends'] .sort-tile:hover {
+    transform: none;
+  }
+  body.story[data-theme='sortingfriends'] {
+    transition: none;
+  }
+}
+
+/* ── Dark mode ────────────────────────────────────────────────────── */
+
+body.dark-mode.story[data-theme='sortingfriends'] {
+  --sort-tile-bg: rgba(255, 255, 255, 0.08);
+  --sort-tile-bg-hover: rgba(255, 255, 255, 0.16);
+  --sort-tile-border: rgba(170, 235, 225, 0.3);
+  --sort-tile-fill-found: rgba(46, 125, 50, 0.35);
+  --sort-tile-text: #e6fffb;
+  --sort-prompt-bg: #0e2b27;
+  --sort-prompt-text: #e6fffb;
+  --sort-prompt-border: rgba(170, 235, 225, 0.18);
+  --sort-caption-bg: rgba(10, 35, 32, 0.92);
+  --sort-caption-text: #e6fffb;
+}
+
+body.dark-mode.story[data-theme='sortingfriends'] .sort-prompt-lead {
+  color: rgba(170, 235, 225, 0.7);
+}
+
+body.dark-mode.story[data-theme='sortingfriends'] .sort-done-card {
+  background: #0e2b27;
+  color: #e6fffb;
+}
+
+body.dark-mode.story[data-theme='sortingfriends'] .sort-done-text {
+  color: #a8d8d0;
+}
+
+body.dark-mode.story[data-theme='sortingfriends'] .sort-action {
+  background: #14352f;
+  color: #e6fffb;
+}
+
+body.dark-mode.story[data-theme='sortingfriends'] .sort-action--primary {
+  background: var(--sort-accent);
+  color: #ffffff;
+}
+
+/* ── Responsive — tighten the tray on small phones ────────────────── */
+
+@media (max-width: 600px) {
+  body.story[data-theme='sortingfriends'] .sort-tiles {
+    grid-template-columns: repeat(2, 1fr);
+    max-width: 420px;
+  }
+  body.story[data-theme='sortingfriends'] .sort-tile {
+    min-height: 120px;
+  }
+  body.story[data-theme='sortingfriends'] .sort-tile-emoji {
+    font-size: 52px;
+  }
+  body.story[data-theme='sortingfriends'] .sort-prompt-emoji {
+    font-size: 52px;
+  }
+  body.story[data-theme='sortingfriends'] .sort-shell {
+    padding: 12px 12px 60px;
+    gap: 14px;
+  }
+  body.story[data-theme='sortingfriends'] .sort-stage {
+    min-height: auto;
+  }
+}

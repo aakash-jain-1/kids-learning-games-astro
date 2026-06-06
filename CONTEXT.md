@@ -15,7 +15,7 @@
 An **Astro + TypeScript + `@vite-pwa/astro` (Workbox)** static PWA of
 educational mini-games for young children. It began as a proof-of-concept
 migration of the vanilla HTML/CSS/JS `kids-learning-games` repo and is now a
-feature-driven project in its own right. **18 games** ship across **three
+feature-driven project in its own right. **21 games** ship across **three
 shared layouts**, deployed to GitHub Pages at
 `https://aakash-jain-1.github.io/kids-learning-games-astro/`. Zero-JS-by-default
 static output; only interactive islands ship JavaScript.
@@ -31,9 +31,9 @@ static output; only interactive islands ship JavaScript.
 | `docs/T9-PHRASE-SCRIPT.md` | The literal phrases to record for T9. |
 
 > Note: `README.md` describes "sixteen games" — that text is **stale**; the
-> code ships 18 (Pattern Sequences + Letter Friends were added after that
-> prose was last revised). `PROGRESS.md` / `SESSION-HANDOFF.md` /
-> `src/data/stats-registry.ts` are authoritative on the game count.
+> code ships 21 (the preschool families grew well past that prose). `PROGRESS.md`
+> / `SESSION-HANDOFF.md` / `src/data/stats-registry.ts` are authoritative on the
+> game count.
 
 ## 3. Tech stack & tooling
 
@@ -59,7 +59,7 @@ static output; only interactive islands ship JavaScript.
   `$env:PW_CHANNEL='chrome'; npm test -- --workers=1`). CI is unaffected — Linux
   runners use bundled Chromium and never set `PW_CHANNEL`.
 
-## 4. The 20 games & three layouts
+## 4. The 21 games & three layouts
 
 - **`GridLayout.astro`** — foundational-set games (scan a fixed chart, tap to
   hear): Alphabets, Numbers, Colors, Shapes, Animals, Birds, Hindi (7).
@@ -69,7 +69,7 @@ static output; only interactive islands ship JavaScript.
   (the preschool games reuse this shell via a `theme` prop): Daily Routines,
   Woodcutter (2 story) + Counting Friends, More Friends, Number Friends,
   Pattern Sequences, Number Bond Pop (5 preschool-math) + Letter Friends,
-  Sound Friends (2 preschool-literacy).
+  Sound Friends (2 preschool-literacy) + Sorting Friends (1 preschool-cognitive).
 
 Each game = one `src/pages/games/<slug>.astro` + a typed `src/data/<game>.ts`
 data file + a layout-specific themed CSS block. A parent dashboard lives at
@@ -113,16 +113,26 @@ data file + a layout-specific themed CSS block. A parent dashboard lives at
   `/stats` activity chart (30-day rolling window).
 
 `src/data/stats-registry.ts` is the single source of truth tying every game to
-its storage keys and the `/stats` page (5 families: preschool-math,
-preschool-literacy, story, card-set, card-pure). Adding a game = one entry.
+its storage keys and the `/stats` page (6 families: preschool-math,
+preschool-literacy, preschool-cognitive, story, card-set, card-pure). Adding a
+game = one entry.
 
 ## 7. Current state & what's next
 
 - **Migration complete** (all 13 vanilla games ported, since 2026-05-08).
-- **Feature-driven phase active**: 7 preschool games added since (cardinality
+- **Feature-driven phase active**: 8 preschool games added since (cardinality
   triad + Pattern Sequences + Letter Friends + Number Bond Pop + Sound
-  Friends). Total **20 games**, all live.
-- **Latest ship (2026-06-06)**: **Sound Friends** — second preschool-literacy
+  Friends + Sorting Friends). Total **21 games**, all live.
+- **Latest ship (2026-06-06)**: **Sorting Friends** — first preschool-cognitive
+  game (single-attribute categorization). A category prompt appears ("Find all
+  that live in the sea!"); the child taps every picture in the tray that
+  belongs — a new **tap-all (multi-select)** mechanic. Errorless 250ms shake on
+  a wrong tap (distractors come from sibling buckets of the same dimension, so
+  membership is unambiguous); `correctFirstTry` counts rounds finished with zero
+  wrong taps. 8-round tiered session over habitat/kind/size; bespoke
+  `sorting_friends_stats_v1` (no stages). Introduces the **preschool-cognitive**
+  stats family (teal `#14b8a6`), the 6th on `/stats`.
+- **Prior ship (2026-06-06)**: **Sound Friends** — second preschool-literacy
   game (beginning-sounds phonics). A picture appears ("apple"); tap the
   letter its name starts with from three plain letter tiles. Combined
   name+sound+mnemonic narration ("A says ah"), SATPIN-tiered across an
@@ -144,9 +154,9 @@ preschool-literacy, story, card-set, card-pure). Adding a game = one entry.
   the child advances on ≥75% first-try accuracy, never drops. Added two
   themes (meadow, jungle) and a `stage`/`bestStage` row on `/stats`.
 - **Forward queue**: see [ROADMAP.md](ROADMAP.md) for the ranked candidate
-  games. **Sound Friends** (candidate A) shipped 2026-06-06; next up is
-  **Sorting Friends → Animal Sounds → Rhyme Time → Feeling Friends →
-  Memory Match**, mapped to the early-learning domains they fill.
+  games. **Sound Friends** (candidate A) + **Sorting Friends** (candidate B)
+  shipped 2026-06-06; next up is **Animal Sounds → Rhyme Time → Feeling
+  Friends → Memory Match**, mapped to the early-learning domains they fill.
 - **Open queued work**: **T9** — replace Web Speech with pre-recorded MP3
   narration (parked on the user's recording session; integration is ~30–45 min
   of agent work once MP3s land in `src/assets/narration/shared/`).

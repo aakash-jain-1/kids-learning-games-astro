@@ -17,7 +17,7 @@ and the bootstrap context in [CONTEXT.md](CONTEXT.md).
 | Mathematics | Strong (5) | Counting Friends, More Friends, Number Friends, Pattern Sequences, Number Bond Pop |
 | Literacy — letter recognition | Partial (1) | Letter Friends (uppercase recognition only) |
 | Literacy — phonological awareness (sounds, rhyme) | Partial (1) | Sound Friends (beginning sounds; rhyme still open) |
-| Cognitive — sorting / categorization | None | — (core age-3 pre-math skill) |
+| Cognitive — sorting / categorization | Partial (1) | Sorting Friends (single-attribute sort: habitat / kind / size) |
 | Social-emotional (emotions / empathy) | None | — |
 | Science / world knowledge | Card decks only | Animals, Birds, Dinosaurs, Solar System, Weather (browse, not interactive game) |
 
@@ -30,8 +30,8 @@ ethos (survey the golden standards before designing).
 | # | Game | Domain | Core skill / mechanic | Status |
 |---|---|---|---|---|
 | A | **Sound Friends** | Literacy (phonics) | Beginning sounds — "Apple starts with /a/", tap the letter. Builds on Letter Friends + alphabet mnemonics; SATPIN-tiered. | **Done 2026-06-06** ([PROGRESS.md](PROGRESS.md)) |
-| B | **Sorting Friends** | Cognitive | Single-attribute categorization — "which ones live in the sea?" Tap all items in a category (habitats, fruit vs veg, big vs small). Most knowledge-rich; fills the biggest gap. | **Queued (next)** |
-| C | **Animal Sounds** | Science / listening | "Who says moo?" Tap the animal that makes the sound. Reuses animal data; joyful + world knowledge. | Queued |
+| B | **Sorting Friends** | Cognitive | Single-attribute categorization — "which ones live in the sea?" Tap all items in a category (habitat / kind / size). Most knowledge-rich; filled the biggest gap. | **Done 2026-06-06** ([PROGRESS.md](PROGRESS.md)) |
+| C | **Animal Sounds** | Science / listening | "Who says moo?" Tap the animal that makes the sound. Reuses animal data; joyful + world knowledge. | **Queued (next)** |
 | D | **Rhyme Time** | Literacy (phonological awareness) | "What rhymes with cat? hat / dog / sun." Audio-first; recognition emerges at 3, production ~4. | Queued |
 | E | **Feeling Friends** | Social-emotional | "Show me happy" — tap the face / read a feeling. Opens the SEL domain (currently empty). | Queued |
 | F | **Memory Match** | Cognitive (working memory) | Flip cards to find matching pairs. New mechanic; reuses any card deck (animals / shapes / colors). | Queued |

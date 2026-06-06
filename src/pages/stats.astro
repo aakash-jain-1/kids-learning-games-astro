@@ -50,6 +50,7 @@ const href = (p: string): string => `${base}${base.endsWith('/') ? '' : '/'}${p}
 const FAMILY_ORDER: readonly StatsFamily[] = [
   'preschool-math',
   'preschool-literacy',
+  'preschool-cognitive',
   'story',
   'card-set',
   'card-pure',
@@ -58,6 +59,7 @@ const FAMILY_ORDER: readonly StatsFamily[] = [
 const entriesByFamily: Record<StatsFamily, StatsRegistryEntry[]> = {
   'preschool-math': [],
   'preschool-literacy': [],
+  'preschool-cognitive': [],
   story: [],
   'card-set': [],
   'card-pure': [],
@@ -293,6 +295,7 @@ const activityDays = getActivityByFamily(7);
       const FAMILY_ORDER_JS = [
         'preschool-math',
         'preschool-literacy',
+        'preschool-cognitive',
         'story',
         'card-set',
         'card-pure',
@@ -623,6 +626,9 @@ const activityDays = getActivityByFamily(7);
       }
       .stats-card[data-family='preschool-literacy'] {
         border-left-color: #f78fb3;
+      }
+      .stats-card[data-family='preschool-cognitive'] {
+        border-left-color: #5eead4;
       }
       .stats-card[data-family='story'] {
         border-left-color: #ef476f;

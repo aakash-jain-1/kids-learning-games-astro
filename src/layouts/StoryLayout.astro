@@ -118,7 +118,8 @@ interface Props {
     | 'patterns'
     | 'letterfriends'
     | 'soundfriends'
-    | 'numberbond';
+    | 'numberbond'
+    | 'sortingfriends';
 }
 
 const {
@@ -246,5 +247,9 @@ const canonicalUrl =
   html.pre-dark body.story[data-theme='soundfriends'] {
     background: #1a0a14;
     color: #f0d4e0;
+  }
+  html.pre-dark body.story[data-theme='sortingfriends'] {
+    background: #07211d;
+    color: #d4f0ea;
   }
 </style>

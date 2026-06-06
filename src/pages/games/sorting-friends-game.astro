@@ -1,0 +1,497 @@
+---
+import StoryLayout from '@/layouts/StoryLayout.astro';
+import GameControls from '@/components/GameControls.astro';
+import '@/styles/sorting-friends.css';
+
+import { generateSession, TOTAL_ROUNDS } from '@/data/sorting-friends';
+
+const title = 'Sorting Friends — Kids Learning Games';
+const description =
+  'A gentle sorting game for ages 3–4. A category appears ("things that live in the sea") and the child taps every picture in the tray that belongs. Errorless guided correction on a wrong tap, audio narration, no scoring, no failures. First preschool-cognitive game.';
+
+// SSR a deterministic first round so the page never paints blank. The
+// page script reads round 0 directly from the SSR'd DOM (matching the
+// Sound Friends / Number Friends kickoff-race pattern), then continues
+// with random rounds 1..N after the user clicks Next.
+const SSR_FIRST_ROUND = generateSession(() => 0.42)[0]!;
+const ssrPrompt = `Find all the friends that ${SSR_FIRST_ROUND.promptLabel}!`;
+---
+
+<StoryLayout
+  title={title}
+  description={description}
+  themeColor="#14b8a6"
+  theme="sortingfriends"
+>
+  <main class="sort-shell" aria-label="Sorting Friends game">
+    <header class="sort-header">
+      <h1 class="sort-title">
+        <span aria-hidden="true">🧺</span>
+        <span>Sorting Friends</span>
+      </h1>
+
+      <div class="sort-header-right" style="display: flex; gap: 10px; align-items: center;">
+        <span
+          class="sort-progress-pill"
+          id="sortProgressPill"
+          aria-label={`Round 1 of ${TOTAL_ROUNDS}`}
+        >
+          <span id="sortProgressText">1 / {TOTAL_ROUNDS}</span>
+          <span class="sort-progress-bar" aria-hidden="true">
+            <span class="sort-progress-fill" id="sortProgressFill"></span>
+          </span>
+        </span>
+        <GameControls />
+      </div>
+    </header>
+
+    <section
+      class="sort-stage"
+      id="sortStage"
+      data-scene={SSR_FIRST_ROUND.theme}
+      data-category={SSR_FIRST_ROUND.category}
+      data-prompt-label={SSR_FIRST_ROUND.promptLabel}
+      data-prompt-emoji={SSR_FIRST_ROUND.promptEmoji}
+      data-clause={SSR_FIRST_ROUND.clause}
+      data-target-count={SSR_FIRST_ROUND.targetCount}
+      aria-label="Sorting Friends scene"
+    >
+      <div
+        class="sort-prompt"
+        id="sortPrompt"
+        aria-label={ssrPrompt}
+      >
+        <span class="sort-prompt-emoji" id="sortPromptEmoji" aria-hidden="true">
+          {SSR_FIRST_ROUND.promptEmoji}
+        </span>
+        <span class="sort-prompt-lead" aria-hidden="true">Find all that</span>
+        <span class="sort-prompt-label" id="sortPromptLabel" aria-hidden="true">
+          {SSR_FIRST_ROUND.promptLabel}
+        </span>
+      </div>
+
+      <div
+        class="sort-caption"
+        id="sortCaption"
+        role="status"
+        aria-live="polite"
+      >
+        {ssrPrompt} Tap the ones that belong.
+      </div>
+
+      <div class="sort-tiles" id="sortTiles" aria-label="Picture tray — tap every one that belongs to the category">
+        {
+          SSR_FIRST_ROUND.tiles.map((tile, idx) => (
+            <button
+              type="button"
+              class="sort-tile"
+              id={`sortTile${idx}`}
+              data-i={idx}
+              data-id={tile.id}
+              data-belongs={String(tile.belongs)}
+              style={`--sort-i: ${idx * 0.08}s`}
+              aria-label={`${tile.label} — tap if it ${SSR_FIRST_ROUND.clause}`}
+            >
+              <span class="sort-tile-emoji" aria-hidden="true">{tile.emoji}</span>
+              <span class="sort-tile-label" aria-hidden="true">{tile.label}</span>
+              <span class="sort-tile-check" aria-hidden="true">✓</span>
+            </button>
+          ))
+        }
+      </div>
+    </section>
+
+    <footer class="sort-footer">
+      <button type="button" class="sort-action" id="sortReplayBtn" aria-label="Replay this round's narration">
+        🔊 Replay
+      </button>
+      <button type="button" class="sort-action sort-action--primary" id="sortNextBtn" aria-label="Next round" disabled>
+        Next round →
+      </button>
+    </footer>
+
+    <div class="sort-done" id="sortDone" role="dialog" aria-live="polite" aria-labelledby="sortDoneTitle">
+      <div class="sort-done-card">
+        <div class="sort-done-emoji" aria-hidden="true">⭐</div>
+        <h2 class="sort-done-title" id="sortDoneTitle">Sorting champion!</h2>
+        <p class="sort-done-text" id="sortDoneText">
+          You sorted {TOTAL_ROUNDS} trays today!
+        </p>
+        <div class="sort-done-actions">
+          <button type="button" class="sort-action sort-action--primary" id="sortPlayAgainBtn">
+            ▶ Play again
+          </button>
+          <a class="sort-action" href={import.meta.env.BASE_URL}>
+            🏠 Home
+          </a>
+        </div>
+      </div>
+    </div>
+  </main>
+</StoryLayout>
+
+<script>
+  import { playTap, playCorrect } from '@/lib/audio';
+  import { speak, cancelSpeech, isSpeechSupported } from '@/lib/speech';
+  import { launchConfetti } from '@/lib/achievements';
+  import { getSettings } from '@/lib/settings';
+  import {
+    generateSession,
+    buildNarration,
+    TOTAL_ROUNDS,
+    loadSortingFriendsStats,
+    saveSortingFriendsStats,
+    type SortRound,
+    type SortTile,
+    type SortCategory,
+    type RoundNarration,
+    type PreschoolTheme,
+  } from '@/data/sorting-friends';
+  import { recordPlay } from '@/lib/retention';
+
+  // Teal-leaning palette to match the cognitive family accent
+  // (--sort-accent #14b8a6), distinct from the math (green) and
+  // literacy (pink) families so /stats reads as a third domain.
+  const SORT_COLORS = ['#14b8a6', '#ffd166', '#06d6a0', '#118ab2', '#34d399'];
+
+  /**
+   * Read round 0 from the SSR'd DOM so the JS session starts in sync
+   * with whatever Astro rendered. Avoids the kickoff-race that bit
+   * Counting Friends on 2026-05-15 — without this, a tap during the
+   * first interaction could land on a tile whose `belongs` flag has
+   * just been rewritten by a freshly-randomised JS session. Inherited
+   * from Sound Friends / Number Friends.
+   */
+  const readSSRRound = (): SortRound => {
+    const stageEl = document.getElementById('sortStage');
+    if (!stageEl) return generateSession()[0]!;
+
+    const themeKey = (stageEl.dataset.scene ?? 'pond') as PreschoolTheme;
+    const category = stageEl.dataset.category as SortCategory | undefined;
+    const promptLabel = stageEl.dataset.promptLabel ?? '';
+    const promptEmoji = stageEl.dataset.promptEmoji ?? '';
+    const clause = stageEl.dataset.clause ?? '';
+
+    const tileEls = Array.from(
+      document.querySelectorAll<HTMLButtonElement>('#sortTiles .sort-tile'),
+    );
+    if (!category || tileEls.length === 0) return generateSession()[0]!;
+
+    const tiles: SortTile[] = tileEls.map((el) => ({
+      id: el.dataset.id ?? '',
+      label: el.querySelector('.sort-tile-label')?.textContent?.trim() ?? '',
+      emoji: el.querySelector('.sort-tile-emoji')?.textContent?.trim() ?? '',
+      belongs: el.dataset.belongs === 'true',
+    }));
+    const targetCount = tiles.filter((t) => t.belongs).length;
+    if (targetCount === 0) return generateSession()[0]!;
+
+    return {
+      // `dimension`/`tier` aren't used by the controller or narration;
+      // safe placeholders for the SSR-derived round.
+      dimension: 'habitat',
+      category,
+      promptLabel,
+      promptEmoji,
+      clause,
+      tiles,
+      targetCount,
+      tier: 0,
+      theme: themeKey,
+    };
+  };
+
+  // ── State ──────────────────────────────────────────────────────────
+  let session: SortRound[] = [readSSRRound(), ...generateSession().slice(1)];
+  let roundIdx = 0;
+  let roundComplete = false;
+  let foundCount = 0;
+  let wrongTapsThisRound = 0;
+  let currentNarration: RoundNarration | null = null;
+  /** Most recent post-completion phrase, cached so Replay re-narrates it. */
+  let lastCompleteText = '';
+
+  // ── DOM refs ───────────────────────────────────────────────────────
+  const stage = document.getElementById('sortStage') as HTMLElement;
+  const promptEl = document.getElementById('sortPrompt') as HTMLElement;
+  const promptEmojiEl = document.getElementById('sortPromptEmoji') as HTMLElement;
+  const promptLabelEl = document.getElementById('sortPromptLabel') as HTMLElement;
+  const captionEl = document.getElementById('sortCaption') as HTMLElement;
+  const tilesEl = document.getElementById('sortTiles') as HTMLElement;
+  const progressText = document.getElementById('sortProgressText') as HTMLElement;
+  const progressFill = document.getElementById('sortProgressFill') as HTMLElement;
+  const progressPill = document.getElementById('sortProgressPill') as HTMLElement;
+  const replayBtn = document.getElementById('sortReplayBtn') as HTMLButtonElement;
+  const nextBtn = document.getElementById('sortNextBtn') as HTMLButtonElement;
+  const doneEl = document.getElementById('sortDone') as HTMLElement;
+  const playAgainBtn = document.getElementById('sortPlayAgainBtn') as HTMLButtonElement;
+
+  // ── Audio helpers ──────────────────────────────────────────────────
+
+  /**
+   * Speak `text` if the user has sound enabled. Same shape as the rest
+   * of the preschool family: silent-mode setTimeout fallback + watchdog
+   * alongside speechSynthesis.onend so headless CI runners without a
+   * TTS engine don't deadlock anything.
+   */
+  const narrate = (text: string, opts?: { onEnd?: () => void }): void => {
+    const onEnd = opts?.onEnd;
+    if (!isSpeechSupported() || !getSettings().sound) {
+      if (onEnd) setTimeout(onEnd, 600);
+      return;
+    }
+    let fired = false;
+    const wrap = (): void => {
+      if (fired) return;
+      fired = true;
+      onEnd?.();
+    };
+    const watchdogMs = Math.max(800, text.length * 100 + 600);
+    if (onEnd) setTimeout(wrap, watchdogMs);
+    speak(text, { rate: 0.85, pitch: 1.15, onEnd: onEnd ? wrap : undefined });
+  };
+
+  const setCaption = (text: string): void => {
+    captionEl.textContent = text;
+    captionEl.style.animation = 'none';
+    void captionEl.offsetWidth;
+    captionEl.style.removeProperty('animation');
+  };
+
+  // ── Render helpers ─────────────────────────────────────────────────
+
+  const renderRound = (): void => {
+    const round = session[roundIdx]!;
+
+    progressText.textContent = `${roundIdx + 1} / ${TOTAL_ROUNDS}`;
+    progressFill.style.width = `${((roundIdx + 1) / TOTAL_ROUNDS) * 100}%`;
+    progressPill.setAttribute('aria-label', `Round ${roundIdx + 1} of ${TOTAL_ROUNDS}`);
+
+    stage.dataset.scene = round.theme;
+    stage.dataset.category = round.category;
+    stage.dataset.promptLabel = round.promptLabel;
+    stage.dataset.promptEmoji = round.promptEmoji;
+    stage.dataset.clause = round.clause;
+    stage.dataset.targetCount = String(round.targetCount);
+
+    promptEmojiEl.textContent = round.promptEmoji;
+    promptLabelEl.textContent = round.promptLabel;
+    promptEl.setAttribute('aria-label', `Find all the friends that ${round.promptLabel}!`);
+
+    // Rebuild the tray. Tile count varies per round, so we replace the
+    // whole tray DOM rather than mutate a fixed set of buttons.
+    tilesEl.innerHTML = round.tiles
+      .map((tile, idx) => {
+        return (
+          `<button type="button" class="sort-tile" id="sortTile${idx}" ` +
+          `data-i="${idx}" data-id="${tile.id}" data-belongs="${String(tile.belongs)}" ` +
+          `style="--sort-i: ${idx * 0.08}s" ` +
+          `aria-label="${tile.label} — tap if it ${round.clause}">` +
+          `<span class="sort-tile-emoji" aria-hidden="true">${tile.emoji}</span>` +
+          `<span class="sort-tile-label" aria-hidden="true">${tile.label}</span>` +
+          `<span class="sort-tile-check" aria-hidden="true">✓</span>` +
+          `</button>`
+        );
+      })
+      .join('');
+    bindTileHandlers();
+
+    foundCount = 0;
+    wrongTapsThisRound = 0;
+    roundComplete = false;
+    currentNarration = buildNarration(round);
+    lastCompleteText = '';
+    nextBtn.disabled = true;
+    replayBtn.disabled = false;
+  };
+
+  /** Speak the round's intro prompt. */
+  const speakIntro = (): void => {
+    const n = currentNarration;
+    if (!n) return;
+    setCaption(n.intro);
+    narrate(n.intro);
+  };
+
+  // ── Answer handler ─────────────────────────────────────────────────
+
+  const onTileTap = (el: HTMLButtonElement): void => {
+    if (roundComplete) return;
+    if (el.classList.contains('sort-tile--found')) return; // already collected
+    const round = session[roundIdx]!;
+    const idx = Number(el.dataset.i);
+    const tile = round.tiles[idx];
+    if (!tile) return;
+
+    playTap();
+    cancelSpeech();
+
+    if (tile.belongs) {
+      // Correct — collect the tile.
+      el.classList.remove('sort-tile--wrong');
+      el.classList.add('sort-tile--found');
+      el.disabled = true;
+      playCorrect();
+      foundCount++;
+
+      if (foundCount >= round.targetCount) {
+        // Round complete — every belonging tile found.
+        roundComplete = true;
+        const completeText = currentNarration?.complete(foundCount) ?? 'Hooray!';
+        lastCompleteText = completeText;
+        setCaption(completeText);
+        narrate(completeText);
+        launchConfetti(SORT_COLORS);
+        bumpStats(wrongTapsThisRound === 0);
+        nextBtn.disabled = false;
+      } else {
+        const text = currentNarration?.correctItem(tile) ?? 'Yes!';
+        setCaption(text);
+        narrate(text);
+      }
+    } else {
+      // Wrong — errorless. 250ms kinesthetic shake (no colour shift, no
+      // penalty), a gentle spoken correction naming the tile's real
+      // home, then the child keeps going. The tile stays tappable.
+      wrongTapsThisRound++;
+      el.classList.remove('sort-tile--wrong');
+      void el.offsetWidth;
+      el.classList.add('sort-tile--wrong');
+      setTimeout(() => el.classList.remove('sort-tile--wrong'), 450);
+      const text = currentNarration?.wrongItem(tile) ?? "That one belongs somewhere else.";
+      setCaption(text);
+      narrate(text);
+    }
+  };
+
+  const bindTileHandlers = (): void => {
+    const tileEls = tilesEl.querySelectorAll<HTMLButtonElement>('.sort-tile');
+    for (const el of tileEls) {
+      el.addEventListener('click', () => {
+        if (el.disabled) return;
+        onTileTap(el);
+      });
+    }
+  };
+
+  // ── Round progression ──────────────────────────────────────────────
+
+  const startRound = (): void => {
+    cancelSpeech();
+    renderRound();
+    requestAnimationFrame(() => speakIntro());
+  };
+
+  const onNext = (): void => {
+    playTap();
+    if (roundIdx >= TOTAL_ROUNDS - 1) {
+      showSessionComplete();
+      return;
+    }
+    roundIdx++;
+    startRound();
+  };
+
+  const showSessionComplete = (): void => {
+    cancelSpeech();
+    const stats = loadSortingFriendsStats();
+    saveSortingFriendsStats({
+      ...stats,
+      sessions: stats.sessions + 1,
+      lastPlayed: new Date().toISOString().slice(0, 10),
+    });
+    recordPlay('sorting-friends');
+    doneEl.classList.add('sort-done--show');
+    launchConfetti(SORT_COLORS);
+    narrate(`Wow! You sorted ${TOTAL_ROUNDS} trays today! Great job!`);
+  };
+
+  const onPlayAgain = (): void => {
+    playTap();
+    doneEl.classList.remove('sort-done--show');
+    session = generateSession();
+    roundIdx = 0;
+    startRound();
+  };
+
+  // ── Stats persistence ──────────────────────────────────────────────
+
+  const bumpStats = (cleanRound: boolean): void => {
+    const stats = loadSortingFriendsStats();
+    saveSortingFriendsStats({
+      ...stats,
+      rounds: stats.rounds + 1,
+      correctFirstTry: stats.correctFirstTry + (cleanRound ? 1 : 0),
+      lastPlayed: new Date().toISOString().slice(0, 10),
+    });
+    recordPlay('sorting-friends');
+  };
+
+  // ── Event wiring ───────────────────────────────────────────────────
+
+  bindTileHandlers();
+
+  replayBtn.addEventListener('click', () => {
+    playTap();
+    cancelSpeech();
+    if (!roundComplete) {
+      speakIntro();
+    } else {
+      const text = lastCompleteText || (currentNarration?.intro ?? '');
+      setCaption(text);
+      narrate(text);
+    }
+  });
+
+  nextBtn.addEventListener('click', onNext);
+  playAgainBtn.addEventListener('click', onPlayAgain);
+
+  document.getElementById('btnSettings')?.addEventListener('click', () => {
+    playTap();
+    (window as unknown as { openSettings?: () => void }).openSettings?.();
+  });
+
+  document.getElementById('btnQuiz')?.addEventListener('click', () => {
+    playTap();
+    cancelSpeech();
+    speakIntro();
+  });
+
+  document.getElementById('btnStats')?.addEventListener('click', () => {
+    playTap();
+    const stats = loadSortingFriendsStats();
+    const ratio =
+      stats.rounds === 0
+        ? 0
+        : Math.round((stats.correctFirstTry / stats.rounds) * 100);
+    const lines = [
+      `🧺 Sessions completed: ${stats.sessions}`,
+      `🌟 Rounds played: ${stats.rounds}`,
+      `🎯 Clean sorts (no wrong taps): ${stats.correctFirstTry} (${ratio}%)`,
+      stats.lastPlayed ? `📅 Last played: ${stats.lastPlayed}` : '📅 Last played: never',
+    ];
+    alert(lines.join('\n'));
+  });
+
+  // ── Initial state binding ──────────────────────────────────────────
+  // The SSR'd DOM is round 0; we don't re-render it. Bind JS state so
+  // subsequent logic — tile clicks, replay, etc. — has the references.
+  currentNarration = buildNarration(session[0]!);
+  progressText.textContent = `1 / ${TOTAL_ROUNDS}`;
+  progressFill.style.width = `${(1 / TOTAL_ROUNDS) * 100}%`;
+  progressPill.setAttribute('aria-label', `Round 1 of ${TOTAL_ROUNDS}`);
+
+  // Don't auto-speak on first paint — browsers block speechSynthesis
+  // until the first user gesture. Wait for the first tap (anywhere on
+  // the body) to kick off the intro narration. Kickoff does NOT call
+  // renderRound() — that would race with a first-interaction tap on a
+  // tile. Same prophylactic fix the rest of the family uses.
+  let kickedOff = false;
+  const kickoff = (): void => {
+    if (kickedOff) return;
+    kickedOff = true;
+    requestAnimationFrame(() => speakIntro());
+  };
+  document.addEventListener('pointerdown', kickoff, { once: true });
+  document.addEventListener('keydown', kickoff, { once: true });
+</script>

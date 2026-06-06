@@ -417,7 +417,78 @@ before deciding.
 
 ## Changelog
 
-### 2026-06-06 (latest) — chore(tooling): proxy removed — drop `NO_PROXY`, keep `PW_CHANNEL=chrome` for Windows (extraction, not download, is the blocker)
+### 2026-06-06 (latest) — feat(games): Sorting Friends — first preschool-COGNITIVE game (single-attribute categorization, tap-all mechanic)
+
+**Why now.** With the early-math arc and a two-game literacy family shipped, the
+ranked `ROADMAP.md` flagged **cognitive / sorting** as the single biggest domain
+gap — sorting and classifying by one attribute is a core age-3 pre-academic
+*thinking* skill (IL/OH/SC ELS: "sorts and classifies objects by one
+attribute") that neither the math nor literacy families touch. The user said
+"whatever is next, ship it"; this is roadmap candidate **B — Sorting Friends**.
+
+**Pedagogy survey (done before the build).** Reviewed the early-learning
+standards on classification, the classic physical sorting-mat activity, and
+Montessori sorting work. Consensus for ages 3-4: name **one** attribute per
+round, keep categories **mutually exclusive** so membership is unambiguous, and
+make the contrast **meaningful** (sea vs land vs sky, not sea vs "everything
+else"). The digital analogue of the sorting mat is a **tap-all (multi-select)**
+tray — the child taps every picture that belongs — which is the new mechanic
+here (vs the single-answer tiles of Letter / Sound / Number Friends).
+
+**Mechanic.** A category prompt sits on top ("Find all that live in the sea!"
+with a habitat icon); a tray of 4-6 mixed picture tiles (emoji + label) appears
+below. The child taps every belonging tile:
+- *Correct tap* → happy permanent "found" state (green pop + check badge,
+  disabled), `playCorrect`, narration "Yes! A fish lives in the sea!".
+- *Wrong tap* (a sibling-bucket distractor) → **errorless** 250ms shake, NO
+  colour shift, NO penalty, tile stays tappable; narration names its real home
+  ("Hmm, a dog lives on land, not the sea. Try another!").
+- Round auto-completes when every belonging tile is found → celebrate +
+  enable Next.
+
+Distractors are drawn from **sibling buckets of the same sort dimension** so
+the contrast is always honest (a habitat round mixes sea/land/sky animals, a
+kind round mixes food/toys) — the errorless flow stays defensible because no
+tile is genuinely ambiguous.
+
+**First-try stat (multi-select wrinkle).** With no single "first tap" to score,
+`correctFirstTry` counts **rounds completed with zero wrong taps** (a clean
+sort); `rounds` counts every completed round. Same
+`{ sessions, rounds, correctFirstTry, lastPlayed }` schema shape as Letter /
+Sound Friends — no stages (the staged maxN/frameSize system is math-specific).
+
+**Content (8-round tiered session, authored in `src/data/sorting-friends.ts`).**
+Three dimensions: `habitat` (sea/land/sky), `kind` (food/toy), `size`
+(big/small). Tier progression: rounds 1-3 habitat (most concrete, small trays),
+4-6 kind + habitat (medium trays), 7-8 size (largest trays). `generateSession`
+shuffles target + sibling-distractor tiles with an injectable RNG so the SSR
+seed + tests pin a deterministic sequence.
+
+**New family on /stats: `preschool-cognitive`.** Carved as a third preschool
+bucket (alongside math + literacy) so the parent dashboard answers "what KIND
+of skill?" — teal accent (`#14b8a6`), slotted right after preschool-literacy.
+The registry, `FAMILY_LABELS`/`COLORS`/`SIZES`, `zeroPerFamily`, the
+`getActivityByFamily` total, and `stats.astro`'s `FAMILY_ORDER` + dot/legend
+rendering all gained the sixth family; the activity panel now ships 6 dots/day
+(42 across the week).
+
+**New files.** `src/data/sorting-friends.ts`, `src/pages/games/sorting-friends-game.astro`
+(clones the Sound Friends controller: SSR round 0 + `readSSRRound` kickoff-race
+fix, progress pill, `recordPlay('sorting-friends')`, Stats alert),
+`src/styles/sorting-friends.css` (`sortingfriends` scope, 6 scene palettes,
+prompt card, tray tiles, found/shake/fly-in keyframes, teal accent,
+dark/reduced-motion/responsive), `tests/sorting-friends.spec.ts`.
+
+**Edits.** `StoryLayout.astro` (`'sortingfriends'` theme + pre-dark block),
+`stats-registry.ts` + `stats.astro` (the new family end-to-end), `index.astro`
+(home card), `tests/stats.spec.ts` (5→6 sections + cognitive at nth(2), activity
+dots 35→42, legend 5→6, `'sorting-friends'` in `EXPECTED_GAME_IDS`). Game count
+20 → 21.
+
+**Verification.** `npm run check` → `npm run build` → `PW_CHANNEL=chrome npm test
+-- --workers=1`.
+
+### 2026-06-06 — chore(tooling): proxy removed — drop `NO_PROXY`, keep `PW_CHANNEL=chrome` for Windows (extraction, not download, is the blocker)
 
 **Why.** The corporate proxy that previously 403'd every localhost port on this
 dev box is gone. Verified directly: `cdn.playwright.dev` resolves + connects in

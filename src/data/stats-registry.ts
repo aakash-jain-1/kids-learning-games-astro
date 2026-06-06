@@ -100,6 +100,10 @@ import {
   STATS_KEY as SOUND_FRIENDS_KEY,
   loadSoundFriendsStats,
 } from '@/data/sound-friends';
+import {
+  STATS_KEY as SORTING_FRIENDS_KEY,
+  loadSortingFriendsStats,
+} from '@/data/sorting-friends';
 
 import { loadQuizState } from '@/lib/quiz';
 import { loadLearned } from '@/lib/progress';
@@ -115,7 +119,7 @@ export interface MetricRow {
   readonly value: string;
 }
 
-/** The five families used to group cards on the page (and tint borders).
+/** The six families used to group cards on the page (and tint borders).
  *
  *  `'preschool-literacy'` was added 2026-05-25 with the Letter Friends
  *  ship. The schema is identical to `'preschool-math'` (so the
@@ -124,10 +128,17 @@ export interface MetricRow {
  *  glancing at /stats should be able to tell at a glance whether
  *  their child has been doing math or literacy this week, not see
  *  them mashed together under one ambiguous "preschool" bucket.
+ *
+ *  `'preschool-cognitive'` was added 2026-06-06 with the Sorting
+ *  Friends ship — same reasoning: sorting / categorization is a
+ *  distinct pre-academic THINKING skill (not math, not literacy), so
+ *  it earns its own dashboard bucket. Schema is again identical, so it
+ *  reuses the shared `preschoolStatsEntry` factory.
  */
 export type StatsFamily =
   | 'preschool-math'
   | 'preschool-literacy'
+  | 'preschool-cognitive'
   | 'story'
   | 'card-set'
   | 'card-pure';
@@ -197,7 +208,7 @@ const preschoolStatsEntry = (cfg: {
   emoji: string;
   hrefPath: string;
   storageKey: string;
-  family: 'preschool-math' | 'preschool-literacy';
+  family: 'preschool-math' | 'preschool-literacy' | 'preschool-cognitive';
   load: () => {
     sessions: number;
     rounds: number;
@@ -455,6 +466,17 @@ export const STATS_REGISTRY: readonly StatsRegistryEntry[] = [
     load: loadSoundFriendsStats,
   }),
 
+  // Family A3 — preschool-cognitive
+  preschoolStatsEntry({
+    id: 'sorting-friends',
+    title: 'Sorting Friends',
+    emoji: '🧺',
+    hrefPath: 'games/sorting-friends-game',
+    storageKey: SORTING_FRIENDS_KEY,
+    family: 'preschool-cognitive',
+    load: loadSortingFriendsStats,
+  }),
+
   // Family B — story
   routinesEntry,
   woodcutterEntry,
@@ -567,6 +589,7 @@ export const STATS_REGISTRY: readonly StatsRegistryEntry[] = [
 export const FAMILY_LABELS: Readonly<Record<StatsFamily, string>> = {
   'preschool-math': 'Preschool math (cardinality + pattern)',
   'preschool-literacy': 'Preschool literacy (letter recognition)',
+  'preschool-cognitive': 'Preschool thinking (sorting + categories)',
   story: 'Story games',
   'card-set': 'Card-set games (collect what you learn)',
   'card-pure': 'Card-pure games (explore the deck)',
@@ -610,6 +633,7 @@ export interface DailyActivity {
 const zeroPerFamily = (): Readonly<Record<StatsFamily, number>> => ({
   'preschool-math': 0,
   'preschool-literacy': 0,
+  'preschool-cognitive': 0,
   story: 0,
   'card-set': 0,
   'card-pure': 0,
@@ -640,6 +664,7 @@ export const getActivityByFamily = (daysBack = 7): readonly DailyActivity[] => {
     }
     const total = perFamily['preschool-math']
       + perFamily['preschool-literacy']
+      + perFamily['preschool-cognitive']
       + perFamily.story
       + perFamily['card-set']
       + perFamily['card-pure'];
@@ -658,6 +683,7 @@ export const getActivityByFamily = (daysBack = 7): readonly DailyActivity[] => {
 export const FAMILY_COLORS: Readonly<Record<StatsFamily, string>> = {
   'preschool-math': '#22c55e',     // green-500 — matches the shake-feedback ring
   'preschool-literacy': '#ef476f', // pink — matches Letter Friends accent
+  'preschool-cognitive': '#14b8a6', // teal-500 — matches Sorting Friends accent
   story: '#3b82f6',                // blue-500 — matches the existing story theme
   'card-set': '#f59e0b',           // amber-500 — warm tint distinct from the green
   'card-pure': '#a855f7',          // purple-500 — distinct from the other four
@@ -667,6 +693,7 @@ export const FAMILY_COLORS: Readonly<Record<StatsFamily, string>> = {
 export const FAMILY_SIZES: Readonly<Record<StatsFamily, number>> = {
   'preschool-math': STATS_REGISTRY.filter((e) => e.family === 'preschool-math').length,
   'preschool-literacy': STATS_REGISTRY.filter((e) => e.family === 'preschool-literacy').length,
+  'preschool-cognitive': STATS_REGISTRY.filter((e) => e.family === 'preschool-cognitive').length,
   story: STATS_REGISTRY.filter((e) => e.family === 'story').length,
   'card-set': STATS_REGISTRY.filter((e) => e.family === 'card-set').length,
   'card-pure': STATS_REGISTRY.filter((e) => e.family === 'card-pure').length,
