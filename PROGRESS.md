@@ -417,7 +417,72 @@ before deciding.
 
 ## Changelog
 
-### 2026-06-04 (latest) — chore(tooling): Windows-native npm scripts + local Playwright via system Chrome; full local green
+### 2026-06-06 (latest) — feat(games): Number Bond Pop — fifth preschool-math game (number-bond decomposition), completing the early-math arc
+
+**Why now.** With the cardinality triad + Pattern Sequences shipped, the
+remaining gap in the early-math arc was *decomposition* — "how many more
+to make 5?". The user picked it from the "what next?" queue and asked to
+"check what the golden standards are and pick" the mechanic. Number Bond
+Pop completes the arc: **compare** (More Friends) -> **count** (Counting
+Friends) -> **recognise** (Number Friends) -> **decompose** (Number Bond
+Pop).
+
+**Pedagogy survey (done before the build).** NAEYC "Number Composition",
+Bridges Pre-K developmental progressions, HeadStart P-MATH, NRICH
+subitising, plus practitioner sources. Consensus for ages 3-4:
+concrete-before-abstract (no equations / `+` / `=`), the canonical make-N
+activity is *"fill the remaining empty spaces"* on a five-frame, use
+identical objects, part-whole language ("3 and 2 make 5"), and ten-frame
+/ make-10 only after make-5 confidence (a by-60-months milestone). This
+ruled out a pure numeral-tap mechanic (that's the abstract step to
+defer) and a pure pop-to-fill mechanic (no first-try signal for the
+stage gate), landing on a **hybrid with concrete options**.
+
+**The mechanic.** A bond frame for the WHOLE shows `have` cells filled
+with a themed object and `gap = whole - have` cells empty (the missing
+part is literally visible). Three option bunches of the *same* themed
+object sit below; exactly one holds `gap` items. Tap it and the objects
+**pop into the empty cells** one-by-one, counting on (`have+1 ... whole`)
+then celebrating with part-whole language. Wrong tap -> 250ms kinesthetic
+shake (no colour / penalty), a guided count of the empty cells ("we need
+one, two - two more!"), then the correct bunch is revealed and pops in.
+Errorless throughout.
+
+**Stages (reused, not rebuilt).** Adopts the shared
+`src/lib/preschool-stages.ts` from the 2026-06-03 triad ship verbatim:
+Stage 1 = make-5 / five-frame / 8 rounds / 4 themes; Stages 2-3 = wholes
+up to 10 / ten-frame / 10-12 rounds / 6 themes. Auto-advances on >=75%
+first-try, never drops; `bestStage` high-water mark on `/stats`.
+
+**Files.**
+- `src/data/number-bond.ts` (new) - `BondRound { whole, have, gap,
+  options, correctIndex, theme, difficulty }`, per-stage `PLAN_BY_STAGE`
+  (`[whole, have, difficulty]` slots), `decoysFor` (near/mixed,
+  range-clamped + distinct), `generateSession(rand, stage)`,
+  `buildNarration` (part-whole phrasing + counting-on `fillStep`),
+  `number_bond_stats_v1` schema + `load/saveNumberBondStats`.
+- `src/pages/games/number-bond-pop-game.astro` (new) - StoryLayout
+  (`theme='numberbond'`), SSR round 0 + `readSSRRound` kickoff-race fix,
+  stage + progress pills, pop-to-fill + guided-count flow, stage
+  advancement / level-up, `recordPlay('number-bond-pop')`.
+- `src/styles/number-bond.css` (new) - 6 scene palettes, bond-frame
+  (filled / dashed-empty cells), option bunches, pop / fly-in / shake /
+  pulse-ring keyframes, reduced-motion + dark-mode + responsive blocks.
+- `src/data/stats-registry.ts` - `number-bond-pop` `preschoolStatsEntry`
+  (preschool-math family, after Pattern Sequences); Stage row auto-appears.
+- `src/pages/index.astro` - home card.
+- `tests/number-bond.spec.ts` (new) - SSR shape, Next gating, any-tap
+  rounds bump, correct-tap first-try, wrong-tap reveal + no first-try
+  bump, Stage-2 longer-session pill, home-card link.
+- `tests/stats.spec.ts` - `'number-bond-pop'` added to
+  `EXPECTED_GAME_IDS` (card-count + section assertions follow
+  automatically; the 35-dot activity test is unaffected — still 5 families).
+
+**Result.** 19 games total (6 preschool: 5 math + 1 literacy). Local
+`astro check` + `astro build` clean; full Playwright suite green via the
+`PW_CHANNEL=chrome` recipe.
+
+### 2026-06-04 — chore(tooling): Windows-native npm scripts + local Playwright via system Chrome; full local green
 
 **Why now.** First time the repo was exercised end-to-end on the Windows
 dev box. Node LTS was installed (`C:\Program Files\nodejs`, Node v24,

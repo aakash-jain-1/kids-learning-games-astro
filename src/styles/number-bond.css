@@ -1,0 +1,597 @@
+/* Number Bond Pop — preschool-math decomposition game (added 2026-06-06,
+   fifth preschool-math game, completing the early-math arc with the
+   cardinality triad: compare -> count -> recognise -> DECOMPOSE).
+
+   Sister to Counting Friends / More Friends / Number Friends. Uses
+   `StoryLayout` with `theme='numberbond'` so the body class is
+   `body.story[data-theme='numberbond']`. All `nbp-*` (number-bond-pop)
+   classes scope themselves under that body selector so they can never
+   collide with the rest of the triad.
+
+   Design constraints (kept here so the next reader doesn't have to dig
+   through PROGRESS.md):
+
+   - **Concrete part-whole.** The bond frame for the WHOLE shows `have`
+     filled cells + `gap` empty cells, so the missing part is literally
+     visible. The answer options are bunches of the SAME themed object
+     (NAEYC "use identical objects"), not numerals.
+   - **The bunches are the answer buttons** (three of them). Items inside
+     are decorative `<span>`s with `pointer-events: none` so taps always
+     land on the bunch button — tap target = the whole bunch.
+   - **Pop-to-fill payoff.** On the right answer the empty cells fill
+     with the themed object one-by-one (`nbp-cell--pop`) while the
+     narration counts on — the "pop" the game is named for.
+   - **Reduced motion**: every animation collapses to instant via the
+     `@media (prefers-reduced-motion: reduce)` block at the bottom.
+*/
+
+/* ── Scene-theme background tokens ─────────────────────────────────── */
+
+body.story[data-theme='numberbond'] {
+  --st-bg: linear-gradient(135deg, #d8f0d8 0%, #e6f0ff 100%);
+
+  --nbp-panel-bg: rgba(255, 255, 255, 0.18);
+  --nbp-panel-border: rgba(255, 255, 255, 0.4);
+  --nbp-panel-bg-hover: rgba(255, 255, 255, 0.32);
+  --nbp-panel-border-correct: #2e7d32;
+  --nbp-panel-border-glow: #1976d2;
+  --nbp-panel-fill-correct: rgba(76, 175, 80, 0.22);
+  --nbp-panel-fill-glow: rgba(25, 118, 210, 0.18);
+
+  /* Bond card — solid white with a hairline. Higher-contrast than the
+     option bunches because it's the "question" of the round. */
+  --nbp-bond-bg: #ffffff;
+  --nbp-bond-text: #1a1f3a;
+  --nbp-bond-border: rgba(30, 50, 100, 0.12);
+  --nbp-bond-shadow: 0 8px 24px rgba(20, 30, 70, 0.18);
+
+  /* Bond-frame cell tokens — empty cells are a dashed hole, filled cells
+     a solid tinted disc. */
+  --nbp-cell-empty-border: rgba(20, 30, 70, 0.28);
+  --nbp-cell-filled-bg: rgba(25, 118, 210, 0.14);
+  --nbp-accent: #1976d2;
+
+  --nbp-caption-bg: rgba(255, 255, 255, 0.92);
+  --nbp-caption-text: #1a1f3a;
+  --nbp-caption-shadow: 0 8px 24px rgba(20, 30, 70, 0.18);
+}
+
+/* Same per-theme backgrounds as the rest of the triad — five games
+   sharing a consistent pond/orchard/sea/garden/meadow/jungle palette. */
+body.story[data-theme='numberbond'] .nbp-stage[data-scene='pond'] {
+  --st-bg: linear-gradient(180deg, #b8e0ff 0%, #6fb6e6 60%, #4a8c4a 100%);
+  --nbp-accent: #1976d2;
+}
+body.story[data-theme='numberbond'] .nbp-stage[data-scene='orchard'] {
+  --st-bg: linear-gradient(180deg, #ffe6c8 0%, #ffb88c 50%, #88b94a 100%);
+  --nbp-accent: #c0392b;
+}
+body.story[data-theme='numberbond'] .nbp-stage[data-scene='sea'] {
+  --st-bg: linear-gradient(180deg, #b3e8ec 0%, #4dc4cf 60%, #f4d97a 100%);
+  --nbp-accent: #00838f;
+}
+body.story[data-theme='numberbond'] .nbp-stage[data-scene='garden'] {
+  --st-bg: linear-gradient(180deg, #fff4b8 0%, #ffd666 60%, #6fbf3a 100%);
+  --nbp-accent: #c4880c;
+}
+body.story[data-theme='numberbond'] .nbp-stage[data-scene='meadow'] {
+  --st-bg: linear-gradient(180deg, #d7f0a8 0%, #9fd45a 55%, #6fae39 100%);
+  --nbp-accent: #4a7d1e;
+}
+body.story[data-theme='numberbond'] .nbp-stage[data-scene='jungle'] {
+  --st-bg: linear-gradient(180deg, #bfeec4 0%, #5db573 55%, #2f7d4f 100%);
+  --nbp-accent: #1b6b3a;
+}
+
+body.story[data-theme='numberbond'] {
+  background: var(--st-bg);
+}
+
+/* ── Layout shell ─────────────────────────────────────────────────── */
+
+body.story[data-theme='numberbond'] .nbp-shell {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 16px 20px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: calc(100vh - 36px);
+}
+
+body.story[data-theme='numberbond'] .nbp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+body.story[data-theme='numberbond'] .nbp-title {
+  margin: 0;
+  font-size: clamp(1.6em, 4vw, 2.2em);
+  color: #fff;
+  text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+body.story[data-theme='numberbond'] .nbp-progress-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.85);
+  color: #1a1f3a;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.95em;
+}
+
+/* Stage pill — shows the child's current stage (1..3). */
+body.story[data-theme='numberbond'] .nbp-stage-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.85);
+  color: #1a1f3a;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.95em;
+}
+
+body.story[data-theme='numberbond'] .nbp-progress-bar {
+  width: 80px;
+  height: 8px;
+  background: rgba(20, 30, 70, 0.15);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+body.story[data-theme='numberbond'] .nbp-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: #4caf50;
+  border-radius: 999px;
+  transition: width 0.4s ease-out;
+}
+
+/* ── Stage — bond frame on top, 3 option bunches below ────────────── */
+
+body.story[data-theme='numberbond'] .nbp-stage {
+  position: relative;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 24px;
+  padding: 24px 16px;
+  min-height: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.32);
+}
+
+body.story[data-theme='numberbond'] .nbp-bond {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 28px;
+  border-radius: 24px;
+  background: var(--nbp-bond-bg);
+  color: var(--nbp-bond-text);
+  border: 2px solid var(--nbp-bond-border);
+  box-shadow: var(--nbp-bond-shadow);
+  animation: nbpBondPulse 2.4s ease-in-out infinite;
+}
+
+body.story[data-theme='numberbond'] .nbp-bond-prompt {
+  font-size: 0.95em;
+  font-weight: 600;
+  color: rgba(30, 50, 100, 0.7);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+body.story[data-theme='numberbond'] .nbp-bond-whole {
+  font-size: 64px;
+  font-weight: 700;
+  line-height: 1;
+  margin: 0;
+}
+
+/* The bond frame — `whole` cells in a row (five-frame) or, when the
+   whole exceeds 5, a two-row 5-column grid (ten-frame). */
+body.story[data-theme='numberbond'] .nbp-frame {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+  justify-content: center;
+}
+
+body.story[data-theme='numberbond'] .nbp-frame--wide {
+  display: grid;
+  grid-template-columns: repeat(5, auto);
+  gap: 6px;
+}
+
+body.story[data-theme='numberbond'] .nbp-cell {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30px;
+  line-height: 1;
+}
+
+body.story[data-theme='numberbond'] .nbp-cell--empty {
+  border: 3px dashed var(--nbp-cell-empty-border);
+  background: transparent;
+}
+
+body.story[data-theme='numberbond'] .nbp-cell--filled {
+  background: var(--nbp-cell-filled-bg);
+  border: 3px solid transparent;
+}
+
+/* Pop-in when an empty cell gets filled (correct answer / reveal). */
+body.story[data-theme='numberbond'] .nbp-cell--pop {
+  animation: nbpPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Pulse while counting the empty cells during the wrong-tap rerun. */
+body.story[data-theme='numberbond'] .nbp-cell--counting {
+  animation: nbpCount 0.6s ease-out;
+  box-shadow: 0 0 0 4px var(--nbp-accent), 0 0 16px rgba(255, 255, 255, 0.7);
+}
+
+@keyframes nbpBondPulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.04); }
+}
+
+@keyframes nbpPop {
+  0%   { opacity: 0; transform: translateY(-26px) scale(0.4); }
+  60%  { opacity: 1; transform: translateY(5px) scale(1.12); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes nbpCount {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+
+/* The three option bunches below the bond card. */
+body.story[data-theme='numberbond'] .nbp-options {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  align-items: stretch;
+  width: 100%;
+  max-width: 720px;
+  gap: 12px;
+}
+
+body.story[data-theme='numberbond'] .nbp-opt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 160px;
+  padding: 14px 10px;
+  background: var(--nbp-panel-bg);
+  border: 3px solid var(--nbp-panel-border);
+  border-radius: 20px;
+  cursor: pointer;
+  font-family: inherit;
+  color: inherit;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s ease;
+}
+
+body.story[data-theme='numberbond'] .nbp-opt:hover {
+  background: var(--nbp-panel-bg-hover);
+  transform: translateY(-2px);
+}
+
+body.story[data-theme='numberbond'] .nbp-opt:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+body.story[data-theme='numberbond'] .nbp-opt:disabled {
+  cursor: default;
+  opacity: 0.85;
+}
+
+body.story[data-theme='numberbond'] .nbp-opt.nbp-opt--correct {
+  background: var(--nbp-panel-fill-correct);
+  border-color: var(--nbp-panel-border-correct);
+  animation: nbpBounce 0.5s ease-out;
+}
+
+body.story[data-theme='numberbond'] .nbp-opt.nbp-opt--reveal {
+  background: var(--nbp-panel-fill-glow);
+  border-color: var(--nbp-panel-border-glow);
+  animation: nbpPulseRing 1.4s ease-in-out infinite;
+}
+
+/* Age-safe wrong-tap kinesthetic feedback — a shake, NO colour/border
+   override (errorless-learning principle: a wrong tap must not read as
+   punishment for a 3yo). Runs in parallel with the audio that follows. */
+body.story[data-theme='numberbond'] .nbp-opt.nbp-opt--wrong {
+  animation: nbpShake 250ms ease-in-out;
+}
+
+body.story[data-theme='numberbond'] .nbp-item {
+  width: 56px;
+  height: 56px;
+  font-size: 42px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: nbpFlyIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation-delay: var(--nbp-i, 0s);
+}
+
+@keyframes nbpFlyIn {
+  0%   { opacity: 0; transform: translateY(-30px) scale(0.4); }
+  60%  { opacity: 1; transform: translateY(6px) scale(1.1); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes nbpBounce {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.06); }
+  60%  { transform: scale(0.98); }
+  100% { transform: scale(1); }
+}
+
+@keyframes nbpPulseRing {
+  0%, 100% {
+    box-shadow:
+      0 4px 12px rgba(20, 30, 70, 0.15),
+      0 0 0 0 rgba(25, 118, 210, 0.55);
+  }
+  50% {
+    box-shadow:
+      0 4px 12px rgba(20, 30, 70, 0.15),
+      0 0 0 12px rgba(25, 118, 210, 0);
+  }
+}
+
+@keyframes nbpShake {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-7px); }
+  40%      { transform: translateX( 7px); }
+  60%      { transform: translateX(-5px); }
+  80%      { transform: translateX( 4px); }
+}
+
+/* ── Caption — accessibility/parent-readable mirror of TTS narration ─── */
+
+body.story[data-theme='numberbond'] .nbp-caption {
+  background: var(--nbp-caption-bg);
+  color: var(--nbp-caption-text);
+  border-radius: 16px;
+  padding: 12px 18px;
+  font-size: clamp(1em, 2.4vw, 1.2em);
+  font-weight: 600;
+  text-align: center;
+  box-shadow: var(--nbp-caption-shadow);
+  max-width: 720px;
+  margin: 0 auto;
+  min-height: 1.4em;
+  animation: nbpCaptionIn 0.4s ease-out;
+}
+
+@keyframes nbpCaptionIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Footer row — Replay + Next ────────────────────────────────────── */
+
+body.story[data-theme='numberbond'] .nbp-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+body.story[data-theme='numberbond'] .nbp-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 22px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(255, 255, 255, 0.92);
+  color: #1a1f3a;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 1em;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(20, 30, 70, 0.15);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+body.story[data-theme='numberbond'] .nbp-action:hover {
+  transform: translateY(-1px);
+  background: #ffffff;
+}
+
+body.story[data-theme='numberbond'] .nbp-action:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+body.story[data-theme='numberbond'] .nbp-action--primary {
+  background: #4caf50;
+  color: #ffffff;
+}
+
+body.story[data-theme='numberbond'] .nbp-action--primary:hover {
+  background: #43a047;
+}
+
+/* ── Session-complete overlay ─────────────────────────────────────── */
+
+body.story[data-theme='numberbond'] .nbp-done {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 30, 70, 0.55);
+  z-index: 50;
+  padding: 20px;
+}
+
+body.story[data-theme='numberbond'] .nbp-done.nbp-done--show {
+  display: flex;
+}
+
+body.story[data-theme='numberbond'] .nbp-done-card {
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 32px 28px;
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+  color: #1a1f3a;
+  box-shadow: 0 24px 80px rgba(20, 30, 70, 0.4);
+  animation: nbpDoneIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes nbpDoneIn {
+  from { opacity: 0; transform: scale(0.7) translateY(20px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+body.story[data-theme='numberbond'] .nbp-done-emoji {
+  font-size: 72px;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+body.story[data-theme='numberbond'] .nbp-done-title {
+  margin: 0 0 8px;
+  font-size: 1.6em;
+  color: #2e7d32;
+}
+
+body.story[data-theme='numberbond'] .nbp-done-text {
+  margin: 0 0 24px;
+  font-size: 1.1em;
+  color: #555;
+}
+
+body.story[data-theme='numberbond'] .nbp-done-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ── Reduced motion fallback ──────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  body.story[data-theme='numberbond'] .nbp-bond,
+  body.story[data-theme='numberbond'] .nbp-item,
+  body.story[data-theme='numberbond'] .nbp-cell--pop,
+  body.story[data-theme='numberbond'] .nbp-cell--counting,
+  body.story[data-theme='numberbond'] .nbp-caption,
+  body.story[data-theme='numberbond'] .nbp-opt.nbp-opt--correct,
+  body.story[data-theme='numberbond'] .nbp-opt.nbp-opt--reveal,
+  body.story[data-theme='numberbond'] .nbp-done-card {
+    animation: none;
+  }
+  body.story[data-theme='numberbond'] .nbp-opt:hover {
+    transform: none;
+  }
+  body.story[data-theme='numberbond'] {
+    transition: none;
+  }
+}
+
+/* ── Dark mode ────────────────────────────────────────────────────── */
+
+body.dark-mode.story[data-theme='numberbond'] {
+  --nbp-panel-bg: rgba(255, 255, 255, 0.08);
+  --nbp-panel-bg-hover: rgba(255, 255, 255, 0.16);
+  --nbp-panel-border: rgba(180, 200, 255, 0.3);
+  --nbp-panel-fill-correct: rgba(46, 125, 50, 0.35);
+  --nbp-panel-fill-glow: rgba(25, 118, 210, 0.32);
+  --nbp-bond-bg: #1a1f3a;
+  --nbp-bond-text: #f0f4ff;
+  --nbp-bond-border: rgba(180, 200, 255, 0.18);
+  --nbp-cell-empty-border: rgba(180, 200, 255, 0.4);
+  --nbp-cell-filled-bg: rgba(25, 118, 210, 0.3);
+  --nbp-caption-bg: rgba(20, 25, 50, 0.92);
+  --nbp-caption-text: #f0f4ff;
+}
+
+body.dark-mode.story[data-theme='numberbond'] .nbp-bond-prompt {
+  color: rgba(180, 200, 255, 0.7);
+}
+
+body.dark-mode.story[data-theme='numberbond'] .nbp-done-card {
+  background: #1a1f3a;
+  color: #f0f4ff;
+}
+
+body.dark-mode.story[data-theme='numberbond'] .nbp-done-text {
+  color: #b8c2e0;
+}
+
+body.dark-mode.story[data-theme='numberbond'] .nbp-action {
+  background: #232847;
+  color: #f0f4ff;
+}
+
+body.dark-mode.story[data-theme='numberbond'] .nbp-action--primary {
+  background: #2e7d32;
+  color: #f0f4ff;
+}
+
+/* ── Responsive — stack bunches on small phones ───────────────────── */
+
+@media (max-width: 600px) {
+  body.story[data-theme='numberbond'] .nbp-options {
+    grid-template-columns: 1fr;
+  }
+  body.story[data-theme='numberbond'] .nbp-item {
+    width: 48px;
+    height: 48px;
+    font-size: 36px;
+  }
+  body.story[data-theme='numberbond'] .nbp-cell {
+    width: 38px;
+    height: 38px;
+    font-size: 26px;
+  }
+  body.story[data-theme='numberbond'] .nbp-bond-whole {
+    font-size: 52px;
+  }
+  body.story[data-theme='numberbond'] .nbp-shell {
+    padding: 12px 12px 60px;
+    gap: 14px;
+  }
+  body.story[data-theme='numberbond'] .nbp-stage {
+    min-height: auto;
+  }
+}

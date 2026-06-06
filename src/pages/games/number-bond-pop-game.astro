@@ -1,0 +1,651 @@
+---
+import StoryLayout from '@/layouts/StoryLayout.astro';
+import GameControls from '@/components/GameControls.astro';
+import '@/styles/number-bond.css';
+
+import { generateSession } from '@/data/number-bond';
+import { THEME_BY_KEY, numberWord } from '@/lib/preschool-themes';
+
+const title = 'Number Bond Pop — Kids Learning Games';
+const description =
+  'A gentle "how many more to make 5?" decomposition game for ages 3–4. Some friends are already here — tap the bunch that fills the empty spaces and watch them pop in. Concrete part-whole, audio narration, no scoring, no failures. Completes the early-math arc with Counting Friends, More Friends, and Number Friends.';
+
+// SSR a deterministic first round so the page never paints blank. The
+// page script reads round 0 directly from the SSR'd DOM (matching the
+// triad pattern — see number-friends-game.astro for the kickoff-race
+// rationale), and continues with random rounds 1..N after Next.
+const SSR_FIRST_ROUND = generateSession(() => 0.42)[0]!;
+const ssrTheme = THEME_BY_KEY[SSR_FIRST_ROUND.theme];
+const ssrHaveNoun =
+  SSR_FIRST_ROUND.have === 1 ? ssrTheme.singular : ssrTheme.plural;
+const ssrWholeWord = numberWord(SSR_FIRST_ROUND.whole);
+const ssrHaveWord = numberWord(SSR_FIRST_ROUND.have);
+const ssrCaption = `We have ${ssrHaveWord} ${ssrHaveNoun}. How many more to make ${ssrWholeWord}?`;
+const ssrWide = SSR_FIRST_ROUND.whole > 5;
+
+const TOTAL_ROUNDS = 8;
+---
+
+<StoryLayout
+  title={title}
+  description={description}
+  themeColor="#2e7d32"
+  theme="numberbond"
+>
+  <main class="nbp-shell" aria-label="Number Bond Pop game">
+    <header class="nbp-header">
+      <h1 class="nbp-title">
+        <span aria-hidden="true">🎈</span>
+        <span>Number Bond Pop</span>
+      </h1>
+
+      <div class="nbp-header-right" style="display: flex; gap: 10px; align-items: center;">
+        <span class="nbp-stage-pill" id="nbpStagePill" aria-label="Stage 1, Starter">
+          <span aria-hidden="true">⭐</span>
+          <span id="nbpStageText">Stage 1</span>
+        </span>
+        <span
+          class="nbp-progress-pill"
+          id="nbpProgressPill"
+          aria-label={`Round 1 of ${TOTAL_ROUNDS}`}
+        >
+          <span id="nbpProgressText">1 / {TOTAL_ROUNDS}</span>
+          <span class="nbp-progress-bar" aria-hidden="true">
+            <span class="nbp-progress-fill" id="nbpProgressFill"></span>
+          </span>
+        </span>
+        <GameControls />
+      </div>
+    </header>
+
+    <section
+      class="nbp-stage"
+      id="nbpStage"
+      data-scene={SSR_FIRST_ROUND.theme}
+      aria-label="Number Bond Pop scene"
+    >
+      <div
+        class="nbp-bond"
+        id="nbpBond"
+        data-whole={SSR_FIRST_ROUND.whole}
+        data-have={SSR_FIRST_ROUND.have}
+        aria-label={`Make ${SSR_FIRST_ROUND.whole}`}
+      >
+        <span class="nbp-bond-prompt" aria-hidden="true">Make</span>
+        <span class="nbp-bond-whole" id="nbpWhole" aria-hidden="true">
+          {SSR_FIRST_ROUND.whole}
+        </span>
+        <span
+          class={`nbp-frame${ssrWide ? ' nbp-frame--wide' : ''}`}
+          id="nbpFrame"
+          aria-hidden="true"
+        >
+          {
+            Array.from({ length: SSR_FIRST_ROUND.whole }, (_, i) =>
+              i < SSR_FIRST_ROUND.have ? (
+                <span class="nbp-cell nbp-cell--filled">{ssrTheme.emoji}</span>
+              ) : (
+                <span class="nbp-cell nbp-cell--empty" />
+              ),
+            )
+          }
+        </span>
+      </div>
+
+      <div
+        class="nbp-caption"
+        id="nbpCaption"
+        role="status"
+        aria-live="polite"
+      >
+        {ssrCaption}
+      </div>
+
+      <div class="nbp-options" aria-label="Three bunches — tap the one that fills the empty spaces">
+        {
+          SSR_FIRST_ROUND.options.map((size, idx) => (
+            <button
+              type="button"
+              class="nbp-opt"
+              id={`nbpOpt${idx}`}
+              data-i={idx}
+              data-n={size}
+              aria-label={`Bunch of ${size} ${
+                size === 1 ? ssrTheme.singular : ssrTheme.plural
+              } — tap if this fills the empty spaces`}
+            >
+              {Array.from({ length: size }, (_, i) => (
+                <span
+                  class="nbp-item"
+                  style={`--nbp-i: ${i * 0.1}s`}
+                  aria-hidden="true"
+                >
+                  {ssrTheme.emoji}
+                </span>
+              ))}
+            </button>
+          ))
+        }
+      </div>
+    </section>
+
+    <footer class="nbp-footer">
+      <button type="button" class="nbp-action" id="nbpReplayBtn" aria-label="Replay this round's narration">
+        🔊 Replay
+      </button>
+      <button type="button" class="nbp-action nbp-action--primary" id="nbpNextBtn" aria-label="Next round" disabled>
+        Next round →
+      </button>
+    </footer>
+
+    <div class="nbp-done" id="nbpDone" role="dialog" aria-live="polite" aria-labelledby="nbpDoneTitle">
+      <div class="nbp-done-card">
+        <div class="nbp-done-emoji" aria-hidden="true">🎉</div>
+        <h2 class="nbp-done-title" id="nbpDoneTitle">Bond builder!</h2>
+        <p class="nbp-done-text" id="nbpDoneText">
+          You made {TOTAL_ROUNDS} number bonds today!
+        </p>
+        <div class="nbp-done-actions">
+          <button type="button" class="nbp-action nbp-action--primary" id="nbpPlayAgainBtn">
+            ▶ Play again
+          </button>
+          <a class="nbp-action" href={import.meta.env.BASE_URL}>
+            🏠 Home
+          </a>
+        </div>
+      </div>
+    </div>
+  </main>
+</StoryLayout>
+
+<script>
+  import { playTap, playCorrect } from '@/lib/audio';
+  import { speak, cancelSpeech, isSpeechSupported } from '@/lib/speech';
+  import { launchConfetti } from '@/lib/achievements';
+  import { getSettings } from '@/lib/settings';
+  import {
+    generateSession,
+    buildNarration,
+    loadNumberBondStats,
+    saveNumberBondStats,
+    type BondRound,
+    type RoundNarration,
+  } from '@/data/number-bond';
+  import { THEME_BY_KEY, numberWord, type PreschoolTheme } from '@/lib/preschool-themes';
+  import {
+    type StageId,
+    STAGE_META,
+    shouldAdvance,
+    nextStage,
+  } from '@/lib/preschool-stages';
+  import { recordPlay } from '@/lib/retention';
+
+  // Current stage (read from saved stats) + this session's round count.
+  // Named `currentStage` to avoid colliding with the `stage` DOM-element
+  // ref declared further down (same convention as the rest of the triad).
+  let currentStage: StageId = loadNumberBondStats().stage;
+  let TOTAL_ROUNDS = STAGE_META[currentStage].rounds;
+  // Confetti palette — same primaries as the rest of the preschool-math
+  // family so the games feel visually consistent.
+  const NBP_COLORS = ['#4caf50', '#1976d2', '#ffd54f', '#e91e63', '#ff7043'];
+
+  /**
+   * Read round 0 from the SSR'd DOM so the JS session starts in sync
+   * with whatever Astro rendered. Avoids the kickoff-race that bit
+   * Counting Friends on 2026-05-15 — without this, a tap on an option
+   * during the first interaction could land on a bunch whose size has
+   * just been rewritten by a freshly-randomised JS session.
+   */
+  const readSSRRound = (): BondRound => {
+    const bondEl = document.getElementById('nbpBond') as HTMLElement | null;
+    const stageEl = document.getElementById('nbpStage') as HTMLElement | null;
+    const themeKey = (stageEl?.dataset.scene ?? 'pond') as PreschoolTheme;
+    const whole = Number(bondEl?.dataset.whole);
+    const have = Number(bondEl?.dataset.have);
+
+    const optEls = [
+      document.getElementById('nbpOpt0'),
+      document.getElementById('nbpOpt1'),
+      document.getElementById('nbpOpt2'),
+    ];
+    if (Number.isNaN(whole) || Number.isNaN(have) || optEls.some((el) => !el)) {
+      return generateSession()[0]!;
+    }
+
+    const gap = whole - have;
+    const options = optEls.map((el) => el!.querySelectorAll('.nbp-item').length);
+    const correctIndex = options.indexOf(gap);
+    if (correctIndex < 0 || correctIndex > 2) {
+      return generateSession()[0]!;
+    }
+
+    return {
+      whole,
+      have,
+      gap,
+      options: [options[0]!, options[1]!, options[2]!],
+      correctIndex: correctIndex as 0 | 1 | 2,
+      theme: themeKey,
+      // `difficulty` isn't meaningful for an SSR-derived round; the page
+      // only uses it for the parent stats display, not for branching.
+      difficulty: 'near',
+    };
+  };
+
+  // ── State ──────────────────────────────────────────────────────────
+  let session: BondRound[] = [readSSRRound(), ...generateSession(Math.random, currentStage).slice(1)];
+  let roundIdx = 0;
+  let answered = false;
+  /** First-try-correct count THIS session — drives auto stage advancement. */
+  let sessionFirstTry = 0;
+  let currentNarration: RoundNarration | null = null;
+  /** Cached most-recent post-answer phrase so Replay re-narrates it. */
+  let lastPostAnswerText = '';
+
+  // ── DOM refs ───────────────────────────────────────────────────────
+  const stage = document.getElementById('nbpStage') as HTMLElement;
+  const bondEl = document.getElementById('nbpBond') as HTMLElement;
+  const wholeEl = document.getElementById('nbpWhole') as HTMLElement;
+  const frameEl = document.getElementById('nbpFrame') as HTMLElement;
+  const captionEl = document.getElementById('nbpCaption') as HTMLElement;
+  const optEls = [
+    document.getElementById('nbpOpt0') as HTMLButtonElement,
+    document.getElementById('nbpOpt1') as HTMLButtonElement,
+    document.getElementById('nbpOpt2') as HTMLButtonElement,
+  ];
+  const progressText = document.getElementById('nbpProgressText') as HTMLElement;
+  const progressFill = document.getElementById('nbpProgressFill') as HTMLElement;
+  const progressPill = document.getElementById('nbpProgressPill') as HTMLElement;
+  const stagePill = document.getElementById('nbpStagePill') as HTMLElement;
+  const stageText = document.getElementById('nbpStageText') as HTMLElement;
+  const replayBtn = document.getElementById('nbpReplayBtn') as HTMLButtonElement;
+  const nextBtn = document.getElementById('nbpNextBtn') as HTMLButtonElement;
+  const doneEl = document.getElementById('nbpDone') as HTMLElement;
+  const playAgainBtn = document.getElementById('nbpPlayAgainBtn') as HTMLButtonElement;
+
+  // ── Audio helpers ──────────────────────────────────────────────────
+
+  /**
+   * Speak `text` if sound is enabled. Same shape as the rest of the
+   * triad: silent-mode `setTimeout` fallback + a watchdog alongside
+   * speechSynthesis.onend so headless CI runners without a TTS engine
+   * don't deadlock the round-progression chain.
+   */
+  const narrate = (text: string, opts?: { onEnd?: () => void }): void => {
+    const onEnd = opts?.onEnd;
+    if (!isSpeechSupported() || !getSettings().sound) {
+      if (onEnd) setTimeout(onEnd, 600);
+      return;
+    }
+    let fired = false;
+    const wrap = (): void => {
+      if (fired) return;
+      fired = true;
+      onEnd?.();
+    };
+    const watchdogMs = Math.max(800, text.length * 100 + 600);
+    if (onEnd) setTimeout(wrap, watchdogMs);
+    speak(text, { rate: 0.85, pitch: 1.15, onEnd: onEnd ? wrap : undefined });
+  };
+
+  const setCaption = (text: string): void => {
+    captionEl.textContent = text;
+    captionEl.style.animation = 'none';
+    void captionEl.offsetWidth;
+    captionEl.style.removeProperty('animation');
+  };
+
+  // ── Render helpers ─────────────────────────────────────────────────
+
+  const itemHtml = (emoji: string, idx: number): string =>
+    `<span class="nbp-item" style="--nbp-i: ${idx * 0.1}s" aria-hidden="true">${emoji}</span>`;
+
+  /** Render the bond frame: `whole` cells, first `have` filled, rest empty. */
+  const renderFrame = (whole: number, have: number, emoji: string): void => {
+    bondEl.dataset.whole = String(whole);
+    bondEl.dataset.have = String(have);
+    bondEl.setAttribute('aria-label', `Make ${whole}`);
+    wholeEl.textContent = String(whole);
+    // Wholes over 5 wrap to a two-row (5-col grid) ten-frame layout.
+    frameEl.className = `nbp-frame${whole > 5 ? ' nbp-frame--wide' : ''}`;
+    let html = '';
+    for (let i = 0; i < whole; i++) {
+      html +=
+        i < have
+          ? `<span class="nbp-cell nbp-cell--filled">${emoji}</span>`
+          : `<span class="nbp-cell nbp-cell--empty"></span>`;
+    }
+    frameEl.innerHTML = html;
+  };
+
+  const renderRound = (): void => {
+    const round = session[roundIdx]!;
+    const theme = THEME_BY_KEY[round.theme];
+
+    progressText.textContent = `${roundIdx + 1} / ${TOTAL_ROUNDS}`;
+    progressFill.style.width = `${((roundIdx + 1) / TOTAL_ROUNDS) * 100}%`;
+    progressPill.setAttribute('aria-label', `Round ${roundIdx + 1} of ${TOTAL_ROUNDS}`);
+
+    stage.dataset.scene = round.theme;
+
+    renderFrame(round.whole, round.have, theme.emoji);
+
+    for (let o = 0; o < 3; o++) {
+      const size = round.options[o]!;
+      const el = optEls[o]!;
+      let html = '';
+      for (let i = 0; i < size; i++) {
+        html += itemHtml(theme.emoji, i);
+      }
+      el.innerHTML = html;
+      el.dataset.n = String(size);
+      el.setAttribute(
+        'aria-label',
+        `Bunch of ${size} ${size === 1 ? theme.singular : theme.plural} — tap if this fills the empty spaces`,
+      );
+      el.disabled = false;
+      el.classList.remove('nbp-opt--correct', 'nbp-opt--reveal', 'nbp-opt--wrong');
+    }
+
+    answered = false;
+    currentNarration = buildNarration(round);
+    lastPostAnswerText = '';
+    nextBtn.disabled = true;
+    replayBtn.disabled = false;
+  };
+
+  /** Speak the round's intro phrase ("We have three. How many more to make five?"). */
+  const speakIntroSequence = (): void => {
+    const n = currentNarration;
+    if (!n) return;
+    setCaption(n.intro);
+    narrate(n.intro);
+  };
+
+  /**
+   * Pop the themed objects into the empty frame cells one at a time,
+   * counting on from `have + 1` to `whole`. Used by BOTH the correct
+   * tap (celebration) and the wrong-tap rerun (reveal): in each case
+   * the child watches the whole get completed and hears the count.
+   */
+  const fillEmptyCells = (round: BondRound, emoji: string, onDone: () => void): void => {
+    const empties = Array.from(
+      frameEl.querySelectorAll<HTMLElement>('.nbp-cell--empty'),
+    );
+    let i = 0;
+    const step = (): void => {
+      if (i >= empties.length) {
+        onDone();
+        return;
+      }
+      const cell = empties[i]!;
+      cell.classList.remove('nbp-cell--empty');
+      cell.classList.add('nbp-cell--filled', 'nbp-cell--pop');
+      cell.textContent = emoji;
+      const counted = round.have + i + 1;
+      setCaption(currentNarration?.fillStep(counted) ?? String(counted));
+      narrate(numberWord(counted), {
+        onEnd: () => {
+          i++;
+          setTimeout(step, 160);
+        },
+      });
+    };
+    step();
+  };
+
+  /**
+   * Guided count of the empty cells on a wrong tap — "we need one,
+   * two… two more!". Pulses each empty cell as it's counted but does
+   * NOT fill it (the fill happens afterwards in the reveal).
+   */
+  const countEmptyCells = (onDone: () => void): void => {
+    const empties = Array.from(
+      frameEl.querySelectorAll<HTMLElement>('.nbp-cell--empty'),
+    );
+    let i = 0;
+    const step = (): void => {
+      if (i >= empties.length) {
+        onDone();
+        return;
+      }
+      const cell = empties[i]!;
+      cell.classList.add('nbp-cell--counting');
+      setCaption(numberWord(i + 1));
+      narrate(numberWord(i + 1), {
+        onEnd: () => {
+          cell.classList.remove('nbp-cell--counting');
+          i++;
+          setTimeout(step, 160);
+        },
+      });
+    };
+    step();
+  };
+
+  // ── Answer handler ─────────────────────────────────────────────────
+
+  const onOptTap = (idx: 0 | 1 | 2): void => {
+    if (answered) return;
+    const round = session[roundIdx]!;
+    const theme = THEME_BY_KEY[round.theme];
+    playTap();
+
+    const tappedEl = optEls[idx]!;
+    const correctEl = optEls[round.correctIndex]!;
+
+    if (idx === round.correctIndex) {
+      // Correct — pop the bunch into the empty cells, count on, celebrate.
+      answered = true;
+      tappedEl.classList.add('nbp-opt--correct');
+      for (const el of optEls) el.disabled = true;
+      playCorrect();
+      cancelSpeech();
+      bumpStats(true);
+      nextBtn.disabled = false;
+      fillEmptyCells(round, theme.emoji, () => {
+        const correctText = currentNarration?.correct ?? 'Yes!';
+        lastPostAnswerText = correctText;
+        setCaption(correctText);
+        narrate(correctText);
+        launchConfetti(NBP_COLORS);
+      });
+    } else {
+      // Wrong — errorless rerun:
+      //   1) "Hmm! Let's count what we need." (rerun)
+      //   2) Count the empty cells one by one.
+      //   3) "We need two more! Three and two make five." (rerunDone)
+      //   4) Reveal the correct bunch + pop it into the frame.
+      answered = true;
+      for (const el of optEls) el.disabled = true;
+      // 250ms kinesthetic shake on the tapped (wrong) bunch — confirms
+      // the tap registered before the narration starts. NO colour shift,
+      // NO desaturation, NO negative tone (errorless-learning principle).
+      tappedEl.classList.add('nbp-opt--wrong');
+      cancelSpeech();
+      const rerunText = currentNarration?.rerun ?? "Let's count what we need.";
+      setCaption(rerunText);
+      narrate(rerunText, {
+        onEnd: () => {
+          countEmptyCells(() => {
+            const doneText = currentNarration?.rerunDone ?? `We need ${round.gap} more!`;
+            setCaption(doneText);
+            lastPostAnswerText = doneText;
+            narrate(doneText, {
+              onEnd: () => {
+                correctEl.classList.add('nbp-opt--reveal');
+                fillEmptyCells(round, theme.emoji, () => {
+                  bumpStats(false);
+                  nextBtn.disabled = false;
+                });
+              },
+            });
+          });
+        },
+      });
+    }
+  };
+
+  // ── Round progression ──────────────────────────────────────────────
+
+  const startRound = (): void => {
+    cancelSpeech();
+    renderRound();
+    requestAnimationFrame(() => speakIntroSequence());
+  };
+
+  const onNext = (): void => {
+    playTap();
+    if (roundIdx >= TOTAL_ROUNDS - 1) {
+      showSessionComplete();
+      return;
+    }
+    roundIdx++;
+    startRound();
+  };
+
+  const showSessionComplete = (): void => {
+    cancelSpeech();
+    const stats = loadNumberBondStats();
+
+    // Auto-advance one stage on a high first-try session; never drop.
+    const advanced = shouldAdvance(sessionFirstTry, TOTAL_ROUNDS, currentStage);
+    const newStage = advanced ? nextStage(currentStage) : currentStage;
+    saveNumberBondStats({
+      ...stats,
+      sessions: stats.sessions + 1,
+      stage: newStage,
+      bestStage: Math.max(stats.bestStage, newStage) as StageId,
+      lastPlayed: new Date().toISOString().slice(0, 10),
+    });
+    recordPlay('number-bond-pop');
+
+    currentStage = newStage;
+    updateStagePill();
+
+    const doneTitle = document.getElementById('nbpDoneTitle') as HTMLElement;
+    const doneText = document.getElementById('nbpDoneText') as HTMLElement;
+    doneEl.classList.add('nbp-done--show');
+    launchConfetti(NBP_COLORS);
+
+    if (advanced) {
+      const meta = STAGE_META[currentStage];
+      doneTitle.textContent = `You reached Stage ${currentStage}!`;
+      doneText.textContent = `${meta.label} mode — bigger numbers to make!`;
+      narrate(`Wow! You reached Stage ${currentStage}! ${meta.label} mode! Bigger numbers to make!`);
+    } else {
+      doneTitle.textContent = 'Bond builder!';
+      doneText.textContent = `You made ${TOTAL_ROUNDS} number bonds today!`;
+      narrate(`Wow! You made ${TOTAL_ROUNDS} number bonds today! Great job!`);
+    }
+  };
+
+  const onPlayAgain = (): void => {
+    playTap();
+    doneEl.classList.remove('nbp-done--show');
+    TOTAL_ROUNDS = STAGE_META[currentStage].rounds;
+    session = generateSession(Math.random, currentStage);
+    roundIdx = 0;
+    sessionFirstTry = 0;
+    startRound();
+  };
+
+  // ── Stats persistence ──────────────────────────────────────────────
+
+  const bumpStats = (correctFirstTry: boolean): void => {
+    if (correctFirstTry) sessionFirstTry++;
+    const stats = loadNumberBondStats();
+    saveNumberBondStats({
+      ...stats,
+      rounds: stats.rounds + 1,
+      correctFirstTry: stats.correctFirstTry + (correctFirstTry ? 1 : 0),
+      lastPlayed: new Date().toISOString().slice(0, 10),
+    });
+    recordPlay('number-bond-pop');
+  };
+
+  /** Sync the header stage pill to the current `currentStage`. */
+  const updateStagePill = (): void => {
+    const meta = STAGE_META[currentStage];
+    stageText.textContent = `Stage ${currentStage}`;
+    stagePill.setAttribute('aria-label', `Stage ${currentStage}, ${meta.label}`);
+  };
+
+  // ── Event wiring ───────────────────────────────────────────────────
+
+  for (const el of optEls) {
+    el.addEventListener('click', () => {
+      if (el.disabled) return;
+      const idx = Number(el.dataset.i);
+      if (idx === 0 || idx === 1 || idx === 2) {
+        onOptTap(idx as 0 | 1 | 2);
+      }
+    });
+  }
+
+  replayBtn.addEventListener('click', () => {
+    playTap();
+    cancelSpeech();
+    if (!answered) {
+      speakIntroSequence();
+    } else {
+      const text = lastPostAnswerText || (currentNarration?.intro ?? '');
+      setCaption(text);
+      narrate(text);
+    }
+  });
+
+  nextBtn.addEventListener('click', onNext);
+  playAgainBtn.addEventListener('click', onPlayAgain);
+
+  document.getElementById('btnSettings')?.addEventListener('click', () => {
+    playTap();
+    (window as unknown as { openSettings?: () => void }).openSettings?.();
+  });
+
+  document.getElementById('btnQuiz')?.addEventListener('click', () => {
+    playTap();
+    cancelSpeech();
+    speakIntroSequence();
+  });
+
+  document.getElementById('btnStats')?.addEventListener('click', () => {
+    playTap();
+    const stats = loadNumberBondStats();
+    const ratio =
+      stats.rounds === 0
+        ? 0
+        : Math.round((stats.correctFirstTry / stats.rounds) * 100);
+    const lines = [
+      `🎈 Sessions completed: ${stats.sessions}`,
+      `🌟 Rounds played: ${stats.rounds}`,
+      `🎯 First-try correct: ${stats.correctFirstTry} (${ratio}%)`,
+      stats.lastPlayed ? `📅 Last played: ${stats.lastPlayed}` : '📅 Last played: never',
+    ];
+    alert(lines.join('\n'));
+  });
+
+  // ── Initial state binding ──────────────────────────────────────────
+  // The SSR'd DOM is round 0; we don't re-render it. We bind the JS
+  // state (currentNarration, header progress) so subsequent logic has
+  // the expected references.
+  currentNarration = buildNarration(session[0]!);
+  updateStagePill();
+  progressText.textContent = `1 / ${TOTAL_ROUNDS}`;
+  progressFill.style.width = `${(1 / TOTAL_ROUNDS) * 100}%`;
+  progressPill.setAttribute('aria-label', `Round 1 of ${TOTAL_ROUNDS}`);
+
+  // Don't auto-speak on first paint — browsers block speechSynthesis
+  // until the first user gesture. Wait for the first tap (anywhere on
+  // the body) to kick off the intro narration. Kickoff does NOT call
+  // renderRound() — that would race with a first-interaction tap on an
+  // option. Same prophylactic fix the triad uses.
+  let kickedOff = false;
+  const kickoff = (): void => {
+    if (kickedOff) return;
+    kickedOff = true;
+    requestAnimationFrame(() => speakIntroSequence());
+  };
+  document.addEventListener('pointerdown', kickoff, { once: true });
+  document.addEventListener('keydown', kickoff, { once: true });
+</script>

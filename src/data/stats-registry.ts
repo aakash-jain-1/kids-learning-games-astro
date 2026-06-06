@@ -89,6 +89,10 @@ import {
   loadPatternStats,
 } from '@/data/patterns';
 import {
+  STATS_KEY as NUMBER_BOND_KEY,
+  loadNumberBondStats,
+} from '@/data/number-bond';
+import {
   STATS_KEY as LETTER_FRIENDS_KEY,
   loadLetterFriendsStats,
 } from '@/data/letterfriends';
@@ -416,6 +420,15 @@ export const STATS_REGISTRY: readonly StatsRegistryEntry[] = [
     storageKey: PATTERNS_KEY,
     family: 'preschool-math',
     load: loadPatternStats,
+  }),
+  preschoolStatsEntry({
+    id: 'number-bond-pop',
+    title: 'Number Bond Pop',
+    emoji: '🎈',
+    hrefPath: 'games/number-bond-pop-game',
+    storageKey: NUMBER_BOND_KEY,
+    family: 'preschool-math',
+    load: loadNumberBondStats,
   }),
 
   // Family A2 — preschool-literacy

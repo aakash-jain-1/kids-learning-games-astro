@@ -6,7 +6,7 @@
 > win. Keep it short and current — see the update rule in
 > `.cursor/rules/maintain-context.mdc`.
 >
-> **Last verified against the codebase**: 2026-06-04.
+> **Last verified against the codebase**: 2026-06-06.
 
 ---
 
@@ -55,7 +55,7 @@ static output; only interactive islands ship JavaScript.
   stalls `playwright install chromium`, so run the suite against the
   locally-installed Chrome via `PW_CHANNEL=chrome` + `NO_PROXY=127.0.0.1,localhost`.
 
-## 4. The 18 games & three layouts
+## 4. The 19 games & three layouts
 
 - **`GridLayout.astro`** — foundational-set games (scan a fixed chart, tap to
   hear): Alphabets, Numbers, Colors, Shapes, Animals, Birds, Hindi (7).
@@ -64,7 +64,8 @@ static output; only interactive islands ship JavaScript.
 - **`StoryLayout.astro`** — story-flow games *and* single-scene "stage" games
   (the preschool games reuse this shell via a `theme` prop): Daily Routines,
   Woodcutter (2 story) + Counting Friends, More Friends, Number Friends,
-  Pattern Sequences (4 preschool-math) + Letter Friends (1 preschool-literacy).
+  Pattern Sequences, Number Bond Pop (5 preschool-math) + Letter Friends
+  (1 preschool-literacy).
 
 Each game = one `src/pages/games/<slug>.astro` + a typed `src/data/<game>.ts`
 data file + a layout-specific themed CSS block. A parent dashboard lives at
@@ -101,8 +102,9 @@ data file + a layout-specific themed CSS block. A parent dashboard lives at
 - `kids_progress_v1:<gameId>` — learned-item set (sorted string array).
 - `<gameId>_quiz_v1` — `{ attempts, bestScore, lastPlayed }` quiz metrics.
 - `<game>_stats_v1` — bespoke preschool schema `{ sessions, rounds, correctFirstTry, lastPlayed }`.
-  The cardinality-triad games (Counting / More / Number Friends) also carry
-  `{ stage, bestStage }` (1..3) for their auto-advancing stages (added 2026-06-03).
+  The staged preschool-math games (Counting / More / Number Friends + Number
+  Bond Pop) also carry `{ stage, bestStage }` (1..3) for their auto-advancing
+  stages (added 2026-06-03; Number Bond Pop adopted them at ship 2026-06-06).
 - `kids_play_history_v1` — sitewide `Record<YYYY-MM-DD, gameId[]>` for the
   `/stats` activity chart (30-day rolling window).
 
@@ -113,9 +115,17 @@ preschool-literacy, story, card-set, card-pure). Adding a game = one entry.
 ## 7. Current state & what's next
 
 - **Migration complete** (all 13 vanilla games ported, since 2026-05-08).
-- **Feature-driven phase active**: 5 preschool games added since (cardinality
-  triad + Pattern Sequences + Letter Friends). Total **18 games**, all live.
-- **Latest ship (2026-06-03)**: the cardinality triad (Counting / More /
+- **Feature-driven phase active**: 6 preschool games added since (cardinality
+  triad + Pattern Sequences + Letter Friends + Number Bond Pop). Total
+  **19 games**, all live.
+- **Latest ship (2026-06-06)**: **Number Bond Pop** — fifth preschool-math
+  game (number-bond decomposition, "how many more to make 5?"), completing the
+  early-math arc (compare → count → recognise → decompose). Concrete
+  part-whole: a bond frame shows what you `have` + the empty `gap`; tap the
+  bunch that fills it and the objects pop into the frame counting on. Reuses
+  `preschool-stages.ts` (make-5/five-frame → make-10/ten-frame) +
+  `preschool-themes.ts`; bespoke `number_bond_stats_v1` with `stage`/`bestStage`.
+- **Prior ship (2026-06-03)**: the cardinality triad (Counting / More /
   Number Friends) gained **3 auto-advancing stages** via the shared
   `preschool-stages.ts` lib. Stages scale the number ceiling (5 → 10 → 10,
   five-frame → ten-frame) and breadth (8 → 10 → 12 rounds, 4 → 6 themes);
