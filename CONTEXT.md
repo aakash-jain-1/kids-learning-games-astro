@@ -51,9 +51,13 @@ static output; only interactive islands ship JavaScript.
   bash scripts in `scripts/` — note this is a Windows dev box.)
 - **Windows dev notes**: scripts use `cross-env` so the `ASTRO_TELEMETRY_DISABLED=1`
   prefix works under `cmd.exe`. Node lives at `C:\Program Files\nodejs` (add to
-  PATH or restart the app if a terminal can't find `node`). The proxy (Zscaler)
-  stalls `playwright install chromium`, so run the suite against the
-  locally-installed Chrome via `PW_CHANNEL=chrome` + `NO_PROXY=127.0.0.1,localhost`.
+  PATH or restart the app if a terminal can't find `node`). The old corporate
+  proxy is gone (`NO_PROXY` no longer needed), but `playwright install chromium`
+  still stalls on Windows during *extraction* (the download hits 100%, then the
+  unzip hangs — Defender exclusion doesn't fix it). So run the suite against
+  installed Google Chrome: `PW_CHANNEL=chrome npm test -- --workers=1` (PowerShell:
+  `$env:PW_CHANNEL='chrome'; npm test -- --workers=1`). CI is unaffected — Linux
+  runners use bundled Chromium and never set `PW_CHANNEL`.
 
 ## 4. The 20 games & three layouts
 

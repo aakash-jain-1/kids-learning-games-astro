@@ -140,7 +140,7 @@ All three layouts share the same head/meta, PWA wiring, nav, settings modal, bui
 │   ├── stats.spec.ts             # parent stats dashboard (T6) — 6 tests: SSR shape (one card per registry entry × 16, four family sections in order), zero-state copy (every card "never" + "No plays yet" badge), hydration (seeded localStorage values appear after reload), per-card reset (targeted clear, others untouched), reset everything (all cards back to zero + storage cleared), home + nav links to /stats
 │   ├── helpers.ts                # shared waiters: answerQuizUntilResult, readQuizState, readLearned, modal open/close
 │   └── tsconfig.json             # extends ../tsconfig.json + adds @playwright/test types
-├── playwright.config.ts          # webServer (astro preview) | PLAYWRIGHT_BASE_URL override | chromium-only | ignoreHTTPSErrors for Zscaler MitM
+├── playwright.config.ts          # webServer (astro preview) | PLAYWRIGHT_BASE_URL override for an external deploy | bundled-chromium only
 └── .github/workflows/
     ├── deploy.yml                # build + ship dist/ to GitHub Pages on push to main
     └── test.yml                  # build + Playwright smoke suite (soft gate, runs in parallel)
@@ -223,11 +223,22 @@ separate `npm run preview` running. CI runs the same script in
 `.github/workflows/test.yml` (one chromium worker, build first, then test;
 artefacts uploaded as `playwright-report/`).
 
-> **Local Zscaler note:** if `npm test` hangs or returns 403s on this dev box,
-> the corporate Zscaler proxy is intercepting localhost traffic on every port.
-> Workaround: point the suite at the live GitHub Pages deploy via
+> **Windows local note:** `npm run test:install` (bundled Chromium) reliably
+> *downloads* to 100% but the *extraction* tends to stall on Windows (a Windows
+> Defender exclusion doesn't fix it). Easiest path is to run against your
+> installed Google Chrome instead — no bundled browser needed:
+>
+> ```powershell
+> $env:PW_CHANNEL = "chrome"; npm test -- --workers=1
+> ```
+>
+> `playwright.config.ts` reads `PW_CHANNEL` and only sets the channel when it's
+> present, so CI (Linux, bundled Chromium) is unaffected.
+
+> **Run against an external deploy (optional):** to skip the local preview
+> server and run the suite against a deployed instance, set
 > `PLAYWRIGHT_BASE_URL`. The config skips spawning the webServer when this var
-> is set, and `ignoreHTTPSErrors: true` accepts Zscaler's MitM cert.
+> is set (and `ignoreHTTPSErrors: true` tolerates a non-public cert).
 >
 > ```bash
 > PLAYWRIGHT_BASE_URL="https://aakash-jain-1.github.io/kids-learning-games-astro/" npm test

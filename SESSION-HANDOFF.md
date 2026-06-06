@@ -659,17 +659,25 @@
   to refactor when ready. See "Next session: post-migration
   polish" below for the full scope.
 
-- **⚠ Local Zscaler block — skip `npm test` against
-  `127.0.0.1`, use the live deploy instead.** This dev box runs
-  behind a corporate Zscaler proxy that intercepts every
-  localhost port (`4321`, `8443`, `9999`, `35729`, `1234`,
-  `5173` all 403'd in this session's tests; intercepts apply to
-  both Astro's preview *and* `python3 -m http.server`, so it's
-  not Astro-specific). Workaround: `PLAYWRIGHT_BASE_URL=https://aakash-jain-1.github.io/kids-learning-games-astro/
-  npm test` — the config skips spawning `astro preview` when
-  this var is set, and `ignoreHTTPSErrors: true` accepts
-  Zscaler's MitM cert. CI is unaffected (GitHub-hosted runners
-  don't sit behind Zscaler).
+- **Local `npm test` runs against `127.0.0.1` normally (proxy
+  removed 2026-06-06), but use `PW_CHANNEL=chrome` on Windows.**
+  Earlier sessions hit a corporate proxy that 403'd every localhost
+  port; that proxy is gone — `cdn.playwright.dev` is reachable and
+  the Chromium build downloads to 100%, so `NO_PROXY` is no longer
+  needed. **However**, removing the proxy revealed the real
+  local-Windows blocker: bundled-Chromium *extraction* stalls (the
+  download finishes, then the unzip hangs indefinitely — a Defender
+  exclusion on `%LOCALAPPDATA%\ms-playwright` does **not** fix it).
+  So run the suite against installed Google Chrome:
+  `$env:PW_CHANNEL='chrome'; npm test -- --workers=1` (proven
+  116/116 green on a personal Windows box). The `PW_CHANNEL` channel
+  conditional therefore stays in `playwright.config.ts`;
+  `PLAYWRIGHT_BASE_URL` remains as an optional external-deploy escape
+  hatch. CI is unaffected — Linux runners extract bundled Chromium
+  fine and never set `PW_CHANNEL`. If a `playwright install` was
+  interrupted, delete the stale `__dirlock` + partial `chromium-<rev>`
+  dir under the browsers path before retrying or the next install
+  blocks silently on the lock.
 
 ---
 

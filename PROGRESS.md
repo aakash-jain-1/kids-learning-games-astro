@@ -417,7 +417,46 @@ before deciding.
 
 ## Changelog
 
-### 2026-06-06 (latest) — feat(games): Sound Friends — second preschool-literacy game (beginning sounds / letter-sound correspondence)
+### 2026-06-06 (latest) — chore(tooling): proxy removed — drop `NO_PROXY`, keep `PW_CHANNEL=chrome` for Windows (extraction, not download, is the blocker)
+
+**Why.** The corporate proxy that previously 403'd every localhost port on this
+dev box is gone. Verified directly: `cdn.playwright.dev` resolves + connects in
+<1.5s, the 179 MiB Chromium build downloads to 100%, and `npm test` against
+`127.0.0.1` no longer 403s. So `NO_PROXY=127.0.0.1,localhost` is obsolete.
+
+**But `PW_CHANNEL=chrome` stays.** Removing the proxy exposed that the *real*
+local-Windows blocker was never the download — it's the **bundled-Chromium
+extraction**. `playwright install chromium` reliably reaches `100%` on the
+download bar, then the unzip of thousands of small files stalls indefinitely
+(reproduced on a personal Windows box with no proxy; a Windows Defender
+`Add-MpPreference -ExclusionPath` on `%LOCALAPPDATA%\ms-playwright` did **not**
+fix it, so it's not only Defender). Running the suite against the
+locally-installed Google Chrome via `PW_CHANNEL=chrome` sidesteps the bundled
+download/extract entirely and is the proven-green local recipe:
+`PW_CHANNEL=chrome npm test -- --workers=1` → **116 passed** (PowerShell:
+`$env:PW_CHANNEL='chrome'; npm test -- --workers=1`).
+
+**What changed.** `playwright.config.ts` keeps the `process.env.PW_CHANNEL`
+channel conditional, with the comment re-pointed at the true cause (Windows
+extraction stall, not the proxy). `PLAYWRIGHT_BASE_URL` + `ignoreHTTPSErrors`
+stay (general external-deploy escape hatch), reworded to drop the proxy
+framing. `CONTEXT.md` / `README.md` / `SESSION-HANDOFF.md` updated to: proxy
+gone, `NO_PROXY` dropped, `PW_CHANNEL=chrome` retained for local Windows. CI is
+unaffected — Linux runners install + extract bundled Chromium fine and never
+set `PW_CHANNEL`. No source/game changes.
+
+**Two gotchas worth remembering.**
+- *Stale `__dirlock`.* If a `playwright install` is interrupted, it leaves a
+  `__dirlock` dir (and a partial `chromium-<rev>`) under the browsers path; the
+  next install then blocks **silently** waiting on that lock. Delete both before
+  retrying: `Remove-Item -Recurse -Force "$env:LOCALAPPDATA\ms-playwright\__dirlock","$env:LOCALAPPDATA\ms-playwright\chromium-1217"`.
+- *Cursor agent sandbox.* The agent shell injects
+  `PLAYWRIGHT_BROWSERS_PATH=…\Temp\cursor-sandbox-cache\<hash>\playwright` and
+  its filesystem-write interception throttles the unzip to ~5 MiB then stalls,
+  regardless of destination — so the agent can't install bundled browsers at
+  all. The agent runs the suite via `PW_CHANNEL=chrome` instead.
+
+### 2026-06-06 — feat(games): Sound Friends — second preschool-literacy game (beginning sounds / letter-sound correspondence)
 
 **Why now.** With the early-math arc complete (cardinality triad + Pattern
 Sequences + Number Bond Pop), the user asked to "find some good games for

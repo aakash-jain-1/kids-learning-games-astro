@@ -32,11 +32,8 @@ const PORT = Number(process.env.PORT ?? 4321);
 const LOCAL_URL = `http://127.0.0.1:${PORT}${BASE}/`;
 // `PLAYWRIGHT_BASE_URL` lets a developer point the suite at the live
 // GitHub Pages deploy (`https://aakash-jain-1.github.io/kids-learning-games-astro`)
-// or any other deployed instance — useful when local HTTP is blocked
-// by a corporate proxy (e.g. Zscaler intercepts every port on this
-// repo's primary dev box, so `npm test` against `127.0.0.1` returns
-// 403 from the proxy before reaching Astro). When this env var is
-// set, we skip spawning the local preview server entirely.
+// or any other deployed instance instead of the local preview server.
+// When this env var is set, we skip spawning the local preview entirely.
 const externalBaseUrl = process.env.PLAYWRIGHT_BASE_URL;
 const EXTERNAL_BASE_URL = externalBaseUrl
   ? externalBaseUrl.endsWith('/')
@@ -78,21 +75,22 @@ export default defineConfig({
     // (their assertions are about page content + LocalStorage writes
     // that should be deterministic regardless of SW state).
     serviceWorkers: 'block',
-    // Allow self-signed certificates so the suite can run against the
-    // live GitHub Pages deploy on machines behind a TLS-MitM corporate
-    // proxy (Zscaler signs every cert on this dev box's outbound HTTPS).
-    // CI doesn't have this and serves a real cert on the local preview
-    // anyway, so this is a safe no-op there.
+    // Allow self-signed certificates so the suite can optionally run
+    // against an external HTTPS deploy that serves a non-public cert.
+    // Harmless for the local HTTP preview and for CI's real cert.
     ignoreHTTPSErrors: true,
   },
 
   projects: [
     {
       name: 'chromium',
-      // `PW_CHANNEL=chrome` opts into the locally-installed Google Chrome
-      // instead of Playwright's bundled chromium. Useful on dev boxes where
-      // a corporate proxy (Zscaler) blocks/stalls the `playwright install`
-      // browser download. Unset in CI, so CI keeps using bundled chromium.
+      // CI (Linux runners) uses Playwright's bundled Chromium, installed
+      // via `npm run test:install`. On Windows the bundled-Chromium
+      // *extraction* can stall hard (Defender / third-party AV scanning
+      // the unzip of thousands of files — the download itself is fine),
+      // so `PW_CHANNEL=chrome` opts into the locally-installed Google
+      // Chrome instead, which needs no bundled download at all. Unset in
+      // CI, so CI keeps using bundled Chromium.
       use: {
         ...devices['Desktop Chrome'],
         ...(process.env.PW_CHANNEL ? { channel: process.env.PW_CHANNEL } : {}),
