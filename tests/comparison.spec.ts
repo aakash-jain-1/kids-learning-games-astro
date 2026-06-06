@@ -141,6 +141,22 @@ test.describe('more friends (preschool magnitude comparison)', () => {
     expect(stats.correctFirstTry).toBe(0);
   });
 
+  test('returning player at Stage 2 sees the stage pill and a longer (10-round) session', async ({ page }) => {
+    await page.evaluate(() => {
+      localStorage.setItem(
+        'more_friends_stats_v1',
+        JSON.stringify({
+          sessions: 1, rounds: 8, correctFirstTry: 8,
+          lastPlayed: '2026-06-03', stage: 2, bestStage: 2,
+        }),
+      );
+    });
+    await page.reload();
+
+    await expect(page.locator('#mfStageText')).toHaveText('Stage 2');
+    await expect(page.locator('#mfProgressText')).toContainText(/^\s*1\s*\/\s*10\s*$/);
+  });
+
   test('home page links to the new game', async ({ page }) => {
     await page.goto('');
     // Filter by href, not by hasText — same reason addition.spec.ts

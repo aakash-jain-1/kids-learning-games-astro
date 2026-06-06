@@ -45,6 +45,10 @@ const TOTAL_ROUNDS = 8;
       </h1>
 
       <div class="cf-header-right" style="display: flex; gap: 10px; align-items: center;">
+        <span class="cf-stage-pill" id="cfStagePill" aria-label="Stage 1, Starter">
+          <span aria-hidden="true">⭐</span>
+          <span id="cfStageText">Stage 1</span>
+        </span>
         <span
           class="cf-progress-pill"
           id="cfProgressPill"
@@ -187,9 +191,22 @@ const TOTAL_ROUNDS = 8;
     type Round,
     type RoundNarration,
   } from '@/data/addition';
+  import {
+    type StageId,
+    STAGE_META,
+    shouldAdvance,
+    nextStage,
+  } from '@/lib/preschool-stages';
   import { recordPlay } from '@/lib/retention';
 
-  const TOTAL_ROUNDS = 8;
+  // Current stage (read from saved stats on load) + this session's
+  // round count derived from it. `let` because Play Again may bump the
+  // stage after a high-accuracy session. (Named `currentStage` to avoid
+  // colliding with the `stage` DOM-element ref declared below.)
+  let currentStage: StageId = loadAdditionStats().stage;
+  let TOTAL_ROUNDS = STAGE_META[currentStage].rounds;
+  /** Dot-frame cell count for the current stage (5 = five-frame, 10 = ten-frame). */
+  let frameSize = STAGE_META[currentStage].frameSize;
   // Confetti palette — happy primaries that read on every scene bg.
   const CF_COLORS = ['#4caf50', '#1976d2', '#ffd54f', '#e91e63', '#ff7043'];
 
@@ -228,13 +245,16 @@ const TOTAL_ROUNDS = 8;
   };
 
   // ── State ──────────────────────────────────────────────────────────
-  // Round 0 mirrors the SSR'd DOM exactly; rounds 1..N are JS-random.
-  let session: Round[] = [readSSRRound(), ...generateSession().slice(1)];
+  // Round 0 mirrors the SSR'd DOM exactly (always a gentle Stage-1
+  // warmup round); rounds 1..N are JS-random at the saved stage.
+  let session: Round[] = [readSSRRound(), ...generateSession(Math.random, currentStage).slice(1)];
   let roundIdx = 0;
   /** Whether the child has tapped a numeral button yet on the current round. */
   let answered = false;
   /** Whether the *first* answer this round was correct. Tracked for stats. */
   let firstTryCorrect = false;
+  /** First-try-correct count THIS session — drives auto stage advancement. */
+  let sessionFirstTry = 0;
   /** Cached narration script for the current round so Replay doesn't re-build. */
   let currentNarration: RoundNarration | null = null;
 
@@ -247,6 +267,8 @@ const TOTAL_ROUNDS = 8;
   const progressText = document.getElementById('cfProgressText') as HTMLElement;
   const progressFill = document.getElementById('cfProgressFill') as HTMLElement;
   const progressPill = document.getElementById('cfProgressPill') as HTMLElement;
+  const stagePill = document.getElementById('cfStagePill') as HTMLElement;
+  const stageText = document.getElementById('cfStageText') as HTMLElement;
   const replayBtn = document.getElementById('cfReplayBtn') as HTMLButtonElement;
   const nextBtn = document.getElementById('cfNextBtn') as HTMLButtonElement;
   const doneEl = document.getElementById('cfDone') as HTMLElement;
@@ -321,12 +343,19 @@ const TOTAL_ROUNDS = 8;
   const itemHtml = (emoji: string, indexInGroup: number, totalIndex: number, ariaLabel: string): string =>
     `<button type="button" class="cf-item" data-idx="${totalIndex}" style="--cf-i: ${indexInGroup * 0.12}s" aria-label="${ariaLabel}"><span aria-hidden="true">${emoji}</span></button>`;
 
-  /** Build the inner HTML for one numeral answer button. */
+  /**
+   * Build the inner HTML for one numeral answer button. The dot-frame
+   * renders `frameSize` cells (5 = five-frame, 10 = ten-frame) and
+   * fills `min(n, frameSize)`; the digit is the primary cue, so an
+   * over-ceiling distractor (e.g. option 11 in a ten-frame) simply
+   * maxes the frame — same convention Stage 1 already uses for the
+   * "6" distractor in its five-frame.
+   */
   const optionHtml = (n: number): string => {
-    const dots = Array.from({ length: 5 }, (_, i) =>
+    const dots = Array.from({ length: frameSize }, (_, i) =>
       `<span class="cf-opt-dot${i < n ? ' cf-opt-dot--filled' : ''}"></span>`,
     ).join('');
-    return `<button type="button" class="cf-opt" data-n="${n}" aria-label="${n}"><span class="cf-opt-digit" aria-hidden="true">${n}</span><span class="cf-opt-frame" aria-hidden="true">${dots}</span></button>`;
+    return `<button type="button" class="cf-opt cf-opt--frame-${frameSize}" data-n="${n}" aria-label="${n}"><span class="cf-opt-digit" aria-hidden="true">${n}</span><span class="cf-opt-frame" aria-hidden="true">${dots}</span></button>`;
   };
 
   /** Render the round's stage (groups + options) and update header. */
@@ -586,28 +615,58 @@ const TOTAL_ROUNDS = 8;
   const showSessionComplete = (): void => {
     cancelSpeech();
     const stats = loadAdditionStats();
+
+    // Auto-advance one stage when the child cleared this session with
+    // a high enough first-try rate. Never auto-drop. `bestStage` is the
+    // high-water mark for the parent dashboard.
+    const advanced = shouldAdvance(sessionFirstTry, TOTAL_ROUNDS, currentStage);
+    const newStage = advanced ? nextStage(currentStage) : currentStage;
     saveAdditionStats({
       ...stats,
       sessions: stats.sessions + 1,
+      stage: newStage,
+      bestStage: Math.max(stats.bestStage, newStage) as StageId,
       lastPlayed: new Date().toISOString().slice(0, 10),
     });
     recordPlay('counting-friends');
+
+    // Adopt the new stage for the next Play Again session + the pill.
+    currentStage = newStage;
+    updateStagePill();
+
+    const doneTitle = document.getElementById('cfDoneTitle') as HTMLElement;
+    const doneText = document.getElementById('cfDoneText') as HTMLElement;
     doneEl.classList.add('cf-done--show');
     launchConfetti(CF_COLORS);
-    narrate(`Wow! You counted with ${TOTAL_ROUNDS} groups of friends today! Great job!`);
+
+    if (advanced) {
+      const meta = STAGE_META[currentStage];
+      doneTitle.textContent = `You reached Stage ${currentStage}!`;
+      doneText.textContent = `${meta.label} mode — new friends and bigger numbers to count!`;
+      narrate(`Wow! You reached Stage ${currentStage}! ${meta.label} mode! New friends to count with!`);
+    } else {
+      doneTitle.textContent = 'Counting champion!';
+      doneText.textContent = `You counted with ${TOTAL_ROUNDS} groups of friends today!`;
+      narrate(`Wow! You counted with ${TOTAL_ROUNDS} groups of friends today! Great job!`);
+    }
   };
 
   const onPlayAgain = (): void => {
     playTap();
     doneEl.classList.remove('cf-done--show');
-    session = generateSession();
+    // Adopt the (possibly newly advanced) stage's round count + frame.
+    TOTAL_ROUNDS = STAGE_META[currentStage].rounds;
+    frameSize = STAGE_META[currentStage].frameSize;
+    session = generateSession(Math.random, currentStage);
     roundIdx = 0;
+    sessionFirstTry = 0;
     startRound();
   };
 
   // ── Stats persistence ──────────────────────────────────────────────
 
   const bumpStats = (correctFirstTry: boolean): void => {
+    if (correctFirstTry) sessionFirstTry++;
     const stats = loadAdditionStats();
     saveAdditionStats({
       ...stats,
@@ -616,6 +675,13 @@ const TOTAL_ROUNDS = 8;
       lastPlayed: new Date().toISOString().slice(0, 10),
     });
     recordPlay('counting-friends');
+  };
+
+  /** Sync the header stage pill to the current `currentStage`. */
+  const updateStagePill = (): void => {
+    const meta = STAGE_META[currentStage];
+    stageText.textContent = `Stage ${currentStage}`;
+    stagePill.setAttribute('aria-label', `Stage ${currentStage}, ${meta.label}`);
   };
 
   // ── Event wiring ───────────────────────────────────────────────────
@@ -695,6 +761,7 @@ const TOTAL_ROUNDS = 8;
   // logic — option clicks, replay button, item taps, etc. — has the
   // expected references.
   currentNarration = buildNarration(session[0]!);
+  updateStagePill();
   progressText.textContent = `1 / ${TOTAL_ROUNDS}`;
   progressFill.style.width = `${(1 / TOTAL_ROUNDS) * 100}%`;
   progressPill.setAttribute('aria-label', `Round 1 of ${TOTAL_ROUNDS}`);

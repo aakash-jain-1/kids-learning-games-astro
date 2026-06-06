@@ -165,6 +165,26 @@ test.describe('counting friends (preschool addition)', () => {
     expect(stats.correctFirstTry).toBe(0);
   });
 
+  test('returning player at Stage 2 sees the stage pill and a longer (10-round) session', async ({ page }) => {
+    // Seed a saved Stage-2 profile, reload, and assert the page boots
+    // into Stage 2: the header pill reads "Stage 2" and the round
+    // counter shows the 10-round Stage-2 session length (SSR ships the
+    // Stage-1 "1 / 8"; the hydrating script patches it from stats).
+    await page.evaluate(() => {
+      localStorage.setItem(
+        'counting_friends_stats_v1',
+        JSON.stringify({
+          sessions: 1, rounds: 8, correctFirstTry: 8,
+          lastPlayed: '2026-06-03', stage: 2, bestStage: 2,
+        }),
+      );
+    });
+    await page.reload();
+
+    await expect(page.locator('#cfStageText')).toHaveText('Stage 2');
+    await expect(page.locator('#cfProgressText')).toContainText(/^\s*1\s*\/\s*10\s*$/);
+  });
+
   test('home page links to the new game', async ({ page }) => {
     await page.goto('');
     // Filter by href, not by hasText — the More Friends card (added

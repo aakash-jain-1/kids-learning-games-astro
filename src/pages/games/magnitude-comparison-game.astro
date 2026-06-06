@@ -47,6 +47,10 @@ const TOTAL_ROUNDS = 8;
       </h1>
 
       <div class="mf-header-right" style="display: flex; gap: 10px; align-items: center;">
+        <span class="mf-stage-pill" id="mfStagePill" aria-label="Stage 1, Starter">
+          <span aria-hidden="true">⭐</span>
+          <span id="mfStageText">Stage 1</span>
+        </span>
         <span
           class="mf-progress-pill"
           id="mfProgressPill"
@@ -168,9 +172,19 @@ const TOTAL_ROUNDS = 8;
     type RoundNarration,
   } from '@/data/comparison';
   import { THEME_BY_KEY, type PreschoolTheme } from '@/lib/preschool-themes';
+  import {
+    type StageId,
+    STAGE_META,
+    shouldAdvance,
+    nextStage,
+  } from '@/lib/preschool-stages';
   import { recordPlay } from '@/lib/retention';
 
-  const TOTAL_ROUNDS = 8;
+  // Current stage (read from saved stats) + this session's round count.
+  // Named `currentStage` to avoid colliding with the `stage` DOM-element
+  // ref declared further down.
+  let currentStage: StageId = loadComparisonStats().stage;
+  let TOTAL_ROUNDS = STAGE_META[currentStage].rounds;
   // Confetti palette — same as Counting Friends so the two games feel
   // visually consistent on the same dev box.
   const MF_COLORS = ['#4caf50', '#1976d2', '#ffd54f', '#e91e63', '#ff7043'];
@@ -203,10 +217,14 @@ const TOTAL_ROUNDS = 8;
   };
 
   // ── State ──────────────────────────────────────────────────────────
-  let session: CompRound[] = [readSSRRound(), ...generateSession().slice(1)];
+  // Round 0 mirrors the SSR'd DOM (a gentle Stage-1 round); rounds
+  // 1..N are JS-random at the saved stage.
+  let session: CompRound[] = [readSSRRound(), ...generateSession(Math.random, currentStage).slice(1)];
   let roundIdx = 0;
   let answered = false;
   let firstTryCorrect = false;
+  /** First-try-correct count THIS session — drives auto stage advancement. */
+  let sessionFirstTry = 0;
   let currentNarration: RoundNarration | null = null;
 
   // ── DOM refs ───────────────────────────────────────────────────────
@@ -217,6 +235,8 @@ const TOTAL_ROUNDS = 8;
   const progressText = document.getElementById('mfProgressText') as HTMLElement;
   const progressFill = document.getElementById('mfProgressFill') as HTMLElement;
   const progressPill = document.getElementById('mfProgressPill') as HTMLElement;
+  const stagePill = document.getElementById('mfStagePill') as HTMLElement;
+  const stageText = document.getElementById('mfStageText') as HTMLElement;
   const replayBtn = document.getElementById('mfReplayBtn') as HTMLButtonElement;
   const nextBtn = document.getElementById('mfNextBtn') as HTMLButtonElement;
   const doneEl = document.getElementById('mfDone') as HTMLElement;
@@ -459,28 +479,53 @@ const TOTAL_ROUNDS = 8;
   const showSessionComplete = (): void => {
     cancelSpeech();
     const stats = loadComparisonStats();
+
+    // Auto-advance one stage on a high first-try session; never drop.
+    const advanced = shouldAdvance(sessionFirstTry, TOTAL_ROUNDS, currentStage);
+    const newStage = advanced ? nextStage(currentStage) : currentStage;
     saveComparisonStats({
       ...stats,
       sessions: stats.sessions + 1,
+      stage: newStage,
+      bestStage: Math.max(stats.bestStage, newStage) as StageId,
       lastPlayed: new Date().toISOString().slice(0, 10),
     });
     recordPlay('more-friends');
+
+    currentStage = newStage;
+    updateStagePill();
+
+    const doneTitle = document.getElementById('mfDoneTitle') as HTMLElement;
+    const doneText = document.getElementById('mfDoneText') as HTMLElement;
     doneEl.classList.add('mf-done--show');
     launchConfetti(MF_COLORS);
-    narrate(`Wow! You compared ${TOTAL_ROUNDS} groups of friends today! Great job!`);
+
+    if (advanced) {
+      const meta = STAGE_META[currentStage];
+      doneTitle.textContent = `You reached Stage ${currentStage}!`;
+      doneText.textContent = `${meta.label} mode — bigger groups to compare!`;
+      narrate(`Wow! You reached Stage ${currentStage}! ${meta.label} mode! Bigger groups to compare!`);
+    } else {
+      doneTitle.textContent = 'More champion!';
+      doneText.textContent = `You compared ${TOTAL_ROUNDS} groups of friends today!`;
+      narrate(`Wow! You compared ${TOTAL_ROUNDS} groups of friends today! Great job!`);
+    }
   };
 
   const onPlayAgain = (): void => {
     playTap();
     doneEl.classList.remove('mf-done--show');
-    session = generateSession();
+    TOTAL_ROUNDS = STAGE_META[currentStage].rounds;
+    session = generateSession(Math.random, currentStage);
     roundIdx = 0;
+    sessionFirstTry = 0;
     startRound();
   };
 
   // ── Stats persistence ──────────────────────────────────────────────
 
   const bumpStats = (correctFirstTry: boolean): void => {
+    if (correctFirstTry) sessionFirstTry++;
     const stats = loadComparisonStats();
     saveComparisonStats({
       ...stats,
@@ -489,6 +534,13 @@ const TOTAL_ROUNDS = 8;
       lastPlayed: new Date().toISOString().slice(0, 10),
     });
     recordPlay('more-friends');
+  };
+
+  /** Sync the header stage pill to the current `currentStage`. */
+  const updateStagePill = (): void => {
+    const meta = STAGE_META[currentStage];
+    stageText.textContent = `Stage ${currentStage}`;
+    stagePill.setAttribute('aria-label', `Stage ${currentStage}, ${meta.label}`);
   };
 
   // ── Event wiring ───────────────────────────────────────────────────
@@ -552,6 +604,7 @@ const TOTAL_ROUNDS = 8;
   // — group clicks, replay button, etc. — has the expected
   // references.
   currentNarration = buildNarration(session[0]!);
+  updateStagePill();
   progressText.textContent = `1 / ${TOTAL_ROUNDS}`;
   progressFill.style.width = `${(1 / TOTAL_ROUNDS) * 100}%`;
   progressPill.setAttribute('aria-label', `Round 1 of ${TOTAL_ROUNDS}`);

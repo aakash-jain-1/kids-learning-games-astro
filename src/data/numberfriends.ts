@@ -60,8 +60,13 @@ import {
   type PreschoolTheme,
   type ThemeMeta,
 } from '@/lib/preschool-themes';
+import {
+  type StageId,
+  themesForStage,
+  clampStage,
+} from '@/lib/preschool-stages';
 
-export type { PreschoolTheme, ThemeMeta };
+export type { PreschoolTheme, ThemeMeta, StageId };
 export { THEMES, THEME_BY_KEY };
 
 /**
@@ -72,9 +77,9 @@ export { THEMES, THEME_BY_KEY };
  * `sizes` so the page controller can validate taps without re-scanning.
  */
 export interface HuntRound {
-  /** The numeral the child is hunting for. 2..5. */
+  /** The numeral the child is hunting for. 2..5 at Stage 1, up to 10 at Stage 2+. */
   readonly target: number;
-  /** Sizes of the three group panels, in display order. Exactly one equals `target`. 1..6. */
+  /** Sizes of the three group panels, in display order. Exactly one equals `target`. 1..12 (depends on stage). */
   readonly sizes: readonly [number, number, number];
   /** Position (0/1/2) of the matching group in `sizes`. */
   readonly correctIndex: 0 | 1 | 2;
@@ -96,16 +101,55 @@ export interface HuntRound {
  * decoy is always a giveaway). Mixing gives the child confidence
  * beats *and* counting practice in equal measure.
  */
-const PLAN: ReadonlyArray<readonly [number, 'near' | 'mixed']> = [
-  [2, 'near'],
-  [3, 'near'],
-  [4, 'near'],
-  [5, 'near'],
-  [2, 'mixed'],
-  [3, 'mixed'],
-  [4, 'mixed'],
-  [5, 'mixed'],
-];
+/**
+ * Per-stage plans — each slot is a (target, difficulty) pair.
+ *
+ * - **Stage 1** (8 rounds, targets 2-5): the original 4-near + 4-mixed
+ *   layout, targets 2/3/4/5 each appearing twice. PRESERVED VERBATIM so
+ *   Stage 1 == today.
+ * - **Stage 2** (10 rounds, targets 2-10): spreads targets across the
+ *   ten-frame range, 6 near + 4 mixed.
+ * - **Stage 3** (12 rounds, targets 3-10): leans on bigger targets and
+ *   "near" decoys (the hardest discrimination), 9 near + 3 mixed.
+ */
+const PLAN_BY_STAGE: Readonly<Record<StageId, ReadonlyArray<readonly [number, 'near' | 'mixed']>>> = {
+  1: [
+    [2, 'near'],
+    [3, 'near'],
+    [4, 'near'],
+    [5, 'near'],
+    [2, 'mixed'],
+    [3, 'mixed'],
+    [4, 'mixed'],
+    [5, 'mixed'],
+  ],
+  2: [
+    [2, 'mixed'],
+    [3, 'near'],
+    [4, 'mixed'],
+    [5, 'near'],
+    [6, 'near'],
+    [7, 'mixed'],
+    [8, 'near'],
+    [9, 'mixed'],
+    [10, 'near'],
+    [6, 'near'],
+  ],
+  3: [
+    [3, 'near'],
+    [4, 'near'],
+    [5, 'near'],
+    [6, 'near'],
+    [7, 'near'],
+    [8, 'near'],
+    [9, 'near'],
+    [10, 'near'],
+    [5, 'mixed'],
+    [7, 'mixed'],
+    [9, 'mixed'],
+    [10, 'near'],
+  ],
+};
 
 /**
  * Pick decoy sizes for a `target` and `difficulty`. Always returns a
@@ -152,23 +196,25 @@ const decoysFor = (
 const pick = <T>(xs: readonly T[], rand: () => number): T => xs[Math.floor(rand() * xs.length)]!;
 
 /**
- * Generate a fresh 8-round session.
+ * Generate a fresh session for `stage` (defaults to Stage 1, so the
+ * SSR seed and every existing caller behave exactly as before).
+ * Session length = the stage's plan length (8 / 10 / 12).
  *
- * - Plan slots are shuffled to vary order across plays. Per-target
- *   and per-difficulty counts are preserved by construction (we
- *   shuffle the slots, not their contents).
+ * - Plan slots are shuffled to vary order across plays. Per-target and
+ *   per-difficulty counts are preserved by construction.
  * - For each slot we pick decoys from `decoysFor`, then shuffle the
- *   `[target, decoy1, decoy2]` triple into a random display order
- *   so `correctIndex` rotates evenly across rounds. Without this the
- *   correct panel would always sit at the same position the slot
- *   data was authored in.
- * - Themes rotate with a "no two in a row" rule.
+ *   `[target, decoy1, decoy2]` triple into a random display order so
+ *   `correctIndex` rotates evenly across rounds.
+ * - Themes rotate with a "no two in a row" rule, drawn from the stage's
+ *   theme pool (4 themes at Stage 1, all 6 at Stage 2+).
  *
- * `rand` is injectable so tests can pin to a deterministic sequence;
- * default uses `Math.random`.
+ * `rand` is injectable so tests can pin to a deterministic sequence.
  */
-export const generateSession = (rand: () => number = Math.random): HuntRound[] => {
-  const plan: Array<readonly [number, 'near' | 'mixed']> = [...PLAN];
+export const generateSession = (
+  rand: () => number = Math.random,
+  stage: StageId = 1,
+): HuntRound[] => {
+  const plan: Array<readonly [number, 'near' | 'mixed']> = [...PLAN_BY_STAGE[stage]];
   for (let i = plan.length - 1; i > 0; i--) {
     const j = Math.floor(rand() * (i + 1));
     const tmp = plan[i]!;
@@ -176,6 +222,7 @@ export const generateSession = (rand: () => number = Math.random): HuntRound[] =
     plan[j] = tmp;
   }
 
+  const themePool = themesForStage(stage);
   const rounds: HuntRound[] = [];
   let prevTheme: PreschoolTheme | null = null;
 
@@ -194,7 +241,7 @@ export const generateSession = (rand: () => number = Math.random): HuntRound[] =
     const correctIndex = sizes.indexOf(target) as 0 | 1 | 2;
 
     const themeChoices: readonly ThemeMeta[] =
-      prevTheme === null ? THEMES : THEMES.filter((t) => t.key !== prevTheme);
+      prevTheme === null ? themePool : themePool.filter((t) => t.key !== prevTheme);
     const theme = pick(themeChoices, rand).key;
     prevTheme = theme;
 
@@ -253,7 +300,7 @@ export const buildNarration = (round: HuntRound): RoundNarration => {
 export const STATS_KEY = 'number_friends_stats_v1';
 
 export interface NumberFriendsStats {
-  /** Total sessions completed (full 8 rounds). */
+  /** Total sessions completed (a full stage-length round set). */
   readonly sessions: number;
   /** Total individual rounds completed (correct OR errorless). */
   readonly rounds: number;
@@ -261,6 +308,10 @@ export interface NumberFriendsStats {
   readonly correctFirstTry: number;
   /** ISO date string (YYYY-MM-DD) of the last play. */
   readonly lastPlayed: string;
+  /** Current stage the child is on (1..3). Defaults to 1 for pre-stage saves. */
+  readonly stage: StageId;
+  /** Highest stage ever reached (1..3). */
+  readonly bestStage: StageId;
 }
 
 const ZERO_STATS: NumberFriendsStats = {
@@ -268,6 +319,8 @@ const ZERO_STATS: NumberFriendsStats = {
   rounds: 0,
   correctFirstTry: 0,
   lastPlayed: '',
+  stage: 1,
+  bestStage: 1,
 };
 
 export const loadNumberFriendsStats = (): NumberFriendsStats => {
@@ -276,11 +329,15 @@ export const loadNumberFriendsStats = (): NumberFriendsStats => {
     const raw = localStorage.getItem(STATS_KEY);
     if (!raw) return ZERO_STATS;
     const p = JSON.parse(raw) as Partial<NumberFriendsStats>;
+    const stage = typeof p.stage === 'number' ? clampStage(p.stage) : 1;
+    const bestStage = typeof p.bestStage === 'number' ? clampStage(p.bestStage) : stage;
     return {
       sessions: typeof p.sessions === 'number' ? p.sessions : 0,
       rounds: typeof p.rounds === 'number' ? p.rounds : 0,
       correctFirstTry: typeof p.correctFirstTry === 'number' ? p.correctFirstTry : 0,
       lastPlayed: typeof p.lastPlayed === 'string' ? p.lastPlayed : '',
+      stage,
+      bestStage: clampStage(Math.max(stage, bestStage)),
     };
   } catch {
     return ZERO_STATS;

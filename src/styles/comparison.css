@@ -71,6 +71,16 @@ body.story[data-theme='comparison'] .mf-stage[data-scene='garden'] {
   --st-bg: linear-gradient(180deg, #fff4b8 0%, #ffd666 60%, #6fbf3a 100%);
   --mf-dot-filled: #c4880c;
 }
+/* Themes 5 + 6 (meadow + jungle) — unlock at Stage 2. Same palettes as
+   Counting Friends so a child playing both games sees a consistent set. */
+body.story[data-theme='comparison'] .mf-stage[data-scene='meadow'] {
+  --st-bg: linear-gradient(180deg, #d7f0a8 0%, #9fd45a 55%, #6fae39 100%);
+  --mf-dot-filled: #4a7d1e;
+}
+body.story[data-theme='comparison'] .mf-stage[data-scene='jungle'] {
+  --st-bg: linear-gradient(180deg, #bfeec4 0%, #5db573 55%, #2f7d4f 100%);
+  --mf-dot-filled: #1b6b3a;
+}
 
 body.story[data-theme='comparison'] {
   background: var(--st-bg);
@@ -115,6 +125,19 @@ body.story[data-theme='comparison'] .mf-progress-pill {
   padding: 6px 14px;
   border-radius: 999px;
   font-weight: 600;
+  font-size: 0.95em;
+}
+
+/* Stage pill — shows the child's current stage (1..3). */
+body.story[data-theme='comparison'] .mf-stage-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.85);
+  color: #1a1f3a;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-weight: 700;
   font-size: 0.95em;
 }
 

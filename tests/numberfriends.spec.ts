@@ -199,6 +199,22 @@ test.describe('number friends (preschool numeral recognition)', () => {
     expect(stats.correctFirstTry).toBe(0);
   });
 
+  test('returning player at Stage 2 sees the stage pill and a longer (10-round) session', async ({ page }) => {
+    await page.evaluate(() => {
+      localStorage.setItem(
+        'number_friends_stats_v1',
+        JSON.stringify({
+          sessions: 1, rounds: 8, correctFirstTry: 8,
+          lastPlayed: '2026-06-03', stage: 2, bestStage: 2,
+        }),
+      );
+    });
+    await page.reload();
+
+    await expect(page.locator('#nfStageText')).toHaveText('Stage 2');
+    await expect(page.locator('#nfProgressText')).toContainText(/^\s*1\s*\/\s*10\s*$/);
+  });
+
   test('home page links to the new game', async ({ page }) => {
     await page.goto('');
     // href-based selector from day one — the Number Friends home

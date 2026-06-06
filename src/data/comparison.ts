@@ -54,8 +54,13 @@ import {
   type PreschoolTheme,
   type ThemeMeta,
 } from '@/lib/preschool-themes';
+import {
+  type StageId,
+  themesForStage,
+  clampStage,
+} from '@/lib/preschool-stages';
 
-export type { PreschoolTheme, ThemeMeta };
+export type { PreschoolTheme, ThemeMeta, StageId };
 export { THEMES, THEME_BY_KEY };
 
 /**
@@ -64,9 +69,9 @@ export { THEMES, THEME_BY_KEY };
  * right`, with `bigger` set to the side that wins.
  */
 export interface CompRound {
-  /** Size of the left group. 1..4. */
+  /** Size of the left group. 1..4 at Stage 1, up to 10 at Stage 2+. */
   readonly left: number;
-  /** Size of the right group. 1..4. */
+  /** Size of the right group. 1..4 at Stage 1, up to 10 at Stage 2+. */
   readonly right: number;
   /** Theme rotated per round — drives the scene background + emoji. */
   readonly theme: PreschoolTheme;
@@ -93,16 +98,56 @@ export interface CompRound {
  *    constraint pre-shuffle; the shuffle only re-orders within the
  *    constraint windows so the property holds post-shuffle as well.
  */
-const PLAN: ReadonlyArray<readonly [number, 'left' | 'right']> = [
-  [1, 'left'],
-  [2, 'right'],
-  [1, 'right'],
-  [3, 'left'],
-  [2, 'left'],
-  [1, 'right'],
-  [2, 'right'],
-  [1, 'left'],
-];
+/**
+ * Per-stage plans. Each slot is a (difference, biggerSide) pair.
+ *
+ * - **Stage 1** (8 rounds, sizes <=4): the original distribution
+ *   (4x diff=1, 3x diff=2, 1x diff=3) with balanced sides. PRESERVED
+ *   VERBATIM so Stage 1 == today.
+ * - **Stage 2** (10 rounds, sizes <=10): wider difference range (1-5)
+ *   so the bigger groups get both obvious and close comparisons; 5/5
+ *   side balance.
+ * - **Stage 3** (12 rounds, sizes <=10): leans hard on diff=1 (the
+ *   closest, hardest comparisons) with the bigger groups; 6/6 sides.
+ */
+const PLAN_BY_STAGE: Readonly<Record<StageId, ReadonlyArray<readonly [number, 'left' | 'right']>>> = {
+  1: [
+    [1, 'left'],
+    [2, 'right'],
+    [1, 'right'],
+    [3, 'left'],
+    [2, 'left'],
+    [1, 'right'],
+    [2, 'right'],
+    [1, 'left'],
+  ],
+  2: [
+    [2, 'left'],
+    [1, 'right'],
+    [3, 'left'],
+    [1, 'left'],
+    [4, 'right'],
+    [2, 'right'],
+    [1, 'left'],
+    [5, 'right'],
+    [3, 'right'],
+    [1, 'left'],
+  ],
+  3: [
+    [1, 'left'],
+    [1, 'right'],
+    [2, 'left'],
+    [1, 'right'],
+    [3, 'left'],
+    [1, 'left'],
+    [2, 'right'],
+    [1, 'right'],
+    [4, 'left'],
+    [1, 'left'],
+    [2, 'right'],
+    [3, 'right'],
+  ],
+};
 
 /**
  * Pair pool keyed by absolute difference. Each entry is the list of
@@ -116,32 +161,53 @@ const PLAN: ReadonlyArray<readonly [number, 'left' | 'right']> = [
  * even with the close difference. Mixing within a difficulty band
  * keeps the sessions feeling varied.
  */
-const PAIRS_BY_DIFF: Readonly<Record<number, ReadonlyArray<readonly [number, number]>>> = {
+const PAIRS_BY_DIFF_STAGE1: Readonly<Record<number, ReadonlyArray<readonly [number, number]>>> = {
   1: [[1, 2], [2, 3], [3, 4]],
   2: [[1, 3], [2, 4]],
   3: [[1, 4]],
+};
+
+/**
+ * Bigger pair pools for Stage 2+ — (smaller, bigger) tuples with the
+ * bigger group up to 10. Covers differences 1-5 so the bigger plans
+ * can mix close (diff=1) and obvious (diff=5) comparisons.
+ */
+const PAIRS_BY_DIFF_BIG: Readonly<Record<number, ReadonlyArray<readonly [number, number]>>> = {
+  1: [[1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 8], [8, 9], [9, 10]],
+  2: [[1, 3], [2, 4], [3, 5], [4, 6], [5, 7], [6, 8], [7, 9], [8, 10]],
+  3: [[1, 4], [2, 5], [3, 6], [4, 7], [5, 8], [6, 9], [7, 10]],
+  4: [[1, 5], [2, 6], [3, 7], [4, 8], [5, 9], [6, 10]],
+  5: [[1, 6], [2, 7], [3, 8], [4, 9], [5, 10]],
+};
+
+const PAIRS_BY_STAGE: Readonly<Record<StageId, Readonly<Record<number, ReadonlyArray<readonly [number, number]>>>>> = {
+  1: PAIRS_BY_DIFF_STAGE1,
+  2: PAIRS_BY_DIFF_BIG,
+  3: PAIRS_BY_DIFF_BIG,
 };
 
 /** Pick a random element from `xs` using `rand`. Caller asserts `xs.length > 0`. */
 const pick = <T>(xs: readonly T[], rand: () => number): T => xs[Math.floor(rand() * xs.length)]!;
 
 /**
- * Generate a fresh 8-round session.
+ * Generate a fresh session for `stage` (defaults to Stage 1, so the
+ * SSR seed and every existing caller behave exactly as before).
+ * Session length = the stage's plan length (8 / 10 / 12).
  *
- * - Plan slots are shuffled to vary order across plays. The shuffle
- *   uses a Fisher–Yates pass; with 8 slots the no-3-in-a-row side
- *   constraint is preserved by the input plan but isn't enforced
- *   post-shuffle (a perfectly random shuffle has ~12% chance of
- *   producing a 3-in-a-row run for either side; we accept that as
- *   a fair trade vs constrained-shuffle complexity).
- * - Themes rotate with a "no two in a row" rule.
+ * - Plan slots are shuffled to vary order across plays (Fisher–Yates;
+ *   the no-3-in-a-row side constraint is preserved by the input plan
+ *   but not enforced post-shuffle — accepted as a fair trade).
+ * - Pairs are drawn from the stage's pool (sizes <=4 at Stage 1, up to
+ *   10 at Stage 2+); themes from the stage's theme pool (4 / 6).
  * - Pair within a difficulty band is picked uniformly.
  *
- * `rand` is injectable so tests can pin to a deterministic sequence;
- * default uses `Math.random`.
+ * `rand` is injectable so tests can pin to a deterministic sequence.
  */
-export const generateSession = (rand: () => number = Math.random): CompRound[] => {
-  const plan: Array<readonly [number, 'left' | 'right']> = [...PLAN];
+export const generateSession = (
+  rand: () => number = Math.random,
+  stage: StageId = 1,
+): CompRound[] => {
+  const plan: Array<readonly [number, 'left' | 'right']> = [...PLAN_BY_STAGE[stage]];
   for (let i = plan.length - 1; i > 0; i--) {
     const j = Math.floor(rand() * (i + 1));
     const tmp = plan[i]!;
@@ -149,16 +215,18 @@ export const generateSession = (rand: () => number = Math.random): CompRound[] =
     plan[j] = tmp;
   }
 
+  const pairs = PAIRS_BY_STAGE[stage];
+  const themePool = themesForStage(stage);
   const rounds: CompRound[] = [];
   let prevTheme: PreschoolTheme | null = null;
 
   for (const [diff, bigger] of plan) {
-    const [smallSize, bigSize] = pick(PAIRS_BY_DIFF[diff]!, rand);
+    const [smallSize, bigSize] = pick(pairs[diff]!, rand);
     const left = bigger === 'left' ? bigSize : smallSize;
     const right = bigger === 'right' ? bigSize : smallSize;
 
     const themeChoices: readonly ThemeMeta[] =
-      prevTheme === null ? THEMES : THEMES.filter((t) => t.key !== prevTheme);
+      prevTheme === null ? themePool : themePool.filter((t) => t.key !== prevTheme);
     const theme = pick(themeChoices, rand).key;
     prevTheme = theme;
 
@@ -221,7 +289,7 @@ export const buildNarration = (round: CompRound): RoundNarration => {
 export const STATS_KEY = 'more_friends_stats_v1';
 
 export interface ComparisonStats {
-  /** Total sessions completed (full 8 rounds). */
+  /** Total sessions completed (a full stage-length round set). */
   readonly sessions: number;
   /** Total individual rounds completed (correct OR errorless). */
   readonly rounds: number;
@@ -229,6 +297,10 @@ export interface ComparisonStats {
   readonly correctFirstTry: number;
   /** ISO date string (YYYY-MM-DD) of the last play. */
   readonly lastPlayed: string;
+  /** Current stage the child is on (1..3). Defaults to 1 for pre-stage saves. */
+  readonly stage: StageId;
+  /** Highest stage ever reached (1..3). */
+  readonly bestStage: StageId;
 }
 
 const ZERO_STATS: ComparisonStats = {
@@ -236,6 +308,8 @@ const ZERO_STATS: ComparisonStats = {
   rounds: 0,
   correctFirstTry: 0,
   lastPlayed: '',
+  stage: 1,
+  bestStage: 1,
 };
 
 export const loadComparisonStats = (): ComparisonStats => {
@@ -244,11 +318,15 @@ export const loadComparisonStats = (): ComparisonStats => {
     const raw = localStorage.getItem(STATS_KEY);
     if (!raw) return ZERO_STATS;
     const p = JSON.parse(raw) as Partial<ComparisonStats>;
+    const stage = typeof p.stage === 'number' ? clampStage(p.stage) : 1;
+    const bestStage = typeof p.bestStage === 'number' ? clampStage(p.bestStage) : stage;
     return {
       sessions: typeof p.sessions === 'number' ? p.sessions : 0,
       rounds: typeof p.rounds === 'number' ? p.rounds : 0,
       correctFirstTry: typeof p.correctFirstTry === 'number' ? p.correctFirstTry : 0,
       lastPlayed: typeof p.lastPlayed === 'string' ? p.lastPlayed : '',
+      stage,
+      bestStage: clampStage(Math.max(stage, bestStage)),
     };
   } catch {
     return ZERO_STATS;

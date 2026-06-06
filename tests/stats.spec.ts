@@ -107,8 +107,12 @@ test.describe('parent stats dashboard (T6)', () => {
     page,
   }) => {
     // Pick a representative card from each family for value-spot-checks.
+    // Counting Friends (a staged triad game) has 5 rows since 2026-06-03:
+    // sessions, rounds, first-try, last-played, Stage. So the last-played
+    // row is nth(3), not `.last()` (which is now the Stage row).
     const counting = page.locator('.stats-card[data-game-id="counting-friends"]');
-    await expect(counting.locator('.stats-row-value').last()).toContainText('never');
+    await expect(counting.locator('.stats-row-value').nth(3)).toContainText('never');
+    await expect(counting.locator('.stats-row-value').last()).toContainText('1 / 3 (best 1)');
     await expect(counting.locator('[data-empty-badge]')).toBeVisible();
     await expect(counting).toHaveClass(/is-empty/);
 
@@ -183,6 +187,31 @@ test.describe('parent stats dashboard (T6)', () => {
     await expect(routines.locator('.stats-row-value').nth(1)).toHaveText('3');
     await expect(routines.locator('.stats-row-value').nth(2)).toHaveText('88%');
     await expect(routines.locator('.stats-row-value').nth(3)).toHaveText('yesterday');
+  });
+
+  test('hydration: staged triad games show a Stage row reflecting current + best stage', async ({
+    page,
+  }) => {
+    // Seed Counting Friends mid-progression (Stage 2, best 2) and
+    // verify the Stage row (the 5th row, since 2026-06-03) renders
+    // "2 / 3 (best 2)".
+    await page.evaluate(() => {
+      localStorage.setItem(
+        'counting_friends_stats_v1',
+        JSON.stringify({
+          sessions: 3,
+          rounds: 26,
+          correctFirstTry: 22,
+          lastPlayed: '2026-06-03',
+          stage: 2,
+          bestStage: 2,
+        }),
+      );
+    });
+    await page.reload();
+
+    const counting = page.locator('.stats-card[data-game-id="counting-friends"]');
+    await expect(counting.locator('.stats-row-value').last()).toHaveText('2 / 3 (best 2)');
   });
 
   test('reset button clears one game\'s stats and re-renders the card to zero', async ({
@@ -568,7 +597,9 @@ test.describe('parent stats dashboard (T6)', () => {
     // (preschool-math) lit up.
     await page.goto('stats.html');
     const counting = page.locator('.stats-card[data-game-id="counting-friends"]');
-    await expect(counting.locator('.stats-row-value').last()).toHaveText('today');
+    // lastPlayed is row index 3; the staged triad appends a "Stage" row at
+    // index 4, so target the lastPlayed row explicitly rather than .last().
+    await expect(counting.locator('.stats-row-value').nth(3)).toHaveText('today');
     await expect(
       page.locator('.stats-activity-day').last().locator('.stats-activity-dot').first(),
     ).toHaveClass(/is-active/);

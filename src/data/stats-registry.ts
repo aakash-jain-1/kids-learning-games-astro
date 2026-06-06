@@ -195,6 +195,9 @@ const preschoolStatsEntry = (cfg: {
     rounds: number;
     correctFirstTry: number;
     lastPlayed: string;
+    /** Optional — only the staged triad games report this (added 2026-06-03). */
+    stage?: number;
+    bestStage?: number;
   };
 }): StatsRegistryEntry => ({
   id: cfg.id,
@@ -204,12 +207,23 @@ const preschoolStatsEntry = (cfg: {
   family: cfg.family,
   read: () => {
     const s = cfg.load();
-    return [
+    const rows: MetricRow[] = [
       { emoji: cfg.emoji, label: 'Sessions completed', value: String(s.sessions) },
       { emoji: '🌟', label: 'Rounds played', value: String(s.rounds) },
       { emoji: '🎯', label: 'First-try', value: fmtRatio(s.correctFirstTry, s.rounds) },
       { emoji: '📅', label: 'Last played', value: fmtLastPlayed(s.lastPlayed) },
     ];
+    // Staged games (Counting / More / Number Friends) report a current
+    // + best stage; the literacy + pattern games don't, so the row is
+    // conditional rather than always-present.
+    if (typeof s.stage === 'number') {
+      rows.push({
+        emoji: '⭐',
+        label: 'Stage',
+        value: `${s.stage} / 3 (best ${typeof s.bestStage === 'number' ? s.bestStage : s.stage})`,
+      });
+    }
+    return rows;
   },
   clear: () => {
     safeRemove(cfg.storageKey);

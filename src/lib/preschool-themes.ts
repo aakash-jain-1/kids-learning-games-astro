@@ -39,7 +39,7 @@
  * existing 4 enough to notice repetition.
  */
 
-export type PreschoolTheme = 'pond' | 'orchard' | 'sea' | 'garden';
+export type PreschoolTheme = 'pond' | 'orchard' | 'sea' | 'garden' | 'meadow' | 'jungle';
 
 export interface ThemeMeta {
   /** Stable theme key — drives `data-theme` on the scene container, used as the CSS hook. */
@@ -88,6 +88,29 @@ export const THEMES: readonly ThemeMeta[] = [
     singular: 'bee',
     plural: 'bees',
     verbPhrase: 'fly to the flowers',
+  },
+  // Themes 5 + 6 — added 2026-06-03 with the staged triad. They unlock
+  // at Stage 2 (via `themesForStage` in `@/lib/preschool-stages`), so
+  // they MUST stay appended at the end: the starter 4 above are the
+  // `THEMES.slice(0, 4)` Stage-1 pool, and the deterministic SSR seed
+  // `() => 0.42` resolves against that stable prefix. Both picked for
+  // clean plurals (sheep is invariant like fish; monkeys is regular)
+  // and a motion-friendly verb phrase.
+  {
+    key: 'meadow',
+    label: 'Meadow',
+    emoji: '🐑',
+    singular: 'sheep',
+    plural: 'sheep',
+    verbPhrase: 'graze in the meadow',
+  },
+  {
+    key: 'jungle',
+    label: 'Jungle',
+    emoji: '🐵',
+    singular: 'monkey',
+    plural: 'monkeys',
+    verbPhrase: 'swing in the trees',
   },
 ];
 
