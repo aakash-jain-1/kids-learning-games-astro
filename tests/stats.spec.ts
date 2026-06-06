@@ -44,6 +44,7 @@ const EXPECTED_GAME_IDS = [
   'number-bond-pop',
   // Family A2 — preschool-literacy (added 2026-05-25 with T-letters)
   'letter-friends',
+  'sound-friends',
   // Family B — story
   'routines',
   'woodcutter',

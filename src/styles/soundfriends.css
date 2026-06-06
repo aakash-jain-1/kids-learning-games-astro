@@ -1,0 +1,539 @@
+/* Sound Friends — second preschool-LITERACY game (added 2026-06-06).
+   Beginning-sound / letter-sound correspondence for ages 3–4: a picture
+   appears at the top ("apple") and the child taps the LETTER it starts
+   with from three plain letter tiles. Sister to Letter Friends (same UI
+   grammar, deeper skill — sound rather than recognition).
+
+   Uses `StoryLayout` with `theme='soundfriends'` so the body class is
+   `body.story[data-theme='soundfriends']`. All `sf-*` (sound-friends)
+   classes scope under that body selector so they can never collide with
+   Letter Friends / Number Friends / Counting / the rest.
+
+   Design constraints worth re-stating here so the next reader doesn't
+   have to dig through PROGRESS.md:
+
+   - **The target is a PICTURE card** (big emoji + word + "starts
+     with…?" prompt), NOT a letter. The question of the round is "what
+     sound does this start with?" — the concrete picture stays on screen
+     as the anchor for a 3yo's working memory.
+
+   - **Each answer tile is a PLAIN letter glyph** — deliberately no
+     word/emoji mnemonic on the tile (unlike Letter Friends). If a tile
+     carried its own picture the child could shortcut by emoji-matching;
+     bare glyphs keep attention on sound -> letter. The whole tile is the
+     tap target, well above the ≥88px floor for ≤4yo touch targets.
+
+   - **Letter glyphs use a sans-serif system font stack** for clarity at
+     age 3 (serifs add discrimination load).
+
+   - **Reduced motion**: every animation has a
+     `@media (prefers-reduced-motion: reduce)` fallback.
+
+   - **All `sf-*` classes scope under
+     `body.story[data-theme='soundfriends']`** so this file can never
+     leak into other games.
+*/
+
+/* ── Scene-theme background tokens ─────────────────────────────────── */
+
+body.story[data-theme='soundfriends'] {
+  --st-bg: linear-gradient(135deg, #fff0e6 0%, #fee6f0 100%);
+
+  /* Tile surface tokens — translucent white card per tile, mirrors the
+     Letter Friends palette intentionally so a parent toggling between
+     the two literacy games sees a familiar visual grammar. */
+  --sf-tile-bg: rgba(255, 255, 255, 0.92);
+  --sf-tile-border: rgba(255, 255, 255, 0.4);
+  --sf-tile-bg-hover: rgba(255, 255, 255, 1);
+  --sf-tile-border-correct: #2e7d32;
+  --sf-tile-border-glow: #ef476f;
+  --sf-tile-fill-correct: rgba(76, 175, 80, 0.22);
+  --sf-tile-fill-glow: rgba(239, 71, 111, 0.18);
+  --sf-tile-text: #1a1f3a;
+
+  /* Target card — solid white with a hairline. Higher-contrast than the
+     answer tiles because it's the "question" of the round. */
+  --sf-target-bg: #ffffff;
+  --sf-target-text: #1a1f3a;
+  --sf-target-accent: #ef476f; /* literacy family accent — pink. */
+  --sf-target-border: rgba(30, 50, 100, 0.12);
+  --sf-target-shadow: 0 8px 24px rgba(20, 30, 70, 0.18);
+
+  --sf-caption-bg: rgba(255, 255, 255, 0.92);
+  --sf-caption-text: #1a1f3a;
+  --sf-caption-shadow: 0 8px 24px rgba(20, 30, 70, 0.18);
+}
+
+/* Six per-theme backgrounds shared with the rest of the preschool
+   family (pond / orchard / sea / garden / meadow / jungle). Theme drives
+   the background ambience only; letters are theme-independent. */
+body.story[data-theme='soundfriends'] .sf-stage[data-scene='pond'] {
+  --st-bg: linear-gradient(180deg, #b8e0ff 0%, #6fb6e6 60%, #4a8c4a 100%);
+}
+body.story[data-theme='soundfriends'] .sf-stage[data-scene='orchard'] {
+  --st-bg: linear-gradient(180deg, #ffe6c8 0%, #ffb88c 50%, #88b94a 100%);
+}
+body.story[data-theme='soundfriends'] .sf-stage[data-scene='sea'] {
+  --st-bg: linear-gradient(180deg, #b3e8ec 0%, #4dc4cf 60%, #f4d97a 100%);
+}
+body.story[data-theme='soundfriends'] .sf-stage[data-scene='garden'] {
+  --st-bg: linear-gradient(180deg, #fff4b8 0%, #ffd666 60%, #6fbf3a 100%);
+}
+body.story[data-theme='soundfriends'] .sf-stage[data-scene='meadow'] {
+  --st-bg: linear-gradient(180deg, #d6f5c8 0%, #9bd96f 55%, #5aa83a 100%);
+}
+body.story[data-theme='soundfriends'] .sf-stage[data-scene='jungle'] {
+  --st-bg: linear-gradient(180deg, #c2f0d8 0%, #5cbf8a 55%, #2f7d52 100%);
+}
+
+body.story[data-theme='soundfriends'] {
+  background: var(--st-bg);
+}
+
+/* ── Layout shell ─────────────────────────────────────────────────── */
+
+body.story[data-theme='soundfriends'] .sf-shell {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 16px 20px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: calc(100vh - 36px);
+}
+
+body.story[data-theme='soundfriends'] .sf-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+body.story[data-theme='soundfriends'] .sf-title {
+  margin: 0;
+  font-size: clamp(1.6em, 4vw, 2.2em);
+  color: #fff;
+  text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+body.story[data-theme='soundfriends'] .sf-progress-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.85);
+  color: #1a1f3a;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.95em;
+}
+
+body.story[data-theme='soundfriends'] .sf-progress-bar {
+  width: 80px;
+  height: 8px;
+  background: rgba(20, 30, 70, 0.15);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+body.story[data-theme='soundfriends'] .sf-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--sf-target-accent);
+  border-radius: 999px;
+  transition: width 0.4s ease-out;
+}
+
+/* ── Stage — picture target on top, 3 letter tiles below ──────────── */
+
+body.story[data-theme='soundfriends'] .sf-stage {
+  position: relative;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 24px;
+  padding: 24px 16px;
+  min-height: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.32);
+}
+
+body.story[data-theme='soundfriends'] .sf-target {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 16px 36px;
+  border-radius: 24px;
+  background: var(--sf-target-bg);
+  color: var(--sf-target-text);
+  border: 2px solid var(--sf-target-border);
+  box-shadow: var(--sf-target-shadow);
+  /* Gentle pulse to draw the eye to the question. */
+  animation: sfTargetPulse 2.4s ease-in-out infinite;
+}
+
+body.story[data-theme='soundfriends'] .sf-target-emoji {
+  /* The big picture prompt — the concrete anchor for the sound. ~96px
+     lets the picture dominate so the child names the object first. */
+  font-size: 96px;
+  line-height: 1;
+}
+
+body.story[data-theme='soundfriends'] .sf-target-word {
+  font-size: 1.5em;
+  font-weight: 700;
+  color: var(--sf-target-text);
+  text-transform: lowercase;
+  letter-spacing: 0.01em;
+}
+
+body.story[data-theme='soundfriends'] .sf-target-prompt {
+  font-size: 0.95em;
+  font-weight: 600;
+  color: rgba(30, 50, 100, 0.7);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+@keyframes sfTargetPulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.04); }
+}
+
+/* The three letter tiles below the target. */
+body.story[data-theme='soundfriends'] .sf-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  align-items: stretch;
+  width: 100%;
+  max-width: 720px;
+  gap: 12px;
+}
+
+body.story[data-theme='soundfriends'] .sf-tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+  padding: 18px 12px;
+  background: var(--sf-tile-bg);
+  border: 3px solid var(--sf-tile-border);
+  border-radius: 20px;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--sf-tile-text);
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s ease;
+  animation: sfFlyIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation-delay: var(--sf-i, 0s);
+}
+
+body.story[data-theme='soundfriends'] .sf-tile:hover {
+  background: var(--sf-tile-bg-hover);
+  transform: translateY(-2px);
+}
+
+body.story[data-theme='soundfriends'] .sf-tile:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+body.story[data-theme='soundfriends'] .sf-tile:disabled {
+  cursor: default;
+  opacity: 0.85;
+}
+
+body.story[data-theme='soundfriends'] .sf-tile.sf-tile--correct {
+  background: var(--sf-tile-fill-correct);
+  border-color: var(--sf-tile-border-correct);
+  animation: sfBounce 0.5s ease-out;
+}
+
+body.story[data-theme='soundfriends'] .sf-tile.sf-tile--reveal {
+  background: var(--sf-tile-fill-glow);
+  border-color: var(--sf-tile-border-glow);
+  animation: sfPulseRing 1.4s ease-in-out infinite;
+}
+
+/* Age-safe wrong-tap kinesthetic feedback: 250ms shake, NO color shift,
+   NO desaturation, NO negative tone. Preserves errorless learning (a
+   wrong tap must NOT read as punishment for a 3yo). Runs in parallel
+   with the audio narration that follows. */
+body.story[data-theme='soundfriends'] .sf-tile.sf-tile--wrong {
+  animation: sfShake 250ms ease-in-out;
+}
+
+body.story[data-theme='soundfriends'] .sf-tile-glyph {
+  /* The big plain letter glyph on each tile. Sans-serif system stack
+     for clarity at age 3. ~84px since the tile carries nothing else. */
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  font-size: 84px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--sf-target-accent);
+  letter-spacing: 0.02em;
+  pointer-events: none;
+}
+
+@keyframes sfFlyIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-30px) scale(0.4);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(6px) scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes sfBounce {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.06); }
+  60%  { transform: scale(0.98); }
+  100% { transform: scale(1); }
+}
+
+@keyframes sfPulseRing {
+  0%, 100% {
+    box-shadow:
+      0 4px 12px rgba(20, 30, 70, 0.15),
+      0 0 0 0 rgba(239, 71, 111, 0.55);
+  }
+  50% {
+    box-shadow:
+      0 4px 12px rgba(20, 30, 70, 0.15),
+      0 0 0 12px rgba(239, 71, 111, 0);
+  }
+}
+
+@keyframes sfShake {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-7px); }
+  40%      { transform: translateX( 7px); }
+  60%      { transform: translateX(-5px); }
+  80%      { transform: translateX( 4px); }
+}
+
+/* ── Caption — accessibility/parent-readable mirror of TTS narration ─── */
+
+body.story[data-theme='soundfriends'] .sf-caption {
+  background: var(--sf-caption-bg);
+  color: var(--sf-caption-text);
+  border-radius: 16px;
+  padding: 12px 18px;
+  font-size: clamp(1em, 2.4vw, 1.2em);
+  font-weight: 600;
+  text-align: center;
+  box-shadow: var(--sf-caption-shadow);
+  max-width: 720px;
+  margin: 0 auto;
+  min-height: 1.4em;
+  animation: sfCaptionIn 0.4s ease-out;
+}
+
+@keyframes sfCaptionIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Footer row — Replay + Next ────────────────────────────────────── */
+
+body.story[data-theme='soundfriends'] .sf-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+body.story[data-theme='soundfriends'] .sf-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 22px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(255, 255, 255, 0.92);
+  color: #1a1f3a;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 1em;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(20, 30, 70, 0.15);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+body.story[data-theme='soundfriends'] .sf-action:hover {
+  transform: translateY(-1px);
+  background: #ffffff;
+}
+
+body.story[data-theme='soundfriends'] .sf-action:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+body.story[data-theme='soundfriends'] .sf-action--primary {
+  background: var(--sf-target-accent);
+  color: #ffffff;
+}
+
+body.story[data-theme='soundfriends'] .sf-action--primary:hover {
+  background: #d63a5d;
+}
+
+/* ── Session-complete overlay — appears after the 8th round ───────── */
+
+body.story[data-theme='soundfriends'] .sf-done {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 30, 70, 0.55);
+  z-index: 50;
+  padding: 20px;
+}
+
+body.story[data-theme='soundfriends'] .sf-done.sf-done--show {
+  display: flex;
+}
+
+body.story[data-theme='soundfriends'] .sf-done-card {
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 32px 28px;
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+  color: #1a1f3a;
+  box-shadow: 0 24px 80px rgba(20, 30, 70, 0.4);
+  animation: sfDoneIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes sfDoneIn {
+  from { opacity: 0; transform: scale(0.7) translateY(20px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+body.story[data-theme='soundfriends'] .sf-done-emoji {
+  font-size: 72px;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+body.story[data-theme='soundfriends'] .sf-done-title {
+  margin: 0 0 8px;
+  font-size: 1.6em;
+  color: var(--sf-target-accent);
+}
+
+body.story[data-theme='soundfriends'] .sf-done-text {
+  margin: 0 0 24px;
+  font-size: 1.1em;
+  color: #555;
+}
+
+body.story[data-theme='soundfriends'] .sf-done-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ── Reduced motion fallback ──────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  body.story[data-theme='soundfriends'] .sf-target,
+  body.story[data-theme='soundfriends'] .sf-tile,
+  body.story[data-theme='soundfriends'] .sf-caption,
+  body.story[data-theme='soundfriends'] .sf-tile.sf-tile--correct,
+  body.story[data-theme='soundfriends'] .sf-tile.sf-tile--reveal,
+  body.story[data-theme='soundfriends'] .sf-done-card {
+    animation: none;
+  }
+  body.story[data-theme='soundfriends'] .sf-tile:hover {
+    transform: none;
+  }
+  body.story[data-theme='soundfriends'] {
+    transition: none;
+  }
+}
+
+/* ── Dark mode ────────────────────────────────────────────────────── */
+
+body.dark-mode.story[data-theme='soundfriends'] {
+  --sf-tile-bg: rgba(255, 255, 255, 0.08);
+  --sf-tile-bg-hover: rgba(255, 255, 255, 0.16);
+  --sf-tile-border: rgba(180, 200, 255, 0.3);
+  --sf-tile-fill-correct: rgba(46, 125, 50, 0.35);
+  --sf-tile-fill-glow: rgba(239, 71, 111, 0.32);
+  --sf-tile-text: #f0f4ff;
+  --sf-target-bg: #1a1f3a;
+  --sf-target-text: #f0f4ff;
+  --sf-target-border: rgba(180, 200, 255, 0.18);
+  --sf-caption-bg: rgba(20, 25, 50, 0.92);
+  --sf-caption-text: #f0f4ff;
+}
+
+body.dark-mode.story[data-theme='soundfriends'] .sf-target-prompt {
+  color: rgba(180, 200, 255, 0.7);
+}
+
+body.dark-mode.story[data-theme='soundfriends'] .sf-done-card {
+  background: #1a1f3a;
+  color: #f0f4ff;
+}
+
+body.dark-mode.story[data-theme='soundfriends'] .sf-done-text {
+  color: #b8c2e0;
+}
+
+body.dark-mode.story[data-theme='soundfriends'] .sf-action {
+  background: #232847;
+  color: #f0f4ff;
+}
+
+body.dark-mode.story[data-theme='soundfriends'] .sf-action--primary {
+  background: var(--sf-target-accent);
+  color: #ffffff;
+}
+
+/* ── Responsive — stack tiles on small phones ─────────────────────── */
+
+@media (max-width: 600px) {
+  body.story[data-theme='soundfriends'] .sf-tiles {
+    grid-template-columns: 1fr;
+  }
+  body.story[data-theme='soundfriends'] .sf-tile {
+    min-height: 120px;
+  }
+  body.story[data-theme='soundfriends'] .sf-tile-glyph {
+    font-size: 64px;
+  }
+  body.story[data-theme='soundfriends'] .sf-target-emoji {
+    font-size: 72px;
+  }
+  body.story[data-theme='soundfriends'] .sf-shell {
+    padding: 12px 12px 60px;
+    gap: 14px;
+  }
+  body.story[data-theme='soundfriends'] .sf-stage {
+    min-height: auto;
+  }
+}

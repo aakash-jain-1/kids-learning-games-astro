@@ -55,7 +55,7 @@ static output; only interactive islands ship JavaScript.
   stalls `playwright install chromium`, so run the suite against the
   locally-installed Chrome via `PW_CHANNEL=chrome` + `NO_PROXY=127.0.0.1,localhost`.
 
-## 4. The 19 games & three layouts
+## 4. The 20 games & three layouts
 
 - **`GridLayout.astro`** — foundational-set games (scan a fixed chart, tap to
   hear): Alphabets, Numbers, Colors, Shapes, Animals, Birds, Hindi (7).
@@ -64,8 +64,8 @@ static output; only interactive islands ship JavaScript.
 - **`StoryLayout.astro`** — story-flow games *and* single-scene "stage" games
   (the preschool games reuse this shell via a `theme` prop): Daily Routines,
   Woodcutter (2 story) + Counting Friends, More Friends, Number Friends,
-  Pattern Sequences, Number Bond Pop (5 preschool-math) + Letter Friends
-  (1 preschool-literacy).
+  Pattern Sequences, Number Bond Pop (5 preschool-math) + Letter Friends,
+  Sound Friends (2 preschool-literacy).
 
 Each game = one `src/pages/games/<slug>.astro` + a typed `src/data/<game>.ts`
 data file + a layout-specific themed CSS block. A parent dashboard lives at
@@ -115,10 +115,18 @@ preschool-literacy, story, card-set, card-pure). Adding a game = one entry.
 ## 7. Current state & what's next
 
 - **Migration complete** (all 13 vanilla games ported, since 2026-05-08).
-- **Feature-driven phase active**: 6 preschool games added since (cardinality
-  triad + Pattern Sequences + Letter Friends + Number Bond Pop). Total
-  **19 games**, all live.
-- **Latest ship (2026-06-06)**: **Number Bond Pop** — fifth preschool-math
+- **Feature-driven phase active**: 7 preschool games added since (cardinality
+  triad + Pattern Sequences + Letter Friends + Number Bond Pop + Sound
+  Friends). Total **20 games**, all live.
+- **Latest ship (2026-06-06)**: **Sound Friends** — second preschool-literacy
+  game (beginning-sounds phonics). A picture appears ("apple"); tap the
+  letter its name starts with from three plain letter tiles. Combined
+  name+sound+mnemonic narration ("A says ah"), SATPIN-tiered across an
+  8-round session, errorless guided reveal on miss. Sibling to Letter
+  Friends (NOT the math stage system); bespoke `sound_friends_stats_v1`
+  (no stages). New `LETTER_SOUNDS` map of spoken sound cues; letter→word→
+  emoji content reused from `@/data/alphabets`.
+- **Prior ship (2026-06-06)**: **Number Bond Pop** — fifth preschool-math
   game (number-bond decomposition, "how many more to make 5?"), completing the
   early-math arc (compare → count → recognise → decompose). Concrete
   part-whole: a bond frame shows what you `have` + the empty `gap`; tap the
@@ -131,6 +139,10 @@ preschool-literacy, story, card-set, card-pure). Adding a game = one entry.
   five-frame → ten-frame) and breadth (8 → 10 → 12 rounds, 4 → 6 themes);
   the child advances on ≥75% first-try accuracy, never drops. Added two
   themes (meadow, jungle) and a `stage`/`bestStage` row on `/stats`.
+- **Forward queue**: see [ROADMAP.md](ROADMAP.md) for the ranked candidate
+  games. **Sound Friends** (candidate A) shipped 2026-06-06; next up is
+  **Sorting Friends → Animal Sounds → Rhyme Time → Feeling Friends →
+  Memory Match**, mapped to the early-learning domains they fill.
 - **Open queued work**: **T9** — replace Web Speech with pre-recorded MP3
   narration (parked on the user's recording session; integration is ~30–45 min
   of agent work once MP3s land in `src/assets/narration/shared/`).

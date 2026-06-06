@@ -1,0 +1,507 @@
+---
+import StoryLayout from '@/layouts/StoryLayout.astro';
+import GameControls from '@/components/GameControls.astro';
+import '@/styles/soundfriends.css';
+
+import { generateSession } from '@/data/sound-friends';
+
+const title = 'Sound Friends — Kids Learning Games';
+const description =
+  'A gentle beginning-sounds game for ages 3–4. A picture appears at the top; tap the letter its name starts with. "Apple starts with A!" Audio narration, no scoring, no failures. Second preschool-literacy game, sister to Letter Friends.';
+
+// SSR a deterministic first round so the page never paints blank. The
+// page script reads round 0 directly from the SSR'd DOM (matching the
+// Letter Friends / Number Friends kickoff-race pattern), then continues
+// with random rounds 1..N after the user clicks Next.
+const SSR_FIRST_ROUND = generateSession(() => 0.42)[0]!;
+const ssrItem = SSR_FIRST_ROUND.item;
+const ssrCaption = `${ssrItem.word}! What does ${ssrItem.word} start with?`;
+
+const TOTAL_ROUNDS = 8;
+---
+
+<StoryLayout
+  title={title}
+  description={description}
+  themeColor="#ef476f"
+  theme="soundfriends"
+>
+  <main class="sf-shell" aria-label="Sound Friends game">
+    <header class="sf-header">
+      <h1 class="sf-title">
+        <span aria-hidden="true">🔊</span>
+        <span>Sound Friends</span>
+      </h1>
+
+      <div class="sf-header-right" style="display: flex; gap: 10px; align-items: center;">
+        <span
+          class="sf-progress-pill"
+          id="sfProgressPill"
+          aria-label={`Round 1 of ${TOTAL_ROUNDS}`}
+        >
+          <span id="sfProgressText">1 / {TOTAL_ROUNDS}</span>
+          <span class="sf-progress-bar" aria-hidden="true">
+            <span class="sf-progress-fill" id="sfProgressFill"></span>
+          </span>
+        </span>
+        <GameControls />
+      </div>
+    </header>
+
+    <section
+      class="sf-stage"
+      id="sfStage"
+      data-scene={SSR_FIRST_ROUND.theme}
+      data-target={SSR_FIRST_ROUND.item.letter}
+      aria-label="Sound Friends scene"
+    >
+      <div
+        class="sf-target"
+        id="sfTarget"
+        aria-label={`What does ${ssrItem.word} start with?`}
+      >
+        <span class="sf-target-emoji" id="sfTargetEmoji" aria-hidden="true">
+          {ssrItem.emoji}
+        </span>
+        <span class="sf-target-word" id="sfTargetWord" aria-hidden="true">
+          {ssrItem.word}
+        </span>
+        <span class="sf-target-prompt" aria-hidden="true">starts with…?</span>
+      </div>
+
+      <div
+        class="sf-caption"
+        id="sfCaption"
+        role="status"
+        aria-live="polite"
+      >
+        {ssrCaption}
+      </div>
+
+      <div class="sf-tiles" aria-label="Three letter tiles — tap the one the word starts with">
+        {
+          SSR_FIRST_ROUND.tiles.map((letter, idx) => (
+            <button
+              type="button"
+              class="sf-tile"
+              id={`sfTile${idx}`}
+              data-i={idx}
+              data-letter={letter}
+              style={`--sf-i: ${idx * 0.1}s`}
+              aria-label={`Tile ${idx + 1} — letter ${letter} — tap if ${ssrItem.word} starts with this`}
+            >
+              <span class="sf-tile-glyph" aria-hidden="true">{letter}</span>
+            </button>
+          ))
+        }
+      </div>
+    </section>
+
+    <footer class="sf-footer">
+      <button type="button" class="sf-action" id="sfReplayBtn" aria-label="Replay this round's narration">
+        🔊 Replay
+      </button>
+      <button type="button" class="sf-action sf-action--primary" id="sfNextBtn" aria-label="Next round" disabled>
+        Next round →
+      </button>
+    </footer>
+
+    <div class="sf-done" id="sfDone" role="dialog" aria-live="polite" aria-labelledby="sfDoneTitle">
+      <div class="sf-done-card">
+        <div class="sf-done-emoji" aria-hidden="true">⭐</div>
+        <h2 class="sf-done-title" id="sfDoneTitle">Sound champion!</h2>
+        <p class="sf-done-text" id="sfDoneText">
+          You found {TOTAL_ROUNDS} sound friends today!
+        </p>
+        <div class="sf-done-actions">
+          <button type="button" class="sf-action sf-action--primary" id="sfPlayAgainBtn">
+            ▶ Play again
+          </button>
+          <a class="sf-action" href={import.meta.env.BASE_URL}>
+            🏠 Home
+          </a>
+        </div>
+      </div>
+    </div>
+  </main>
+</StoryLayout>
+
+<script>
+  import { playTap, playCorrect } from '@/lib/audio';
+  import { speak, cancelSpeech, isSpeechSupported } from '@/lib/speech';
+  import { launchConfetti } from '@/lib/achievements';
+  import { getSettings } from '@/lib/settings';
+  import {
+    generateSession,
+    buildNarration,
+    lookupLetter,
+    loadSoundFriendsStats,
+    saveSoundFriendsStats,
+    type SoundRound,
+    type LetterId,
+    type RoundNarration,
+    type PreschoolTheme,
+  } from '@/data/sound-friends';
+  import { recordPlay } from '@/lib/retention';
+
+  const TOTAL_ROUNDS = 8;
+  // Pink-leaning palette to match the literacy family accent (shared
+  // with Letter Friends), distinct from the math triad's green.
+  const SF_COLORS = ['#ef476f', '#ffd166', '#06d6a0', '#118ab2', '#f78fb3'];
+
+  /**
+   * Read round 0 from the SSR'd DOM so the JS session starts in sync
+   * with whatever Astro rendered. Avoids the kickoff-race that bit
+   * Counting Friends on 2026-05-15 — without this, a tap during the
+   * first interaction could land on a tile whose letter has just been
+   * rewritten by a freshly-randomised JS session. Inherited from
+   * Letter Friends / Number Friends.
+   */
+  const readSSRRound = (): SoundRound => {
+    const stageEl = document.getElementById('sfStage');
+    if (!stageEl) return generateSession()[0]!;
+
+    const themeKey = (stageEl.dataset.scene ?? 'pond') as PreschoolTheme;
+    const target = stageEl.dataset.target as LetterId | undefined;
+
+    const tileEls = [
+      document.getElementById('sfTile0'),
+      document.getElementById('sfTile1'),
+      document.getElementById('sfTile2'),
+    ];
+    if (!target || tileEls.some((el) => !el)) {
+      return generateSession()[0]!;
+    }
+
+    const tiles = tileEls.map(
+      (el) => el!.dataset.letter as LetterId,
+    ) as [LetterId, LetterId, LetterId];
+    const correctIndex = tiles.indexOf(target);
+    if (correctIndex < 0 || correctIndex > 2) {
+      return generateSession()[0]!;
+    }
+
+    return {
+      item: lookupLetter(target),
+      tiles,
+      correctIndex: correctIndex as 0 | 1 | 2,
+      // `tier` isn't used by the page controller; 0 is a safe placeholder
+      // for the SSR-derived round.
+      tier: 0,
+      theme: themeKey,
+    };
+  };
+
+  // ── State ──────────────────────────────────────────────────────────
+  let session: SoundRound[] = [readSSRRound(), ...generateSession().slice(1)];
+  let roundIdx = 0;
+  let answered = false;
+  let currentNarration: RoundNarration | null = null;
+  /** Most recent post-answer phrase, cached so Replay re-narrates it. */
+  let lastPostAnswerText = '';
+
+  // ── DOM refs ───────────────────────────────────────────────────────
+  const stage = document.getElementById('sfStage') as HTMLElement;
+  const targetEl = document.getElementById('sfTarget') as HTMLElement;
+  const targetEmoji = document.getElementById('sfTargetEmoji') as HTMLElement;
+  const targetWord = document.getElementById('sfTargetWord') as HTMLElement;
+  const captionEl = document.getElementById('sfCaption') as HTMLElement;
+  const tileEls = [
+    document.getElementById('sfTile0') as HTMLButtonElement,
+    document.getElementById('sfTile1') as HTMLButtonElement,
+    document.getElementById('sfTile2') as HTMLButtonElement,
+  ];
+  const progressText = document.getElementById('sfProgressText') as HTMLElement;
+  const progressFill = document.getElementById('sfProgressFill') as HTMLElement;
+  const progressPill = document.getElementById('sfProgressPill') as HTMLElement;
+  const replayBtn = document.getElementById('sfReplayBtn') as HTMLButtonElement;
+  const nextBtn = document.getElementById('sfNextBtn') as HTMLButtonElement;
+  const doneEl = document.getElementById('sfDone') as HTMLElement;
+  const playAgainBtn = document.getElementById('sfPlayAgainBtn') as HTMLButtonElement;
+
+  // ── Audio helpers ──────────────────────────────────────────────────
+
+  /**
+   * Speak `text` if the user has sound enabled. Same shape as the rest
+   * of the preschool family: silent-mode setTimeout fallback + watchdog
+   * alongside speechSynthesis.onend so headless CI runners without a
+   * TTS engine don't deadlock the round-progression chain.
+   */
+  const narrate = (text: string, opts?: { onEnd?: () => void }): void => {
+    const onEnd = opts?.onEnd;
+    if (!isSpeechSupported() || !getSettings().sound) {
+      if (onEnd) setTimeout(onEnd, 600);
+      return;
+    }
+    let fired = false;
+    const wrap = (): void => {
+      if (fired) return;
+      fired = true;
+      onEnd?.();
+    };
+    const watchdogMs = Math.max(800, text.length * 100 + 600);
+    if (onEnd) setTimeout(wrap, watchdogMs);
+    speak(text, { rate: 0.85, pitch: 1.15, onEnd: onEnd ? wrap : undefined });
+  };
+
+  const setCaption = (text: string): void => {
+    captionEl.textContent = text;
+    captionEl.style.animation = 'none';
+    void captionEl.offsetWidth;
+    captionEl.style.removeProperty('animation');
+  };
+
+  // ── Render helpers ─────────────────────────────────────────────────
+
+  const renderTarget = (target: LetterId): void => {
+    const meta = lookupLetter(target);
+    stage.dataset.target = target;
+    targetEl.setAttribute('aria-label', `What does ${meta.word} start with?`);
+    targetEmoji.textContent = meta.emoji;
+    targetWord.textContent = meta.word;
+  };
+
+  const renderRound = (): void => {
+    const round = session[roundIdx]!;
+
+    progressText.textContent = `${roundIdx + 1} / ${TOTAL_ROUNDS}`;
+    progressFill.style.width = `${((roundIdx + 1) / TOTAL_ROUNDS) * 100}%`;
+    progressPill.setAttribute('aria-label', `Round ${roundIdx + 1} of ${TOTAL_ROUNDS}`);
+
+    stage.dataset.scene = round.theme;
+
+    renderTarget(round.item.letter);
+
+    for (let g = 0; g < 3; g++) {
+      const letter = round.tiles[g]!;
+      const el = tileEls[g]!;
+      el.dataset.letter = letter;
+      el.style.setProperty('--sf-i', `${g * 0.1}s`);
+      el.setAttribute(
+        'aria-label',
+        `Tile ${g + 1} — letter ${letter} — tap if ${round.item.word} starts with this`,
+      );
+      el.innerHTML = `<span class="sf-tile-glyph" aria-hidden="true">${letter}</span>`;
+      el.disabled = false;
+      el.classList.remove('sf-tile--correct', 'sf-tile--reveal', 'sf-tile--wrong');
+      // Force re-trigger of the fly-in animation on each render.
+      el.style.animation = 'none';
+      void el.offsetWidth;
+      el.style.removeProperty('animation');
+    }
+
+    answered = false;
+    currentNarration = buildNarration(round);
+    lastPostAnswerText = '';
+    nextBtn.disabled = true;
+    replayBtn.disabled = false;
+  };
+
+  /** Speak the round's intro phrase (picture word + letter + sound). */
+  const speakIntroSequence = (): void => {
+    const n = currentNarration;
+    if (!n) return;
+    setCaption(n.intro);
+    narrate(n.intro);
+  };
+
+  // ── Answer handler ─────────────────────────────────────────────────
+
+  const onTileTap = (idx: 0 | 1 | 2): void => {
+    if (answered) return;
+    const round = session[roundIdx]!;
+    playTap();
+
+    const tappedEl = tileEls[idx]!;
+    const correctEl = tileEls[round.correctIndex]!;
+    const tappedLetter = round.tiles[idx]!;
+
+    if (idx === round.correctIndex) {
+      // Correct — celebrate.
+      answered = true;
+      tappedEl.classList.add('sf-tile--correct');
+      for (const el of tileEls) el.disabled = true;
+      playCorrect();
+      cancelSpeech();
+      const correctText = currentNarration?.correct ?? `Yes!`;
+      lastPostAnswerText = correctText;
+      setCaption(correctText);
+      narrate(correctText);
+      launchConfetti(SF_COLORS);
+      bumpStats(true);
+      nextBtn.disabled = false;
+    } else {
+      // Wrong — errorless rerun. Sequence:
+      //   1) 250ms shake on the tapped (wrong) tile.
+      //   2) "Hmm! Let's listen. Apple starts with ah." (rerun)
+      //   3) "This is B. B says buh. We need A." (rerunDoneWrong)
+      //   4) "Look! Apple starts with A. Ah, Apple." (rerunDoneRight)
+      //   5) Reveal the correct tile with a pulsing ring; enable Next.
+      // No score penalty, no red X — preserves errorless learning.
+      answered = true;
+      for (const el of tileEls) el.disabled = true;
+      tappedEl.classList.add('sf-tile--wrong');
+      cancelSpeech();
+      const rerunText = currentNarration?.rerun ?? "Let's listen.";
+      setCaption(rerunText);
+      narrate(rerunText, {
+        onEnd: () => {
+          const wrongDoneText =
+            currentNarration?.rerunDoneWrong(tappedLetter) ??
+            `This is ${tappedLetter}.`;
+          setCaption(wrongDoneText);
+          lastPostAnswerText = wrongDoneText;
+          narrate(wrongDoneText, {
+            onEnd: () => {
+              // Brief pause so the child registers the transition from
+              // "wrong letter" to "correct letter".
+              setTimeout(() => {
+                const rightDoneText =
+                  currentNarration?.rerunDoneRight ??
+                  `Look — ${round.item.letter}!`;
+                setCaption(rightDoneText);
+                lastPostAnswerText = rightDoneText;
+                correctEl.classList.add('sf-tile--reveal');
+                narrate(rightDoneText, {
+                  onEnd: () => {
+                    bumpStats(false);
+                    nextBtn.disabled = false;
+                  },
+                });
+              }, 350);
+            },
+          });
+        },
+      });
+    }
+  };
+
+  // ── Round progression ──────────────────────────────────────────────
+
+  const startRound = (): void => {
+    cancelSpeech();
+    renderRound();
+    requestAnimationFrame(() => speakIntroSequence());
+  };
+
+  const onNext = (): void => {
+    playTap();
+    if (roundIdx >= TOTAL_ROUNDS - 1) {
+      showSessionComplete();
+      return;
+    }
+    roundIdx++;
+    startRound();
+  };
+
+  const showSessionComplete = (): void => {
+    cancelSpeech();
+    const stats = loadSoundFriendsStats();
+    saveSoundFriendsStats({
+      ...stats,
+      sessions: stats.sessions + 1,
+      lastPlayed: new Date().toISOString().slice(0, 10),
+    });
+    recordPlay('sound-friends');
+    doneEl.classList.add('sf-done--show');
+    launchConfetti(SF_COLORS);
+    narrate(`Wow! You found ${TOTAL_ROUNDS} sound friends today! Great job!`);
+  };
+
+  const onPlayAgain = (): void => {
+    playTap();
+    doneEl.classList.remove('sf-done--show');
+    session = generateSession();
+    roundIdx = 0;
+    startRound();
+  };
+
+  // ── Stats persistence ──────────────────────────────────────────────
+
+  const bumpStats = (correctFirstTry: boolean): void => {
+    const stats = loadSoundFriendsStats();
+    saveSoundFriendsStats({
+      ...stats,
+      rounds: stats.rounds + 1,
+      correctFirstTry: stats.correctFirstTry + (correctFirstTry ? 1 : 0),
+      lastPlayed: new Date().toISOString().slice(0, 10),
+    });
+    recordPlay('sound-friends');
+  };
+
+  // ── Event wiring ───────────────────────────────────────────────────
+
+  for (const el of tileEls) {
+    el.addEventListener('click', () => {
+      if (el.disabled) return;
+      const idx = Number(el.dataset.i);
+      if (idx === 0 || idx === 1 || idx === 2) {
+        onTileTap(idx as 0 | 1 | 2);
+      }
+    });
+  }
+
+  replayBtn.addEventListener('click', () => {
+    playTap();
+    cancelSpeech();
+    if (!answered) {
+      speakIntroSequence();
+    } else {
+      const text = lastPostAnswerText || (currentNarration?.intro ?? '');
+      setCaption(text);
+      narrate(text);
+    }
+  });
+
+  nextBtn.addEventListener('click', onNext);
+  playAgainBtn.addEventListener('click', onPlayAgain);
+
+  document.getElementById('btnSettings')?.addEventListener('click', () => {
+    playTap();
+    (window as unknown as { openSettings?: () => void }).openSettings?.();
+  });
+
+  document.getElementById('btnQuiz')?.addEventListener('click', () => {
+    playTap();
+    cancelSpeech();
+    speakIntroSequence();
+  });
+
+  document.getElementById('btnStats')?.addEventListener('click', () => {
+    playTap();
+    const stats = loadSoundFriendsStats();
+    const ratio =
+      stats.rounds === 0
+        ? 0
+        : Math.round((stats.correctFirstTry / stats.rounds) * 100);
+    const lines = [
+      `🔊 Sessions completed: ${stats.sessions}`,
+      `🌟 Rounds played: ${stats.rounds}`,
+      `🎯 First-try correct: ${stats.correctFirstTry} (${ratio}%)`,
+      stats.lastPlayed ? `📅 Last played: ${stats.lastPlayed}` : '📅 Last played: never',
+    ];
+    alert(lines.join('\n'));
+  });
+
+  // ── Initial state binding ──────────────────────────────────────────
+  // The SSR'd DOM is round 0; we don't re-render it. Bind JS state so
+  // subsequent logic — tile clicks, replay, etc. — has the references.
+  currentNarration = buildNarration(session[0]!);
+  progressText.textContent = `1 / ${TOTAL_ROUNDS}`;
+  progressFill.style.width = `${(1 / TOTAL_ROUNDS) * 100}%`;
+  progressPill.setAttribute('aria-label', `Round 1 of ${TOTAL_ROUNDS}`);
+
+  // Don't auto-speak on first paint — browsers block speechSynthesis
+  // until the first user gesture. Wait for the first tap (anywhere on
+  // the body) to kick off the intro narration. Kickoff does NOT call
+  // renderRound() — that would race with a first-interaction tap on a
+  // tile. Same prophylactic fix the rest of the family uses.
+  let kickedOff = false;
+  const kickoff = (): void => {
+    if (kickedOff) return;
+    kickedOff = true;
+    requestAnimationFrame(() => speakIntroSequence());
+  };
+  document.addEventListener('pointerdown', kickoff, { once: true });
+  document.addEventListener('keydown', kickoff, { once: true });
+</script>

@@ -96,6 +96,10 @@ import {
   STATS_KEY as LETTER_FRIENDS_KEY,
   loadLetterFriendsStats,
 } from '@/data/letterfriends';
+import {
+  STATS_KEY as SOUND_FRIENDS_KEY,
+  loadSoundFriendsStats,
+} from '@/data/sound-friends';
 
 import { loadQuizState } from '@/lib/quiz';
 import { loadLearned } from '@/lib/progress';
@@ -440,6 +444,15 @@ export const STATS_REGISTRY: readonly StatsRegistryEntry[] = [
     storageKey: LETTER_FRIENDS_KEY,
     family: 'preschool-literacy',
     load: loadLetterFriendsStats,
+  }),
+  preschoolStatsEntry({
+    id: 'sound-friends',
+    title: 'Sound Friends',
+    emoji: '🔊',
+    hrefPath: 'games/sound-friends-game',
+    storageKey: SOUND_FRIENDS_KEY,
+    family: 'preschool-literacy',
+    load: loadSoundFriendsStats,
   }),
 
   // Family B — story

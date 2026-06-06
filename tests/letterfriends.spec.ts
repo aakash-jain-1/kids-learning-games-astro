@@ -211,13 +211,15 @@ test.describe('letter friends (preschool letter recognition)', () => {
   test('stats page lists Letter Friends in the preschool-literacy family section', async ({ page }) => {
     await page.goto('stats.html');
 
-    // The new family section exists and has exactly one card —
-    // Letter Friends.
+    // The family section exists; it now holds two cards — Letter
+    // Friends and Sound Friends (added 2026-06-06). The
+    // `data-game-id="letter-friends"` lookup below still pins this
+    // suite to Letter Friends specifically.
     const literacySection = page.locator(
       '.stats-section[data-family="preschool-literacy"]',
     );
     await expect(literacySection).toHaveCount(1);
-    await expect(literacySection.locator('.stats-card')).toHaveCount(1);
+    await expect(literacySection.locator('.stats-card')).toHaveCount(2);
 
     const card = literacySection.locator(
       '.stats-card[data-game-id="letter-friends"]',

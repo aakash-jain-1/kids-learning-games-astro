@@ -417,7 +417,63 @@ before deciding.
 
 ## Changelog
 
-### 2026-06-06 (latest) — feat(games): Number Bond Pop — fifth preschool-math game (number-bond decomposition), completing the early-math arc
+### 2026-06-06 (latest) — feat(games): Sound Friends — second preschool-literacy game (beginning sounds / letter-sound correspondence)
+
+**Why now.** With the early-math arc complete (cardinality triad + Pattern
+Sequences + Number Bond Pop), the user asked to "find some good games for
+3-year-olds — interactive, learning, knowledgeable." That research produced
+a ranked `ROADMAP.md`; the user picked candidate **A — Sound Friends**. It
+deepens the preschool-literacy family from letter *recognition* (Letter
+Friends — "show me A") to initial-*sound* mapping ("what does Apple start
+with?"), the single strongest pre-reading predictor in the early-learning
+standards (IL/OH/SC ELS: "develops awareness of initial sounds in words").
+
+**Pedagogy survey (done before the build).** Reviewed the early-learning
+standards on phonological awareness, Piasta 2010 (combined letter
+name+sound instruction beats either alone for preschoolers), and the
+Jolly-Phonics/SATPIN sequencing already used in Letter Friends. Consensus
+for ages 3-4: anchor the abstract phoneme with a **concrete picture kept
+on screen** (don't ask a 3yo to hold a phoneme in working memory), pair
+the letter NAME + a spoken SOUND cue + the picture mnemonic on every
+utterance, and keep answer tiles free of competing pictures so attention
+stays on the sound.
+
+**The mechanic (picture -> letter).** Each round shows a big PICTURE card
+(emoji + word, e.g. apple). Three **plain uppercase letter tiles** sit
+below; exactly one is the word's starting letter. The child taps the
+letter the pictured word starts with. Tiles are bare glyphs *by design* —
+no emoji/word on the tile — so the child can't shortcut by emoji-matching
+the target to a tile; attention stays on sound -> letter. Narration
+combines name + sound + mnemonic: "Apple. Apple starts with A. A says ah.
+Find the letter A!". Wrong tap -> 250ms kinesthetic shake (no colour /
+penalty), then "Hmm, let's listen. Apple starts with ah. This is B — B
+says buh. We need A.", then reveal the correct tile with a pulsing ring.
+Errorless: no score, no timer, no failure state.
+
+**Conventions reused.** Sibling to Letter Friends, NOT the math stage
+system (the auto-advancing `preschool-stages` machinery is math-specific —
+`maxN`/`frameSize` don't apply). SATPIN-tiered targets across an 8-round
+session; letter -> word -> emoji content reused from `@/data/alphabets`
+via the same indexing trick; bespoke `sound_friends_stats_v1` =
+`{ sessions, rounds, correctFirstTry, lastPlayed }` (no stages), identical
+in shape to Letter Friends. New `LETTER_SOUNDS` map holds short spoken
+sound cues (A->"ah", B->"buh", ...) — an approximation for the Web Speech
+engine, reinforced by the always-visible caption.
+
+**Files.** New: `src/data/sound-friends.ts`, `src/pages/games/sound-friends-game.astro`,
+`src/styles/soundfriends.css`, `tests/sound-friends.spec.ts`. Edited:
+`StoryLayout.astro` (`'soundfriends'` theme + pre-dark block),
+`stats-registry.ts` (preschool-literacy entry after Letter Friends),
+`index.astro` (home card after Letter Friends), `tests/stats.spec.ts`
+(`'sound-friends'` in `EXPECTED_GAME_IDS`), `tests/letterfriends.spec.ts`
+(literacy section card count 1 -> 2). Game count 19 -> 20.
+
+**Follow-up.** TTS sound cues are approximate (the Web Speech engine can't
+emit clean isolated phonemes); the visible caption carries the canonical
+form. Optional future polish: recorded MP3 phoneme cues, mirroring the
+parked Letter/Number Friends narration item.
+
+### 2026-06-06 — feat(games): Number Bond Pop — fifth preschool-math game (number-bond decomposition), completing the early-math arc
 
 **Why now.** With the cardinality triad + Pattern Sequences shipped, the
 remaining gap in the early-math arc was *decomposition* — "how many more
