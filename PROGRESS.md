@@ -417,7 +417,130 @@ before deciding.
 
 ## Changelog
 
-### 2026-05-25 (latest) — feat(games): Letter Friends — first preschool-LITERACY game; uppercase letter recognition for ages 3–4 (T-letters)
+### 2026-06-04 (latest) — chore(tooling): Windows-native npm scripts + local Playwright via system Chrome; full local green
+
+**Why now.** First time the repo was exercised end-to-end on the Windows
+dev box. Node LTS was installed (`C:\Program Files\nodejs`, Node v24,
+npm 11) but two Windows-specific friction points blocked the standard
+verify loop, and the corporate proxy (Zscaler) stalled the Playwright
+browser download. Fixed all three so `npm run check` / `build` / `test`
+work natively here, then ran the complete suite green locally.
+
+- **`cross-env` for env-prefixed scripts.** The npm scripts used
+  bash-style `ASTRO_TELEMETRY_DISABLED=1 …` prefixes, which `cmd.exe`
+  (npm's default `script-shell` on Windows) can't parse — every script
+  died with *"'ASTRO_TELEMETRY_DISABLED' is not recognized…"*. Wrapped
+  the prefixes in `cross-env` (added as a devDependency) across `dev`,
+  `build`, `preview`, `check`, `astro`, `test`, `test:ui`. CI-safe:
+  `cross-env` is a no-op pass-through on Linux.
+- **`PW_CHANNEL` opt-in to system Chrome.** `playwright install chromium`
+  hangs behind the proxy (download reaches 100% then stalls on extract).
+  Added a guarded `channel` override in `playwright.config.ts`:
+  `PW_CHANNEL=chrome` drives the locally-installed Google Chrome instead
+  of bundled chromium. Unset in CI, so CI keeps bundled chromium. Local
+  runs also need `NO_PROXY=127.0.0.1,localhost` so the loopback preview
+  server isn't intercepted by Zscaler (already documented in the config).
+- **Stats spec fix for the new Stage row.** `stats.spec.ts` end-to-end
+  Counting Friends test asserted `lastPlayed` via `.last()`, but the
+  2026-06-03 staged-triad change appends a "Stage" row after it. Pinned
+  the assertion to `.nth(3)` (the lastPlayed row), matching the
+  zero-state test already updated in that ship.
+
+**Result.** Local `astro check` = 0 errors/0 warnings/0 hints (60
+files); `astro build` = 21 pages + PWA service worker; full Playwright
+suite = **102 passed** (`--workers=1`, mirroring CI). The 6 failures
+seen on the first all-parallel run were timeout flakes under system
+Chrome (heavier than bundled chromium at high worker counts) — all green
+in isolation and at `--workers=1`.
+
+### 2026-06-03 — feat(games): auto-advancing stages for the cardinality triad (Counting / More / Number Friends)
+
+**Why now.** The user asked to "enhance and make more stages for
+counting, number and more friends." Through clarifying questions the
+shape settled on: stages that grow **both** breadth (more themes, more
+rounds, fuller difficulty mix) **and** the number ceiling — explicitly
+"increase number to 10, don't restrict to ≤5" — with **automatic**
+progression based on the child's accuracy (no manual level picker, no
+demotion).
+
+**The stage model (shared lib).** Added `src/lib/preschool-stages.ts`,
+a pure data + pure-function module (no DOM / storage / randomness, so
+it's SSR-safe and trivially testable). Three consumers cleared the
+"refactor on second consumer" bar comfortably. It exports:
+
+- `StageId` (`1 | 2 | 3`) + `STAGE_META` — per-stage `rounds`, `maxN`,
+  `frameSize`, theme-pool flag, and a child-facing `label`:
+  | Stage | Label | Rounds | maxN | Frame | Themes |
+  |---|---|---|---|---|---|
+  | 1 | Starter | 8 | 5 | five-frame | 4 (starter) |
+  | 2 | Explorer | 10 | 10 | ten-frame | 6 (all) |
+  | 3 | Champion | 12 | 10 | ten-frame | 6 (all) |
+- `themesForStage` (Stage 1 = `THEMES.slice(0,4)`, Stage 2+ = all 6),
+  `shouldAdvance(firstTry, rounds, stage)` (≥75% first-try AND not at
+  the top stage), `nextStage`, `clampStage`.
+
+**Why cap at 10, not 15.** Keeps the dot-frame a clean two-row
+ten-frame with no awkward partial row. `frameSize` is kept *separate*
+from `maxN` (a rendering concern vs a content concern) even though
+they're equal today, so a future "Stage 3 caps at 12 but renders a
+ten-frame + 2" tweak is a one-cell edit.
+
+**Auto-progression, never demotion.** After a full session each game
+compares first-try accuracy to `ADVANCE_RATIO` (0.75); meet it and
+advance one stage with a celebratory level-up message + narration; miss
+it and stay put. We never auto-drop — dropping a child a stage after an
+off day is exactly the shame-coded feedback the triad is built to
+avoid. `bestStage` records the high-water mark for the parent
+dashboard.
+
+**Two new themes.** Appended `meadow` (🐑 sheep — invariant plural like
+fish) and `jungle` (🐵 monkey) to `preschool-themes.ts`. They MUST stay
+appended at the END so the starter-4 slice + the deterministic SSR seed
+(`() => 0.42`) resolve against a stable prefix. Green palettes chosen
+to stay distinct from the warm-green orchard/garden scenes.
+
+**Per-game data (`addition.ts`, `comparison.ts`, `numberfriends.ts`).**
+Each now exposes per-stage plans + extended number pools and a
+`generateSession(rand, stage = 1)` signature. **Stage 1 is byte-for-byte
+the old behaviour** (same plans, same pools, same `buildOptions`, same
+starter-theme order) so SSR + every existing test is unmoved. Stages
+2/3 add bigger sums (6–10, addends capped at 6 so a single group never
+exceeds 6 emoji), bigger comparison pairs (sizes ≤10, diffs 1–5), and
+bigger hunt targets (2–10, `decoysFor` was already target-general).
+Stats schemas gained `{ stage, bestStage }` (clamped on load; default 1
+for pre-stage saves).
+
+**Per-game pages.** Threaded `stage` through each controller: read from
+saved stats on load, dynamic `TOTAL_ROUNDS`/`frameSize`, a header stage
+pill (`⭐ Stage N`), a session first-try counter, auto-advance + level-up
+on session complete, and Play-Again regenerating at the (possibly
+bumped) stage. Round 0 still mirrors the SSR'd DOM at every stage (a
+gentle warmup; preserves the anti-kickoff-race contract). Option /
+target dot-frames render `frameSize` cells; the digit stays the primary
+cue, so an over-ceiling distractor just maxes the frame (same
+convention Stage 1 already used for its "6" distractor).
+
+**Stats dashboard.** `stats-registry.ts` appends a conditional Stage row
+(`N / 3 (best M)`) — only for entries whose `load()` reports a numeric
+`stage`, so the literacy + pattern games are untouched. Row is appended
+last so existing row-index assertions hold.
+
+**CSS.** Added stage-pill styles, meadow/jungle scene palettes, and
+two-row ten-frame layouts (`.cf-opt--frame-10`, `.nf-target-frame--10`)
+to the three triad stylesheets.
+
+**Tests.** Added a "returning player at Stage 2" spec to each triad
+suite (seeds `stage:2`, asserts the pill + 10-round counter) and a
+Stage-row hydration spec to `stats.spec.ts`; fixed the one zero-state
+`.last()` assertion that the new appended Stage row shifted.
+
+**Verification.** `npm`/`node` aren't on this PowerShell box's PATH
+(local dev runs from Git Bash; Playwright is also Zscaler-blocked
+locally), so validation leaned on the TS language server (clean across
+all touched files) — the GitHub Actions deploy gate runs the full
+`astro check` + build + Playwright suite.
+
+### 2026-05-25 — feat(games): Letter Friends — first preschool-LITERACY game; uppercase letter recognition for ages 3–4 (T-letters)
 
 **Why now.** First feature-driven game outside the math arc. The
 preschool-math triad (Counting Friends + More Friends + Number

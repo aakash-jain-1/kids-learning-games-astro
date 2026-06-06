@@ -1,0 +1,41 @@
+---
+description: Keep CONTEXT.md current as the project's fast-orientation map
+alwaysApply: true
+---
+
+# Maintain CONTEXT.md
+
+`CONTEXT.md` (repo root) is the fast-loading orientation map for this project.
+It must stay accurate. Treat it as a living summary that points to the
+canonical docs (`README.md`, `PROGRESS.md`, `SESSION-HANDOFF.md`).
+
+## When to update it
+
+Update `CONTEXT.md` in the **same change** whenever you do any of these:
+
+- Add, remove, or rename a **game** (update the count + the layout list in §4
+  and the stats-registry note in §6).
+- Add or change a **shared `src/lib/` primitive** or a **layout** (§5).
+- Introduce or change a **LocalStorage key / state shape** (§6).
+- Change **build, test, deploy, or PWA tooling** (§3).
+- Ship something that changes **"current state & what's next"** (§7) — e.g.
+  closing T9, starting a new feature arc.
+
+If a change touches none of the above (a pure bug fix, a CSS tweak, a test
+addition), you do **not** need to touch `CONTEXT.md`.
+
+## How to update it
+
+- Keep it **concise** — it is a map, not the territory. Push detail into
+  `PROGRESS.md` (the append-only changelog / source of truth) and only
+  summarize here.
+- Bump the **"Last verified against the codebase"** date at the top whenever
+  you edit it or confirm it still matches the code.
+- If `CONTEXT.md` and a canonical doc disagree, fix `CONTEXT.md` to match the
+  code, and flag the stale doc.
+
+## Don't
+
+- Don't duplicate large prose from `PROGRESS.md` here.
+- Don't let the game count or layout/game lists drift from
+  `src/data/stats-registry.ts` and `src/pages/index.astro` (the real sources).
