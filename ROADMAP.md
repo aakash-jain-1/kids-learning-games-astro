@@ -18,7 +18,7 @@ and the bootstrap context in [CONTEXT.md](CONTEXT.md).
 | Literacy — letter recognition | Partial (1) | Letter Friends (uppercase recognition only) |
 | Literacy — phonological awareness (sounds, rhyme) | Partial (1) | Sound Friends (beginning sounds; rhyme still open) |
 | Cognitive — sorting / categorization | Partial (1) | Sorting Friends (single-attribute sort: habitat / kind / size) |
-| Cognitive — temporal sequencing (days / time) | Partial (1) | Week Friends (days of the week — "what comes next?") |
+| Cognitive — temporal sequencing (days / time) | Partial (2) | Days Parade (learn/meet all 7 days), Week Friends (days of the week — "what comes next?") |
 | Social-emotional (emotions / empathy) | None | — |
 | Science / world knowledge | Card decks only | Animals, Birds, Dinosaurs, Solar System, Weather (browse, not interactive game) |
 
@@ -37,6 +37,7 @@ ethos (survey the golden standards before designing).
 | E | **Feeling Friends** | Social-emotional | "Show me happy" — tap the face / read a feeling. Opens the SEL domain (currently empty). | Queued |
 | F | **Memory Match** | Cognitive (working memory) | Flip cards to find matching pairs. New mechanic; reuses any card deck (animals / shapes / colors). | Queued |
 | G | **Week Friends** (Days of the Week) | Cognitive (temporal sequencing) | "What day comes next?" Run of days + "?" slot, tap the next day. Sunday-first like the song; errorless "let's sing the days" reveal. User-requested. | **Done 2026-06-17** ([PROGRESS.md](PROGRESS.md)) |
+| H | **Days Parade** (Learn the Days) | Cognitive (temporal — foundation) | Meet/learn all 7 days first: tap each to hear it, "Sing the days" walk in order, "Today is…" badge, collect-them-all. The prequel to Week Friends (learn → then sequence). User-requested. | **Done 2026-06-17** ([PROGRESS.md](PROGRESS.md)) |
 
 ## Parked / enhancements
 

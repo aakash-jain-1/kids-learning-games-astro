@@ -1,0 +1,370 @@
+---
+import StoryLayout from '@/layouts/StoryLayout.astro';
+import GameControls from '@/components/GameControls.astro';
+import '@/styles/days-parade.css';
+
+import { ALL_DAYS, TOTAL_TO_MEET } from '@/data/days-parade';
+
+const title = 'Days Parade — Kids Learning Games';
+const description =
+  'Meet all seven days of the week! Tap each day to hear its name and a friendly fact, or press "Sing the days" to walk through Sunday to Saturday in order. A live "Today is…" badge anchors it in routine. A gentle, no-scoring learn-the-days game for ages 3–4 — the prequel to Week Friends.';
+---
+
+<StoryLayout
+  title={title}
+  description={description}
+  themeColor="#0d9488"
+  theme="daysparade"
+>
+  <main class="dp-shell" aria-label="Days Parade game">
+    <header class="dp-header">
+      <h1 class="dp-title">
+        <span aria-hidden="true">📆</span>
+        <span>Days Parade</span>
+      </h1>
+
+      <div class="dp-header-right" style="display: flex; gap: 10px; align-items: center;">
+        <span
+          class="dp-progress-pill"
+          id="dpProgressPill"
+          aria-label={`Met 0 of ${TOTAL_TO_MEET} days`}
+        >
+          <span id="dpProgressText">0 / {TOTAL_TO_MEET}</span>
+          <span class="dp-progress-bar" aria-hidden="true">
+            <span class="dp-progress-fill" id="dpProgressFill"></span>
+          </span>
+        </span>
+        <GameControls quiz={false} />
+      </div>
+    </header>
+
+    <section class="dp-stage" id="dpStage" aria-label="Days of the week">
+      <div class="dp-caption" id="dpCaption" role="status" aria-live="polite">
+        Tap a day to meet it — or press “Sing the days” to hear them all!
+      </div>
+
+      <button type="button" class="dp-sing-btn" id="dpSingBtn" aria-label="Sing the days — hear all seven in order">
+        <span aria-hidden="true">▶</span> Sing the days
+      </button>
+
+      <div class="dp-train" id="dpTrain" role="list" aria-label="The seven days of the week, in order">
+        {
+          ALL_DAYS.map((day, i) => (
+            <button
+              type="button"
+              class="dp-card"
+              role="listitem"
+              id={`dpCard${i}`}
+              data-day={day.index}
+              data-i={i}
+              data-group={day.group}
+              style={`--dp-card-color: ${day.color}; --dp-i: ${i * 0.06}s`}
+              aria-label={`${day.name} — day ${day.ordinal} of the week`}
+            >
+              <span class="dp-card-emoji" aria-hidden="true">{day.emoji}</span>
+              <span class="dp-card-name" aria-hidden="true">{day.short}</span>
+              <span class="dp-card-check" aria-hidden="true">✓</span>
+            </button>
+          ))
+        }
+      </div>
+
+      <section class="dp-detail dp-detail--empty" id="dpDetail" aria-live="polite">
+        <div class="dp-detail-emoji" id="dpDetailEmoji" aria-hidden="true">📅</div>
+        <div class="dp-detail-headline">
+          <span class="dp-detail-name" id="dpDetailName">Days of the week</span>
+          <span class="dp-detail-pill" id="dpDetailPill">7 days</span>
+        </div>
+        <p class="dp-detail-fact" id="dpDetailFact">
+          Tap any day above to meet it!
+        </p>
+        <div class="dp-detail-actions">
+          <button type="button" class="dp-arrow" id="dpPrevBtn" aria-label="Previous day" disabled>◀</button>
+          <button type="button" class="dp-hear" id="dpHearBtn" aria-label="Hear this day">🔊 Hear</button>
+          <button type="button" class="dp-arrow" id="dpNextBtn" aria-label="Next day" disabled>▶</button>
+        </div>
+      </section>
+    </section>
+
+    <div class="dp-done" id="dpDone" role="dialog" aria-live="polite" aria-labelledby="dpDoneTitle">
+      <div class="dp-done-card">
+        <div class="dp-done-emoji" aria-hidden="true">🎉</div>
+        <h2 class="dp-done-title" id="dpDoneTitle">You met all 7 days!</h2>
+        <p class="dp-done-text" id="dpDoneText">
+          Sunday, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday!
+        </p>
+        <div class="dp-done-actions">
+          <button type="button" class="dp-action dp-action--primary" id="dpAgainBtn">▶ Sing again</button>
+          <a class="dp-action" href={import.meta.env.BASE_URL}>🏠 Home</a>
+        </div>
+      </div>
+    </div>
+  </main>
+</StoryLayout>
+
+<script>
+  import { playTap, playCorrect } from '@/lib/audio';
+  import { speak, cancelSpeech, isSpeechSupported } from '@/lib/speech';
+  import { launchConfetti } from '@/lib/achievements';
+  import { getSettings } from '@/lib/settings';
+  import { loadLearned, saveLearned } from '@/lib/progress';
+  import {
+    ALL_DAYS,
+    TOTAL_TO_MEET,
+    loadDaysParadeStats,
+    saveDaysParadeStats,
+  } from '@/data/days-parade';
+
+  const GAME_ID = 'days-parade';
+  const DP_COLORS = ['#0d9488', '#ffd166', '#5c6bc0', '#ef476f', '#42a5f5'];
+
+  // ── State ──────────────────────────────────────────────────────────
+  let learned = loadLearned(GAME_ID); // Set<string> of day-index strings.
+  let activeIdx: number | null = null;
+  let singing = false;
+  let celebrated = false;
+
+  // ── DOM refs ───────────────────────────────────────────────────────
+  const captionEl = document.getElementById('dpCaption') as HTMLElement;
+  const singBtn = document.getElementById('dpSingBtn') as HTMLButtonElement;
+  const trainEl = document.getElementById('dpTrain') as HTMLElement;
+  const detailEl = document.getElementById('dpDetail') as HTMLElement;
+  const detailEmoji = document.getElementById('dpDetailEmoji') as HTMLElement;
+  const detailName = document.getElementById('dpDetailName') as HTMLElement;
+  const detailPill = document.getElementById('dpDetailPill') as HTMLElement;
+  const detailFact = document.getElementById('dpDetailFact') as HTMLElement;
+  const prevBtn = document.getElementById('dpPrevBtn') as HTMLButtonElement;
+  const nextBtn = document.getElementById('dpNextBtn') as HTMLButtonElement;
+  const hearBtn = document.getElementById('dpHearBtn') as HTMLButtonElement;
+  const progressText = document.getElementById('dpProgressText') as HTMLElement;
+  const progressFill = document.getElementById('dpProgressFill') as HTMLElement;
+  const progressPill = document.getElementById('dpProgressPill') as HTMLElement;
+  const doneEl = document.getElementById('dpDone') as HTMLElement;
+  const againBtn = document.getElementById('dpAgainBtn') as HTMLButtonElement;
+
+  const cards = Array.from(trainEl.querySelectorAll<HTMLButtonElement>('.dp-card'));
+
+  // ── Audio helper ───────────────────────────────────────────────────
+  // Same shape as the rest of the preschool family: silent-mode
+  // setTimeout fallback + watchdog so headless CI runners without a TTS
+  // engine don't deadlock the sing-the-days walk chain.
+  const narrate = (text: string, opts?: { onEnd?: () => void }): void => {
+    const onEnd = opts?.onEnd;
+    if (!isSpeechSupported() || !getSettings().sound) {
+      if (onEnd) setTimeout(onEnd, 350);
+      return;
+    }
+    let fired = false;
+    const wrap = (): void => {
+      if (fired) return;
+      fired = true;
+      onEnd?.();
+    };
+    const watchdogMs = Math.max(700, text.length * 90 + 500);
+    if (onEnd) setTimeout(wrap, watchdogMs);
+    speak(text, { rate: 0.85, pitch: 1.15, onEnd: onEnd ? wrap : undefined });
+  };
+
+  const setCaption = (text: string): void => {
+    captionEl.textContent = text;
+  };
+
+  const dayLine = (i: number): string => {
+    const d = ALL_DAYS[i]!;
+    return `${d.name}. ${d.fact}`;
+  };
+
+  // ── Progress + tile state ──────────────────────────────────────────
+  const updateProgress = (): void => {
+    const n = learned.size;
+    progressText.textContent = `${n} / ${TOTAL_TO_MEET}`;
+    progressFill.style.width = `${(n / TOTAL_TO_MEET) * 100}%`;
+    progressPill.setAttribute('aria-label', `Met ${n} of ${TOTAL_TO_MEET} days`);
+  };
+
+  const applyCardStates = (): void => {
+    cards.forEach((c) => {
+      const i = Number(c.dataset.i);
+      c.classList.toggle('dp-card--met', learned.has(String(ALL_DAYS[i]!.index)));
+      c.classList.toggle('dp-card--active', activeIdx === i);
+    });
+  };
+
+  const markMet = (i: number): void => {
+    const key = String(ALL_DAYS[i]!.index);
+    if (learned.has(key)) return;
+    learned.add(key);
+    saveLearned(GAME_ID, learned); // also records play for /stats activity.
+    updateProgress();
+    applyCardStates();
+  };
+
+  // ── Detail panel ───────────────────────────────────────────────────
+  const showDetail = (i: number, opts: { scroll?: boolean } = {}): void => {
+    const d = ALL_DAYS[i];
+    if (!d) return;
+    activeIdx = i;
+    detailEl.classList.remove('dp-detail--empty');
+    detailEmoji.textContent = d.emoji;
+    detailName.textContent = d.name;
+    detailPill.textContent = `Day ${d.ordinal} · ${d.groupLabel}`;
+    detailPill.dataset.group = d.group;
+    detailFact.textContent = d.fact;
+    prevBtn.disabled = i <= 0;
+    nextBtn.disabled = i >= ALL_DAYS.length - 1;
+    applyCardStates();
+    if (opts.scroll) detailEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  };
+
+  const maybeCelebrate = (): void => {
+    if (celebrated || learned.size < TOTAL_TO_MEET) return;
+    celebrated = true;
+    doneEl.classList.add('dp-done--show');
+    launchConfetti(DP_COLORS);
+  };
+
+  // ── Tap / navigate / hear ──────────────────────────────────────────
+  const onCardTap = (i: number, opts: { speak?: boolean } = {}): void => {
+    playTap();
+    const card = cards[i];
+    if (card) {
+      card.classList.remove('dp-card--pop');
+      void card.offsetWidth;
+      card.classList.add('dp-card--pop');
+    }
+    showDetail(i, { scroll: true });
+    const wasNew = !learned.has(String(ALL_DAYS[i]!.index));
+    markMet(i);
+    if (wasNew) playCorrect();
+    if (opts.speak !== false) {
+      cancelSpeech();
+      setCaption(dayLine(i));
+      narrate(dayLine(i));
+    }
+    maybeCelebrate();
+  };
+
+  const navigate = (delta: -1 | 1): void => {
+    if (singing) return;
+    const from = activeIdx ?? (delta === 1 ? -1 : ALL_DAYS.length);
+    const next = from + delta;
+    if (next < 0 || next >= ALL_DAYS.length) return;
+    onCardTap(next);
+  };
+
+  // ── Sing the days — walk all seven in order ────────────────────────
+  const singAll = (): void => {
+    if (singing) return;
+    singing = true;
+    cancelSpeech();
+    singBtn.disabled = true;
+    let i = 0;
+    const step = (): void => {
+      if (i >= ALL_DAYS.length) {
+        singing = false;
+        singBtn.disabled = false;
+        const s = loadDaysParadeStats();
+        saveDaysParadeStats({
+          sings: s.sings + 1,
+          lastPlayed: new Date().toISOString().slice(0, 10),
+        });
+        maybeCelebrate();
+        return;
+      }
+      showDetail(i);
+      markMet(i);
+      const card = cards[i];
+      card?.classList.add('dp-card--singing');
+      const name = ALL_DAYS[i]!.name;
+      setCaption(name);
+      narrate(name, {
+        onEnd: () => {
+          card?.classList.remove('dp-card--singing');
+          i++;
+          setTimeout(step, 140);
+        },
+      });
+    };
+    step();
+  };
+
+  // ── "Today is…" badge — anchors the week in the child's routine ────
+  const markToday = (): void => {
+    const todayIdx = ALL_DAYS.findIndex((d) => d.index === new Date().getDay());
+    if (todayIdx < 0) return;
+    const card = cards[todayIdx];
+    if (!card) return;
+    card.classList.add('dp-card--today');
+    const ribbon = document.createElement('span');
+    ribbon.className = 'dp-card-today-flag';
+    ribbon.textContent = 'Today';
+    ribbon.setAttribute('aria-hidden', 'true');
+    card.appendChild(ribbon);
+    card.setAttribute(
+      'aria-label',
+      `${ALL_DAYS[todayIdx]!.name} — day ${ALL_DAYS[todayIdx]!.ordinal} of the week — today`,
+    );
+    setCaption(`Today is ${ALL_DAYS[todayIdx]!.name}! Tap a day to meet it, or press “Sing the days”.`);
+  };
+
+  // ── Event wiring ───────────────────────────────────────────────────
+  trainEl.addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('.dp-card');
+    if (!btn || singing) return;
+    onCardTap(Number(btn.dataset.i));
+  });
+
+  singBtn.addEventListener('click', singAll);
+  prevBtn.addEventListener('click', () => navigate(-1));
+  nextBtn.addEventListener('click', () => navigate(1));
+  hearBtn.addEventListener('click', () => {
+    playTap();
+    if (activeIdx === null) {
+      onCardTap(0);
+      return;
+    }
+    cancelSpeech();
+    setCaption(dayLine(activeIdx));
+    narrate(dayLine(activeIdx));
+  });
+
+  againBtn.addEventListener('click', () => {
+    playTap();
+    doneEl.classList.remove('dp-done--show');
+    celebrated = false;
+    singAll();
+  });
+
+  document.getElementById('btnSettings')?.addEventListener('click', () => {
+    playTap();
+    (window as unknown as { openSettings?: () => void }).openSettings?.();
+  });
+
+  document.getElementById('btnStats')?.addEventListener('click', () => {
+    playTap();
+    const s = loadDaysParadeStats();
+    const lines = [
+      `📆 Days met: ${learned.size} of ${TOTAL_TO_MEET}`,
+      `🎶 Sing-alongs: ${s.sings}`,
+      s.lastPlayed ? `📅 Last played: ${s.lastPlayed}` : '📅 Last played: never',
+    ];
+    alert(lines.join('\n'));
+  });
+
+  // ── Initial render ─────────────────────────────────────────────────
+  updateProgress();
+  applyCardStates();
+  markToday();
+  celebrated = learned.size >= TOTAL_TO_MEET;
+
+  // Speech is blocked until the first user gesture — wait for it, then
+  // narrate the "today" intro line once.
+  let kickedOff = false;
+  const kickoff = (): void => {
+    if (kickedOff) return;
+    kickedOff = true;
+    narrate(captionEl.textContent ?? '');
+  };
+  document.addEventListener('pointerdown', kickoff, { once: true });
+  document.addEventListener('keydown', kickoff, { once: true });
+</script>

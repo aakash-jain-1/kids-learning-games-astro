@@ -108,6 +108,10 @@ import {
   STATS_KEY as WEEK_FRIENDS_KEY,
   loadWeekFriendsStats,
 } from '@/data/week-friends';
+import {
+  TOTAL_TO_MEET as DAYS_PARADE_TOTAL,
+  loadDaysParadeStats,
+} from '@/data/days-parade';
 
 import { loadQuizState } from '@/lib/quiz';
 import { loadLearned } from '@/lib/progress';
@@ -395,6 +399,39 @@ const cardPureEntry = (cfg: {
 const FLASHCARDS_TOTAL = FLASHCARD_DECKS.reduce((sum, d) => sum + d.cards.length, 0);
 const FLASHCARDS_DECK_VALUE = `${FLASHCARD_DECKS.length} decks · ${FLASHCARDS_TOTAL} cards`;
 
+// ─── Days Parade — bespoke preschool-cognitive entry ─────────────────
+//
+// Days Parade is an *explore/learn* game (meet all 7 days), not a
+// forced-choice rounds game, so it doesn't fit the `preschoolStatsEntry`
+// (rounds / correctFirstTry) shape. It tracks a learned-set of met days
+// via the shared progress lib (`kids_progress_v1:days-parade`, which also
+// feeds the activity chart) plus a tiny bespoke key for the sing-along
+// count + last-played date. Modeled on the bespoke `routinesEntry` /
+// `cardSetEntry` shape — a custom `read()` of "N / 7 met" rows.
+const daysParadeEntry: StatsRegistryEntry = {
+  id: 'days-parade',
+  title: 'Days Parade',
+  emoji: '📆',
+  hrefPath: 'games/days-parade-game',
+  family: 'preschool-cognitive',
+  read: () => {
+    const learned = loadLearned('days-parade');
+    const s = loadDaysParadeStats();
+    return [
+      { emoji: '📆', label: 'Days met', value: fmtRatio(learned.size, DAYS_PARADE_TOTAL) },
+      { emoji: '🎶', label: 'Sing-alongs', value: String(s.sings) },
+      { emoji: '📅', label: 'Last played', value: fmtLastPlayed(s.lastPlayed) },
+    ];
+  },
+  clear: () => {
+    const setKey = 'kids_progress_v1:days-parade';
+    safeRemove(setKey);
+    safeRemove('days_parade_stats_v1');
+    return [setKey, 'days_parade_stats_v1'];
+  },
+  hasData: () => loadLearned('days-parade').size > 0 || loadDaysParadeStats().sings > 0,
+};
+
 // ─── The registry ────────────────────────────────────────────────────
 //
 // Order matters: this is also the on-page render order. The
@@ -480,6 +517,7 @@ export const STATS_REGISTRY: readonly StatsRegistryEntry[] = [
     family: 'preschool-cognitive',
     load: loadSortingFriendsStats,
   }),
+  daysParadeEntry,
   preschoolStatsEntry({
     id: 'week-friends',
     title: 'Week Friends',

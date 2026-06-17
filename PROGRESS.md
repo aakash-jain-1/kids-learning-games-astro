@@ -417,7 +417,62 @@ before deciding.
 
 ## Changelog
 
-### 2026-06-17 (latest) — feat(games): Week Friends — days-of-the-week sequencing, second preschool-COGNITIVE game
+### 2026-06-17 (latest) — feat(games): Days Parade — learn-the-days explore game, the prequel to Week Friends
+
+**Why now.** Right after Week Friends shipped, the user flagged a real pedagogical
+gap: Week Friends ("what day comes *next*?") assumes the child already knows the
+day sequence, but a 3-4yo has to **learn all seven days first** — through song,
+repetition, and going through them one by one. (Our own Week Friends pedagogy
+survey said exactly this.) Days Parade fills that gap as the **foundational
+learn/explore game** that should come *before* the Week Friends sequencer. Both
+sit in `preschool-cognitive`; Days Parade is ordered first.
+
+**Pedagogy.** This is the digital analogue of the classroom days-of-the-week wall
+chart + song: the week is a **rote ordered list** learned via **song + repetition
++ visual order**, grounded in **routine** ("today is Monday, so we go to school").
+No scoring, no failure, no quiz — pure exploration (recognition + sequencing
+practice live in Week Friends).
+
+**Mechanic (a GridLayout-style collect-them-all, in a warm StoryLayout shell).**
+- A **week train** of all 7 days, Sunday-first, always in order.
+- **Tap any day** → hear its name + a friendly fact, see the detail panel, and
+  collect a permanent "met ✓" badge (progress N / 7). `playCorrect` on a newly
+  met day.
+- **"▶ Sing the days"** auto-walks the whole week in order, highlighting + naming
+  each day (the song, on tap), marking each met. Bumps a sing-along counter.
+- **◀ / ▶** step through the days in the detail panel; **🔊 Hear** replays.
+- A live **"Today is …"** badge (from `new Date().getDay()`, added on hydration)
+  anchors the abstract list in the child's lived routine.
+- Meeting all 7 → a celebration overlay with confetti.
+
+**Reuse.** Day identity (index / name / short / emoji / color) is imported from
+`@/data/week-friends` so a day looks identical across both games (single source
+of truth). `days-parade.ts` adds only the *learning* extras (ordinal,
+weekday/weekend grouping, fun fact). The met-set uses the shared progress lib
+(`kids_progress_v1:days-parade`), whose `saveLearned` already calls `recordPlay`
+— so the /stats activity chart picks it up for free.
+
+**Stats.** Bespoke registry entry (not the `preschoolStatsEntry` rounds shape —
+this is an explore game): a custom `read()` of "Days met N/7", "Sing-alongs",
+"Last played", backed by the progress lib + a tiny `days_parade_stats_v1` key
+(sing count + last-played). No new family — it joins `preschool-cognitive`
+(now 3 cards), so the dashboard stays at 6 families/42 dots.
+
+**New files.** `src/data/days-parade.ts`, `src/pages/games/days-parade-game.astro`
+(StoryLayout `theme='daysparade'`, `GameControls quiz={false}`, week train + detail
+panel + sing-walk + today badge), `src/styles/days-parade.css` (`daysparade`
+scope, week train, met/today/active card states, detail panel, sing button, done
+overlay, teal accent, dark/reduced-motion/responsive), `tests/days-parade.spec.ts`.
+
+**Edits.** `StoryLayout.astro` (`'daysparade'` theme + pre-dark block),
+`stats-registry.ts` (bespoke `daysParadeEntry` before `week-friends`),
+`index.astro` (home card before Week Friends), `tests/stats.spec.ts`
+(`'days-parade'` in `EXPECTED_GAME_IDS`). Game count 22 → 23.
+
+**Verification.** `npm run check` → `npm run build` → `PW_CHANNEL=chrome npm test
+-- --workers=1`.
+
+### 2026-06-17 — feat(games): Week Friends — days-of-the-week sequencing, second preschool-COGNITIVE game
 
 **Why now.** The user asked for a Days of the Week game. The `preschool-cognitive`
 family had a single member (Sorting Friends); days-of-the-week is the canonical

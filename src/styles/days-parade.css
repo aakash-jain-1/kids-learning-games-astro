@@ -1,0 +1,544 @@
+/* Days Parade — the foundational "meet & learn every day" game (added
+   2026-06-17), prequel to Week Friends. A Sunday→Saturday week train the
+   child taps to meet each day (collect-them-all), a "Sing the days" walk,
+   and a live "Today is…" badge.
+
+   Uses `StoryLayout` with `theme='daysparade'` so the body class is
+   `body.story[data-theme='daysparade']`. All `dp-*` classes scope under
+   that body selector so they can never collide with the other preschool
+   games. Teal accent (#0d9488) — sits in the cognitive family alongside
+   Week Friends but reads as its own (warmer, learn-mode) game.
+
+   - The week train cards are large tap targets (well above the ≥88px
+     floor for ≤4yo).
+   - Met cards keep a permanent happy "✓" state — collect-them-all.
+   - Today's card wears a "Today" ribbon — routine anchoring.
+   - Every animation has a reduced-motion fallback.
+*/
+
+body.story[data-theme='daysparade'] {
+  --st-bg: linear-gradient(135deg, #d7f5f0 0%, #c2ece6 60%, #a7e0d6 100%);
+
+  --dp-accent: #0d9488; /* teal-600 — cognitive-family learn-mode game. */
+  --dp-accent-strong: #0b7e74;
+
+  --dp-card-text: #ffffff;
+  --dp-panel-bg: rgba(255, 255, 255, 0.95);
+  --dp-panel-text: #0f2e2a;
+  --dp-caption-bg: rgba(255, 255, 255, 0.92);
+  --dp-caption-text: #0f2e2a;
+  --dp-pill-bg: rgba(13, 148, 136, 0.14);
+  --dp-pill-text: #0b6b62;
+
+  background: var(--st-bg);
+}
+
+/* ── Shell + header ───────────────────────────────────────────────── */
+
+body.story[data-theme='daysparade'] .dp-shell {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 16px 20px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-height: calc(100vh - 36px);
+}
+
+body.story[data-theme='daysparade'] .dp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+body.story[data-theme='daysparade'] .dp-title {
+  margin: 0;
+  font-size: clamp(1.6em, 4vw, 2.2em);
+  color: #0f2e2a;
+  text-shadow: 1px 1px 6px rgba(255, 255, 255, 0.5);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+body.story[data-theme='daysparade'] .dp-progress-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.85);
+  color: #0f2e2a;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.95em;
+}
+
+body.story[data-theme='daysparade'] .dp-progress-bar {
+  width: 80px;
+  height: 8px;
+  background: rgba(13, 148, 136, 0.18);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+body.story[data-theme='daysparade'] .dp-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--dp-accent);
+  border-radius: 999px;
+  transition: width 0.4s ease-out;
+}
+
+/* ── Stage ────────────────────────────────────────────────────────── */
+
+body.story[data-theme='daysparade'] .dp-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+body.story[data-theme='daysparade'] .dp-caption {
+  background: var(--dp-caption-bg);
+  color: var(--dp-caption-text);
+  border-radius: 16px;
+  padding: 12px 18px;
+  font-size: clamp(1em, 2.4vw, 1.2em);
+  font-weight: 600;
+  text-align: center;
+  box-shadow: 0 8px 24px rgba(11, 78, 71, 0.16);
+  max-width: 760px;
+  min-height: 1.4em;
+}
+
+/* ── Sing-the-days button ─────────────────────────────────────────── */
+
+body.story[data-theme='daysparade'] .dp-sing-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 28px;
+  border: none;
+  border-radius: 999px;
+  background: var(--dp-accent);
+  color: #fff;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 1.15em;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(13, 148, 136, 0.4);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+body.story[data-theme='daysparade'] .dp-sing-btn:hover {
+  transform: translateY(-2px);
+  background: var(--dp-accent-strong);
+}
+
+body.story[data-theme='daysparade'] .dp-sing-btn:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+body.story[data-theme='daysparade'] .dp-sing-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* ── The week train ───────────────────────────────────────────────── */
+
+body.story[data-theme='daysparade'] .dp-train {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+}
+
+body.story[data-theme='daysparade'] .dp-card {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 92px;
+  min-height: 104px;
+  padding: 14px 10px;
+  border: 3px solid transparent;
+  border-radius: 20px;
+  background: var(--dp-card-color, #0d9488);
+  color: var(--dp-card-text);
+  cursor: pointer;
+  font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+  box-shadow: 0 4px 12px rgba(11, 78, 71, 0.22);
+  animation: dpFlyIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation-delay: var(--dp-i, 0s);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+
+body.story[data-theme='daysparade'] .dp-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(11, 78, 71, 0.3);
+}
+
+body.story[data-theme='daysparade'] .dp-card:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+body.story[data-theme='daysparade'] .dp-card-emoji {
+  font-size: 40px;
+  line-height: 1;
+}
+
+body.story[data-theme='daysparade'] .dp-card-name {
+  font-size: 1em;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
+}
+
+/* The "met" check — hidden until the day is met, then a happy badge. */
+body.story[data-theme='daysparade'] .dp-card-check {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #2e7d32;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: scale(0);
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+body.story[data-theme='daysparade'] .dp-card--met .dp-card-check {
+  transform: scale(1);
+}
+
+body.story[data-theme='daysparade'] .dp-card--met {
+  filter: saturate(1.05);
+}
+
+/* Active (currently shown in the detail panel) + the sing highlight. */
+body.story[data-theme='daysparade'] .dp-card--active {
+  border-color: #ffffff;
+  box-shadow: 0 0 0 3px var(--dp-accent), 0 8px 20px rgba(11, 78, 71, 0.3);
+}
+
+body.story[data-theme='daysparade'] .dp-card--singing {
+  animation: dpBounce 0.5s ease-out;
+}
+
+body.story[data-theme='daysparade'] .dp-card--pop {
+  animation: dpBounce 0.45s ease-out;
+}
+
+/* "Today" ribbon — added on hydration to the current weekday. */
+body.story[data-theme='daysparade'] .dp-card--today {
+  outline: 3px dashed rgba(255, 255, 255, 0.9);
+  outline-offset: 3px;
+}
+
+body.story[data-theme='daysparade'] .dp-card-today-flag {
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #ff7043;
+  color: #fff;
+  font-size: 0.66em;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 999px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  white-space: nowrap;
+}
+
+/* ── Detail panel ─────────────────────────────────────────────────── */
+
+body.story[data-theme='daysparade'] .dp-detail {
+  width: 100%;
+  max-width: 520px;
+  background: var(--dp-panel-bg);
+  color: var(--dp-panel-text);
+  border-radius: 22px;
+  padding: 22px 20px;
+  text-align: center;
+  box-shadow: 0 12px 32px rgba(11, 78, 71, 0.18);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  transition: opacity 0.2s ease;
+}
+
+body.story[data-theme='daysparade'] .dp-detail--empty {
+  opacity: 0.72;
+}
+
+body.story[data-theme='daysparade'] .dp-detail-emoji {
+  font-size: 64px;
+  line-height: 1;
+}
+
+body.story[data-theme='daysparade'] .dp-detail-headline {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+body.story[data-theme='daysparade'] .dp-detail-name {
+  font-size: 1.5em;
+  font-weight: 800;
+  color: var(--dp-accent-strong);
+}
+
+body.story[data-theme='daysparade'] .dp-detail-pill {
+  display: inline-block;
+  background: var(--dp-pill-bg);
+  color: var(--dp-pill-text);
+  padding: 4px 14px;
+  border-radius: 999px;
+  font-size: 0.9em;
+  font-weight: 700;
+}
+
+body.story[data-theme='daysparade'] .dp-detail-fact {
+  margin: 0;
+  font-size: 1.05em;
+  line-height: 1.4;
+  max-width: 42ch;
+}
+
+body.story[data-theme='daysparade'] .dp-detail-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+body.story[data-theme='daysparade'] .dp-arrow,
+body.story[data-theme='daysparade'] .dp-hear {
+  border: none;
+  border-radius: 999px;
+  font-family: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+body.story[data-theme='daysparade'] .dp-arrow {
+  width: 48px;
+  height: 48px;
+  font-size: 1.2em;
+  background: rgba(13, 148, 136, 0.14);
+  color: var(--dp-accent-strong);
+}
+
+body.story[data-theme='daysparade'] .dp-hear {
+  padding: 12px 22px;
+  font-size: 1em;
+  background: var(--dp-accent);
+  color: #fff;
+}
+
+body.story[data-theme='daysparade'] .dp-arrow:hover,
+body.story[data-theme='daysparade'] .dp-hear:hover {
+  transform: translateY(-1px);
+}
+
+body.story[data-theme='daysparade'] .dp-arrow:disabled {
+  opacity: 0.4;
+  cursor: default;
+  transform: none;
+}
+
+/* ── Keyframes ────────────────────────────────────────────────────── */
+
+@keyframes dpFlyIn {
+  0% { opacity: 0; transform: translateY(-22px) scale(0.6); }
+  60% { opacity: 1; transform: translateY(4px) scale(1.05); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes dpBounce {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.12); }
+  60% { transform: scale(0.97); }
+  100% { transform: scale(1); }
+}
+
+/* ── Done overlay ─────────────────────────────────────────────────── */
+
+body.story[data-theme='daysparade'] .dp-done {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(11, 50, 46, 0.55);
+  z-index: 50;
+  padding: 20px;
+}
+
+body.story[data-theme='daysparade'] .dp-done.dp-done--show {
+  display: flex;
+}
+
+body.story[data-theme='daysparade'] .dp-done-card {
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 32px 28px;
+  max-width: 440px;
+  width: 100%;
+  text-align: center;
+  color: #0f2e2a;
+  box-shadow: 0 24px 80px rgba(11, 50, 46, 0.4);
+  animation: dpDoneIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes dpDoneIn {
+  from { opacity: 0; transform: scale(0.7) translateY(20px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+body.story[data-theme='daysparade'] .dp-done-emoji {
+  font-size: 72px;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+body.story[data-theme='daysparade'] .dp-done-title {
+  margin: 0 0 8px;
+  font-size: 1.6em;
+  color: var(--dp-accent-strong);
+}
+
+body.story[data-theme='daysparade'] .dp-done-text {
+  margin: 0 0 24px;
+  font-size: 1.05em;
+  color: #486460;
+}
+
+body.story[data-theme='daysparade'] .dp-done-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+body.story[data-theme='daysparade'] .dp-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 22px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(13, 148, 136, 0.12);
+  color: #0f2e2a;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 1em;
+  cursor: pointer;
+  text-decoration: none;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+body.story[data-theme='daysparade'] .dp-action:hover {
+  transform: translateY(-1px);
+}
+
+body.story[data-theme='daysparade'] .dp-action--primary {
+  background: var(--dp-accent);
+  color: #fff;
+}
+
+body.story[data-theme='daysparade'] .dp-action--primary:hover {
+  background: var(--dp-accent-strong);
+}
+
+/* ── Reduced motion ───────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  body.story[data-theme='daysparade'] .dp-card,
+  body.story[data-theme='daysparade'] .dp-card--singing,
+  body.story[data-theme='daysparade'] .dp-card--pop,
+  body.story[data-theme='daysparade'] .dp-done-card {
+    animation: none;
+  }
+  body.story[data-theme='daysparade'] .dp-card:hover,
+  body.story[data-theme='daysparade'] .dp-sing-btn:hover,
+  body.story[data-theme='daysparade'] .dp-action:hover {
+    transform: none;
+  }
+  body.story[data-theme='daysparade'] .dp-card-check {
+    transition: none;
+  }
+}
+
+/* ── Dark mode ────────────────────────────────────────────────────── */
+
+body.dark-mode.story[data-theme='daysparade'] {
+  --dp-panel-bg: rgba(8, 30, 28, 0.94);
+  --dp-panel-text: #d4f0ea;
+  --dp-caption-bg: rgba(8, 30, 28, 0.92);
+  --dp-caption-text: #d4f0ea;
+  --dp-pill-bg: rgba(13, 148, 136, 0.3);
+  --dp-pill-text: #9be8de;
+}
+
+body.dark-mode.story[data-theme='daysparade'] .dp-title {
+  color: #d4f0ea;
+  text-shadow: none;
+}
+
+body.dark-mode.story[data-theme='daysparade'] .dp-done-card {
+  background: #08211e;
+  color: #d4f0ea;
+}
+
+body.dark-mode.story[data-theme='daysparade'] .dp-done-text {
+  color: #84b8b0;
+}
+
+body.dark-mode.story[data-theme='daysparade'] .dp-action {
+  background: rgba(13, 148, 136, 0.25);
+  color: #d4f0ea;
+}
+
+/* ── Responsive ───────────────────────────────────────────────────── */
+
+@media (max-width: 600px) {
+  body.story[data-theme='daysparade'] .dp-card {
+    min-width: 76px;
+    min-height: 88px;
+    padding: 10px 6px;
+  }
+  body.story[data-theme='daysparade'] .dp-card-emoji {
+    font-size: 32px;
+  }
+  body.story[data-theme='daysparade'] .dp-card-name {
+    font-size: 0.9em;
+  }
+  body.story[data-theme='daysparade'] .dp-detail-emoji {
+    font-size: 52px;
+  }
+  body.story[data-theme='daysparade'] .dp-shell {
+    padding: 12px 12px 60px;
+    gap: 14px;
+  }
+}

@@ -6,7 +6,7 @@
 > win. Keep it short and current — see the update rule in
 > `.cursor/rules/maintain-context.mdc`.
 >
-> **Last verified against the codebase**: 2026-06-17.
+> **Last verified against the codebase**: 2026-06-17 (Days Parade ship).
 
 ---
 
@@ -15,7 +15,7 @@
 An **Astro + TypeScript + `@vite-pwa/astro` (Workbox)** static PWA of
 educational mini-games for young children. It began as a proof-of-concept
 migration of the vanilla HTML/CSS/JS `kids-learning-games` repo and is now a
-feature-driven project in its own right. **22 games** ship across **three
+feature-driven project in its own right. **23 games** ship across **three
 shared layouts**, deployed to GitHub Pages at
 `https://aakash-jain-1.github.io/kids-learning-games-astro/`. Zero-JS-by-default
 static output; only interactive islands ship JavaScript.
@@ -31,7 +31,7 @@ static output; only interactive islands ship JavaScript.
 | `docs/T9-PHRASE-SCRIPT.md` | The literal phrases to record for T9. |
 
 > Note: `README.md` describes "sixteen games" — that text is **stale**; the
-> code ships 22 (the preschool families grew well past that prose). `PROGRESS.md`
+> code ships 23 (the preschool families grew well past that prose). `PROGRESS.md`
 > / `SESSION-HANDOFF.md` / `src/data/stats-registry.ts` are authoritative on the
 > game count.
 
@@ -59,7 +59,7 @@ static output; only interactive islands ship JavaScript.
   `$env:PW_CHANNEL='chrome'; npm test -- --workers=1`). CI is unaffected — Linux
   runners use bundled Chromium and never set `PW_CHANNEL`.
 
-## 4. The 22 games & three layouts
+## 4. The 23 games & three layouts
 
 - **`GridLayout.astro`** — foundational-set games (scan a fixed chart, tap to
   hear): Alphabets, Numbers, Colors, Shapes, Animals, Birds, Hindi (7).
@@ -69,8 +69,8 @@ static output; only interactive islands ship JavaScript.
   (the preschool games reuse this shell via a `theme` prop): Daily Routines,
   Woodcutter (2 story) + Counting Friends, More Friends, Number Friends,
   Pattern Sequences, Number Bond Pop (5 preschool-math) + Letter Friends,
-  Sound Friends (2 preschool-literacy) + Sorting Friends, Week Friends
-  (2 preschool-cognitive).
+  Sound Friends (2 preschool-literacy) + Sorting Friends, Days Parade,
+  Week Friends (3 preschool-cognitive).
 
 Each game = one `src/pages/games/<slug>.astro` + a typed `src/data/<game>.ts`
 data file + a layout-specific themed CSS block. A parent dashboard lives at
@@ -121,18 +121,29 @@ game = one entry.
 ## 7. Current state & what's next
 
 - **Migration complete** (all 13 vanilla games ported, since 2026-05-08).
-- **Feature-driven phase active**: 9 preschool games added since (cardinality
+- **Feature-driven phase active**: 10 preschool games added since (cardinality
   triad + Pattern Sequences + Letter Friends + Number Bond Pop + Sound
-  Friends + Sorting Friends + Week Friends). Total **22 games**, all live.
-- **Latest ship (2026-06-17)**: **Week Friends** — second preschool-cognitive
+  Friends + Sorting Friends + Week Friends + Days Parade). Total **23 games**,
+  all live.
+- **Latest ship (2026-06-17)**: **Days Parade** — foundational learn-the-days
+  explore game and the **prequel to Week Friends** (learn all 7 days first, then
+  sequence them). A Sunday-first week train; tap any day to meet it (hear its
+  name + a fact, collect a "met ✓", N/7); a **"Sing the days"** button walks the
+  whole week in order; a live **"Today is…"** badge anchors it in routine.
+  No scoring/quiz — pure exploration. Reuses `@/data/week-friends` day identity;
+  met-set via the shared progress lib + bespoke `days_parade_stats_v1` (sings +
+  last-played). Bespoke `preschool-cognitive` registry entry (explore shape, not
+  rounds), ordered before Week Friends; cognitive family now 3 cards (dashboard
+  stays at 6 families).
+- **Prior ship (2026-06-17)**: **Week Friends** — second preschool-cognitive
   game (days-of-the-week temporal sequencing). A run of consecutive days appears
   ("Sunday, Monday…") with a "?" slot; the child taps the day-card that comes
   next. Sunday-first like the days-of-the-week song; no week wrap; errorless
   "let's sing the days" guided reveal on a miss. 8-round tiered session
   (short→longer runs, adjacent-day distractors on the hardest tier); bespoke
-  `week_friends_stats_v1` (no stages). Joins the existing **preschool-cognitive**
-  family — no new family, so the dashboard stays at 6; the cognitive section now
-  has 2 cards and its label broadened to "sorting + sequencing".
+  `week_friends_stats_v1` (no stages). Joins the **preschool-cognitive**
+  family — no new family, so the dashboard stays at 6; the cognitive section
+  label broadened to "sorting + sequencing".
 - **Prior ship (2026-06-06)**: **Sorting Friends** — first preschool-cognitive
   game (single-attribute categorization). A category prompt appears ("Find all
   that live in the sea!"); the child taps every picture in the tray that
@@ -165,9 +176,10 @@ game = one entry.
   themes (meadow, jungle) and a `stage`/`bestStage` row on `/stats`.
 - **Forward queue**: see [ROADMAP.md](ROADMAP.md) for the ranked candidate
   games. **Sound Friends** (candidate A) + **Sorting Friends** (candidate B)
-  shipped 2026-06-06; **Week Friends** (Days of the Week, user-requested)
-  shipped 2026-06-17; next up is **Animal Sounds → Rhyme Time → Feeling
-  Friends → Memory Match**, mapped to the early-learning domains they fill.
+  shipped 2026-06-06; **Week Friends** + **Days Parade** (Days of the Week —
+  learn-then-sequence pair, user-requested) shipped 2026-06-17; next up is
+  **Animal Sounds → Rhyme Time → Feeling Friends → Memory Match**, mapped to
+  the early-learning domains they fill.
 - **Open queued work**: **T9** — replace Web Speech with pre-recorded MP3
   narration (parked on the user's recording session; integration is ~30–45 min
   of agent work once MP3s land in `src/assets/narration/shared/`).

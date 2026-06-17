@@ -46,8 +46,10 @@ const EXPECTED_GAME_IDS = [
   'letter-friends',
   'sound-friends',
   // Family A3 — preschool-cognitive (added 2026-06-06 with Sorting Friends;
-  // Week Friends added 2026-06-17)
+  // Days Parade + Week Friends added 2026-06-17 — Days Parade is the
+  // learn-the-days prequel, ordered before the Week Friends sequencer)
   'sorting-friends',
+  'days-parade',
   'week-friends',
   // Family B — story
   'routines',
