@@ -1,0 +1,573 @@
+---
+import StoryLayout from '@/layouts/StoryLayout.astro';
+import GameControls from '@/components/GameControls.astro';
+import '@/styles/week-friends.css';
+
+import { generateSession, lookupDay, TOTAL_ROUNDS } from '@/data/week-friends';
+
+const title = 'Week Friends — Kids Learning Games';
+const description =
+  'A gentle days-of-the-week game for ages 3–4. A run of days appears ("Sunday, Monday…") with a "?" — tap the day that comes next. Sunday-first like the days-of-the-week song, audio narration, errorless guided "let\'s sing the days" reveal on a miss, no scoring, no failures. Second preschool-cognitive game, sister to Sorting Friends.';
+
+// SSR a deterministic first round so the page never paints blank. The
+// page script reads round 0 directly from the SSR'd DOM (matching the
+// Pattern Sequences / Sound Friends kickoff-race pattern), then
+// continues with random rounds 1..N after the user clicks Next.
+const SSR_FIRST_ROUND = generateSession(() => 0.42)[0]!;
+const ssrRunDays = SSR_FIRST_ROUND.run.map((i) => lookupDay(i));
+const ssrOptionDays = SSR_FIRST_ROUND.options.map((i) => lookupDay(i));
+const ssrLastShown = lookupDay(SSR_FIRST_ROUND.run[SSR_FIRST_ROUND.run.length - 1]!);
+const ssrCaption = `${ssrRunDays.map((d) => d.name).join(', ')}… what day comes next?`;
+---
+
+<StoryLayout
+  title={title}
+  description={description}
+  themeColor="#5c6bc0"
+  theme="weekfriends"
+>
+  <main class="week-shell" aria-label="Week Friends game">
+    <header class="week-header">
+      <h1 class="week-title">
+        <span aria-hidden="true">📅</span>
+        <span>Week Friends</span>
+      </h1>
+
+      <div class="week-header-right" style="display: flex; gap: 10px; align-items: center;">
+        <span
+          class="week-progress-pill"
+          id="weekProgressPill"
+          aria-label={`Round 1 of ${TOTAL_ROUNDS}`}
+        >
+          <span id="weekProgressText">1 / {TOTAL_ROUNDS}</span>
+          <span class="week-progress-bar" aria-hidden="true">
+            <span class="week-progress-fill" id="weekProgressFill"></span>
+          </span>
+        </span>
+        <GameControls />
+      </div>
+    </header>
+
+    <section
+      class="week-stage"
+      id="weekStage"
+      data-scene={SSR_FIRST_ROUND.theme}
+      data-target={SSR_FIRST_ROUND.target}
+      aria-label="Week Friends scene"
+    >
+      <div
+        class="week-caption"
+        id="weekCaption"
+        role="status"
+        aria-live="polite"
+      >
+        {ssrCaption}
+      </div>
+
+      <div
+        class="week-sequence"
+        id="weekSequence"
+        aria-label={`The days so far — what comes after ${ssrLastShown.name}?`}
+      >
+        {
+          ssrRunDays.map((day, i) => (
+            <span
+              class="week-card"
+              data-day={day.index}
+              data-i={i}
+              style={`--week-card-color: ${day.color}; --week-i: ${i * 0.08}s`}
+              aria-label={`${day.name}`}
+            >
+              <span class="week-card-emoji" aria-hidden="true">{day.emoji}</span>
+              <span class="week-card-name" aria-hidden="true">{day.short}</span>
+            </span>
+          ))
+        }
+        <span
+          class="week-slot"
+          id="weekSlot"
+          aria-label="Missing day — what comes next?"
+        >
+          <span class="week-slot-glyph" aria-hidden="true">?</span>
+        </span>
+      </div>
+
+      <div
+        class="week-options"
+        aria-label="Three day options — tap the day that comes next"
+      >
+        {
+          ssrOptionDays.map((day, idx) => (
+            <button
+              type="button"
+              class="week-opt"
+              id={`weekOpt${idx}`}
+              data-i={idx}
+              data-day={day.index}
+              style={`--week-card-color: ${day.color}`}
+              aria-label={`Option ${idx + 1}: ${day.name} — tap if this day comes next`}
+            >
+              <span class="week-opt-emoji" aria-hidden="true">{day.emoji}</span>
+              <span class="week-opt-name" aria-hidden="true">{day.name}</span>
+            </button>
+          ))
+        }
+      </div>
+    </section>
+
+    <footer class="week-footer">
+      <button type="button" class="week-action" id="weekReplayBtn" aria-label="Replay this round's narration">
+        🔊 Replay
+      </button>
+      <button type="button" class="week-action week-action--primary" id="weekNextBtn" aria-label="Next round" disabled>
+        Next round →
+      </button>
+    </footer>
+
+    <div class="week-done" id="weekDone" role="dialog" aria-live="polite" aria-labelledby="weekDoneTitle">
+      <div class="week-done-card">
+        <div class="week-done-emoji" aria-hidden="true">📅</div>
+        <h2 class="week-done-title" id="weekDoneTitle">Week champion!</h2>
+        <p class="week-done-text" id="weekDoneText">
+          You found the next day {TOTAL_ROUNDS} times today!
+        </p>
+        <div class="week-done-actions">
+          <button type="button" class="week-action week-action--primary" id="weekPlayAgainBtn">
+            ▶ Play again
+          </button>
+          <a class="week-action" href={import.meta.env.BASE_URL}>
+            🏠 Home
+          </a>
+        </div>
+      </div>
+    </div>
+  </main>
+</StoryLayout>
+
+<script>
+  import { playTap, playCorrect } from '@/lib/audio';
+  import { speak, cancelSpeech, isSpeechSupported } from '@/lib/speech';
+  import { launchConfetti } from '@/lib/achievements';
+  import { getSettings } from '@/lib/settings';
+  import {
+    generateSession,
+    buildNarration,
+    lookupDay,
+    loadWeekFriendsStats,
+    saveWeekFriendsStats,
+    TOTAL_ROUNDS,
+    type DayRound,
+    type RoundNarration,
+    type PreschoolTheme,
+  } from '@/data/week-friends';
+  import { recordPlay } from '@/lib/retention';
+
+  // Indigo-leaning palette to match the Week Friends theme accent
+  // (--week-accent #5c6bc0). The cognitive family dot on /stats stays
+  // teal (the family color); this is the per-game flavour.
+  const WEEK_COLORS = ['#5c6bc0', '#ffd166', '#26a69a', '#ef476f', '#42a5f5'];
+
+  /**
+   * Read round 0 from the SSR'd DOM so the JS session starts in sync
+   * with whatever Astro rendered. Avoids the kickoff-race that bit
+   * Counting Friends on 2026-05-15 — without this, a tap during the
+   * first interaction could land on an option whose day has just been
+   * rewritten by a freshly-randomised JS session. The target day-index
+   * is stamped on the stage as `data-target`, so we can reconstruct the
+   * round (incl. correctIndex) directly from the DOM.
+   */
+  const readSSRRound = (): DayRound => {
+    const stageEl = document.getElementById('weekStage');
+    const seqEl = document.getElementById('weekSequence');
+    if (!stageEl || !seqEl) return generateSession()[0]!;
+
+    const themeKey = (stageEl.dataset.scene ?? 'pond') as PreschoolTheme;
+    const target = Number(stageEl.dataset.target);
+    if (!Number.isInteger(target)) return generateSession()[0]!;
+
+    const runEls = Array.from(seqEl.querySelectorAll<HTMLElement>('.week-card'));
+    const run = runEls.map((el) => Number(el.dataset.day));
+    if (run.length === 0 || run.some((n) => !Number.isInteger(n))) {
+      return generateSession()[0]!;
+    }
+
+    const optEls = [
+      document.getElementById('weekOpt0'),
+      document.getElementById('weekOpt1'),
+      document.getElementById('weekOpt2'),
+    ];
+    if (optEls.some((el) => !el)) return generateSession()[0]!;
+    const options = optEls.map((el) => Number(el!.dataset.day));
+    const correctIndex = options.indexOf(target);
+    if (correctIndex < 0 || correctIndex > 2) return generateSession()[0]!;
+
+    return {
+      run,
+      target,
+      options: [options[0]!, options[1]!, options[2]!],
+      correctIndex: correctIndex as 0 | 1 | 2,
+      // `tier` isn't used by the page controller; 0 is a safe placeholder.
+      tier: 0,
+      theme: themeKey,
+    };
+  };
+
+  // ── State ──────────────────────────────────────────────────────────
+  let session: DayRound[] = [readSSRRound(), ...generateSession().slice(1)];
+  let roundIdx = 0;
+  let answered = false;
+  let currentNarration: RoundNarration | null = null;
+  /** Most recent post-answer phrase, cached so Replay re-narrates it. */
+  let lastPostAnswerText = '';
+
+  // ── DOM refs ───────────────────────────────────────────────────────
+  const stage = document.getElementById('weekStage') as HTMLElement;
+  const captionEl = document.getElementById('weekCaption') as HTMLElement;
+  const seqEl = document.getElementById('weekSequence') as HTMLElement;
+  const optEls = [
+    document.getElementById('weekOpt0') as HTMLButtonElement,
+    document.getElementById('weekOpt1') as HTMLButtonElement,
+    document.getElementById('weekOpt2') as HTMLButtonElement,
+  ];
+  const progressText = document.getElementById('weekProgressText') as HTMLElement;
+  const progressFill = document.getElementById('weekProgressFill') as HTMLElement;
+  const progressPill = document.getElementById('weekProgressPill') as HTMLElement;
+  const replayBtn = document.getElementById('weekReplayBtn') as HTMLButtonElement;
+  const nextBtn = document.getElementById('weekNextBtn') as HTMLButtonElement;
+  const doneEl = document.getElementById('weekDone') as HTMLElement;
+  const playAgainBtn = document.getElementById('weekPlayAgainBtn') as HTMLButtonElement;
+
+  // ── Audio helpers ──────────────────────────────────────────────────
+
+  /**
+   * Speak `text` if the user has sound enabled. Same shape as the rest
+   * of the preschool family: silent-mode setTimeout fallback + watchdog
+   * alongside speechSynthesis.onend so headless CI runners without a
+   * TTS engine don't deadlock the round-progression chain.
+   */
+  const narrate = (text: string, opts?: { onEnd?: () => void }): void => {
+    const onEnd = opts?.onEnd;
+    if (!isSpeechSupported() || !getSettings().sound) {
+      if (onEnd) setTimeout(onEnd, 500);
+      return;
+    }
+    let fired = false;
+    const wrap = (): void => {
+      if (fired) return;
+      fired = true;
+      onEnd?.();
+    };
+    const watchdogMs = Math.max(700, text.length * 90 + 500);
+    if (onEnd) setTimeout(wrap, watchdogMs);
+    speak(text, { rate: 0.85, pitch: 1.15, onEnd: onEnd ? wrap : undefined });
+  };
+
+  const setCaption = (text: string): void => {
+    captionEl.textContent = text;
+    captionEl.style.animation = 'none';
+    void captionEl.offsetWidth;
+    captionEl.style.removeProperty('animation');
+  };
+
+  // ── Render helpers ─────────────────────────────────────────────────
+
+  const cardMarkup = (dayIndex: number, i: number): string => {
+    const day = lookupDay(dayIndex);
+    return (
+      `<span class="week-card" data-day="${day.index}" data-i="${i}" ` +
+      `style="--week-card-color: ${day.color}; --week-i: ${i * 0.08}s" ` +
+      `aria-label="${day.name}">` +
+      `<span class="week-card-emoji" aria-hidden="true">${day.emoji}</span>` +
+      `<span class="week-card-name" aria-hidden="true">${day.short}</span>` +
+      `</span>`
+    );
+  };
+
+  const renderSequence = (round: DayRound): void => {
+    let html = '';
+    round.run.forEach((dayIndex, i) => {
+      html += cardMarkup(dayIndex, i);
+    });
+    html +=
+      '<span class="week-slot" id="weekSlot" aria-label="Missing day — what comes next?">' +
+      '<span class="week-slot-glyph" aria-hidden="true">?</span></span>';
+    seqEl.innerHTML = html;
+  };
+
+  const renderOptions = (round: DayRound): void => {
+    round.options.forEach((dayIndex, idx) => {
+      const day = lookupDay(dayIndex);
+      const el = optEls[idx]!;
+      el.dataset.day = String(day.index);
+      el.dataset.i = String(idx);
+      el.style.setProperty('--week-card-color', day.color);
+      el.setAttribute(
+        'aria-label',
+        `Option ${idx + 1}: ${day.name} — tap if this day comes next`,
+      );
+      el.disabled = false;
+      el.classList.remove('week-opt--correct', 'week-opt--reveal', 'week-opt--wrong');
+      el.innerHTML =
+        `<span class="week-opt-emoji" aria-hidden="true">${day.emoji}</span>` +
+        `<span class="week-opt-name" aria-hidden="true">${day.name}</span>`;
+    });
+  };
+
+  /** Fill the "?" slot with the target day so the week reads complete. */
+  const fillSlot = (targetIndex: number): void => {
+    const slot = document.getElementById('weekSlot') as HTMLElement | null;
+    if (!slot) return;
+    const day = lookupDay(targetIndex);
+    slot.classList.add('week-slot--reveal');
+    slot.style.setProperty('--week-card-color', day.color);
+    slot.dataset.day = String(day.index);
+    slot.innerHTML =
+      `<span class="week-card-emoji" aria-hidden="true">${day.emoji}</span>` +
+      `<span class="week-card-name" aria-hidden="true">${day.short}</span>`;
+  };
+
+  const renderRound = (): void => {
+    const round = session[roundIdx]!;
+
+    progressText.textContent = `${roundIdx + 1} / ${TOTAL_ROUNDS}`;
+    progressFill.style.width = `${((roundIdx + 1) / TOTAL_ROUNDS) * 100}%`;
+    progressPill.setAttribute('aria-label', `Round ${roundIdx + 1} of ${TOTAL_ROUNDS}`);
+
+    stage.dataset.scene = round.theme;
+    stage.dataset.target = String(round.target);
+
+    renderSequence(round);
+    renderOptions(round);
+
+    answered = false;
+    currentNarration = buildNarration(round);
+    lastPostAnswerText = '';
+    nextBtn.disabled = true;
+    replayBtn.disabled = false;
+  };
+
+  /** Speak the round's intro phrase (the run + "what comes next?"). */
+  const speakIntroSequence = (): void => {
+    const n = currentNarration;
+    if (!n) return;
+    setCaption(n.intro);
+    narrate(n.intro);
+  };
+
+  /**
+   * Walk the shown run, highlighting each day-card and speaking its
+   * name ("Sunday… Monday…"). Used by the errorless wrong-tap flow
+   * before the reveal — the spoken "sing the days" anchor.
+   */
+  const speakGuidedDayWalk = (round: DayRound, onDone: () => void): void => {
+    const items = Array.from(seqEl.querySelectorAll<HTMLElement>('.week-card'));
+    let i = 0;
+    const step = (): void => {
+      if (i >= items.length) {
+        onDone();
+        return;
+      }
+      const item = items[i]!;
+      item.classList.add('week-card--pulse');
+      const word = currentNarration?.dayWord(round.run[i]!) ?? '';
+      setCaption(word);
+      narrate(word, {
+        onEnd: () => {
+          item.classList.remove('week-card--pulse');
+          i++;
+          setTimeout(step, 160);
+        },
+      });
+    };
+    step();
+  };
+
+  // ── Answer handler ─────────────────────────────────────────────────
+
+  const onOptionTap = (idx: 0 | 1 | 2): void => {
+    if (answered) return;
+    const round = session[roundIdx]!;
+    playTap();
+
+    const tappedEl = optEls[idx]!;
+    const correctEl = optEls[round.correctIndex]!;
+
+    if (idx === round.correctIndex) {
+      // Correct.
+      answered = true;
+      tappedEl.classList.add('week-opt--correct');
+      for (const el of optEls) el.disabled = true;
+      fillSlot(round.target);
+      playCorrect();
+      cancelSpeech();
+      const correctText = currentNarration?.correct ?? 'Yes!';
+      lastPostAnswerText = correctText;
+      setCaption(correctText);
+      narrate(correctText);
+      launchConfetti(WEEK_COLORS);
+      bumpStats(true);
+      nextBtn.disabled = false;
+    } else {
+      // Wrong — errorless rerun:
+      //   1) 250ms kinesthetic shake on the tapped option (no colour
+      //      shift, no buzzer — age-safe).
+      //   2) "Hmm! Let's sing the days." (rerun)
+      //   3) Walk the run, narrating each day name.
+      //   4) Reveal the correct option AND fill the "?" slot.
+      //   5) "<Day>! <Day> comes after <prev>." (reveal)
+      //   6) Enable Next. No score penalty, no red X.
+      answered = true;
+      for (const el of optEls) el.disabled = true;
+      tappedEl.classList.add('week-opt--wrong');
+      cancelSpeech();
+      const rerunText = currentNarration?.rerun ?? "Let's sing the days.";
+      setCaption(rerunText);
+      narrate(rerunText, {
+        onEnd: () => {
+          speakGuidedDayWalk(round, () => {
+            correctEl.classList.add('week-opt--reveal');
+            fillSlot(round.target);
+            const revealText = currentNarration?.reveal ?? lookupDay(round.target).name;
+            lastPostAnswerText = revealText;
+            setCaption(revealText);
+            narrate(revealText, {
+              onEnd: () => {
+                bumpStats(false);
+                nextBtn.disabled = false;
+              },
+            });
+          });
+        },
+      });
+    }
+  };
+
+  // ── Round progression ──────────────────────────────────────────────
+
+  const startRound = (): void => {
+    cancelSpeech();
+    renderRound();
+    requestAnimationFrame(() => speakIntroSequence());
+  };
+
+  const onNext = (): void => {
+    playTap();
+    if (roundIdx >= TOTAL_ROUNDS - 1) {
+      showSessionComplete();
+      return;
+    }
+    roundIdx++;
+    startRound();
+  };
+
+  const showSessionComplete = (): void => {
+    cancelSpeech();
+    const stats = loadWeekFriendsStats();
+    saveWeekFriendsStats({
+      ...stats,
+      sessions: stats.sessions + 1,
+      lastPlayed: new Date().toISOString().slice(0, 10),
+    });
+    recordPlay('week-friends');
+    doneEl.classList.add('week-done--show');
+    launchConfetti(WEEK_COLORS);
+    narrate(`Wow! You found the next day ${TOTAL_ROUNDS} times today! Great job!`);
+  };
+
+  const onPlayAgain = (): void => {
+    playTap();
+    doneEl.classList.remove('week-done--show');
+    session = generateSession();
+    roundIdx = 0;
+    startRound();
+  };
+
+  // ── Stats persistence ──────────────────────────────────────────────
+
+  const bumpStats = (correctFirstTry: boolean): void => {
+    const stats = loadWeekFriendsStats();
+    saveWeekFriendsStats({
+      ...stats,
+      rounds: stats.rounds + 1,
+      correctFirstTry: stats.correctFirstTry + (correctFirstTry ? 1 : 0),
+      lastPlayed: new Date().toISOString().slice(0, 10),
+    });
+    recordPlay('week-friends');
+  };
+
+  // ── Event wiring ───────────────────────────────────────────────────
+
+  for (const el of optEls) {
+    el.addEventListener('click', () => {
+      if (el.disabled) return;
+      const idx = Number(el.dataset.i);
+      if (idx === 0 || idx === 1 || idx === 2) {
+        onOptionTap(idx as 0 | 1 | 2);
+      }
+    });
+  }
+
+  replayBtn.addEventListener('click', () => {
+    playTap();
+    cancelSpeech();
+    if (!answered) {
+      speakIntroSequence();
+    } else {
+      const text = lastPostAnswerText || (currentNarration?.intro ?? '');
+      setCaption(text);
+      narrate(text);
+    }
+  });
+
+  nextBtn.addEventListener('click', onNext);
+  playAgainBtn.addEventListener('click', onPlayAgain);
+
+  document.getElementById('btnSettings')?.addEventListener('click', () => {
+    playTap();
+    (window as unknown as { openSettings?: () => void }).openSettings?.();
+  });
+
+  document.getElementById('btnQuiz')?.addEventListener('click', () => {
+    playTap();
+    cancelSpeech();
+    speakIntroSequence();
+  });
+
+  document.getElementById('btnStats')?.addEventListener('click', () => {
+    playTap();
+    const stats = loadWeekFriendsStats();
+    const ratio =
+      stats.rounds === 0
+        ? 0
+        : Math.round((stats.correctFirstTry / stats.rounds) * 100);
+    const lines = [
+      `📅 Sessions completed: ${stats.sessions}`,
+      `🌟 Rounds played: ${stats.rounds}`,
+      `🎯 First-try correct: ${stats.correctFirstTry} (${ratio}%)`,
+      stats.lastPlayed ? `📅 Last played: ${stats.lastPlayed}` : '📅 Last played: never',
+    ];
+    alert(lines.join('\n'));
+  });
+
+  // ── Initial state binding ──────────────────────────────────────────
+  // The SSR'd DOM is round 0; we don't re-render it. Bind JS state so
+  // subsequent logic — option clicks, replay, etc. — has the references.
+  currentNarration = buildNarration(session[0]!);
+  progressText.textContent = `1 / ${TOTAL_ROUNDS}`;
+  progressFill.style.width = `${(1 / TOTAL_ROUNDS) * 100}%`;
+  progressPill.setAttribute('aria-label', `Round 1 of ${TOTAL_ROUNDS}`);
+
+  // Don't auto-speak on first paint — browsers block speechSynthesis
+  // until the first user gesture. Wait for the first tap (anywhere on
+  // the body) to kick off the intro narration. Kickoff does NOT call
+  // renderRound() — that would race with a first-interaction tap on an
+  // option. Same prophylactic fix the rest of the family uses.
+  let kickedOff = false;
+  const kickoff = (): void => {
+    if (kickedOff) return;
+    kickedOff = true;
+    requestAnimationFrame(() => speakIntroSequence());
+  };
+  document.addEventListener('pointerdown', kickoff, { once: true });
+  document.addEventListener('keydown', kickoff, { once: true });
+</script>

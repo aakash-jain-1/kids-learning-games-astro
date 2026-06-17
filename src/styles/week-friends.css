@@ -1,0 +1,574 @@
+/* Week Friends — second preschool-COGNITIVE game (added 2026-06-17).
+   Days-of-the-week sequencing for ages 3–4: a run of consecutive days
+   appears ("Sunday, Monday…") with a "?" slot, and the child taps the
+   day-card that comes next. Sunday-first to match the days-of-the-week
+   song. Built on the proven Pattern Sequences interaction grammar
+   (sequence row + "?" slot + 3 option cards) with real day content.
+
+   Uses `StoryLayout` with `theme='weekfriends'` so the body class is
+   `body.story[data-theme='weekfriends']`. All `week-*` classes scope
+   under that body selector so they can never collide with the other
+   preschool games.
+
+   Design constraints worth re-stating here:
+
+   - **Each day is its own coloured "friend"** (per-day `--week-card-color`
+     set inline from the data file). Shown-run cards are solid colour
+     chips (settled "already happened"); the three option cards are white
+     with a coloured border (tappable "choices"). The contrast reads as
+     "here's the week so far → which day comes next?".
+
+   - **The whole option card is the tap target**, well above the ≥88px
+     floor for ≤4yo touch targets.
+
+   - **Wrong tap = errorless** 250ms shake, NO colour shift, NO penalty;
+     then a guided "sing the days" walk pulses each shown card before the
+     correct day is revealed and the slot fills.
+
+   - **Reduced motion**: every animation has a
+     `@media (prefers-reduced-motion: reduce)` fallback.
+
+   - **Indigo accent (#5c6bc0)** for this game's chrome; the cognitive
+     family dot on /stats stays teal (the family color).
+*/
+
+/* ── Scene-theme background tokens ─────────────────────────────────── */
+
+body.story[data-theme='weekfriends'] {
+  --st-bg: linear-gradient(135deg, #eceefb 0%, #e3e7f7 100%);
+
+  --week-accent: #5c6bc0; /* cognitive-family game accent — indigo. */
+
+  --week-opt-bg: rgba(255, 255, 255, 0.95);
+  --week-opt-bg-hover: #ffffff;
+  --week-opt-text: #1f2547;
+  --week-opt-border-correct: #2e7d32;
+  --week-opt-fill-correct: rgba(76, 175, 80, 0.2);
+
+  --week-caption-bg: rgba(255, 255, 255, 0.92);
+  --week-caption-text: #1f2547;
+  --week-caption-shadow: 0 8px 24px rgba(20, 24, 60, 0.18);
+
+  --week-slot-border: rgba(31, 37, 71, 0.32);
+  --week-slot-text: rgba(31, 37, 71, 0.55);
+}
+
+/* Six per-theme backgrounds shared with the rest of the preschool
+   family (pond / orchard / sea / garden / meadow / jungle). */
+body.story[data-theme='weekfriends'] .week-stage[data-scene='pond'] {
+  --st-bg: linear-gradient(180deg, #b8e0ff 0%, #6fb6e6 60%, #4a8c4a 100%);
+}
+body.story[data-theme='weekfriends'] .week-stage[data-scene='orchard'] {
+  --st-bg: linear-gradient(180deg, #ffe6c8 0%, #ffb88c 50%, #88b94a 100%);
+}
+body.story[data-theme='weekfriends'] .week-stage[data-scene='sea'] {
+  --st-bg: linear-gradient(180deg, #b3e8ec 0%, #4dc4cf 60%, #f4d97a 100%);
+}
+body.story[data-theme='weekfriends'] .week-stage[data-scene='garden'] {
+  --st-bg: linear-gradient(180deg, #fff4b8 0%, #ffd666 60%, #6fbf3a 100%);
+}
+body.story[data-theme='weekfriends'] .week-stage[data-scene='meadow'] {
+  --st-bg: linear-gradient(180deg, #d6f5c8 0%, #9bd96f 55%, #5aa83a 100%);
+}
+body.story[data-theme='weekfriends'] .week-stage[data-scene='jungle'] {
+  --st-bg: linear-gradient(180deg, #c2f0d8 0%, #5cbf8a 55%, #2f7d52 100%);
+}
+
+body.story[data-theme='weekfriends'] {
+  background: var(--st-bg);
+}
+
+/* ── Layout shell ─────────────────────────────────────────────────── */
+
+body.story[data-theme='weekfriends'] .week-shell {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 16px 20px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: calc(100vh - 36px);
+}
+
+body.story[data-theme='weekfriends'] .week-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+body.story[data-theme='weekfriends'] .week-title {
+  margin: 0;
+  font-size: clamp(1.6em, 4vw, 2.2em);
+  color: #fff;
+  text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+body.story[data-theme='weekfriends'] .week-progress-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.85);
+  color: #1f2547;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.95em;
+}
+
+body.story[data-theme='weekfriends'] .week-progress-bar {
+  width: 80px;
+  height: 8px;
+  background: rgba(20, 24, 60, 0.15);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+body.story[data-theme='weekfriends'] .week-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--week-accent);
+  border-radius: 999px;
+  transition: width 0.4s ease-out;
+}
+
+/* ── Stage — caption, sequence row, option cards ──────────────────── */
+
+body.story[data-theme='weekfriends'] .week-stage {
+  position: relative;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 24px;
+  padding: 24px 16px;
+  min-height: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.32);
+}
+
+body.story[data-theme='weekfriends'] .week-caption {
+  background: var(--week-caption-bg);
+  color: var(--week-caption-text);
+  border-radius: 16px;
+  padding: 12px 18px;
+  font-size: clamp(1em, 2.4vw, 1.2em);
+  font-weight: 600;
+  text-align: center;
+  box-shadow: var(--week-caption-shadow);
+  max-width: 720px;
+  margin: 0 auto;
+  min-height: 1.4em;
+  animation: weekCaptionIn 0.4s ease-out;
+}
+
+@keyframes weekCaptionIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* The sequence row — shown day-cards + the "?" slot. */
+body.story[data-theme='weekfriends'] .week-sequence {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+/* A shown day — a solid coloured chip ("already happened"). */
+body.story[data-theme='weekfriends'] .week-card {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 76px;
+  padding: 12px 10px;
+  border-radius: 18px;
+  background: var(--week-card-color, #5c6bc0);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(20, 24, 60, 0.2);
+  animation: weekFlyIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation-delay: var(--week-i, 0s);
+}
+
+body.story[data-theme='weekfriends'] .week-card-emoji {
+  font-size: 36px;
+  line-height: 1;
+}
+
+body.story[data-theme='weekfriends'] .week-card-name {
+  font-size: 0.95em;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
+}
+
+/* The card pulses while the "sing the days" walk narrates it. */
+body.story[data-theme='weekfriends'] .week-card.week-card--pulse {
+  animation: weekPulse 0.5s ease-in-out;
+}
+
+/* The "?" slot — a dashed placeholder until the answer fills it. */
+body.story[data-theme='weekfriends'] .week-slot {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 76px;
+  min-height: 74px;
+  padding: 12px 10px;
+  border-radius: 18px;
+  border: 3px dashed var(--week-slot-border);
+  background: rgba(255, 255, 255, 0.5);
+}
+
+body.story[data-theme='weekfriends'] .week-slot-glyph {
+  font-size: 36px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--week-slot-text);
+}
+
+/* When filled (correct or revealed), the slot becomes a coloured chip. */
+body.story[data-theme='weekfriends'] .week-slot.week-slot--reveal {
+  border-style: solid;
+  border-color: transparent;
+  background: var(--week-card-color, #5c6bc0);
+  color: #fff;
+  animation: weekBounce 0.5s ease-out;
+}
+
+body.story[data-theme='weekfriends'] .week-slot.week-slot--reveal .week-card-name {
+  font-size: 0.95em;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
+}
+
+/* ── Option cards — three day choices ─────────────────────────────── */
+
+body.story[data-theme='weekfriends'] .week-options {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  align-items: stretch;
+  width: 100%;
+  max-width: 640px;
+  gap: 12px;
+}
+
+body.story[data-theme='weekfriends'] .week-opt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 150px;
+  padding: 18px 10px;
+  background: var(--week-opt-bg);
+  border: 3px solid var(--week-card-color, #5c6bc0);
+  border-radius: 20px;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--week-opt-text);
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s ease;
+  animation: weekFlyIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+body.story[data-theme='weekfriends'] .week-opt:hover {
+  background: var(--week-opt-bg-hover);
+  transform: translateY(-2px);
+}
+
+body.story[data-theme='weekfriends'] .week-opt:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+body.story[data-theme='weekfriends'] .week-opt:disabled {
+  cursor: default;
+}
+
+body.story[data-theme='weekfriends'] .week-opt-emoji {
+  font-size: 56px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+body.story[data-theme='weekfriends'] .week-opt-name {
+  font-size: 1.05em;
+  font-weight: 700;
+  color: var(--week-card-color, #5c6bc0);
+  pointer-events: none;
+}
+
+body.story[data-theme='weekfriends'] .week-opt.week-opt--correct {
+  background: var(--week-opt-fill-correct);
+  border-color: var(--week-opt-border-correct);
+  animation: weekBounce 0.5s ease-out;
+}
+
+body.story[data-theme='weekfriends'] .week-opt.week-opt--reveal {
+  background: var(--week-opt-fill-correct);
+  border-color: var(--week-opt-border-correct);
+  animation: weekPulseRing 1.4s ease-in-out infinite;
+}
+
+/* Age-safe wrong-tap kinesthetic feedback: 250ms shake, NO color shift,
+   NO desaturation, NO negative tone. Preserves errorless learning. */
+body.story[data-theme='weekfriends'] .week-opt.week-opt--wrong {
+  animation: weekShake 250ms ease-in-out;
+}
+
+/* ── Keyframes ─────────────────────────────────────────────────────── */
+
+@keyframes weekFlyIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-26px) scale(0.5);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(5px) scale(1.06);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes weekBounce {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.08); }
+  60%  { transform: scale(0.97); }
+  100% { transform: scale(1); }
+}
+
+@keyframes weekPulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.12); }
+}
+
+@keyframes weekPulseRing {
+  0%, 100% {
+    box-shadow:
+      0 4px 12px rgba(20, 24, 60, 0.15),
+      0 0 0 0 rgba(46, 125, 50, 0.5);
+  }
+  50% {
+    box-shadow:
+      0 4px 12px rgba(20, 24, 60, 0.15),
+      0 0 0 12px rgba(46, 125, 50, 0);
+  }
+}
+
+@keyframes weekShake {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-7px); }
+  40%      { transform: translateX( 7px); }
+  60%      { transform: translateX(-5px); }
+  80%      { transform: translateX( 4px); }
+}
+
+/* ── Footer row — Replay + Next ────────────────────────────────────── */
+
+body.story[data-theme='weekfriends'] .week-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+body.story[data-theme='weekfriends'] .week-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 22px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(255, 255, 255, 0.92);
+  color: #1f2547;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 1em;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(20, 24, 60, 0.15);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+body.story[data-theme='weekfriends'] .week-action:hover {
+  transform: translateY(-1px);
+  background: #ffffff;
+}
+
+body.story[data-theme='weekfriends'] .week-action:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+body.story[data-theme='weekfriends'] .week-action[disabled] {
+  opacity: 0.5;
+  cursor: default;
+}
+
+body.story[data-theme='weekfriends'] .week-action--primary {
+  background: var(--week-accent);
+  color: #ffffff;
+}
+
+body.story[data-theme='weekfriends'] .week-action--primary:hover {
+  background: #4a59ac;
+}
+
+/* ── Session-complete overlay — appears after the 8th round ───────── */
+
+body.story[data-theme='weekfriends'] .week-done {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 24, 60, 0.55);
+  z-index: 50;
+  padding: 20px;
+}
+
+body.story[data-theme='weekfriends'] .week-done.week-done--show {
+  display: flex;
+}
+
+body.story[data-theme='weekfriends'] .week-done-card {
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 32px 28px;
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+  color: #1f2547;
+  box-shadow: 0 24px 80px rgba(20, 24, 60, 0.4);
+  animation: weekDoneIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes weekDoneIn {
+  from { opacity: 0; transform: scale(0.7) translateY(20px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+body.story[data-theme='weekfriends'] .week-done-emoji {
+  font-size: 72px;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+body.story[data-theme='weekfriends'] .week-done-title {
+  margin: 0 0 8px;
+  font-size: 1.6em;
+  color: var(--week-accent);
+}
+
+body.story[data-theme='weekfriends'] .week-done-text {
+  margin: 0 0 24px;
+  font-size: 1.1em;
+  color: #555;
+}
+
+body.story[data-theme='weekfriends'] .week-done-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ── Reduced motion fallback ──────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  body.story[data-theme='weekfriends'] .week-card,
+  body.story[data-theme='weekfriends'] .week-card.week-card--pulse,
+  body.story[data-theme='weekfriends'] .week-slot.week-slot--reveal,
+  body.story[data-theme='weekfriends'] .week-opt,
+  body.story[data-theme='weekfriends'] .week-opt.week-opt--correct,
+  body.story[data-theme='weekfriends'] .week-opt.week-opt--reveal,
+  body.story[data-theme='weekfriends'] .week-caption,
+  body.story[data-theme='weekfriends'] .week-done-card {
+    animation: none;
+  }
+  body.story[data-theme='weekfriends'] .week-opt:hover {
+    transform: none;
+  }
+  body.story[data-theme='weekfriends'] {
+    transition: none;
+  }
+}
+
+/* ── Dark mode ────────────────────────────────────────────────────── */
+
+body.dark-mode.story[data-theme='weekfriends'] {
+  --week-opt-bg: rgba(255, 255, 255, 0.1);
+  --week-opt-bg-hover: rgba(255, 255, 255, 0.18);
+  --week-opt-text: #e7eaff;
+  --week-opt-fill-correct: rgba(46, 125, 50, 0.35);
+  --week-caption-bg: rgba(16, 20, 48, 0.92);
+  --week-caption-text: #e7eaff;
+  --week-slot-border: rgba(190, 200, 255, 0.4);
+  --week-slot-text: rgba(190, 200, 255, 0.7);
+}
+
+body.dark-mode.story[data-theme='weekfriends'] .week-done-card {
+  background: #141430;
+  color: #e7eaff;
+}
+
+body.dark-mode.story[data-theme='weekfriends'] .week-done-text {
+  color: #aab4e0;
+}
+
+body.dark-mode.story[data-theme='weekfriends'] .week-action {
+  background: #1d2147;
+  color: #e7eaff;
+}
+
+body.dark-mode.story[data-theme='weekfriends'] .week-action--primary {
+  background: var(--week-accent);
+  color: #ffffff;
+}
+
+/* ── Responsive — tighten the tray on small phones ────────────────── */
+
+@media (max-width: 600px) {
+  body.story[data-theme='weekfriends'] .week-card,
+  body.story[data-theme='weekfriends'] .week-slot {
+    min-width: 60px;
+    min-height: 60px;
+    padding: 8px 6px;
+  }
+  body.story[data-theme='weekfriends'] .week-card-emoji,
+  body.story[data-theme='weekfriends'] .week-slot-glyph {
+    font-size: 28px;
+  }
+  body.story[data-theme='weekfriends'] .week-opt {
+    min-height: 120px;
+    padding: 12px 6px;
+  }
+  body.story[data-theme='weekfriends'] .week-opt-emoji {
+    font-size: 44px;
+  }
+  body.story[data-theme='weekfriends'] .week-opt-name {
+    font-size: 0.92em;
+  }
+  body.story[data-theme='weekfriends'] .week-shell {
+    padding: 12px 12px 60px;
+    gap: 14px;
+  }
+  body.story[data-theme='weekfriends'] .week-stage {
+    min-height: auto;
+  }
+}

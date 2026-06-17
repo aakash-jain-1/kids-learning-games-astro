@@ -417,7 +417,68 @@ before deciding.
 
 ## Changelog
 
-### 2026-06-06 (latest) — feat(games): Sorting Friends — first preschool-COGNITIVE game (single-attribute categorization, tap-all mechanic)
+### 2026-06-17 (latest) — feat(games): Week Friends — days-of-the-week sequencing, second preschool-COGNITIVE game
+
+**Why now.** The user asked for a Days of the Week game. The `preschool-cognitive`
+family had a single member (Sorting Friends); days-of-the-week is the canonical
+*temporal sequencing* skill — a distinct pre-academic thinking lever — so it
+joins that family as game #2 rather than spawning a new bucket.
+
+**Pedagogy survey (done before the build).** Reviewed the recognized guidance for
+teaching days of the week to 3-4 year olds (early-learning blogs + the Super
+Simple "Days of the Week" classroom method). Consensus: at this age the week is a
+**rote ordered sequence** learned through **song + repetition + visual order +
+"what comes next"** — *not* the abstract yesterday/today/tomorrow relations
+(those land ~4-5). The classic classroom activity is "put the day cards in order,
+then sing the song to check." So the core task is **"what day comes next?"**,
+which maps cleanly onto the proven Pattern Sequences interaction grammar
+(sequence row → "?" slot → tap the option that comes next) with real day content.
+
+**Mechanic.** A run of consecutive day-cards appears ("Sunday, Monday…") ending in
+a dashed "?" slot; three day-option cards sit below. The child taps the day that
+comes next:
+- *Correct* → the slot fills with that day, `week-opt--correct`, `playCorrect`,
+  confetti, narration "Yes! Tuesday comes after Monday!".
+- *Wrong* → **errorless** 250ms shake (no colour shift, no buzzer, no penalty),
+  then a guided **"let's sing the days"** walk that pulses + names each shown day
+  in order, then the correct day is revealed and the slot fills.
+
+**Design choices.** **Sunday-first** to match the ubiquitous days-of-the-week song
+and `Date.getDay()` (0 = Sunday). **No week wrap** — every run stays within
+Sun→Sat and asks for the next in-week day, so the answer is unambiguous (cyclic
+"after Saturday comes Sunday" is a later concept). Each day is its own coloured
+"friend"; shown-run cards are solid colour chips ("already happened"), option
+cards are white with a coloured border ("choices"). 8 tiered rounds: short runs
+from the week's start → longer mid-week runs → longest runs with adjacent-day
+distractors (the day right before/after the target) for a closer call.
+
+**Stats.** Bespoke `week_friends_stats_v1`, same
+`{ sessions, rounds, correctFirstTry, lastPlayed }` shape as the rest of the
+preschool family (no stages — the staged maxN system is math-specific).
+`correctFirstTry` bumps when the right day is tapped first try. Registered under
+`preschool-cognitive` via the shared `preschoolStatsEntry` factory — **no new
+family**, so the dashboard stays at 6 families/dots; the cognitive section simply
+grows to 2 cards and its label broadens to "sorting + sequencing".
+
+**New files.** `src/data/week-friends.ts` (Sunday-first `DAYS`, tiered
+`generateSession` with in-week consecutive runs + adjacency distractors,
+`buildNarration`, `week_friends_stats_v1`), `src/pages/games/week-friends-game.astro`
+(clones the Pattern Sequences controller: SSR round 0 + `readSSRRound` via a
+`data-target` stamp, day-card sequence/options, guided day-walk, kickoff-race
+fix, `recordPlay('week-friends')`), `src/styles/week-friends.css` (`weekfriends`
+scope, 6 scene palettes, per-day coloured cards, "?" slot reveal, fly-in/bounce/
+shake/pulse keyframes, indigo accent, dark/reduced-motion/responsive),
+`tests/week-friends.spec.ts`.
+
+**Edits.** `StoryLayout.astro` (`'weekfriends'` theme + pre-dark block),
+`stats-registry.ts` (`week-friends` entry after `sorting-friends` + broadened
+cognitive label), `index.astro` (home card), `tests/stats.spec.ts`
+(`'week-friends'` in `EXPECTED_GAME_IDS`). Game count 21 → 22.
+
+**Verification.** `npm run check` → `npm run build` → `PW_CHANNEL=chrome npm test
+-- --workers=1`.
+
+### 2026-06-06 — feat(games): Sorting Friends — first preschool-COGNITIVE game (single-attribute categorization, tap-all mechanic)
 
 **Why now.** With the early-math arc and a two-game literacy family shipped, the
 ranked `ROADMAP.md` flagged **cognitive / sorting** as the single biggest domain

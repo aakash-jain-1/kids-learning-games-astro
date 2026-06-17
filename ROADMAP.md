@@ -10,7 +10,7 @@ and the bootstrap context in [CONTEXT.md](CONTEXT.md).
 > date and a link to its PROGRESS.md changelog entry rather than deleting
 > it, so the "why did we pick this next?" trail survives.
 
-## Domain coverage snapshot (as of 2026-06-06)
+## Domain coverage snapshot (as of 2026-06-17)
 
 | Domain | Coverage | Games |
 |---|---|---|
@@ -18,6 +18,7 @@ and the bootstrap context in [CONTEXT.md](CONTEXT.md).
 | Literacy — letter recognition | Partial (1) | Letter Friends (uppercase recognition only) |
 | Literacy — phonological awareness (sounds, rhyme) | Partial (1) | Sound Friends (beginning sounds; rhyme still open) |
 | Cognitive — sorting / categorization | Partial (1) | Sorting Friends (single-attribute sort: habitat / kind / size) |
+| Cognitive — temporal sequencing (days / time) | Partial (1) | Week Friends (days of the week — "what comes next?") |
 | Social-emotional (emotions / empathy) | None | — |
 | Science / world knowledge | Card decks only | Animals, Birds, Dinosaurs, Solar System, Weather (browse, not interactive game) |
 
@@ -35,6 +36,7 @@ ethos (survey the golden standards before designing).
 | D | **Rhyme Time** | Literacy (phonological awareness) | "What rhymes with cat? hat / dog / sun." Audio-first; recognition emerges at 3, production ~4. | Queued |
 | E | **Feeling Friends** | Social-emotional | "Show me happy" — tap the face / read a feeling. Opens the SEL domain (currently empty). | Queued |
 | F | **Memory Match** | Cognitive (working memory) | Flip cards to find matching pairs. New mechanic; reuses any card deck (animals / shapes / colors). | Queued |
+| G | **Week Friends** (Days of the Week) | Cognitive (temporal sequencing) | "What day comes next?" Run of days + "?" slot, tap the next day. Sunday-first like the song; errorless "let's sing the days" reveal. User-requested. | **Done 2026-06-17** ([PROGRESS.md](PROGRESS.md)) |
 
 ## Parked / enhancements
 

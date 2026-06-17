@@ -45,8 +45,10 @@ const EXPECTED_GAME_IDS = [
   // Family A2 — preschool-literacy (added 2026-05-25 with T-letters)
   'letter-friends',
   'sound-friends',
-  // Family A3 — preschool-cognitive (added 2026-06-06 with Sorting Friends)
+  // Family A3 — preschool-cognitive (added 2026-06-06 with Sorting Friends;
+  // Week Friends added 2026-06-17)
   'sorting-friends',
+  'week-friends',
   // Family B — story
   'routines',
   'woodcutter',

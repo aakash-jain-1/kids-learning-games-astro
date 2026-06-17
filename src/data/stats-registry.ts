@@ -104,6 +104,10 @@ import {
   STATS_KEY as SORTING_FRIENDS_KEY,
   loadSortingFriendsStats,
 } from '@/data/sorting-friends';
+import {
+  STATS_KEY as WEEK_FRIENDS_KEY,
+  loadWeekFriendsStats,
+} from '@/data/week-friends';
 
 import { loadQuizState } from '@/lib/quiz';
 import { loadLearned } from '@/lib/progress';
@@ -476,6 +480,15 @@ export const STATS_REGISTRY: readonly StatsRegistryEntry[] = [
     family: 'preschool-cognitive',
     load: loadSortingFriendsStats,
   }),
+  preschoolStatsEntry({
+    id: 'week-friends',
+    title: 'Week Friends',
+    emoji: '📅',
+    hrefPath: 'games/week-friends-game',
+    storageKey: WEEK_FRIENDS_KEY,
+    family: 'preschool-cognitive',
+    load: loadWeekFriendsStats,
+  }),
 
   // Family B — story
   routinesEntry,
@@ -589,7 +602,7 @@ export const STATS_REGISTRY: readonly StatsRegistryEntry[] = [
 export const FAMILY_LABELS: Readonly<Record<StatsFamily, string>> = {
   'preschool-math': 'Preschool math (cardinality + pattern)',
   'preschool-literacy': 'Preschool literacy (letter recognition)',
-  'preschool-cognitive': 'Preschool thinking (sorting + categories)',
+  'preschool-cognitive': 'Preschool thinking (sorting + sequencing)',
   story: 'Story games',
   'card-set': 'Card-set games (collect what you learn)',
   'card-pure': 'Card-pure games (explore the deck)',
