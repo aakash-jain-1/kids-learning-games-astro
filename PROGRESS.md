@@ -417,7 +417,54 @@ before deciding.
 
 ## Changelog
 
-### 2026-06-17 (latest) — feat(games): Days Parade — learn-the-days explore game, the prequel to Week Friends
+### 2026-06-23 (latest) — feat(chrome): a shared "🔄 Reset" control on every game (restart the session, keep saved progress)
+
+**Why now.** The user asked for a reset button in the games. Every game already
+had *in-session* affordances (quiz "Try Again", per-round replay, Woodcutter's
+scene Reset) but no single, consistent "start this game over" control — and the
+foundational grid / explore games had none at all.
+
+**Decision (confirmed with the user).** Reset = **restart the current play
+session, no saved data wiped**; on **all 23 games**; in the **game header
+controls**, behind a **confirm step** so a stray tap can't drop an in-progress
+session.
+
+**Implementation — one shared component, zero per-game wiring.** All 23 games
+already render `<GameControls />` (the `ctrl-row` of Quiz / Stats / Settings
+pills), so the whole feature lives there:
+- A new `🔄 Reset` pill (`#btnReset`), first in the row. A `reset?: boolean`
+  prop (default `true`) lets a future no-session page opt out without forking
+  the component.
+- A self-contained confirm dialog (`#resetConfirmModal`) reusing the shared
+  `.modal-overlay` / `.modal-box` chrome (same look as the Settings modal,
+  consistent across all three layouts): "Start over?" → **Keep playing**
+  (cancel; focused on open so a stray Enter is safe) / **🔄 Start over**.
+  Closes on overlay-click and Escape.
+- The component's own `<script>` wires tap → confirm → `location.reload()`
+  (plus `playTap` SFX).
+
+**Why a page reload is the right "restart".** Saved progress lives in
+LocalStorage (`kids_progress_v1:*`, `*_quiz_v1`, `*_stats_v1`, play history),
+which survives a reload — so the reload restarts *only* the in-session state
+(round index, score, current card/selection, quiz position) from a fresh load,
+exactly matching "restart the session, keep saved progress." It is uniform
+across all three layouts and needs no bespoke per-game restart logic (the grid /
+card explore games don't even have a "session" object to reset in place).
+
+**New files.** `tests/reset.spec.ts` — 12 tests (pill renders + dialog hidden;
+tap opens the dialog without reloading; "Keep playing" cancels without
+reloading; "Start over" reloads while a seeded LocalStorage key survives), one
+representative game per layout (alphabets / flashcards / daily-routines).
+
+**Edits.** `src/components/GameControls.astro` only (reset pill + confirm dialog
++ scoped styles + wiring). No game pages changed — every game inherits it for
+free.
+
+**Verification.** `npm run check` (0 errors / 0 warnings / 0 hints) → `npm run
+build` → `PW_CHANNEL=chrome npm test -- --workers=1` (**148 passed**, incl. the
+12 new reset tests; no regressions in the existing suites).
+
+### 2026-06-17 — feat(games): Days Parade — learn-the-days explore game, the prequel to Week Friends
 
 **Why now.** Right after Week Friends shipped, the user flagged a real pedagogical
 gap: Week Friends ("what day comes *next*?") assumes the child already knows the

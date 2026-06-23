@@ -1,6 +1,6 @@
 ---
-// Renders the standard 3-button (or 2-button) ctrl-row that lives at the
-// top of every game page: Quiz / Stats / Settings.
+// Renders the standard ctrl-row that lives at the top of every game page:
+// Reset / Quiz / Stats / Settings.
 //
 // Extracted as a rule-#3 win after the third (and ultimately thirteenth)
 // duplicate landed across CardMachineLayout, GridLayout, and StoryLayout
@@ -9,6 +9,15 @@
 // wires `document.getElementById('btnQuiz')` etc. — so the produced DOM
 // is byte-identical to the inline blocks it replaces, modulo the optional
 // Woodcutter `quiz={false}` variant.
+//
+// The `🔄 Reset` pill (added 2026-06-23) is self-contained here: this
+// component renders the pill AND its confirm dialog AND wires the
+// click → confirm → restart flow, so all 23 games inherit a consistent
+// "start this game over" control with no per-game wiring. "Restart"
+// means a fresh page reload — saved progress lives in LocalStorage and
+// survives the reload; only in-session state (round index, score,
+// current card/selection, quiz position) resets to the start. A confirm
+// step guards against a stray tap wiping an in-progress session.
 
 interface Props {
   /**
@@ -17,13 +26,142 @@ interface Props {
    * `Quiz` button would be redundant.
    */
   quiz?: boolean;
+  /**
+   * Show the `🔄 Reset` pill (+ its confirm dialog). Defaults to `true`.
+   * Every game ships it today; the prop exists so a future no-session
+   * page can opt out without forking the component.
+   */
+  reset?: boolean;
 }
 
-const { quiz = true } = Astro.props;
+const { quiz = true, reset = true } = Astro.props;
 ---
 
 <div class="ctrl-row">
+  {reset && <button class="ctrl-pill" id="btnReset" type="button">🔄 Reset</button>}
   {quiz && <button class="ctrl-pill" id="btnQuiz" type="button">🧠 Quiz</button>}
   <button class="ctrl-pill" id="btnStats" type="button">📊 Stats</button>
   <button class="ctrl-pill" id="btnSettings" type="button">⚙️ Settings</button>
 </div>
+
+{
+  reset && (
+    <div
+      class="modal-overlay reset-confirm"
+      id="resetConfirmModal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="resetConfirmTitle"
+    >
+      <div class="modal-box reset-confirm-box">
+        <h2 id="resetConfirmTitle">Start over?</h2>
+        <p class="reset-confirm-text">
+          This restarts the game from the beginning. Don't worry — your saved
+          progress is kept.
+        </p>
+        <div class="reset-confirm-actions">
+          <button class="reset-confirm-btn reset-confirm-cancel" id="resetCancelBtn" type="button">
+            Keep playing
+          </button>
+          <button class="reset-confirm-btn reset-confirm-go" id="resetConfirmBtn" type="button">
+            🔄 Start over
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+<style>
+  .reset-confirm-text {
+    text-align: center;
+    font-size: 1.02em;
+    line-height: 1.5;
+    margin: 0 0 22px;
+    opacity: 0.9;
+  }
+
+  .reset-confirm-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .reset-confirm-btn {
+    border: none;
+    border-radius: 50px;
+    padding: 12px 26px;
+    font-size: 1em;
+    font-weight: bold;
+    cursor: pointer;
+    font-family: inherit;
+    transition: 0.2s;
+  }
+
+  .reset-confirm-cancel {
+    background: rgba(255, 255, 255, 0.16);
+    color: #fff;
+  }
+
+  .reset-confirm-cancel:hover {
+    background: rgba(255, 255, 255, 0.28);
+  }
+
+  .reset-confirm-go {
+    background: #fff;
+    color: #1a3a10;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  }
+
+  .reset-confirm-go:hover {
+    transform: translateY(-2px);
+  }
+</style>
+
+<script>
+  import { playTap } from '@/lib/audio';
+
+  const btnReset = document.getElementById('btnReset');
+  const modal = document.getElementById('resetConfirmModal');
+  const cancelBtn = document.getElementById('resetCancelBtn');
+  const confirmBtn = document.getElementById('resetConfirmBtn') as HTMLButtonElement | null;
+
+  if (btnReset && modal) {
+    const open = (): void => {
+      modal.classList.add('show');
+      // Focus the safe option so a stray Enter keypress cancels rather
+      // than confirms the restart.
+      cancelBtn?.focus();
+    };
+    const close = (): void => modal.classList.remove('show');
+
+    btnReset.addEventListener('click', () => {
+      playTap();
+      open();
+    });
+
+    cancelBtn?.addEventListener('click', () => {
+      playTap();
+      close();
+    });
+
+    confirmBtn?.addEventListener('click', () => {
+      playTap();
+      // Restart the current session via a fresh page load. Saved progress
+      // (LocalStorage) survives; in-session state resets to the start.
+      location.reload();
+    });
+
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) close();
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && modal.classList.contains('show')) {
+        e.preventDefault();
+        close();
+      }
+    });
+  }
+</script>

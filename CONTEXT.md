@@ -6,7 +6,7 @@
 > win. Keep it short and current — see the update rule in
 > `.cursor/rules/maintain-context.mdc`.
 >
-> **Last verified against the codebase**: 2026-06-17 (Days Parade ship).
+> **Last verified against the codebase**: 2026-06-23 (shared Reset control ship).
 
 ---
 
@@ -125,7 +125,14 @@ game = one entry.
   triad + Pattern Sequences + Letter Friends + Number Bond Pop + Sound
   Friends + Sorting Friends + Week Friends + Days Parade). Total **23 games**,
   all live.
-- **Latest ship (2026-06-17)**: **Days Parade** — foundational learn-the-days
+- **Latest ship (2026-06-23)**: a shared **"🔄 Reset" control on every game** —
+  restart the current session (a confirmed `location.reload()`; saved progress
+  in LocalStorage survives, only in-session round/score/selection state resets).
+  Lives entirely in the shared `GameControls.astro` (new `🔄 Reset` pill
+  `#btnReset` + a `.modal-overlay` confirm dialog `#resetConfirmModal`), so all
+  23 games inherit it with no per-game wiring. `tests/reset.spec.ts` covers one
+  game per layout. No game-count, storage-key, or layout changes.
+- **Prior ship (2026-06-17)**: **Days Parade** — foundational learn-the-days
   explore game and the **prequel to Week Friends** (learn all 7 days first, then
   sequence them). A Sunday-first week train; tap any day to meet it (hear its
   name + a fact, collect a "met ✓", N/7); a **"Sing the days"** button walks the
