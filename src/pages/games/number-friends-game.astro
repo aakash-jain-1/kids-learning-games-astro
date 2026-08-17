@@ -156,7 +156,7 @@ const TOTAL_ROUNDS = 8;
 
 <script>
   import { playTap, playCorrect } from '@/lib/audio';
-  import { speak, cancelSpeech, isSpeechSupported } from '@/lib/speech';
+  import { speak, cancelSpeech, isSpeechSupported, onFirstGesture } from '@/lib/speech';
   import { launchConfetti } from '@/lib/achievements';
   import { getSettings } from '@/lib/settings';
   import {
@@ -661,12 +661,5 @@ const TOTAL_ROUNDS = 8;
   // click event when the user's first interaction is a tap on a
   // group. Same race that bit Counting Friends on 2026-05-15 — same
   // fix here, applied prophylactically.
-  let kickedOff = false;
-  const kickoff = (): void => {
-    if (kickedOff) return;
-    kickedOff = true;
-    requestAnimationFrame(() => speakIntroSequence());
-  };
-  document.addEventListener('pointerdown', kickoff, { once: true });
-  document.addEventListener('keydown', kickoff, { once: true });
+  onFirstGesture(() => speakIntroSequence());
 </script>

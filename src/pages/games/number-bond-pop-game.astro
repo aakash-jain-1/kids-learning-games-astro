@@ -160,7 +160,7 @@ const TOTAL_ROUNDS = 8;
 
 <script>
   import { playTap, playCorrect } from '@/lib/audio';
-  import { speak, cancelSpeech, isSpeechSupported } from '@/lib/speech';
+  import { speak, cancelSpeech, isSpeechSupported, onFirstGesture } from '@/lib/speech';
   import { launchConfetti } from '@/lib/achievements';
   import { getSettings } from '@/lib/settings';
   import {
@@ -640,12 +640,5 @@ const TOTAL_ROUNDS = 8;
   // the body) to kick off the intro narration. Kickoff does NOT call
   // renderRound() — that would race with a first-interaction tap on an
   // option. Same prophylactic fix the triad uses.
-  let kickedOff = false;
-  const kickoff = (): void => {
-    if (kickedOff) return;
-    kickedOff = true;
-    requestAnimationFrame(() => speakIntroSequence());
-  };
-  document.addEventListener('pointerdown', kickoff, { once: true });
-  document.addEventListener('keydown', kickoff, { once: true });
+  onFirstGesture(() => speakIntroSequence());
 </script>

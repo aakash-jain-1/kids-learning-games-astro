@@ -104,7 +104,7 @@ const description =
 
 <script>
   import { playTap, playCorrect } from '@/lib/audio';
-  import { speak, cancelSpeech, isSpeechSupported } from '@/lib/speech';
+  import { speak, cancelSpeech, isSpeechSupported, onFirstGesture } from '@/lib/speech';
   import { launchConfetti } from '@/lib/achievements';
   import { getSettings } from '@/lib/settings';
   import { loadLearned, saveLearned } from '@/lib/progress';
@@ -359,12 +359,5 @@ const description =
 
   // Speech is blocked until the first user gesture — wait for it, then
   // narrate the "today" intro line once.
-  let kickedOff = false;
-  const kickoff = (): void => {
-    if (kickedOff) return;
-    kickedOff = true;
-    narrate(captionEl.textContent ?? '');
-  };
-  document.addEventListener('pointerdown', kickoff, { once: true });
-  document.addEventListener('keydown', kickoff, { once: true });
+  onFirstGesture(() => narrate(captionEl.textContent ?? ''));
 </script>
