@@ -1,0 +1,597 @@
+---
+import StoryLayout from '@/layouts/StoryLayout.astro';
+import GameControls from '@/components/GameControls.astro';
+import '@/styles/feeling-friends.css';
+
+import {
+  generateSession,
+  lookupFeeling,
+  buildNarration,
+  FACE_IMG_BASE,
+  TOTAL_ROUNDS,
+} from '@/data/feeling-friends';
+
+const title = 'Feeling Friends — Kids Learning Games';
+const description =
+  'A feelings game for ages 3–4. "Show me happy" — tap the face that matches, from three big faces. Later rounds ask how someone feels from a little story ("her ice cream fell on the ground"). Speaks a calming coping tip after every answer. First preschool social-emotional game.';
+
+// SSR a deterministic first round so the page never paints blank. The page
+// script reads round 0 straight back out of the SSR'd DOM (the Sound
+// Friends / Animal Sounds kickoff-race pattern), then continues with random
+// rounds 1..N once the child taps Next.
+const SSR_FIRST_ROUND = generateSession(() => 0.42)[0]!;
+const ssrTarget = lookupFeeling(SSR_FIRST_ROUND.target);
+const ssrTiles = SSR_FIRST_ROUND.tiles.map((id) => lookupFeeling(id));
+const ssrNarration = buildNarration(SSR_FIRST_ROUND);
+// Round 0 is always tier 1, i.e. a label round, so the prompt is one word.
+const ssrPromptText = ssrTarget.name;
+---
+
+<StoryLayout
+  title={title}
+  description={description}
+  themeColor="#6366f1"
+  theme="feelingfriends"
+>
+  <main class="ff-shell" aria-label="Feeling Friends game">
+    <header class="ff-header">
+      <h1 class="ff-title">
+        <span aria-hidden="true">💛</span>
+        <span>Feeling Friends</span>
+      </h1>
+
+      <div class="ff-header-right" style="display: flex; gap: 10px; align-items: center;">
+        <span
+          class="ff-progress-pill"
+          id="ffProgressPill"
+          aria-label={`Round 1 of ${TOTAL_ROUNDS}`}
+        >
+          <span id="ffProgressText">1 / {TOTAL_ROUNDS}</span>
+          <span class="ff-progress-bar" aria-hidden="true">
+            <span class="ff-progress-fill" id="ffProgressFill"></span>
+          </span>
+        </span>
+        <GameControls />
+      </div>
+    </header>
+
+    <section
+      class="ff-stage"
+      id="ffStage"
+      data-scene={SSR_FIRST_ROUND.theme}
+      data-target={SSR_FIRST_ROUND.target}
+      data-kind={SSR_FIRST_ROUND.kind}
+      aria-label="Feeling Friends scene"
+    >
+      <button
+        type="button"
+        class="ff-prompt"
+        id="ffPrompt"
+        style="--ff-prompt-scale: 1"
+        aria-label={`${ssrNarration.intro} Tap to hear it again.`}
+      >
+        <span class="ff-prompt-glyph" aria-hidden="true">💬</span>
+        <span class="ff-prompt-text" id="ffPromptText" aria-hidden="true">
+          {ssrPromptText}
+        </span>
+        <span class="ff-prompt-hint" id="ffPromptHint" aria-hidden="true">
+          show me this feeling
+        </span>
+      </button>
+
+      <div
+        class="ff-caption"
+        id="ffCaption"
+        role="status"
+        aria-live="polite"
+      >
+        {ssrNarration.intro}
+      </div>
+
+      <div class="ff-tiles" aria-label="Three faces — tap the one that matches the feeling">
+        {
+          ssrTiles.map((feeling, idx) => (
+            <button
+              type="button"
+              class="ff-tile"
+              id={`ffTile${idx}`}
+              data-i={idx}
+              data-feeling={feeling.id}
+              style={`--ff-i: ${idx * 0.1}s`}
+              aria-label={`Face ${idx + 1} — ${feeling.name}`}
+            >
+              <img
+                class="ff-tile-img"
+                src={FACE_IMG_BASE + feeling.img}
+                alt={feeling.name}
+                width="92"
+                height="92"
+                loading="eager"
+                decoding="async"
+                data-emoji={feeling.emoji}
+              />
+              <span class="ff-tile-name" aria-hidden="true">{feeling.name}</span>
+            </button>
+          ))
+        }
+      </div>
+    </section>
+
+    <footer class="ff-footer">
+      <button type="button" class="ff-action" id="ffReplayBtn" aria-label="Hear the question again">
+        🔊 Say it again
+      </button>
+      <button type="button" class="ff-action ff-action--primary" id="ffNextBtn" aria-label="Next round" disabled>
+        Next round →
+      </button>
+    </footer>
+
+    <div class="ff-done" id="ffDone" role="dialog" aria-live="polite" aria-labelledby="ffDoneTitle">
+      <div class="ff-done-card">
+        <div class="ff-done-emoji" aria-hidden="true">💛</div>
+        <h2 class="ff-done-title" id="ffDoneTitle">You know your feelings!</h2>
+        <p class="ff-done-text" id="ffDoneText">
+          You named {TOTAL_ROUNDS} feelings today!
+        </p>
+        <div class="ff-done-actions">
+          <button type="button" class="ff-action ff-action--primary" id="ffPlayAgainBtn">
+            ▶ Play again
+          </button>
+          <a class="ff-action" href={import.meta.env.BASE_URL}>
+            🏠 Home
+          </a>
+        </div>
+      </div>
+    </div>
+  </main>
+</StoryLayout>
+
+<script>
+  import { playTap, playCorrect, playWrong } from '@/lib/audio';
+  import { speak, cancelSpeech, isSpeechSupported, onFirstGesture } from '@/lib/speech';
+  import { launchConfetti } from '@/lib/achievements';
+  import { getSettings } from '@/lib/settings';
+  import {
+    generateSession,
+    buildNarration,
+    lookupFeeling,
+    loadFeelingFriendsStats,
+    saveFeelingFriendsStats,
+    FACE_IMG_BASE,
+    TOTAL_ROUNDS,
+    type FeelingRound,
+    type FeelingId,
+    type FeelingRoundKind,
+    type RoundNarration,
+    type PreschoolTheme,
+  } from '@/data/feeling-friends';
+  import { recordPlay } from '@/lib/retention';
+
+  const GAME_ID = 'feeling-friends';
+  // Indigo-leaning palette matching the social-emotional accent, distinct
+  // from the literacy pink, the math green and the listening sky.
+  const FF_COLORS = ['#6366f1', '#a855f7', '#f472b6', '#fbbf24', '#34d399'];
+
+  /**
+   * A label round shows one big word; a situation round shows a whole
+   * sentence and has to shrink to fit. Kept as a scale factor on one custom
+   * property rather than a class swap, so the prompt card's own box doesn't
+   * change shape between round kinds.
+   */
+  const PROMPT_SCALE: Readonly<Record<FeelingRoundKind, string>> = {
+    label: '1',
+    situation: '0.52',
+  };
+
+  const PROMPT_HINT: Readonly<Record<FeelingRoundKind, string>> = {
+    label: 'show me this feeling',
+    situation: 'how do they feel?',
+  };
+
+  /**
+   * Read round 0 back out of the SSR'd DOM so the JS session starts in sync
+   * with whatever Astro rendered. Without this, a tap during the first
+   * interaction could land on a tile whose face has just been rewritten by
+   * a freshly-randomised JS session — the kickoff race that bit Counting
+   * Friends on 2026-05-15. Inherited from Sound Friends / Animal Sounds.
+   */
+  const readSSRRound = (): FeelingRound => {
+    const stageEl = document.getElementById('ffStage');
+    if (!stageEl) return generateSession()[0]!;
+
+    const themeKey = (stageEl.dataset.scene ?? 'pond') as PreschoolTheme;
+    const target = stageEl.dataset.target as FeelingId | undefined;
+
+    const tileEls = [
+      document.getElementById('ffTile0'),
+      document.getElementById('ffTile1'),
+      document.getElementById('ffTile2'),
+    ];
+    if (!target || tileEls.some((el) => !el)) {
+      return generateSession()[0]!;
+    }
+
+    const tiles = tileEls.map(
+      (el) => el!.dataset.feeling as FeelingId,
+    ) as [FeelingId, FeelingId, FeelingId];
+    const correctIndex = tiles.indexOf(target);
+    if (correctIndex < 0 || correctIndex > 2) {
+      return generateSession()[0]!;
+    }
+
+    return {
+      // Round 0 is always tier 1, so it's always a label round; no vignette
+      // has to survive the DOM round-trip.
+      kind: 'label',
+      target,
+      tiles,
+      correctIndex: correctIndex as 0 | 1 | 2,
+      situation: null,
+      tier: 0,
+      theme: themeKey,
+    };
+  };
+
+  // ── State ──────────────────────────────────────────────────────────
+  let session: FeelingRound[] = [readSSRRound(), ...generateSession().slice(1)];
+  let roundIdx = 0;
+  let answered = false;
+  let currentNarration: RoundNarration | null = null;
+  /** Most recent post-answer phrase, cached so Replay re-narrates it. */
+  let lastPostAnswerText = '';
+
+  // ── DOM refs ───────────────────────────────────────────────────────
+  const stage = document.getElementById('ffStage') as HTMLElement;
+  const promptEl = document.getElementById('ffPrompt') as HTMLButtonElement;
+  const promptText = document.getElementById('ffPromptText') as HTMLElement;
+  const promptHint = document.getElementById('ffPromptHint') as HTMLElement;
+  const captionEl = document.getElementById('ffCaption') as HTMLElement;
+  const tileEls = [
+    document.getElementById('ffTile0') as HTMLButtonElement,
+    document.getElementById('ffTile1') as HTMLButtonElement,
+    document.getElementById('ffTile2') as HTMLButtonElement,
+  ];
+  const progressText = document.getElementById('ffProgressText') as HTMLElement;
+  const progressFill = document.getElementById('ffProgressFill') as HTMLElement;
+  const progressPill = document.getElementById('ffProgressPill') as HTMLElement;
+  const replayBtn = document.getElementById('ffReplayBtn') as HTMLButtonElement;
+  const nextBtn = document.getElementById('ffNextBtn') as HTMLButtonElement;
+  const doneEl = document.getElementById('ffDone') as HTMLElement;
+  const playAgainBtn = document.getElementById('ffPlayAgainBtn') as HTMLButtonElement;
+
+  // ── Face rendering ─────────────────────────────────────────────────
+
+  /**
+   * If a face PNG can't load, swap to an inline SVG painting the emoji at the
+   * same size. Same helper the animals / birds / hindi decks use, so the tile
+   * keeps its box and a child never sees a broken-image icon. `onerror = null`
+   * inside the handler prevents a loop if the SVG itself ever fails.
+   *
+   * The faces are vendored and precached, so this should never fire — it's
+   * kept because the failure it guards against is a game with no question in
+   * it, and 2026-08-17 was the day an upstream folder rename proved remote
+   * images can vanish without warning.
+   */
+  const installImageFallback = (img: HTMLImageElement, emoji: string): void => {
+    img.onerror = (): void => {
+      img.onerror = null;
+      img.src =
+        `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90' text-anchor='middle' x='50'>${emoji}</text></svg>`;
+    };
+  };
+
+  // SSR'd images need the fallback wired too — they're already in the DOM
+  // and may still be in flight when this script runs.
+  for (const el of tileEls) {
+    const img = el.querySelector<HTMLImageElement>('img.ff-tile-img');
+    if (img) installImageFallback(img, img.dataset.emoji ?? '🙂');
+  }
+
+  // ── Audio helpers ──────────────────────────────────────────────────
+
+  /**
+   * Speak `text` if the user has sound enabled. Same shape as the rest of
+   * the preschool family: silent-mode setTimeout fallback + watchdog
+   * alongside speechSynthesis.onend, so headless CI runners without a TTS
+   * engine don't deadlock the round-progression chain.
+   */
+  const narrate = (text: string, opts?: { onEnd?: () => void }): void => {
+    const onEnd = opts?.onEnd;
+    if (!isSpeechSupported() || !getSettings().sound) {
+      if (onEnd) setTimeout(onEnd, 600);
+      return;
+    }
+    let fired = false;
+    const wrap = (): void => {
+      if (fired) return;
+      fired = true;
+      onEnd?.();
+    };
+    const watchdogMs = Math.max(800, text.length * 100 + 600);
+    if (onEnd) setTimeout(wrap, watchdogMs);
+    speak(text, { rate: 0.85, pitch: 1.15, onEnd: onEnd ? wrap : undefined });
+  };
+
+  const setCaption = (text: string): void => {
+    captionEl.textContent = text;
+    captionEl.style.animation = 'none';
+    void captionEl.offsetWidth;
+    captionEl.style.removeProperty('animation');
+  };
+
+  // ── Render helpers ─────────────────────────────────────────────────
+
+  const renderRound = (): void => {
+    const round = session[roundIdx]!;
+    const narration = buildNarration(round);
+
+    progressText.textContent = `${roundIdx + 1} / ${TOTAL_ROUNDS}`;
+    progressFill.style.width = `${((roundIdx + 1) / TOTAL_ROUNDS) * 100}%`;
+    progressPill.setAttribute('aria-label', `Round ${roundIdx + 1} of ${TOTAL_ROUNDS}`);
+
+    stage.dataset.scene = round.theme;
+    stage.dataset.target = round.target;
+    stage.dataset.kind = round.kind;
+
+    // A situation round asks with the vignette; a label round asks with the
+    // single feeling word.
+    promptText.textContent =
+      round.kind === 'situation' && round.situation
+        ? round.situation
+        : lookupFeeling(round.target).name;
+    promptHint.textContent = PROMPT_HINT[round.kind];
+    promptEl.style.setProperty('--ff-prompt-scale', PROMPT_SCALE[round.kind]);
+    promptEl.setAttribute('aria-label', `${narration.intro} Tap to hear it again.`);
+
+    for (let g = 0; g < 3; g++) {
+      const feeling = lookupFeeling(round.tiles[g]!);
+      const el = tileEls[g]!;
+      el.dataset.feeling = feeling.id;
+      el.style.setProperty('--ff-i', `${g * 0.1}s`);
+      el.setAttribute('aria-label', `Face ${g + 1} — ${feeling.name}`);
+
+      el.replaceChildren();
+      const img = document.createElement('img');
+      img.className = 'ff-tile-img';
+      img.alt = feeling.name;
+      img.width = 92;
+      img.height = 92;
+      img.decoding = 'async';
+      img.dataset.emoji = feeling.emoji;
+      installImageFallback(img, feeling.emoji);
+      img.src = FACE_IMG_BASE + feeling.img;
+      const name = document.createElement('span');
+      name.className = 'ff-tile-name';
+      name.setAttribute('aria-hidden', 'true');
+      name.textContent = feeling.name;
+      el.append(img, name);
+
+      el.disabled = false;
+      el.classList.remove('ff-tile--correct', 'ff-tile--reveal', 'ff-tile--wrong');
+      // Force re-trigger of the fly-in animation on each render.
+      el.style.animation = 'none';
+      void el.offsetWidth;
+      el.style.removeProperty('animation');
+    }
+
+    answered = false;
+    currentNarration = narration;
+    lastPostAnswerText = '';
+    nextBtn.disabled = true;
+    replayBtn.disabled = false;
+  };
+
+  const speakIntro = (): void => {
+    const intro = currentNarration?.intro;
+    if (!intro) return;
+    setCaption(intro);
+    narrate(intro);
+  };
+
+  // ── Answer handler ─────────────────────────────────────────────────
+
+  const onTileTap = (idx: 0 | 1 | 2): void => {
+    if (answered) return;
+    const round = session[roundIdx]!;
+    playTap();
+
+    const tappedEl = tileEls[idx]!;
+    const correctEl = tileEls[round.correctIndex]!;
+    const tappedFeeling = round.tiles[idx]!;
+
+    if (idx === round.correctIndex) {
+      // Correct — celebrate, then speak the emotion's coping line, which is
+      // the point of the game: recognition into regulation.
+      answered = true;
+      tappedEl.classList.add('ff-tile--correct');
+      for (const el of tileEls) el.disabled = true;
+      playCorrect();
+      cancelSpeech();
+      const correctText = currentNarration?.correct ?? 'Yes!';
+      lastPostAnswerText = correctText;
+      setCaption(correctText);
+      narrate(correctText);
+      launchConfetti(FF_COLORS);
+      bumpStats(true);
+      nextBtn.disabled = false;
+    } else {
+      // Wrong — guided correction. Sequence:
+      //   1) error tone + 250ms shake + red tint on the tapped tile
+      //      (feedback rule revised 2026-08-17).
+      //   2) "Hmm! Let's look at the faces together."       (rerun)
+      //   3) "That's the sleepy face — the eyes are closed…" (wrongIs)
+      //   4) "Look at this one — the mouth is smiling wide." (reveal)
+      //   5) Enable Next. Still no score, still no failed round, and the
+      //      script never says "no" or "wrong" — this is a domain where
+      //      that lands especially hard.
+      answered = true;
+      for (const el of tileEls) el.disabled = true;
+      tappedEl.classList.add('ff-tile--wrong');
+      playWrong();
+      cancelSpeech();
+      const rerunText = currentNarration?.rerun ?? "Let's look together.";
+      setCaption(rerunText);
+      narrate(rerunText, {
+        onEnd: () => {
+          const wrongText =
+            currentNarration?.wrongIs(tappedFeeling) ??
+            `That's the ${tappedFeeling} face.`;
+          setCaption(wrongText);
+          lastPostAnswerText = wrongText;
+          narrate(wrongText, {
+            onEnd: () => {
+              // Brief pause so the child registers the shift from "that
+              // one" to "this one".
+              setTimeout(() => {
+                const revealText =
+                  currentNarration?.reveal ??
+                  `This one is ${lookupFeeling(round.target).name}.`;
+                setCaption(revealText);
+                lastPostAnswerText = revealText;
+                correctEl.classList.add('ff-tile--reveal');
+                narrate(revealText, {
+                  onEnd: () => {
+                    bumpStats(false);
+                    nextBtn.disabled = false;
+                  },
+                });
+              }, 350);
+            },
+          });
+        },
+      });
+    }
+  };
+
+  // ── Round progression ──────────────────────────────────────────────
+
+  const startRound = (): void => {
+    cancelSpeech();
+    renderRound();
+    requestAnimationFrame(() => speakIntro());
+  };
+
+  const onNext = (): void => {
+    playTap();
+    if (roundIdx >= TOTAL_ROUNDS - 1) {
+      showSessionComplete();
+      return;
+    }
+    roundIdx++;
+    startRound();
+  };
+
+  const showSessionComplete = (): void => {
+    cancelSpeech();
+    const stats = loadFeelingFriendsStats();
+    saveFeelingFriendsStats({
+      ...stats,
+      sessions: stats.sessions + 1,
+      lastPlayed: new Date().toISOString().slice(0, 10),
+    });
+    recordPlay(GAME_ID);
+    doneEl.classList.add('ff-done--show');
+    launchConfetti(FF_COLORS);
+    narrate(`Wow! You named ${TOTAL_ROUNDS} feelings today! Great job!`);
+  };
+
+  const onPlayAgain = (): void => {
+    playTap();
+    doneEl.classList.remove('ff-done--show');
+    session = generateSession();
+    roundIdx = 0;
+    startRound();
+  };
+
+  // ── Stats persistence ──────────────────────────────────────────────
+
+  const bumpStats = (correctFirstTry: boolean): void => {
+    const stats = loadFeelingFriendsStats();
+    saveFeelingFriendsStats({
+      ...stats,
+      rounds: stats.rounds + 1,
+      correctFirstTry: stats.correctFirstTry + (correctFirstTry ? 1 : 0),
+      lastPlayed: new Date().toISOString().slice(0, 10),
+    });
+    recordPlay(GAME_ID);
+  };
+
+  // ── Event wiring ───────────────────────────────────────────────────
+
+  for (const el of tileEls) {
+    el.addEventListener('click', () => {
+      if (el.disabled) return;
+      const idx = Number(el.dataset.i);
+      if (idx === 0 || idx === 1 || idx === 2) {
+        onTileTap(idx as 0 | 1 | 2);
+      }
+    });
+  }
+
+  /**
+   * Replay handler shared by the prompt card and the Replay button.
+   *
+   * Before an answer this repeats the question — the most likely request
+   * from a child who lost the prompt while scanning the faces, and doubly
+   * so on a situation round where the prompt is a whole sentence. After an
+   * answer it re-narrates the last phrase instead, so the correction can be
+   * heard again without restarting the round.
+   */
+  const onReplay = (): void => {
+    playTap();
+    cancelSpeech();
+    if (!answered) {
+      speakIntro();
+      return;
+    }
+    const text = lastPostAnswerText || (currentNarration?.intro ?? '');
+    setCaption(text);
+    narrate(text);
+  };
+
+  promptEl.addEventListener('click', onReplay);
+  replayBtn.addEventListener('click', onReplay);
+
+  nextBtn.addEventListener('click', onNext);
+  playAgainBtn.addEventListener('click', onPlayAgain);
+
+  document.getElementById('btnSettings')?.addEventListener('click', () => {
+    playTap();
+    (window as unknown as { openSettings?: () => void }).openSettings?.();
+  });
+
+  document.getElementById('btnQuiz')?.addEventListener('click', () => {
+    playTap();
+    cancelSpeech();
+    speakIntro();
+  });
+
+  document.getElementById('btnStats')?.addEventListener('click', () => {
+    playTap();
+    const stats = loadFeelingFriendsStats();
+    const ratio =
+      stats.rounds === 0
+        ? 0
+        : Math.round((stats.correctFirstTry / stats.rounds) * 100);
+    const lines = [
+      `💛 Sessions completed: ${stats.sessions}`,
+      `🌟 Rounds played: ${stats.rounds}`,
+      `🎯 First-try correct: ${stats.correctFirstTry} (${ratio}%)`,
+      stats.lastPlayed ? `📅 Last played: ${stats.lastPlayed}` : '📅 Last played: never',
+    ];
+    alert(lines.join('\n'));
+  });
+
+  // ── Initial state binding ──────────────────────────────────────────
+  // The SSR'd DOM is round 0; we don't re-render it. Bind JS state so
+  // subsequent logic — tile clicks, replay, etc. — has the references.
+  currentNarration = buildNarration(session[0]!);
+  progressText.textContent = `1 / ${TOTAL_ROUNDS}`;
+  progressFill.style.width = `${(1 / TOTAL_ROUNDS) * 100}%`;
+  progressPill.setAttribute('aria-label', `Round 1 of ${TOTAL_ROUNDS}`);
+
+  // Speech is blocked until the first gesture, so the intro waits for it.
+  // Deliberately does NOT call renderRound() — that would race with a
+  // first-interaction tap on a tile.
+  onFirstGesture(() => speakIntro());
+</script>

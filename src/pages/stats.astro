@@ -51,6 +51,7 @@ const FAMILY_ORDER: readonly StatsFamily[] = [
   'preschool-math',
   'preschool-literacy',
   'preschool-cognitive',
+  'preschool-social',
   'story',
   'card-set',
   'card-pure',
@@ -60,6 +61,7 @@ const entriesByFamily: Record<StatsFamily, StatsRegistryEntry[]> = {
   'preschool-math': [],
   'preschool-literacy': [],
   'preschool-cognitive': [],
+  'preschool-social': [],
   story: [],
   'card-set': [],
   'card-pure': [],
@@ -296,6 +298,7 @@ const activityDays = getActivityByFamily(7);
         'preschool-math',
         'preschool-literacy',
         'preschool-cognitive',
+        'preschool-social',
         'story',
         'card-set',
         'card-pure',
@@ -441,7 +444,8 @@ const activityDays = getActivityByFamily(7);
       /* ─── Activity panel (T-retention, 2026-05-20) ───────────────── */
       /* The 7-day activity strip lives at the top of `/stats` and
          answers the *"is the child coming back?"* question at a glance.
-         Each day cell stacks four family-coloured dots; an active dot
+         Each day cell stacks one family-coloured dot per family in
+         `FAMILY_ORDER` (seven since 2026-08-17); an active dot
          (`.is-active`) means at least one game in that family was
          played that day. SSR ships the cells in their inactive shape;
          the hydrating script toggles `.is-active` once `localStorage`
@@ -617,7 +621,7 @@ const activityDays = getActivityByFamily(7);
 
       /* Family-tinted left border so the section grouping is visible
          even when scrolling and section headers are above the fold.
-         The five accent colors are deliberately distinct from the
+         These accent colors are deliberately distinct from the
          FAMILY_COLORS palette in stats-registry.ts (which paints the
          activity dots) — those are functional colour-coding for the
          calendar; these are decorative tints for card edges. */
@@ -629,6 +633,9 @@ const activityDays = getActivityByFamily(7);
       }
       .stats-card[data-family='preschool-cognitive'] {
         border-left-color: #5eead4;
+      }
+      .stats-card[data-family='preschool-social'] {
+        border-left-color: #a5b4fc;
       }
       .stats-card[data-family='story'] {
         border-left-color: #ef476f;

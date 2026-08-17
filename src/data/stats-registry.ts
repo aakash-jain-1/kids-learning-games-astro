@@ -116,6 +116,10 @@ import {
   STATS_KEY as ANIMAL_SOUNDS_KEY,
   loadAnimalSoundsStats,
 } from '@/data/animal-sounds';
+import {
+  STATS_KEY as FEELING_FRIENDS_KEY,
+  loadFeelingFriendsStats,
+} from '@/data/feeling-friends';
 
 import { loadQuizState } from '@/lib/quiz';
 import { loadLearned } from '@/lib/progress';
@@ -131,7 +135,7 @@ export interface MetricRow {
   readonly value: string;
 }
 
-/** The six families used to group cards on the page (and tint borders).
+/** The seven families used to group cards on the page (and tint borders).
  *
  *  `'preschool-literacy'` was added 2026-05-25 with the Letter Friends
  *  ship. The schema is identical to `'preschool-math'` (so the
@@ -146,11 +150,19 @@ export interface MetricRow {
  *  distinct pre-academic THINKING skill (not math, not literacy), so
  *  it earns its own dashboard bucket. Schema is again identical, so it
  *  reuses the shared `preschoolStatsEntry` factory.
+ *
+ *  `'preschool-social'` was added 2026-08-17 with the Feeling Friends
+ *  ship. It's the family split with the strongest case yet: "has my
+ *  child been naming feelings this week?" is the one question on this
+ *  dashboard a parent might act on differently from any academic
+ *  number, and it would be invisible folded into "thinking". Schema is
+ *  once again identical.
  */
 export type StatsFamily =
   | 'preschool-math'
   | 'preschool-literacy'
   | 'preschool-cognitive'
+  | 'preschool-social'
   | 'story'
   | 'card-set'
   | 'card-pure';
@@ -220,7 +232,11 @@ const preschoolStatsEntry = (cfg: {
   emoji: string;
   hrefPath: string;
   storageKey: string;
-  family: 'preschool-math' | 'preschool-literacy' | 'preschool-cognitive';
+  family:
+    | 'preschool-math'
+    | 'preschool-literacy'
+    | 'preschool-cognitive'
+    | 'preschool-social';
   load: () => {
     sessions: number;
     rounds: number;
@@ -533,8 +549,12 @@ export const STATS_REGISTRY: readonly StatsRegistryEntry[] = [
   }),
   // Animal Sounds is science/listening rather than sorting/sequencing,
   // but it shares the exact round-and-first-try shape of this family and
-  // adding a 7th family for a single game wasn't worth the /stats churn
-  // (decided 2026-08-17). Revisit if more science games land.
+  // a `preschool-science` family for a single game wasn't worth the
+  // /stats churn (decided 2026-08-17). Revisit if more science games
+  // land. Feeling Friends, shipped the same day, DID get its own family
+  // below — the difference is that "is my child naming feelings?" is a
+  // question a parent acts on, while "is my child hearing animals?" is
+  // just another thinking game to them.
   preschoolStatsEntry({
     id: 'animal-sounds',
     title: 'Animal Sounds',
@@ -543,6 +563,17 @@ export const STATS_REGISTRY: readonly StatsRegistryEntry[] = [
     storageKey: ANIMAL_SOUNDS_KEY,
     family: 'preschool-cognitive',
     load: loadAnimalSoundsStats,
+  }),
+
+  // Family A4 — preschool-social
+  preschoolStatsEntry({
+    id: 'feeling-friends',
+    title: 'Feeling Friends',
+    emoji: '💛',
+    hrefPath: 'games/feeling-friends-game',
+    storageKey: FEELING_FRIENDS_KEY,
+    family: 'preschool-social',
+    load: loadFeelingFriendsStats,
   }),
 
   // Family B — story
@@ -658,6 +689,7 @@ export const FAMILY_LABELS: Readonly<Record<StatsFamily, string>> = {
   'preschool-math': 'Preschool math (cardinality + pattern)',
   'preschool-literacy': 'Preschool literacy (letter recognition)',
   'preschool-cognitive': 'Preschool thinking (sorting + sequencing)',
+  'preschool-social': 'Preschool feelings (naming + coping)',
   story: 'Story games',
   'card-set': 'Card-set games (collect what you learn)',
   'card-pure': 'Card-pure games (explore the deck)',
@@ -702,6 +734,7 @@ const zeroPerFamily = (): Readonly<Record<StatsFamily, number>> => ({
   'preschool-math': 0,
   'preschool-literacy': 0,
   'preschool-cognitive': 0,
+  'preschool-social': 0,
   story: 0,
   'card-set': 0,
   'card-pure': 0,
@@ -730,12 +763,10 @@ export const getActivityByFamily = (daysBack = 7): readonly DailyActivity[] => {
       const fam = FAMILY_BY_ID[id];
       if (fam) perFamily[fam] += 1;
     }
-    const total = perFamily['preschool-math']
-      + perFamily['preschool-literacy']
-      + perFamily['preschool-cognitive']
-      + perFamily.story
-      + perFamily['card-set']
-      + perFamily['card-pure'];
+    // Summed over the values rather than family-by-family, so a future
+    // family can't be added to `StatsFamily` and silently left out of the
+    // chart's total.
+    const total = Object.values(perFamily).reduce((a, b) => a + b, 0);
     return { date, perFamily, total };
   });
 };
@@ -747,11 +778,18 @@ export const getActivityByFamily = (daysBack = 7): readonly DailyActivity[] => {
  *  A parent who plays a Letter Friends round and then visits /stats
  *  should see the same pink tone on the activity dot — visual
  *  continuity from gameplay to dashboard.
+ *
+ *  Indigo for preschool-social sits closer to the story blue than any
+ *  other pair here. Kept anyway, because it's the Feeling Friends accent
+ *  and the continuity rule above outranks maximal hue separation: the
+ *  dots are in a fixed order that matches the legend, and each carries a
+ *  `title` naming its family.
  */
 export const FAMILY_COLORS: Readonly<Record<StatsFamily, string>> = {
   'preschool-math': '#22c55e',     // green-500 — matches the shake-feedback ring
   'preschool-literacy': '#ef476f', // pink — matches Letter Friends accent
   'preschool-cognitive': '#14b8a6', // teal-500 — matches Sorting Friends accent
+  'preschool-social': '#6366f1',   // indigo-500 — matches Feeling Friends accent
   story: '#3b82f6',                // blue-500 — matches the existing story theme
   'card-set': '#f59e0b',           // amber-500 — warm tint distinct from the green
   'card-pure': '#a855f7',          // purple-500 — distinct from the other four
@@ -762,6 +800,7 @@ export const FAMILY_SIZES: Readonly<Record<StatsFamily, number>> = {
   'preschool-math': STATS_REGISTRY.filter((e) => e.family === 'preschool-math').length,
   'preschool-literacy': STATS_REGISTRY.filter((e) => e.family === 'preschool-literacy').length,
   'preschool-cognitive': STATS_REGISTRY.filter((e) => e.family === 'preschool-cognitive').length,
+  'preschool-social': STATS_REGISTRY.filter((e) => e.family === 'preschool-social').length,
   story: STATS_REGISTRY.filter((e) => e.family === 'story').length,
   'card-set': STATS_REGISTRY.filter((e) => e.family === 'card-set').length,
   'card-pure': STATS_REGISTRY.filter((e) => e.family === 'card-pure').length,

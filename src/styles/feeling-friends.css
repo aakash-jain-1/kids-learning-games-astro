@@ -1,0 +1,628 @@
+/* Feeling Friends — first preschool SOCIAL-EMOTIONAL game (added
+   2026-08-17). "Show me happy" for tiers 1–2, then "her ice cream fell —
+   how does she feel?" for tier 3. Three big faces, tap the feeling.
+
+   Sibling of Letter Friends (same UI grammar: one prompt card on top, three
+   answer tiles below) and of Animal Sounds (same revised wrong-answer
+   feedback). Different skill: reading a face, and inferring a feeling from
+   a situation.
+
+   Uses `StoryLayout` with `theme='feelingfriends'`, so the body selector is
+   `body.story[data-theme='feelingfriends']`. Every `ff-*` class scopes under
+   it and therefore cannot collide with the sibling games.
+
+   Design constraints worth re-stating here so the next reader doesn't have
+   to dig through PROGRESS.md:
+
+   - **Tiles render a Fluent UI 3D face PNG, not a plain emoji.** The
+     sibling games use emoji tiles, which is fine when the emoji labels a
+     known thing. Here the face *is* the question, and platform emoji fonts
+     disagree about faces far more than about animals. `.ff-tile-img` is the
+     PNG (vendored into `public/images/feelings/` — see its `CREDITS.md`),
+     and its `onerror` swaps in an inline-SVG emoji at the same size, so
+     there is only ever one element per face.
+
+   - **The prompt card carries either a word or a sentence.** A label round
+     shows one big word ("Happy"); a situation round shows a full sentence
+     at a smaller size. `--ff-prompt-scale` lets the controller switch
+     between the two without swapping classes on every child element.
+
+   - **No face is ever labelled "wrong" in words.** A wrong tap tints red,
+     shakes, and plays an error tone (the rule revised 2026-08-17), but the
+     spoken script only ever *names* what was tapped. Feelings are a domain
+     where "wrong" lands especially hard.
+
+   - **Reduced motion**: every animation has a
+     `@media (prefers-reduced-motion: reduce)` fallback.
+*/
+
+/* ── Scene-theme background tokens ─────────────────────────────────── */
+
+body.story[data-theme='feelingfriends'] {
+  --st-bg: linear-gradient(135deg, #eef0ff 0%, #e6e9ff 100%);
+
+  /* Tile surface tokens — translucent white card per face. */
+  --ff-tile-bg: rgba(255, 255, 255, 0.94);
+  --ff-tile-border: rgba(255, 255, 255, 0.45);
+  --ff-tile-bg-hover: rgba(255, 255, 255, 1);
+  --ff-tile-text: #1e1b39;
+
+  --ff-tile-border-correct: #2e7d32;
+  --ff-tile-fill-correct: rgba(76, 175, 80, 0.22);
+
+  --ff-tile-border-glow: #6366f1;
+  --ff-tile-fill-glow: rgba(99, 102, 241, 0.18);
+
+  /* Wrong-tap error tokens. Same muted rose as Animal Sounds — it has to
+     read as "not that one" to a 3yo, not as danger, and matching the
+     sibling game keeps the feedback language consistent across games. */
+  --ff-tile-border-wrong: #e23d5a;
+  --ff-tile-fill-wrong: rgba(226, 61, 90, 0.16);
+
+  /* Prompt card — solid, higher contrast than the tiles, because it is
+     the question of the round. */
+  --ff-prompt-bg: #ffffff;
+  --ff-prompt-text: #1e1b39;
+  --ff-accent: #6366f1; /* social-emotional accent — indigo. */
+  --ff-prompt-border: rgba(40, 35, 90, 0.12);
+  --ff-prompt-shadow: 0 8px 24px rgba(35, 30, 80, 0.18);
+
+  --ff-caption-bg: rgba(255, 255, 255, 0.94);
+  --ff-caption-text: #1e1b39;
+  --ff-caption-shadow: 0 8px 24px rgba(35, 30, 80, 0.18);
+}
+
+/* Six per-theme backgrounds shared with the rest of the preschool family
+   (pond / orchard / sea / garden / meadow / jungle). Theme drives the
+   background ambience only; the feeling pool is theme-independent.
+
+   NOTE for whoever copies this block into game #8: the sibling stylesheets
+   (letterfriends, animalsounds, weekfriends, sortingfriends, comparison,
+   numberfriends, patterns) all declare these same six overrides on their
+   `.X-stage` element but only ever read `--st-bg` on `body` — a custom
+   property set on a descendant can't reach an ancestor, so in those games
+   the per-round scene has never actually painted. This game reads it on
+   `.ff-stage` (below), which is where it's set. Fixing the others is one
+   line each. */
+body.story[data-theme='feelingfriends'] .ff-stage[data-scene='pond'] {
+  --st-bg: linear-gradient(180deg, #b8e0ff 0%, #6fb6e6 60%, #4a8c4a 100%);
+}
+body.story[data-theme='feelingfriends'] .ff-stage[data-scene='orchard'] {
+  --st-bg: linear-gradient(180deg, #ffe6c8 0%, #ffb88c 50%, #88b94a 100%);
+}
+body.story[data-theme='feelingfriends'] .ff-stage[data-scene='sea'] {
+  --st-bg: linear-gradient(180deg, #b3e8ec 0%, #4dc4cf 60%, #f4d97a 100%);
+}
+body.story[data-theme='feelingfriends'] .ff-stage[data-scene='garden'] {
+  --st-bg: linear-gradient(180deg, #fff4b8 0%, #ffd666 60%, #6fbf3a 100%);
+}
+body.story[data-theme='feelingfriends'] .ff-stage[data-scene='meadow'] {
+  --st-bg: linear-gradient(180deg, #d6f5c8 0%, #9bd96f 55%, #5aa83a 100%);
+}
+body.story[data-theme='feelingfriends'] .ff-stage[data-scene='jungle'] {
+  --st-bg: linear-gradient(180deg, #c2f0d8 0%, #5cbf8a 55%, #2f7d52 100%);
+}
+
+body.story[data-theme='feelingfriends'] {
+  background: var(--st-bg);
+}
+
+/* ── Layout shell ─────────────────────────────────────────────────── */
+
+body.story[data-theme='feelingfriends'] .ff-shell {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 16px 20px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: calc(100vh - 36px);
+}
+
+body.story[data-theme='feelingfriends'] .ff-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* The sibling games all paint this white with a dark halo, which works on a
+   vivid page background and not at all on the pale one they actually have —
+   white on #eef0ff. Dark ink in light mode, white in dark mode. */
+body.story[data-theme='feelingfriends'] .ff-title {
+  margin: 0;
+  font-size: clamp(1.6em, 4vw, 2.2em);
+  color: #2b2760;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+body.dark-mode.story[data-theme='feelingfriends'] .ff-title {
+  color: #f0f0ff;
+  text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+body.story[data-theme='feelingfriends'] .ff-progress-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.85);
+  color: #1e1b39;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.95em;
+}
+
+body.story[data-theme='feelingfriends'] .ff-progress-bar {
+  width: 80px;
+  height: 8px;
+  background: rgba(35, 30, 80, 0.15);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+body.story[data-theme='feelingfriends'] .ff-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--ff-accent);
+  border-radius: 999px;
+  transition: width 0.4s ease-out;
+}
+
+/* ── Stage — prompt on top, 3 face tiles below ────────────────────── */
+
+/* The scene panel. Paints the round's `data-scene` gradient, under a veil
+   that is transparent in light mode and dims the scene in dark mode. The
+   veil is a stacked background layer rather than a `filter`, because a
+   filter would also dim the white face cards inside — and those have to stay
+   bright, since the faces are the question. */
+body.story[data-theme='feelingfriends'] .ff-stage {
+  position: relative;
+  background:
+    linear-gradient(
+      rgba(14, 12, 40, var(--ff-scene-veil, 0)),
+      rgba(14, 12, 40, var(--ff-scene-veil, 0))
+    ),
+    var(--st-bg);
+  border-radius: 24px;
+  padding: 24px 16px;
+  min-height: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.32);
+}
+
+/* The question of the round. Tappable so the child can hear it again
+   without hunting for the footer button. */
+body.story[data-theme='feelingfriends'] .ff-prompt {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 18px 36px;
+  border-radius: 24px;
+  background: var(--ff-prompt-bg);
+  color: var(--ff-prompt-text);
+  border: 2px solid var(--ff-prompt-border);
+  box-shadow: var(--ff-prompt-shadow);
+  cursor: pointer;
+  font-family: inherit;
+  max-width: 720px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body.story[data-theme='feelingfriends'] .ff-prompt:active {
+  transform: scale(0.98);
+}
+
+/* The "tap me" invitation pulses on the glyph, never on the card itself:
+   a 3yo aiming at a large tap target should not have that target moving
+   under their finger. (Learned the hard way on Animal Sounds, where the
+   pulsing card also made the element permanently unstable for Playwright.) */
+body.story[data-theme='feelingfriends'] .ff-prompt-glyph {
+  font-size: 44px;
+  line-height: 1;
+  animation: ffPromptPulse 2.4s ease-in-out infinite;
+}
+
+/* Label rounds set --ff-prompt-scale high (one big word); situation rounds
+   set it low (a whole sentence has to fit). One token instead of a class
+   swap on every render. */
+body.story[data-theme='feelingfriends'] .ff-prompt-text {
+  font-size: calc(clamp(1.5em, 5vw, 2.6em) * var(--ff-prompt-scale, 1));
+  font-weight: 800;
+  color: var(--ff-accent);
+  line-height: 1.15;
+  text-align: center;
+  text-wrap: balance;
+}
+
+body.story[data-theme='feelingfriends'] .ff-prompt-hint {
+  font-size: 0.95em;
+  font-weight: 600;
+  color: rgba(40, 35, 90, 0.7);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+@keyframes ffPromptPulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.06); }
+}
+
+/* The three face tiles below the prompt. */
+body.story[data-theme='feelingfriends'] .ff-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  align-items: stretch;
+  width: 100%;
+  max-width: 720px;
+  gap: 12px;
+}
+
+body.story[data-theme='feelingfriends'] .ff-tile {
+  position: relative; /* anchors the wrong-tap ✗ badge */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 190px;
+  padding: 18px 12px;
+  background: var(--ff-tile-bg);
+  border: 3px solid var(--ff-tile-border);
+  border-radius: 20px;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--ff-tile-text);
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s ease;
+  animation: ffFlyIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation-delay: var(--ff-i, 0s);
+}
+
+body.story[data-theme='feelingfriends'] .ff-tile:hover {
+  background: var(--ff-tile-bg-hover);
+  transform: translateY(-2px);
+}
+
+body.story[data-theme='feelingfriends'] .ff-tile:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+body.story[data-theme='feelingfriends'] .ff-tile:disabled {
+  cursor: default;
+  opacity: 0.85;
+}
+
+/* The Fluent 3D face. `width` rather than `font-size` since it's an image,
+   but sized to match the sibling games' 84px emoji tiles. The emoji fallback
+   is an inline SVG swapped into this same element, so it inherits this box. */
+body.story[data-theme='feelingfriends'] .ff-tile-img {
+  width: 92px;
+  height: 92px;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+
+body.story[data-theme='feelingfriends'] .ff-tile-name {
+  font-size: 1.05em;
+  font-weight: 700;
+  color: var(--ff-tile-text);
+  pointer-events: none;
+}
+
+body.story[data-theme='feelingfriends'] .ff-tile.ff-tile--correct {
+  background: var(--ff-tile-fill-correct);
+  border-color: var(--ff-tile-border-correct);
+  animation: ffBounce 0.5s ease-out;
+}
+
+body.story[data-theme='feelingfriends'] .ff-tile.ff-tile--reveal {
+  background: var(--ff-tile-fill-glow);
+  border-color: var(--ff-tile-border-glow);
+  animation: ffPulseRing 1.4s ease-in-out infinite;
+}
+
+/* Wrong-tap feedback (rule revised 2026-08-17): 250ms kinesthetic shake
+   PLUS a red tint, paired with `playWrong()` in the controller. The tint
+   persists for the rest of the round so the child can see which face they
+   chose while the spoken correction plays. The round still always resolves
+   by revealing the right face, and no score is shown. */
+body.story[data-theme='feelingfriends'] .ff-tile.ff-tile--wrong {
+  background: var(--ff-tile-fill-wrong);
+  border-color: var(--ff-tile-border-wrong);
+  animation: ffShake 250ms ease-in-out;
+}
+
+/* A small ✗ badge on the wrongly-tapped tile. Sized and coloured to read
+   as "not this one" rather than as a punishment mark. */
+body.story[data-theme='feelingfriends'] .ff-tile.ff-tile--wrong::after {
+  content: '✗';
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  font-size: 1.5em;
+  font-weight: 800;
+  color: var(--ff-tile-border-wrong);
+  pointer-events: none;
+}
+
+@keyframes ffFlyIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-30px) scale(0.4);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(6px) scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes ffBounce {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.06); }
+  60%  { transform: scale(0.98); }
+  100% { transform: scale(1); }
+}
+
+@keyframes ffPulseRing {
+  0%, 100% {
+    box-shadow:
+      0 4px 12px rgba(35, 30, 80, 0.15),
+      0 0 0 0 rgba(99, 102, 241, 0.55);
+  }
+  50% {
+    box-shadow:
+      0 4px 12px rgba(35, 30, 80, 0.15),
+      0 0 0 12px rgba(99, 102, 241, 0);
+  }
+}
+
+@keyframes ffShake {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-7px); }
+  40%      { transform: translateX( 7px); }
+  60%      { transform: translateX(-5px); }
+  80%      { transform: translateX( 4px); }
+}
+
+/* ── Caption — accessibility/parent-readable mirror of TTS narration ─── */
+
+body.story[data-theme='feelingfriends'] .ff-caption {
+  background: var(--ff-caption-bg);
+  color: var(--ff-caption-text);
+  border-radius: 16px;
+  padding: 12px 18px;
+  font-size: clamp(1em, 2.4vw, 1.2em);
+  font-weight: 600;
+  text-align: center;
+  box-shadow: var(--ff-caption-shadow);
+  max-width: 720px;
+  margin: 0 auto;
+  min-height: 1.4em;
+  animation: ffCaptionIn 0.4s ease-out;
+}
+
+@keyframes ffCaptionIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Footer row — Replay + Next ────────────────────────────────────── */
+
+body.story[data-theme='feelingfriends'] .ff-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+body.story[data-theme='feelingfriends'] .ff-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 22px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(255, 255, 255, 0.92);
+  color: #1e1b39;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 1em;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(35, 30, 80, 0.15);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+body.story[data-theme='feelingfriends'] .ff-action:hover {
+  transform: translateY(-1px);
+  background: #ffffff;
+}
+
+body.story[data-theme='feelingfriends'] .ff-action:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+body.story[data-theme='feelingfriends'] .ff-action--primary {
+  background: var(--ff-accent);
+  color: #ffffff;
+}
+
+body.story[data-theme='feelingfriends'] .ff-action--primary:hover {
+  background: #4f46e5;
+}
+
+/* ── Session-complete overlay — appears after the 8th round ───────── */
+
+body.story[data-theme='feelingfriends'] .ff-done {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(35, 30, 80, 0.55);
+  z-index: 50;
+  padding: 20px;
+}
+
+body.story[data-theme='feelingfriends'] .ff-done.ff-done--show {
+  display: flex;
+}
+
+body.story[data-theme='feelingfriends'] .ff-done-card {
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 32px 28px;
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+  color: #1e1b39;
+  box-shadow: 0 24px 80px rgba(35, 30, 80, 0.4);
+  animation: ffDoneIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes ffDoneIn {
+  from { opacity: 0; transform: scale(0.7) translateY(20px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+body.story[data-theme='feelingfriends'] .ff-done-emoji {
+  font-size: 72px;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+body.story[data-theme='feelingfriends'] .ff-done-title {
+  margin: 0 0 8px;
+  font-size: 1.6em;
+  color: var(--ff-accent);
+}
+
+body.story[data-theme='feelingfriends'] .ff-done-text {
+  margin: 0 0 24px;
+  font-size: 1.1em;
+  color: #555;
+}
+
+body.story[data-theme='feelingfriends'] .ff-done-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ── Reduced motion fallback ──────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  body.story[data-theme='feelingfriends'] .ff-prompt,
+  body.story[data-theme='feelingfriends'] .ff-prompt-glyph,
+  body.story[data-theme='feelingfriends'] .ff-tile,
+  body.story[data-theme='feelingfriends'] .ff-caption,
+  body.story[data-theme='feelingfriends'] .ff-tile.ff-tile--correct,
+  body.story[data-theme='feelingfriends'] .ff-tile.ff-tile--reveal,
+  body.story[data-theme='feelingfriends'] .ff-tile.ff-tile--wrong,
+  body.story[data-theme='feelingfriends'] .ff-done-card {
+    animation: none;
+  }
+  body.story[data-theme='feelingfriends'] .ff-tile:hover {
+    transform: none;
+  }
+  body.story[data-theme='feelingfriends'] {
+    transition: none;
+  }
+}
+
+/* ── Dark mode ────────────────────────────────────────────────────── */
+
+body.dark-mode.story[data-theme='feelingfriends'] {
+  /* The page background HAS to be redefined here. The sibling games skip
+     this, which leaves them on their light gradient in dark mode with
+     near-white text on translucent-white tiles — legible only by accident. */
+  --st-bg: linear-gradient(135deg, #14122b 0%, #1c1942 100%);
+  --ff-scene-veil: 0.68;
+  --ff-tile-bg: rgba(255, 255, 255, 0.08);
+  --ff-tile-bg-hover: rgba(255, 255, 255, 0.16);
+  --ff-tile-border: rgba(199, 200, 255, 0.3);
+  --ff-tile-fill-correct: rgba(46, 125, 50, 0.35);
+  --ff-tile-fill-glow: rgba(99, 102, 241, 0.34);
+  --ff-tile-fill-wrong: rgba(226, 61, 90, 0.3);
+  --ff-tile-text: #f0f0ff;
+  --ff-prompt-bg: #211f45;
+  --ff-prompt-text: #f0f0ff;
+  --ff-prompt-border: rgba(199, 200, 255, 0.18);
+  --ff-caption-bg: rgba(28, 26, 58, 0.92);
+  --ff-caption-text: #f0f0ff;
+}
+
+body.dark-mode.story[data-theme='feelingfriends'] .ff-prompt-text {
+  /* Indigo-500 on the dark card is too dim to read; lift to indigo-300. */
+  color: #a5b4fc;
+}
+
+body.dark-mode.story[data-theme='feelingfriends'] .ff-prompt-hint {
+  color: rgba(199, 200, 255, 0.7);
+}
+
+body.dark-mode.story[data-theme='feelingfriends'] .ff-done-card {
+  background: #211f45;
+  color: #f0f0ff;
+}
+
+body.dark-mode.story[data-theme='feelingfriends'] .ff-done-text {
+  color: #c3c2e0;
+}
+
+body.dark-mode.story[data-theme='feelingfriends'] .ff-action {
+  background: #2d2a5c;
+  color: #f0f0ff;
+}
+
+body.dark-mode.story[data-theme='feelingfriends'] .ff-action--primary {
+  background: var(--ff-accent);
+  color: #ffffff;
+}
+
+/* ── Responsive — stack tiles on small phones ─────────────────────── */
+
+@media (max-width: 600px) {
+  body.story[data-theme='feelingfriends'] .ff-tiles {
+    grid-template-columns: 1fr;
+  }
+  body.story[data-theme='feelingfriends'] .ff-tile {
+    min-height: 120px;
+    flex-direction: row;
+    gap: 16px;
+  }
+  body.story[data-theme='feelingfriends'] .ff-tile-img {
+    width: 64px;
+    height: 64px;
+  }
+  body.story[data-theme='feelingfriends'] .ff-prompt-glyph {
+    font-size: 36px;
+  }
+  body.story[data-theme='feelingfriends'] .ff-shell {
+    padding: 12px 12px 60px;
+    gap: 14px;
+  }
+  body.story[data-theme='feelingfriends'] .ff-stage {
+    min-height: auto;
+  }
+}

@@ -1,11 +1,17 @@
 # Game designs — August 2026 arc (six new games)
 
-> **Status: APPROVED. Build in progress — 1 of 6 shipped.**
+> **Status: APPROVED. Build in progress — 2 of 6 shipped.**
 >
-> - §2 **Animal Sounds** — **shipped 2026-08-17**; superseded by its
+> - §1 **Animal Sounds** — **shipped 2026-08-17**; superseded by its
 >   [PROGRESS.md](../PROGRESS.md) entry, which is authoritative on what actually
 >   landed (the built pool ended at 18 curated calls with explicit
->   sound-collision groups).
+>   sound-collision groups, and the prompts became real recordings rather than
+>   spoken onomatopoeia).
+> - §2 **Feeling Friends** — **shipped 2026-08-17**, built as designed (8
+>   feelings, 8 rounds, 3/3/2 tiers, vignettes on tier 3). Two deviations, both
+>   in its `PROGRESS.md` entry: the faces are **vendored** to
+>   `public/images/feelings/` instead of streaming from jsDelivr, and the theme
+>   defines a real dark-mode background, which the sibling themes do not.
 > - §3 **Opposites Friends** — the `flashcards.ts` Strong/Light pair bug it
 >   depends on (**Q3**) is **fixed**: Weak + Heavy authored, 10 clean pairs.
 > - **Q1–Q4 all resolved** by the user on 2026-08-17: new `preschool-social`
@@ -345,21 +351,28 @@ meaningless for a memory board. See **Q5**.
 
 Ordered by ascending risk, so early wins de-risk the later ones.
 
-| # | Game | Content cost | Main risk |
-|---|---|---|---|
-| 1 | **Animal Sounds** | Curate 16 from existing | None — pure reuse |
-| 2 | **Feeling Friends** | ~12 vignettes | New stats family plumbing |
-| 3 | **Opposites Friends** | 2 cards (bug fix) | Touches shipped Flashcards content |
-| 4 | **Rhyme Time** | Restructure 10 pairs | Distractors must not accidentally rhyme |
-| 5 | **Where's Teddy?** | 5 prepositions × 5 pairs | "Behind" may not read visually |
-| 6 | **Memory Match** | Curate 8 | Errorless tension; new mechanic |
+| # | Game | Content cost | Main risk | Status |
+|---|---|---|---|---|
+| 1 | **Animal Sounds** | Curate 16 from existing | None — pure reuse | Shipped 2026-08-17. The "pure reuse" call was wrong: the raw `sound` fields collide, and spoken onomatopoeia isn't a listening game, so it needed a curated pool *and* 17 vendored recordings. |
+| 2 | **Feeling Friends** | ~12 vignettes | New stats family plumbing | Shipped 2026-08-17. Family plumbing was the easy half; the real cost was the face assets. |
+| 3 | **Opposites Friends** | 2 cards (bug fix) | Touches shipped Flashcards content | Next. The content bug is already fixed. |
+| 4 | **Rhyme Time** | Restructure 10 pairs | Distractors must not accidentally rhyme | |
+| 5 | **Where's Teddy?** | 5 prepositions × 5 pairs | "Behind" may not read visually | |
+| 6 | **Memory Match** | Curate 8 | Errorless tension; new mechanic | |
 
 Each game ships as its own commit with its own Playwright spec, keeping the suite
-green (baseline: 148 tests in 17 files, all passing as of 2026-08-17).
+green (baseline was 148 tests in 17 files on 2026-08-17; **170 in 19** after the
+first two games).
 
 ---
 
 ## 8. Open questions blocking the build
+
+> **Q1–Q4 are answered** (see the status block at the top); they are kept here
+> for the reasoning, not as open work. **Q5 and Q6 are still open**, and Q6 got
+> narrower: indigo `#6366f1` is now taken by `preschool-social`, so a future
+> family has to be distinct from *seven* dots, and cyan `#06b6d4` sits close to
+> the teal `#14b8a6` already used by `preschool-cognitive`.
 
 **Q1 — Stats families.** Feeling Friends clearly needs a new `preschool-social`
 family. Animal Sounds is science/listening, which fits no existing family well.

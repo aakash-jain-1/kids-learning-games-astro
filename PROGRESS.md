@@ -417,7 +417,69 @@ before deciding.
 
 ## Changelog
 
-### 2026-08-17 (latest) — feat(audio): lion, monkey and turkey recordings land — 17 of 18 Animal Sounds animals now clip-backed; snake ruled out; flaky clip-path spec fixed
+### 2026-08-17 (latest) — feat(games): Feeling Friends — first social-emotional game, and the seventh stats family (`preschool-social`)
+
+**What it is.** §2 of `docs/GAME-DESIGNS-2026-08.md`, built as designed. Eight
+feelings (happy, sad, angry, scared, sleepy, excited, love, caring), eight
+rounds, three faces per round, `StoryLayout` with the new `feelingfriends`
+theme. Storage `feeling_friends_stats_v1`.
+
+**The mechanic changes shape halfway through, which is the point.** Tiers 1–2
+ask *label → face* ("Show me sad"), which is recognition. Tier 3 asks
+*situation → feeling* — "her ice cream fell on the ground, how does she feel?"
+— which is inference, and is the actual social-emotional skill. The two share
+one round type and one tap handler; only `kind` and the prompt card differ. The
+blend was the user's call over an all-recognition or all-vignette game.
+
+**Content is reused, not invented.** The names and the coping lines come from
+the existing `emotions` deck in `src/data/flashcards.ts`, so a child meets the
+same eight words and the same regulation advice in both games. What's new is a
+per-face `cue` — one concrete, checkable thing in the picture ("there is a big
+tear on the cheek") — spoken during the guided correction, so a wrong tap
+teaches a rule the child can reapply instead of just revealing an answer.
+
+**Distractors respect face collisions, the same idea as the Animal Sounds
+sound groups.** Happy and excited are both broad open smiles differing only in
+star eyes; love and caring are both affection. Asking a 3-year-old to separate
+those in a forced choice punishes a defensibly-right tap, so they never appear
+opposite each other — `FACE_COLLISIONS` bans the pairing in every tier.
+
+#### The faces are vendored, and the reason generalises
+
+The eight Fluent UI 3D faces now live in `public/images/feelings/` (356 KB, MIT,
+credited in `CREDITS.md`) rather than streaming from jsDelivr like every other
+game's art. Two reasons, and the first was learned the hard way:
+
+- The first cut guessed **title-cased** upstream folder names (`Grinning Face`).
+  Upstream is sentence case and jsDelivr is case-sensitive, so all eight 404'd —
+  and a jsDelivr miss under a burst answers in **8–44 seconds**, not instantly,
+  so `page.goto` blew its timeout and the round rendered with nothing tappable.
+  The paths in the other games' data files are correct and serve 200; this was
+  never a sitewide outage. But *this* game is the one where the image **is** the
+  question — three faces, no other text to read the round from — so it's the one
+  where a remote miss is unplayable rather than merely plainer.
+- The SW only runtime-caches jsDelivr, so a first offline visit had no faces at
+  all. Vendored files precache with the shell.
+
+Two specs guard it: face `src` must match the local base path, and no `image`
+resource may come off-origin.
+
+#### Dark mode was broken for the whole `StoryLayout` family; fixed here
+
+The sibling games (`letterfriends`, `animalsounds`, …) never redefine `--st-bg`
+under `body.dark-mode`, so with dark mode on they keep their pale gradient and
+paint near-white text on it — legible by accident, not by design. This game
+defines the dark background properly, and dims its per-round scene gradient
+behind a `--ff-scene-veil` background layer rather than a `filter`, because a
+filter would also dim the white face cards, and those have to stay bright since
+the faces are the question. The `<h1>` likewise drops the family's
+white-with-a-halo treatment in light mode (white on `#eef0ff`) for dark ink.
+**The siblings still have both bugs** — worth a follow-up sweep.
+
+170 tests green (12 new for this game, plus the stats dashboard moving from six
+families to seven: 42 activity dots to 49).
+
+### 2026-08-17 — feat(audio): lion, monkey and turkey recordings land — 17 of 18 Animal Sounds animals now clip-backed; snake ruled out; flaky clip-path spec fixed
 
 **Why now.** The earlier ship left four animals without a recording, three of
 them only because Wikimedia Commons rate-limited the download (HTTP 429) from

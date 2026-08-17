@@ -56,6 +56,7 @@ All three layouts share the same head/meta, PWA wiring, nav, settings modal, bui
 ├── tsconfig.json
 ├── public/
 │   ├── assets/                   # icons, copied from parent project
+│   ├── images/feelings/          # 8 vendored Fluent UI 3D faces for Feeling Friends (MIT) + CREDITS.md — vendored, not CDN, because the face IS the question
 │   ├── sounds/animals/           # 17 real animal calls (CC0/PD/CC-BY) + CREDITS.md
 │   └── offline.html              # offline fallback
 ├── src/
@@ -71,6 +72,7 @@ All three layouts share the same head/meta, PWA wiring, nav, settings modal, bui
 │   │   ├── birds.ts              # typed 15-bird deck (songbird/raptor/waterbird/tropical/ground filter)
 │   │   ├── colors.ts             # typed 12-colour deck (warm/cool/neutral filter)
 │   │   ├── dinosaurs.ts          # typed dinosaur cards + diet filters
+│   │   ├── feeling-friends.ts    # Feeling Friends — 8 feelings (names + coping lines reused from the flashcards emotions deck) + per-face visual cue + 12 vignettes + face-collision groups + 8-round tiered session
 │   │   ├── flashcards.ts         # typed flashcard decks (14 × ~20 cards)
 │   │   ├── fluent.ts             # shared Fluent UI emoji CDN base (consumed directly by every image-driven data file + page)
 │   │   ├── hindi.ts              # typed 48-letter Hindi varnamala deck (12 vowels + 36 consonants, vowel/consonant filter)

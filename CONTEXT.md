@@ -6,10 +6,11 @@
 > win. Keep it short and current — see the update rule in
 > `.cursor/rules/maintain-context.mdc`.
 >
-> **Last verified against the codebase**: 2026-08-17 (Animal Sounds shipped —
-> game count now 24; real animal recordings + `src/lib/clip.ts` added, now 17 of
-> 18 animals clip-backed; tooling/platform notes refreshed for the macOS dev
-> box).
+> **Last verified against the codebase**: 2026-08-17 (Feeling Friends shipped —
+> game count now 25, and `/stats` grew a 7th family, `preschool-social`. Same
+> day: Animal Sounds shipped with real animal recordings + `src/lib/clip.ts`,
+> 17 of 18 animals clip-backed; tooling/platform notes refreshed for the macOS
+> dev box).
 
 ---
 
@@ -18,7 +19,7 @@
 An **Astro + TypeScript + `@vite-pwa/astro` (Workbox)** static PWA of
 educational mini-games for young children. It began as a proof-of-concept
 migration of the vanilla HTML/CSS/JS `kids-learning-games` repo and is now a
-feature-driven project in its own right. **24 games** ship across **three
+feature-driven project in its own right. **25 games** ship across **three
 shared layouts**, deployed to GitHub Pages at
 `https://aakash-jain-1.github.io/kids-learning-games-astro/`. Zero-JS-by-default
 static output; only interactive islands ship JavaScript.
@@ -34,9 +35,11 @@ static output; only interactive islands ship JavaScript.
 | `docs/T9-PHRASE-SCRIPT.md` | The literal phrases to record for T9. |
 
 > Note: `README.md` describes "sixteen games" — that text is **stale**; the
-> code ships 23 (the preschool families grew well past that prose). `PROGRESS.md`
-> / `SESSION-HANDOFF.md` / `src/data/stats-registry.ts` are authoritative on the
-> game count.
+> code ships 25 (the preschool families grew well past that prose).
+> `SESSION-HANDOFF.md` is stale too: it predates the August 2026 games and
+> mentions neither Animal Sounds nor Feeling Friends. **`PROGRESS.md` and
+> `src/data/stats-registry.ts` are the authoritative pair** — the changelog for
+> "what shipped", the registry for the game count and families.
 
 ## 3. Tech stack & tooling
 
@@ -73,7 +76,7 @@ static output; only interactive islands ship JavaScript.
   fallback if the bundled download ever misbehaves. CI never sets it — Linux
   runners use bundled Chromium.
 
-## 4. The 24 games & three layouts
+## 4. The 25 games & three layouts
 
 - **`GridLayout.astro`** — foundational-set games (scan a fixed chart, tap to
   hear): Alphabets, Numbers, Colors, Shapes, Animals, Birds, Hindi (7).
@@ -84,7 +87,8 @@ static output; only interactive islands ship JavaScript.
   Woodcutter (2 story) + Counting Friends, More Friends, Number Friends,
   Pattern Sequences, Number Bond Pop (5 preschool-math) + Letter Friends,
   Sound Friends (2 preschool-literacy) + Sorting Friends, Days Parade,
-  Week Friends, Animal Sounds (4 preschool-cognitive).
+  Week Friends, Animal Sounds (4 preschool-cognitive) + Feeling Friends
+  (1 preschool-social).
 
 Each game = one `src/pages/games/<slug>.astro` + a typed `src/data/<game>.ts`
 data file + a layout-specific themed CSS block. A parent dashboard lives at
@@ -120,9 +124,9 @@ data file + a layout-specific themed CSS block. A parent dashboard lives at
    the right answer. Rounds are never failed and no score is shown to the
    child — they are corrected, then move on. **Revised 2026-08-17** at the
    user's request; this supersedes the original errorless rule ("no
-   red/buzzer/shame coding, shake only"). **Animal Sounds is the first and so
-   far only adopter**; the other 23 games still use shake-only feedback, so the
-   app is mid-migration on this — see §7.
+   red/buzzer/shame coding, shake only"). **Animal Sounds and Feeling Friends
+   are the only adopters so far**; the other 23 games still use shake-only
+   feedback, so the app is mid-migration on this — see §7.
 9. **The Astro repo is the source of truth on *patterns*** (the vanilla repo
    is treated as a spec of intent, not a template to copy).
 
@@ -131,7 +135,8 @@ data file + a layout-specific themed CSS block. A parent dashboard lives at
 - `kids_settings_v1` — global settings (dark, sound, autoSpeak, fontSize).
 - `kids_progress_v1:<gameId>` — learned-item set (sorted string array).
 - `<gameId>_quiz_v1` — `{ attempts, bestScore, lastPlayed }` quiz metrics.
-- `<game>_stats_v1` — bespoke preschool schema `{ sessions, rounds, correctFirstTry, lastPlayed }`.
+- `<game>_stats_v1` — bespoke preschool schema `{ sessions, rounds, correctFirstTry, lastPlayed }`
+  (newest: `feeling_friends_stats_v1`, 2026-08-17).
   The staged preschool-math games (Counting / More / Number Friends + Number
   Bond Pop) also carry `{ stage, bestStage }` (1..3) for their auto-advancing
   stages (added 2026-06-03; Number Bond Pop adopted them at ship 2026-06-06).
@@ -139,20 +144,41 @@ data file + a layout-specific themed CSS block. A parent dashboard lives at
   `/stats` activity chart (30-day rolling window).
 
 `src/data/stats-registry.ts` is the single source of truth tying every game to
-its storage keys and the `/stats` page (6 families: preschool-math,
-preschool-literacy, preschool-cognitive, story, card-set, card-pure). Adding a
-game = one entry. Animal Sounds (2026-08-17) is filed under
-**preschool-cognitive** rather than opening a `preschool-science` family for a
-single listening game — the dashboard stays at 6 families.
+its storage keys and the `/stats` page (**7 families**: preschool-math,
+preschool-literacy, preschool-cognitive, **preschool-social**, story, card-set,
+card-pure). Adding a game = one entry. Two family judgements worth knowing, both
+2026-08-17: Animal Sounds is filed under **preschool-cognitive** rather than
+opening a `preschool-science` family for a single listening game, but Feeling
+Friends **did** open `preschool-social` (indigo `#6366f1`) even though it's the
+only game in it — social-emotional learning is a developmental domain a parent
+reads separately from thinking skills, and filing it under cognitive would have
+hidden that. (The other five games in the design set are cognitive/literacy, so
+this family stays at one for now.)
 
 ## 7. Current state & what's next
 
 - **Migration complete** (all 13 vanilla games ported, since 2026-05-08).
-- **Feature-driven phase active**: 11 preschool games added since (cardinality
+- **Feature-driven phase active**: 12 preschool games added since (cardinality
   triad + Pattern Sequences + Letter Friends + Number Bond Pop + Sound
-  Friends + Sorting Friends + Week Friends + Days Parade + Animal Sounds).
-  Total **24 games**, all live.
-- **Latest ship (2026-08-17, same day)**: **real audio** — three silent bugs
+  Friends + Sorting Friends + Week Friends + Days Parade + Animal Sounds +
+  Feeling Friends). Total **25 games**, all live.
+- **Latest ship (2026-08-17)**: **Feeling Friends** — first social-emotional
+  game and the 7th `/stats` family. Eight feelings, eight rounds, three big
+  faces per round. Rounds 1–6 ask *label → face* ("Show me sad"); rounds 7–8
+  swap to a **vignette** ("Her ice cream fell on the ground. How do you think
+  they feel?"), which moves the child from recognition to inference — the actual
+  social skill. Names + coping lines are reused from the `emotions` deck in
+  `flashcards.ts`; what's new is a per-face **`cue`** (one checkable detail,
+  "there is a big tear on the cheek") spoken during the guided correction, so a
+  miss teaches a reusable rule. `FACE_COLLISIONS` keeps happy/excited and
+  love/caring off the same round. Bespoke `feeling_friends_stats_v1`; theme key
+  `feelingfriends`. Second adopter of the red wrong-answer rule (§5 rule 8).
+  Two things it changed beyond itself: the 8 Fluent faces are **vendored** to
+  `public/images/feelings/` (356KB) because here the picture *is* the question
+  and a jsDelivr miss — one wrong capital away, answering in 8–44s — leaves
+  nothing tappable; and its dark mode actually works, unlike its
+  `StoryLayout` siblings (see the follow-up below).
+- **Prior ship (2026-08-17, same day)**: **real audio** — three silent bugs
   fixed and the Animal Sounds prompts replaced with genuine recordings.
   (1) `speech.ts` no longer wedges Chrome's speech queue by calling `speak()` in
   the same task as `cancel()` — this was producing *no audio at all* across all
@@ -246,12 +272,20 @@ single listening game — the dashboard stays at 6 families.
   games, and [docs/GAME-DESIGNS-2026-08.md](docs/GAME-DESIGNS-2026-08.md) for
   the full six-game design set approved 2026-08-17. **Sound Friends**
   (candidate A) + **Sorting Friends** (candidate B) shipped 2026-06-06;
-  **Week Friends** + **Days Parade** shipped 2026-06-17; **Animal Sounds**
-  shipped 2026-08-17. Next up is **Rhyme Time → Opposites Friends → Feeling
-  Friends → Memory Match**.
-- **Open queued work**: **T9** — replace Web Speech with pre-recorded MP3
-  narration (parked on the user's recording session; integration is ~30–45 min
-  of agent work once MP3s land in `src/assets/narration/shared/`).
+  **Week Friends** + **Days Parade** shipped 2026-06-17; **Animal Sounds** and
+  **Feeling Friends** shipped 2026-08-17 (2 of the 6 designs done). Remaining in
+  the set: **Opposites Friends → Rhyme Time → Where's Teddy? → Memory Match**.
+- **Open queued work**:
+  - **T9** — replace Web Speech with pre-recorded MP3 narration (parked on the
+    user's recording session; integration is ~30–45 min of agent work once MP3s
+    land in `src/assets/narration/shared/`).
+  - **Dark mode is broken across the `StoryLayout` preschool family.** None of
+    the sibling themes redefine `--st-bg` under `body.dark-mode`, so they keep
+    their pale light-mode gradient and paint near-white text on it. Feeling
+    Friends fixes it for itself (dark `--st-bg` + a `--ff-scene-veil`
+    background layer, chosen over a `filter` so the white face cards stay
+    bright); the same 4-line pattern needs applying to the other 11.
+  - **Wrong-answer feedback migration** — 23 games still shake-only (§5 rule 8).
 - **Deferred design decision**: `StageLayout` carve (deferred 5x — the
   `body.story` scope already does the isolation work). Option C unified
   `DeckLayout` decided NO-GO. The vanilla repo is a no-touch zone.
