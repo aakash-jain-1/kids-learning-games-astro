@@ -5,7 +5,7 @@ import { ALL_CARDS, FILTERS } from '@/data/animals';
 
 const title = 'Animals — Kids Learning Games';
 const description =
-  'Meet 37 animals — mammals, birds, reptiles, sea creatures, and insects — with sounds, facts, and group filtering for kids.';
+  'Meet 39 animals — mammals, birds, reptiles, amphibians, sea creatures, and insects — with sounds, facts, and group filtering for kids.';
 
 const totalCards = ALL_CARDS.length;
 ---
@@ -132,7 +132,7 @@ const totalCards = ALL_CARDS.length;
   <div class="gl-done-overlay" id="doneOverlay" role="dialog" aria-live="polite" aria-labelledby="doneTitle">
     <div class="gl-done-card">
       <h2 id="doneTitle">Animal expert! 🐾🎉</h2>
-      <p>You've met all 37 animals. Want to play again?</p>
+      <p>You've met all 39 animals. Want to play again?</p>
       <button class="gl-done-restart" id="restartBtn" type="button">
         Start Over
       </button>
@@ -348,12 +348,13 @@ const totalCards = ALL_CARDS.length;
   const showDone = (): void => {
     doneOverlay.classList.add('show');
     // One colour per group — sea-green / deep-blue / earthy-brown /
-    // aqua / butterfly-yellow — so the celebration overlay echoes
-    // the deck's group palette.
+    // frog-green / aqua / butterfly-yellow — so the celebration overlay
+    // echoes the deck's group palette.
     launchConfetti([
       '#43cea2',
       '#185a9d',
       '#8b6f4e',
+      '#5cb85c',
       '#00bcd4',
       '#ffeb3b',
     ]);

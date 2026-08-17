@@ -1,0 +1,585 @@
+---
+import StoryLayout from '@/layouts/StoryLayout.astro';
+import GameControls from '@/components/GameControls.astro';
+import '@/styles/animal-sounds.css';
+
+import {
+  generateSession,
+  lookupAnimal,
+  TOTAL_ROUNDS,
+} from '@/data/animal-sounds';
+
+const title = 'Animal Sounds — Kids Learning Games';
+const description =
+  'A listening game for ages 3–4. "Who says moo?" — hear an animal call and tap the animal that makes it, from three big picture tiles. Farm animals first, then wild ones. Audio narration, guided correction, no scoring. First preschool science / listening game.';
+
+// SSR a deterministic first round so the page never paints blank. The
+// page script reads round 0 straight back out of the SSR'd DOM (the
+// Sound Friends / Number Friends kickoff-race pattern), then continues
+// with random rounds 1..N once the child taps Next.
+const SSR_FIRST_ROUND = generateSession(() => 0.42)[0]!;
+const ssrTarget = lookupAnimal(SSR_FIRST_ROUND.target);
+const ssrTiles = SSR_FIRST_ROUND.tiles.map((id) => lookupAnimal(id));
+const ssrCaption = `${ssrTarget.sound}! Who says ${ssrTarget.sound.toLowerCase()}?`;
+---
+
+<StoryLayout
+  title={title}
+  description={description}
+  themeColor="#0ea5e9"
+  theme="animalsounds"
+>
+  <main class="as-shell" aria-label="Animal Sounds game">
+    <header class="as-header">
+      <h1 class="as-title">
+        <span aria-hidden="true">🐄</span>
+        <span>Animal Sounds</span>
+      </h1>
+
+      <div class="as-header-right" style="display: flex; gap: 10px; align-items: center;">
+        <span
+          class="as-progress-pill"
+          id="asProgressPill"
+          aria-label={`Round 1 of ${TOTAL_ROUNDS}`}
+        >
+          <span id="asProgressText">1 / {TOTAL_ROUNDS}</span>
+          <span class="as-progress-bar" aria-hidden="true">
+            <span class="as-progress-fill" id="asProgressFill"></span>
+          </span>
+        </span>
+        <GameControls />
+      </div>
+    </header>
+
+    <section
+      class="as-stage"
+      id="asStage"
+      data-scene={SSR_FIRST_ROUND.theme}
+      data-target={SSR_FIRST_ROUND.target}
+      aria-label="Animal Sounds scene"
+    >
+      <button
+        type="button"
+        class="as-prompt"
+        id="asPrompt"
+        aria-label={`The sound is ${ssrTarget.sound}. Tap to hear it again.`}
+      >
+        <span class="as-prompt-speaker" aria-hidden="true">🔊</span>
+        <span class="as-prompt-sound" id="asPromptSound" aria-hidden="true">
+          {ssrTarget.sound}!
+        </span>
+        <span class="as-prompt-hint" aria-hidden="true">who says this?</span>
+      </button>
+
+      <div
+        class="as-caption"
+        id="asCaption"
+        role="status"
+        aria-live="polite"
+      >
+        {ssrCaption}
+      </div>
+
+      <div class="as-tiles" aria-label="Three animals — tap the one that makes the sound">
+        {
+          ssrTiles.map((animal, idx) => (
+            <button
+              type="button"
+              class="as-tile"
+              id={`asTile${idx}`}
+              data-i={idx}
+              data-animal={animal.id}
+              style={`--as-i: ${idx * 0.1}s`}
+              aria-label={`Tile ${idx + 1} — ${animal.name} — tap if the ${animal.name.toLowerCase()} makes this sound`}
+            >
+              <span class="as-tile-emoji" aria-hidden="true">{animal.emoji}</span>
+              <span class="as-tile-name" aria-hidden="true">{animal.name}</span>
+            </button>
+          ))
+        }
+      </div>
+    </section>
+
+    <footer class="as-footer">
+      <button type="button" class="as-action" id="asReplayBtn" aria-label="Hear the sound again">
+        🔊 Hear it again
+      </button>
+      <button type="button" class="as-action as-action--primary" id="asNextBtn" aria-label="Next round" disabled>
+        Next round →
+      </button>
+    </footer>
+
+    <div class="as-done" id="asDone" role="dialog" aria-live="polite" aria-labelledby="asDoneTitle">
+      <div class="as-done-card">
+        <div class="as-done-emoji" aria-hidden="true">🎧</div>
+        <h2 class="as-done-title" id="asDoneTitle">Great listening!</h2>
+        <p class="as-done-text" id="asDoneText">
+          You matched {TOTAL_ROUNDS} animal sounds today!
+        </p>
+        <div class="as-done-actions">
+          <button type="button" class="as-action as-action--primary" id="asPlayAgainBtn">
+            ▶ Play again
+          </button>
+          <a class="as-action" href={import.meta.env.BASE_URL}>
+            🏠 Home
+          </a>
+        </div>
+      </div>
+    </div>
+  </main>
+</StoryLayout>
+
+<script>
+  import { playTap, playCorrect, playWrong } from '@/lib/audio';
+  import { speak, cancelSpeech, isSpeechSupported, onFirstGesture } from '@/lib/speech';
+  import { launchConfetti } from '@/lib/achievements';
+  import { playClip, stopClip, preloadClips } from '@/lib/clip';
+  import { getSettings } from '@/lib/settings';
+  import {
+    generateSession,
+    buildNarration,
+    lookupAnimal,
+    loadAnimalSoundsStats,
+    saveAnimalSoundsStats,
+    TOTAL_ROUNDS,
+    type AnimalSoundRound,
+    type AnimalId,
+    type RoundNarration,
+    type PreschoolTheme,
+  } from '@/data/animal-sounds';
+  import { recordPlay } from '@/lib/retention';
+
+  const GAME_ID = 'animal-sounds';
+  // Sky-leaning palette matching the science/listening accent, distinct
+  // from the literacy pink and the math green.
+  const AS_COLORS = ['#0ea5e9', '#22d3ee', '#fbbf24', '#34d399', '#a78bfa'];
+
+  /**
+   * Read round 0 back out of the SSR'd DOM so the JS session starts in
+   * sync with whatever Astro rendered. Without this, a tap during the
+   * first interaction could land on a tile whose animal has just been
+   * rewritten by a freshly-randomised JS session — the kickoff race that
+   * bit Counting Friends on 2026-05-15. Inherited from Sound Friends.
+   */
+  const readSSRRound = (): AnimalSoundRound => {
+    const stageEl = document.getElementById('asStage');
+    if (!stageEl) return generateSession()[0]!;
+
+    const themeKey = (stageEl.dataset.scene ?? 'pond') as PreschoolTheme;
+    const target = stageEl.dataset.target as AnimalId | undefined;
+
+    const tileEls = [
+      document.getElementById('asTile0'),
+      document.getElementById('asTile1'),
+      document.getElementById('asTile2'),
+    ];
+    if (!target || tileEls.some((el) => !el)) {
+      return generateSession()[0]!;
+    }
+
+    const tiles = tileEls.map(
+      (el) => el!.dataset.animal as AnimalId,
+    ) as [AnimalId, AnimalId, AnimalId];
+    const correctIndex = tiles.indexOf(target);
+    if (correctIndex < 0 || correctIndex > 2) {
+      return generateSession()[0]!;
+    }
+
+    return {
+      target,
+      tiles,
+      correctIndex: correctIndex as 0 | 1 | 2,
+      // `tier` isn't used by the controller; 0 is a safe placeholder for
+      // the SSR-derived round.
+      tier: 0,
+      theme: themeKey,
+    };
+  };
+
+  // ── State ──────────────────────────────────────────────────────────
+  let session: AnimalSoundRound[] = [readSSRRound(), ...generateSession().slice(1)];
+  let roundIdx = 0;
+  let answered = false;
+  /**
+   * Two phrasings of the round's script: one for when the real recording
+   * carries the prompt, one for when it can't (sound off, clip failed) and
+   * the voice has to speak the call itself. Which one is used is decided at
+   * playback time, since a clip can fail at runtime.
+   */
+  let currentNarration: RoundNarration | null = null;
+  let spokenNarration: RoundNarration | null = null;
+  /** Most recent post-answer phrase, cached so Replay re-narrates it. */
+  let lastPostAnswerText = '';
+
+  // ── DOM refs ───────────────────────────────────────────────────────
+  const stage = document.getElementById('asStage') as HTMLElement;
+  const promptEl = document.getElementById('asPrompt') as HTMLButtonElement;
+  const promptSound = document.getElementById('asPromptSound') as HTMLElement;
+  const captionEl = document.getElementById('asCaption') as HTMLElement;
+  const tileEls = [
+    document.getElementById('asTile0') as HTMLButtonElement,
+    document.getElementById('asTile1') as HTMLButtonElement,
+    document.getElementById('asTile2') as HTMLButtonElement,
+  ];
+  const progressText = document.getElementById('asProgressText') as HTMLElement;
+  const progressFill = document.getElementById('asProgressFill') as HTMLElement;
+  const progressPill = document.getElementById('asProgressPill') as HTMLElement;
+  const replayBtn = document.getElementById('asReplayBtn') as HTMLButtonElement;
+  const nextBtn = document.getElementById('asNextBtn') as HTMLButtonElement;
+  const doneEl = document.getElementById('asDone') as HTMLElement;
+  const playAgainBtn = document.getElementById('asPlayAgainBtn') as HTMLButtonElement;
+
+  // ── Audio helpers ──────────────────────────────────────────────────
+
+  /**
+   * Speak `text` if the user has sound enabled. Same shape as the rest
+   * of the preschool family: silent-mode setTimeout fallback + watchdog
+   * alongside speechSynthesis.onend, so headless CI runners without a
+   * TTS engine don't deadlock the round-progression chain.
+   */
+  const narrate = (text: string, opts?: { onEnd?: () => void }): void => {
+    const onEnd = opts?.onEnd;
+    if (!isSpeechSupported() || !getSettings().sound) {
+      if (onEnd) setTimeout(onEnd, 600);
+      return;
+    }
+    let fired = false;
+    const wrap = (): void => {
+      if (fired) return;
+      fired = true;
+      onEnd?.();
+    };
+    const watchdogMs = Math.max(800, text.length * 100 + 600);
+    if (onEnd) setTimeout(wrap, watchdogMs);
+    speak(text, { rate: 0.85, pitch: 1.15, onEnd: onEnd ? wrap : undefined });
+  };
+
+  const setCaption = (text: string): void => {
+    captionEl.textContent = text;
+    captionEl.style.animation = 'none';
+    void captionEl.offsetWidth;
+    captionEl.style.removeProperty('animation');
+  };
+
+  // ── Render helpers ─────────────────────────────────────────────────
+
+  const renderRound = (): void => {
+    const round = session[roundIdx]!;
+    const target = lookupAnimal(round.target);
+
+    progressText.textContent = `${roundIdx + 1} / ${TOTAL_ROUNDS}`;
+    progressFill.style.width = `${((roundIdx + 1) / TOTAL_ROUNDS) * 100}%`;
+    progressPill.setAttribute('aria-label', `Round ${roundIdx + 1} of ${TOTAL_ROUNDS}`);
+
+    stage.dataset.scene = round.theme;
+    stage.dataset.target = round.target;
+
+    promptSound.textContent = `${target.sound}!`;
+    promptEl.setAttribute(
+      'aria-label',
+      `The sound is ${target.sound}. Tap to hear it again.`,
+    );
+
+    for (let g = 0; g < 3; g++) {
+      const animal = lookupAnimal(round.tiles[g]!);
+      const el = tileEls[g]!;
+      el.dataset.animal = animal.id;
+      el.style.setProperty('--as-i', `${g * 0.1}s`);
+      el.setAttribute(
+        'aria-label',
+        `Tile ${g + 1} — ${animal.name} — tap if the ${animal.name.toLowerCase()} makes this sound`,
+      );
+      el.innerHTML =
+        `<span class="as-tile-emoji" aria-hidden="true">${animal.emoji}</span>` +
+        `<span class="as-tile-name" aria-hidden="true">${animal.name}</span>`;
+      el.disabled = false;
+      el.classList.remove('as-tile--correct', 'as-tile--reveal', 'as-tile--wrong');
+      // Force re-trigger of the fly-in animation on each render.
+      el.style.animation = 'none';
+      void el.offsetWidth;
+      el.style.removeProperty('animation');
+    }
+
+    answered = false;
+    currentNarration = buildNarration(round, { withClip: true });
+    spokenNarration = buildNarration(round, { withClip: false });
+    lastPostAnswerText = '';
+    nextBtn.disabled = true;
+    replayBtn.disabled = false;
+  };
+
+  /** The real recording for the current round's target, if we have one. */
+  const currentClip = (): string | null =>
+    lookupAnimal(session[roundIdx]!.target).clip;
+
+  /**
+   * Replay the round's call, then run `done`. Used by the guided correction
+   * so the child hears the sound again between phrases. Falls straight
+   * through when there's no clip or it can't play, so the chain that gates
+   * round progression never stalls on audio.
+   */
+  const replayCallThen = (done: () => void): void => {
+    const clip = currentClip();
+    if (!clip) {
+      done();
+      return;
+    }
+    playClip(clip, { onEnd: done, onError: done });
+  };
+
+  /**
+   * Present the round: play the animal's real call, then ask the question.
+   *
+   * The recording is the prompt, so the question is spoken *after* it rather
+   * than over it. If there's no recording — or playback fails — fall back to
+   * the spoken phrasing, where the voice pronounces the call itself.
+   */
+  const speakIntro = (): void => {
+    const withClip = currentNarration;
+    const spoken = spokenNarration;
+    if (!withClip || !spoken) return;
+
+    const clip = currentClip();
+    const fallback = (): void => {
+      setCaption(spoken.intro);
+      narrate(spoken.intro);
+    };
+    if (!clip) {
+      fallback();
+      return;
+    }
+
+    setCaption(withClip.intro);
+    playClip(clip, {
+      onEnd: () => narrate(withClip.intro),
+      onError: fallback,
+    });
+  };
+
+  // ── Answer handler ─────────────────────────────────────────────────
+
+  const onTileTap = (idx: 0 | 1 | 2): void => {
+    if (answered) return;
+    const round = session[roundIdx]!;
+    playTap();
+
+    const tappedEl = tileEls[idx]!;
+    const correctEl = tileEls[round.correctIndex]!;
+    const tappedAnimal = round.tiles[idx]!;
+
+    if (idx === round.correctIndex) {
+      // Correct — celebrate, then speak the animal's fact.
+      answered = true;
+      tappedEl.classList.add('as-tile--correct');
+      for (const el of tileEls) el.disabled = true;
+      playCorrect();
+      cancelSpeech();
+      stopClip();
+      const correctText = currentNarration?.correct ?? 'Yes!';
+      lastPostAnswerText = correctText;
+      setCaption(correctText);
+      narrate(correctText);
+      launchConfetti(AS_COLORS);
+      bumpStats(true);
+      nextBtn.disabled = false;
+    } else {
+      // Wrong — guided correction. Sequence:
+      //   1) error tone + 250ms shake + red tint on the tapped tile
+      //      (feedback rule revised 2026-08-17 — the red and the tone
+      //      are the new part; before, wrong taps were shake-only).
+      //   2) "Hmm! Let's listen again. Moo!"            (rerun)
+      //   3) "That's the cat. The cat says meow."       (wrongIs)
+      //   4) "The cow says moo. Moo!" + reveal ring     (reveal)
+      //   5) Enable Next. Still no score, still no failed round.
+      answered = true;
+      for (const el of tileEls) el.disabled = true;
+      tappedEl.classList.add('as-tile--wrong');
+      playWrong();
+      cancelSpeech();
+      stopClip();
+      const rerunText = currentNarration?.rerun ?? "Let's listen again.";
+      setCaption(rerunText);
+      narrate(rerunText, {
+        onEnd: () => {
+          // "Let's listen again" then the actual call — the replay is the
+          // whole point of the phrase.
+          replayCallThen(() => {
+            const wrongText =
+              currentNarration?.wrongIs(tappedAnimal) ??
+              `That's the ${tappedAnimal}.`;
+            setCaption(wrongText);
+            lastPostAnswerText = wrongText;
+            narrate(wrongText, {
+              onEnd: () => {
+                // Brief pause so the child registers the shift from "that
+                // one" to "this one".
+                setTimeout(() => {
+                  const revealText =
+                    currentNarration?.reveal ??
+                    `It was the ${lookupAnimal(round.target).name}!`;
+                  setCaption(revealText);
+                  lastPostAnswerText = revealText;
+                  correctEl.classList.add('as-tile--reveal');
+                  narrate(revealText, {
+                    onEnd: () => {
+                      // Next opens as soon as the sentence lands; the final
+                      // replay plays over an already-enabled button so the
+                      // child isn't held back by 2s of audio.
+                      bumpStats(false);
+                      nextBtn.disabled = false;
+                      replayCallThen(() => {});
+                    },
+                  });
+                }, 350);
+              },
+            });
+          });
+        },
+      });
+    }
+  };
+
+  // ── Round progression ──────────────────────────────────────────────
+
+  const startRound = (): void => {
+    cancelSpeech();
+    stopClip();
+    renderRound();
+    requestAnimationFrame(() => speakIntro());
+  };
+
+  const onNext = (): void => {
+    playTap();
+    if (roundIdx >= TOTAL_ROUNDS - 1) {
+      showSessionComplete();
+      return;
+    }
+    roundIdx++;
+    startRound();
+  };
+
+  const showSessionComplete = (): void => {
+    cancelSpeech();
+    stopClip();
+    const stats = loadAnimalSoundsStats();
+    saveAnimalSoundsStats({
+      ...stats,
+      sessions: stats.sessions + 1,
+      lastPlayed: new Date().toISOString().slice(0, 10),
+    });
+    recordPlay(GAME_ID);
+    doneEl.classList.add('as-done--show');
+    launchConfetti(AS_COLORS);
+    narrate(`Wow! You matched ${TOTAL_ROUNDS} animal sounds today! Great listening!`);
+  };
+
+  const onPlayAgain = (): void => {
+    playTap();
+    doneEl.classList.remove('as-done--show');
+    session = generateSession();
+    roundIdx = 0;
+    startRound();
+  };
+
+  // ── Stats persistence ──────────────────────────────────────────────
+
+  const bumpStats = (correctFirstTry: boolean): void => {
+    const stats = loadAnimalSoundsStats();
+    saveAnimalSoundsStats({
+      ...stats,
+      rounds: stats.rounds + 1,
+      correctFirstTry: stats.correctFirstTry + (correctFirstTry ? 1 : 0),
+      lastPlayed: new Date().toISOString().slice(0, 10),
+    });
+    recordPlay(GAME_ID);
+  };
+
+  // ── Event wiring ───────────────────────────────────────────────────
+
+  for (const el of tileEls) {
+    el.addEventListener('click', () => {
+      if (el.disabled) return;
+      const idx = Number(el.dataset.i);
+      if (idx === 0 || idx === 1 || idx === 2) {
+        onTileTap(idx as 0 | 1 | 2);
+      }
+    });
+  }
+
+  /**
+   * Replay handler shared by the prompt card and the Replay button.
+   *
+   * Before an answer, this replays the call itself — the most likely request
+   * from a child who lost the target while scanning the tiles. After an
+   * answer it re-narrates the last phrase instead, so the correction can be
+   * heard again without restarting the round.
+   */
+  const onReplay = (): void => {
+    playTap();
+    cancelSpeech();
+    stopClip();
+    if (!answered) {
+      speakIntro();
+      return;
+    }
+    const text = lastPostAnswerText || (currentNarration?.intro ?? '');
+    setCaption(text);
+    narrate(text);
+  };
+
+  promptEl.addEventListener('click', onReplay);
+  replayBtn.addEventListener('click', onReplay);
+
+  nextBtn.addEventListener('click', onNext);
+  playAgainBtn.addEventListener('click', onPlayAgain);
+
+  document.getElementById('btnSettings')?.addEventListener('click', () => {
+    playTap();
+    (window as unknown as { openSettings?: () => void }).openSettings?.();
+  });
+
+  document.getElementById('btnQuiz')?.addEventListener('click', () => {
+    playTap();
+    cancelSpeech();
+    speakIntro();
+  });
+
+  document.getElementById('btnStats')?.addEventListener('click', () => {
+    playTap();
+    const stats = loadAnimalSoundsStats();
+    const ratio =
+      stats.rounds === 0
+        ? 0
+        : Math.round((stats.correctFirstTry / stats.rounds) * 100);
+    const lines = [
+      `🎧 Sessions completed: ${stats.sessions}`,
+      `🌟 Rounds played: ${stats.rounds}`,
+      `🎯 First-try correct: ${stats.correctFirstTry} (${ratio}%)`,
+      stats.lastPlayed ? `📅 Last played: ${stats.lastPlayed}` : '📅 Last played: never',
+    ];
+    alert(lines.join('\n'));
+  });
+
+  // ── Initial state binding ──────────────────────────────────────────
+  // The SSR'd DOM is round 0; we don't re-render it. Bind JS state so
+  // subsequent logic — tile clicks, replay, etc. — has the references.
+  currentNarration = buildNarration(session[0]!, { withClip: true });
+  spokenNarration = buildNarration(session[0]!, { withClip: false });
+  progressText.textContent = `1 / ${TOTAL_ROUNDS}`;
+  progressFill.style.width = `${(1 / TOTAL_ROUNDS) * 100}%`;
+  progressPill.setAttribute('aria-label', `Round 1 of ${TOTAL_ROUNDS}`);
+
+  // Warm only this session's calls (<=8 files) rather than the whole set, so
+  // the first prompt doesn't wait on the network. The service worker serves
+  // them from precache on later visits.
+  preloadClips(
+    session
+      .map((r) => lookupAnimal(r.target).clip)
+      .filter((c): c is string => c !== null),
+  );
+
+  // Speech is blocked until the first gesture, so the intro waits for it.
+  // Deliberately does NOT call renderRound() — that would race with a
+  // first-interaction tap on a tile.
+  onFirstGesture(() => speakIntro());
+</script>

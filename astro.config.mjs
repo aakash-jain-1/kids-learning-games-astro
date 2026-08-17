@@ -82,7 +82,11 @@ export default defineConfig({
         ],
       },
       injectManifest: {
-        globPatterns: ['**/*.{js,css,html,svg,png,ico,webmanifest}'],
+        // `mp3` covers the vendored animal calls in `public/sounds/animals/`
+        // (added 2026-08-17). Animal Sounds is a listening game, so without
+        // them precached it has nothing to play offline — see
+        // `public/sounds/animals/CREDITS.md`. The whole set is ~450KB.
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,webmanifest,mp3}'],
       },
       devOptions: {
         enabled: false,

@@ -51,6 +51,10 @@ const EXPECTED_GAME_IDS = [
   'sorting-friends',
   'days-parade',
   'week-friends',
+  // Animal Sounds (2026-08-17) — science/listening, but filed in the
+  // cognitive family rather than carving a 7th family for one game, so
+  // the family count and activity-dot arithmetic below stay at 6.
+  'animal-sounds',
   // Family B — story
   'routines',
   'woodcutter',

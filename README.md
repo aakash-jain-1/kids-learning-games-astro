@@ -56,6 +56,7 @@ All three layouts share the same head/meta, PWA wiring, nav, settings modal, bui
 ├── tsconfig.json
 ├── public/
 │   ├── assets/                   # icons, copied from parent project
+│   ├── sounds/animals/           # 14 real animal calls (CC0/PD/CC-BY) + CREDITS.md
 │   └── offline.html              # offline fallback
 ├── src/
 │   ├── components/
@@ -65,7 +66,8 @@ All three layouts share the same head/meta, PWA wiring, nav, settings modal, bui
 │   │   └── SettingsModal.astro   # unified settings UI (fixes H1)
 │   ├── data/
 │   │   ├── alphabets.ts          # typed 26-letter A–Z deck
-│   │   ├── animals.ts            # typed 37-animal deck (mammal/bird/reptile/sea/insect filter)
+│   │   ├── animal-sounds.ts      # curated 18-call pool for Animal Sounds (identity joined from animals.ts + birds.ts; 14 backed by real recordings)
+│   │   ├── animals.ts            # typed 39-animal deck (mammal/bird/reptile/sea/insect/amphibian filter)
 │   │   ├── birds.ts              # typed 15-bird deck (songbird/raptor/waterbird/tropical/ground filter)
 │   │   ├── colors.ts             # typed 12-colour deck (warm/cool/neutral filter)
 │   │   ├── dinosaurs.ts          # typed dinosaur cards + diet filters
@@ -88,12 +90,13 @@ All three layouts share the same head/meta, PWA wiring, nav, settings modal, bui
 │   │   └── StoryLayout.astro        # story-flow games
 │   ├── lib/
 │   │   ├── achievements.ts       # toast + localStorage helper
-│   │   ├── audio.ts              # singleton AudioContext
+│   │   ├── audio.ts              # singleton AudioContext (synthesised tones)
+│   │   ├── clip.ts               # playback for vendored recordings in public/sounds/, with a speech fallback when a clip can't play
 │   │   ├── preschool-themes.ts   # PreschoolTheme catalog + ThemeMeta + numberWord helpers — shared by Counting Friends + More Friends + Number Friends (second-consumer carve 2026-05-18, validated by third-consumer ship of Number Friends same day)
 │   │   ├── progress.ts           # kids_progress_v1:<gameId> store (alphabets, numbers, colors, shapes, animals, birds, hindi, routines)
 │   │   ├── quiz.ts               # <gameId>_quiz_v1 store + mountQuiz controller (13-way: every vanilla-port game; preschool-math games skip it for their own per-round flows)
 │   │   ├── settings.ts           # unified settings store
-│   │   └── speech.ts             # Web Speech wrapper
+│   │   └── speech.ts             # Web Speech wrapper + onFirstGesture (shared "speech is blocked until the first tap" hook, 11 consumers)
 │   ├── pages/
 │   │   ├── 404.astro                # friendly "Page Not Found" landing for any unmatched URL — emits dist/404.html which GH Pages serves for missing paths (replaces the default unstyled "Site not found · GitHub Pages"). Self-contained inline styles + dark-mode override + FOUC-safe pre-paint; deliberately no GameNav/SettingsModal/BuildInfo (single CTA is the right shape for a 3yo).
 │   │   ├── stats.astro              # T6 — parent-facing dashboard at /stats with one card per game across 4 family sections; reads/clears stats via the stats-registry; per-card + global Reset buttons (with confirm); GameNav + SettingsModal + BuildInfo (parent-facing tools page, not a kid game). Per-game in-page Stats alert() buttons stay in place as the additive immediate-feedback view.
@@ -150,7 +153,7 @@ All three layouts share the same head/meta, PWA wiring, nav, settings modal, bui
 
 ```bash
 npm install
-npm run dev         # dev server on http://localhost:4321/kids-learning-games
+npm run dev         # dev server on http://localhost:4321/kids-learning-games-astro
 npm run dev:fresh   # kills any stale dev/preview servers from this project, then starts a fresh one
 npm run stop        # kills dev/preview servers without starting anything
 npm run build       # production build in dist/

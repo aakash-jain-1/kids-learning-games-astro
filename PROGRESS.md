@@ -417,7 +417,221 @@ before deciding.
 
 ## Changelog
 
-### 2026-06-23 (latest) — feat(chrome): a shared "🔄 Reset" control on every game (restart the session, keep saved progress)
+### 2026-08-17 (latest) — fix(audio): real animal recordings replace TTS onomatopoeia, plus two silent audio bugs fixed across all 24 games
+
+**Why now.** The user reported "can't hear sounds" in the freshly-shipped Animal
+Sounds. Two separate real bugs, then the underlying content problem: a listening
+game whose prompt was a *synthesised voice pronouncing "moo"* rather than a cow.
+
+#### Bug 1 — Chrome's speech queue wedges on `cancel()` + `speak()` in one task
+
+`speak()` in `src/lib/speech.ts` opened with an unconditional
+`speechSynthesis.cancel()`. On Chrome 147 / macOS, a `speak()` landing in the
+same task as a `cancel()` leaves the queue claiming `speaking === true` while
+**producing no audio at all** — the utterance never fires `start`. Measured by
+instrumenting `speechSynthesis` in real Chrome: one tap produced two utterances
+1 ms apart, the first `interrupted`, and no `start` event ever fired.
+
+`speak()` now cancels only when something is actually in flight, defers the new
+utterance 120 ms past the cancel, and drops a stale queued utterance rather than
+letting it speak over the caller's new phrase. This is shared by all 24 games.
+
+#### Bug 2 — every preschool game narrated twice on the first tap
+
+Speech is blocked until the first user gesture, so all 11 round-based games
+deferred their intro narration to a `pointerdown` handler. But that first
+gesture is usually also a *play* action — a tap on an answer tile or the replay
+button — whose own handler narrates. One tap, two utterances, second cancels the
+first. Combined with bug 1, that is what produced silence.
+
+Rather than patch 11 copies, the `kickoff` block was extracted to
+**`onFirstGesture()`** in `src/lib/speech.ts` (the repo's own "second consumer
+triggers a refactor" rule, with 11 consumers), which skips the intro when the
+gesture landed on an interactive control. Removed ~80 lines of duplication from
+Counting Friends, More Friends, Number Friends, Number Bond Pop, Pattern
+Sequences, Letter Friends, Sound Friends, Sorting Friends, Week Friends, Days
+Parade and Animal Sounds.
+
+**Why the tests never caught either.** Every spec sets `sound: false`, because
+headless Chromium ships no TTS engine and silent mode makes the narration chain
+deterministic. The audio path — the entire point of this game — had zero
+coverage, so "156/156 green" said nothing about whether sound worked.
+
+#### The content fix — 14 real recordings
+
+A robot voice saying "roar" is precisely the auditory-discrimination task the
+game claims to teach, so the prompts are now **real animal calls**, vendored to
+`public/sounds/animals/`. Sourcing was the hard part:
+
+- **Sources**: BigSoundBank (CC0, no attribution) and Wikimedia Commons. The
+  Internet Archive's CC0 USC sound library is unreachable from this machine (a
+  corporate Zscaler firewall), and Commons hard rate-limits bulk fetching
+  (HTTP 429), which is why three identified candidates never landed.
+- **Licensing**: 12 of 14 are CC0 or public domain; **bee** (CC BY 3.0) and
+  **duck** (CC BY-SA 4.0) require attribution, recorded in
+  [public/sounds/animals/CREDITS.md](public/sounds/animals/CREDITS.md).
+- **Mastering** (needed `brew install ffmpeg`): silence trimmed both ends then
+  capped at 2.5 s, mono 44.1 kHz, **RMS-normalised to −18 dBFS** so no round is
+  perceptibly louder than another, limiter at −3 dBFS, 20 ms/80 ms fades, MP3
+  128 kbps. 14 clips, ~450 KB total. Three iterations were needed: peak
+  normalisation alone left quiet clips 10 dB down; `alimiter` silently
+  re-normalises output unless `level=0`; and measuring the source rather than
+  the post-downmix intermediate skewed stereo sources by 3–4 dB.
+
+**Data model.** `AnimalSoundMeta` gains `clip: string | null`, and
+`CLIP_BACKED_IDS` gates which animals can be a round's **prompt**. Every animal
+still appears as a picture option — a distractor is only ever *seen*, never
+heard — so `lion`, `monkey`, `snake` and `turkey` (no usable recording found)
+stay in the game, and the guided correction still teaches their call by voice.
+Tier lists declare their full pedagogical intent and are filtered through
+`promptable()`, so dropping a new clip into `CLIP_BACKED_IDS` restores that
+animal to its intended tier with no other edit.
+
+**Narration is now clip-aware.** `buildNarration(round, { withClip })` returns
+two phrasings of one script: with a recording the voice asks "Listen! Who makes
+that sound?" *after* the clip, because pronouncing "moo" over a recording of a
+cow both steps on the audio and hands over the answer. Without one it falls back
+to speaking the onomatopoeia itself. The game builds both and picks at playback
+time, since a clip can fail at runtime.
+
+**New primitive.** `src/lib/clip.ts` — cached `HTMLAudioElement` playback for
+vendored recordings, with `onError` (never a throw) so callers can fall back to
+speech, plus `stopClip`, session-scoped `preloadClips`, and `clipDuration`.
+`mp3` was added to the PWA `globPatterns`, so all 14 clips precache and the game
+works offline.
+
+#### Bug 3 — the fallback hid a broken clip path
+
+`import.meta.env.BASE_URL` carries no trailing slash here, so concatenating it
+produced `/kids-learning-games-astrosounds/...` and **every clip failed to
+load**. Because `playClip` falls back to speech, the game looked fine — just
+with the robot voice again. `clip.ts` now normalises the base the way
+`index.astro` and `GameNav.astro` already do.
+
+That silence is exactly why the new spec asserts the *network requests* rather
+than trusting playback: `animal-sounds.spec.ts` now checks every `.mp3` response
+is under `/sounds/animals/`, returns < 400, and is `audio/*`. Verified it fails
+when the bug is reintroduced and rebuilt. 157/157 passing.
+
+### 2026-08-17 — feat(games): Animal Sounds — fourth preschool-cognitive game; listening / auditory discrimination for ages 3–4. Plus the wrong-answer feedback rule revision and two shipped-content fixes.
+
+**Why now.** Candidate C in [ROADMAP.md](ROADMAP.md), picked after the user asked
+to "go through the context and the entire project" and build new games. The user
+chose a **design-first** cadence: all six candidate games were designed up front
+in [docs/GAME-DESIGNS-2026-08.md](docs/GAME-DESIGNS-2026-08.md), then
+Animal Sounds was built end-to-end as the first ship with a review checkpoint
+after it. It fills the **listening / auditory discrimination** domain, which had
+no interactive game (science existed only as browse-only card decks).
+
+**The mechanic — Sound Friends inverted.** Sound Friends shows a *picture* and
+asks for the *letter*. Animal Sounds shows a **call** rendered as big text
+("Moo!") plus a speaker glyph, and three **animal picture** tiles: tap the animal
+that makes it. Same 8-round session grammar, same `StoryLayout` shell (new
+`animalsounds` theme key), so no new layout work.
+
+**The content problem, and why the data file curates its own sounds.** The
+obvious move — read the `sound` fields already on `animals.ts` / `birds.ts` — does
+not work for a forced-choice game:
+- **Collisions**: Bear and Tiger both ship `Growl!`, so a round could have two
+  defensible answers.
+- **Non-onomatopoeic entries**: some cards carry descriptions rather than calls
+  (e.g. `Float!`), which cannot be a prompt a child matches by ear.
+
+So `src/data/animal-sounds.ts` (472 LOC) pins a **curated pool of 18 iconic,
+unambiguous calls** in `CANONICAL_SOUND` (written without trailing "!" so
+narration can punctuate per phrase). Crucially it does **not** fork the content:
+`IDENTITY_SOURCE` maps each of the 18 ids to the deck (`animals` or `birds`) and
+card `name` that owns its identity, and `META_BY_ID` joins pinned sound → deck
+identity (emoji, image, fact) at module load. Duck / Chicken / Owl exist in both
+decks, so the deck is pinned explicitly rather than left order-dependent. The
+join **throws at build time** if a card goes missing, so a rename in `animals.ts`
+fails the build loudly instead of emitting `undefined` tiles at runtime.
+
+**`SOUND_COLLISIONS` — the rule that keeps every round single-answer.** Four
+groups of calls a 3yo could reasonably confuse must never co-occur in a round:
+`dog/wolf` (woof vs howl), `chicken/rooster/turkey` (the poultry cluster),
+`cow/sheep` (both long lowing vowels), `bee/snake` (both sustained fricatives).
+`pickDistractors` bans the target's whole collision group, so a "wrong" tap is
+never defensible and the guided correction never teaches a distinction the audio
+can't carry.
+
+**Session shape.** 8 rounds, 3 tiers (3 / 3 / 2): tier 1 barnyard calls a 3yo
+likely already owns (cow, dog, cat, pig, sheep, duck); tier 2 farm extras + the
+classic garden calls (horse, chicken, rooster, frog, bee, turkey); tier 3 wild
+animals learned from books not life (lion, elephant, monkey, wolf, owl, snake).
+The `[target, d1, d2]` triple is shuffled so `correctIndex` rotates instead of
+parking in one column; themes rotate with a no-two-in-a-row rule. `rand` is
+injectable so SSR and tests can pin a deterministic sequence. Bespoke
+`animal_sounds_stats_v1` (`sessions`/`rounds`/`correctFirstTry`/`lastPlayed`) —
+**no stages**, matching its Sound Friends sibling rather than the math triad.
+
+**Feedback rule revised — this is a north-star change.** At the user's explicit
+request ("for wrong selection we can show red with a sound as well… earlier we
+designed not to show red for wrong answers, let's change that"), rule 8 changed
+from **errorless** ("no red / buzzer / shame coding, shake only") to **guided
+wrong-answer feedback**: a wrong tap now gets the 250ms shake **plus a red tint,
+a ✗ badge, and a short error tone** (`playWrong()`), still followed by the spoken
+correction that always ends by revealing the right answer. Rounds are still never
+failed and no score is shown to the child. **Animal Sounds is the first and so
+far only adopter** — the other 23 games remain shake-only, so the app is
+mid-migration on this. Recorded in CONTEXT.md §5 rule 8.
+
+**Two shipped-content fixes (the user chose "fix both properly in the shared
+decks" over working around them locally).**
+1. **`animals.ts` gained Bee and Frog** — both iconic toddler calls, neither
+   previously present. Frog required a new `amphibian` group in the
+   `AnimalGroup` union (plus its `labelOf` label and a filter pill), so the
+   **Animals game went 37 → 39 animals with a 6-group filter**, and its
+   completion copy / confetti palette were updated to match. A content win for
+   the existing game, not just an Animal Sounds dependency.
+2. **`flashcards.ts` `opposites` taught a false pair.** The deck is authored as
+   adjacent pairs, but slot 6 was `Strong` / `Light` — *Strong* pairs with
+   *Weak*, and *Light* (weight) pairs with *Heavy*. Authored the two missing
+   cards (Weak 🥀, Heavy 🪨), yielding **10 clean pairs**. This also unblocks
+   the queued Opposites Friends game, which needs correct pairs. Nothing in code
+   or tests pins the deck length; `/stats` derives the flashcard total, which
+   moved to **259 cards** — and that surfaced pre-existing drift, since
+   `index.astro` had long advertised "280+ cards" for a 257-card deck set. Copy
+   corrected to "250+ cards".
+
+**One real UX bug found by the test suite.** The prompt card originally carried
+`animation: asPromptPulse 2.4s infinite` on the **button itself**, so its
+bounding box never settled — Playwright refused to click it ("element is not
+stable"), and more importantly a 3yo would have been aiming at a tap target
+moving under their finger. The pulse moved to the **speaker glyph**
+(`.as-prompt-speaker`), keeping the "tap me" invitation while the 200px hit area
+stays still. Reduced-motion fallback updated to match.
+
+**New files.** `src/data/animal-sounds.ts` (472 LOC),
+`src/pages/games/animal-sounds-game.astro` (524),
+`src/styles/animal-sounds.css` (579), `tests/animal-sounds.spec.ts` (219 — 8
+tests: SSR shape incl. `data-target` matching exactly one tile, Next gating,
+round-count persistence, correct-tap `correctFirstTry`, the **red wrong state
+asserted as a real computed `border-top-color`** then the guided reveal without
+bumping first-try, prompt replay, home-page card, `/stats` registry placement).
+
+**Touched.** `StoryLayout.astro` (+`animalsounds` theme + dark bg),
+`index.astro` (home card + Animals/Flashcards copy), `stats-registry.ts`
+(registered under **preschool-cognitive** — deliberately *not* a new
+`preschool-science` family for one game, so `/stats` stays at 6 families),
+`animals.ts`, `animals-game.astro`, `flashcards.ts`, `tests/stats.spec.ts`
+(`EXPECTED_GAME_IDS`), CONTEXT.md, ROADMAP.md, README.md, `scripts/dev.sh`.
+
+**Verified.** `astro check` 0 errors / 0 warnings / 0 hints across 72 files;
+`npm run build` clean at 27 pages; **full Playwright suite 156/156 green**, and
+the new spec passes 32/32 under `--repeat-each=4` to confirm the two flakes
+found during the ship are actually fixed (the other was a one-shot
+`getComputedStyle` racing a 180ms `border-color` transition — now a retrying
+`toHaveCSS`).
+
+**Also this session.** Fixed stale URLs that would 404 anyone following the
+docs: README.md and `scripts/dev.sh` both pointed at
+`localhost:4321/kids-learning-games`, but the configured base path is
+`/kids-learning-games-astro`. Added `.cursor/rules/always-ask-whats-next.mdc`
+(a user-requested rule: always end a turn with concrete next-step options
+drawn from the real forward queue, so a session continues instead of dead-ending).
+
+### 2026-06-23 — feat(chrome): a shared "🔄 Reset" control on every game (restart the session, keep saved progress)
 
 **Why now.** The user asked for a reset button in the games. Every game already
 had *in-session* affordances (quiz "Try Again", per-round replay, Woodcutter's

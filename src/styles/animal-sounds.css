@@ -1,0 +1,579 @@
+/* Animal Sounds — first preschool SCIENCE / listening game (added
+   2026-08-17). "Who says moo?" — the round prompt is an animal call and
+   the child taps the animal that makes it, from three picture tiles.
+   Sibling of Sound Friends (same UI grammar: one prompt card on top,
+   three answer tiles below), different skill: listening + world
+   knowledge rather than letter-sound mapping.
+
+   Uses `StoryLayout` with `theme='animalsounds'` so the body class is
+   `body.story[data-theme='animalsounds']`. All `as-*` (animal-sounds)
+   classes scope under that body selector so they can never collide with
+   Sound Friends / Letter Friends / the rest.
+
+   Design constraints worth re-stating here so the next reader doesn't
+   have to dig through PROGRESS.md:
+
+   - **The prompt card is the SOUND, not a picture.** It shows the call
+     as big text ("Moo!") plus a speaker glyph, because the answer tiles
+     are the pictures. Reversing that (pictures as prompt, sounds as
+     tiles) would test reading, not listening.
+
+   - **Each answer tile is a big animal emoji + name.** Names are shown
+     for the reading-adult's benefit and for screen readers; a 3yo plays
+     off the emoji. Whole tile is the tap target, well above the ≥88px
+     floor for ≤4yo touch targets.
+
+   - **Wrong-answer feedback is red + shake (revised 2026-08-17).** The
+     project's original rule was shake-only with no colour shift; the
+     owner changed it so a wrong tap now also tints red and plays an
+     error tone (`playWrong()`), while still never failing the round.
+     `--as-tile-*-wrong` tokens below carry that treatment.
+
+   - **Reduced motion**: every animation has a
+     `@media (prefers-reduced-motion: reduce)` fallback.
+*/
+
+/* ── Scene-theme background tokens ─────────────────────────────────── */
+
+body.story[data-theme='animalsounds'] {
+  --st-bg: linear-gradient(135deg, #e6f6ff 0%, #dceeff 100%);
+
+  /* Tile surface tokens — translucent white card per tile. */
+  --as-tile-bg: rgba(255, 255, 255, 0.92);
+  --as-tile-border: rgba(255, 255, 255, 0.4);
+  --as-tile-bg-hover: rgba(255, 255, 255, 1);
+  --as-tile-text: #10283a;
+
+  --as-tile-border-correct: #2e7d32;
+  --as-tile-fill-correct: rgba(76, 175, 80, 0.22);
+
+  --as-tile-border-glow: #0ea5e9;
+  --as-tile-fill-glow: rgba(14, 165, 233, 0.18);
+
+  /* Wrong-tap error tokens (feedback rule revised 2026-08-17). Kept as
+     a muted rose rather than a saturated alarm red — it must read as
+     "not that one" to a 3yo, not as danger. */
+  --as-tile-border-wrong: #e23d5a;
+  --as-tile-fill-wrong: rgba(226, 61, 90, 0.16);
+
+  /* Prompt card — solid white with a hairline. Higher contrast than the
+     answer tiles because it's the "question" of the round. */
+  --as-prompt-bg: #ffffff;
+  --as-prompt-text: #10283a;
+  --as-accent: #0ea5e9; /* science/listening accent — sky. */
+  --as-prompt-border: rgba(20, 60, 100, 0.12);
+  --as-prompt-shadow: 0 8px 24px rgba(10, 40, 80, 0.18);
+
+  --as-caption-bg: rgba(255, 255, 255, 0.92);
+  --as-caption-text: #10283a;
+  --as-caption-shadow: 0 8px 24px rgba(10, 40, 80, 0.18);
+}
+
+/* Six per-theme backgrounds shared with the rest of the preschool
+   family (pond / orchard / sea / garden / meadow / jungle). Theme drives
+   background ambience only; the animal pool is theme-independent. */
+body.story[data-theme='animalsounds'] .as-stage[data-scene='pond'] {
+  --st-bg: linear-gradient(180deg, #b8e0ff 0%, #6fb6e6 60%, #4a8c4a 100%);
+}
+body.story[data-theme='animalsounds'] .as-stage[data-scene='orchard'] {
+  --st-bg: linear-gradient(180deg, #ffe6c8 0%, #ffb88c 50%, #88b94a 100%);
+}
+body.story[data-theme='animalsounds'] .as-stage[data-scene='sea'] {
+  --st-bg: linear-gradient(180deg, #b3e8ec 0%, #4dc4cf 60%, #f4d97a 100%);
+}
+body.story[data-theme='animalsounds'] .as-stage[data-scene='garden'] {
+  --st-bg: linear-gradient(180deg, #fff4b8 0%, #ffd666 60%, #6fbf3a 100%);
+}
+body.story[data-theme='animalsounds'] .as-stage[data-scene='meadow'] {
+  --st-bg: linear-gradient(180deg, #d6f5c8 0%, #9bd96f 55%, #5aa83a 100%);
+}
+body.story[data-theme='animalsounds'] .as-stage[data-scene='jungle'] {
+  --st-bg: linear-gradient(180deg, #c2f0d8 0%, #5cbf8a 55%, #2f7d52 100%);
+}
+
+body.story[data-theme='animalsounds'] {
+  background: var(--st-bg);
+}
+
+/* ── Layout shell ─────────────────────────────────────────────────── */
+
+body.story[data-theme='animalsounds'] .as-shell {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 16px 20px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: calc(100vh - 36px);
+}
+
+body.story[data-theme='animalsounds'] .as-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+body.story[data-theme='animalsounds'] .as-title {
+  margin: 0;
+  font-size: clamp(1.6em, 4vw, 2.2em);
+  color: #fff;
+  text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+body.story[data-theme='animalsounds'] .as-progress-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.85);
+  color: #10283a;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.95em;
+}
+
+body.story[data-theme='animalsounds'] .as-progress-bar {
+  width: 80px;
+  height: 8px;
+  background: rgba(10, 40, 80, 0.15);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+body.story[data-theme='animalsounds'] .as-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--as-accent);
+  border-radius: 999px;
+  transition: width 0.4s ease-out;
+}
+
+/* ── Stage — sound prompt on top, 3 animal tiles below ────────────── */
+
+body.story[data-theme='animalsounds'] .as-stage {
+  position: relative;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 24px;
+  padding: 24px 16px;
+  min-height: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.32);
+}
+
+/* The question of the round: the CALL, rendered as big text. Tappable so
+   the child can replay it without hunting for the footer button. */
+body.story[data-theme='animalsounds'] .as-prompt {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 16px 40px;
+  border-radius: 24px;
+  background: var(--as-prompt-bg);
+  color: var(--as-prompt-text);
+  border: 2px solid var(--as-prompt-border);
+  box-shadow: var(--as-prompt-shadow);
+  cursor: pointer;
+  font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body.story[data-theme='animalsounds'] .as-prompt:active {
+  transform: scale(0.98);
+}
+
+/* The "tap me" invitation pulses on the speaker glyph, never on the card
+   itself: a 3yo aiming at a 200px tap target should not have that target
+   moving under their finger. */
+body.story[data-theme='animalsounds'] .as-prompt-speaker {
+  font-size: 52px;
+  line-height: 1;
+  animation: asPromptPulse 2.4s ease-in-out infinite;
+}
+
+body.story[data-theme='animalsounds'] .as-prompt-sound {
+  font-size: clamp(2em, 6vw, 3em);
+  font-weight: 800;
+  color: var(--as-accent);
+  letter-spacing: 0.01em;
+  line-height: 1.1;
+  text-align: center;
+}
+
+body.story[data-theme='animalsounds'] .as-prompt-hint {
+  font-size: 0.95em;
+  font-weight: 600;
+  color: rgba(20, 60, 100, 0.7);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+@keyframes asPromptPulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.04); }
+}
+
+/* The three animal tiles below the prompt. */
+body.story[data-theme='animalsounds'] .as-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  align-items: stretch;
+  width: 100%;
+  max-width: 720px;
+  gap: 12px;
+}
+
+body.story[data-theme='animalsounds'] .as-tile {
+  position: relative; /* anchors the wrong-tap ✗ badge */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 180px;
+  padding: 18px 12px;
+  background: var(--as-tile-bg);
+  border: 3px solid var(--as-tile-border);
+  border-radius: 20px;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--as-tile-text);
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s ease;
+  animation: asFlyIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation-delay: var(--as-i, 0s);
+}
+
+body.story[data-theme='animalsounds'] .as-tile:hover {
+  background: var(--as-tile-bg-hover);
+  transform: translateY(-2px);
+}
+
+body.story[data-theme='animalsounds'] .as-tile:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+body.story[data-theme='animalsounds'] .as-tile:disabled {
+  cursor: default;
+  opacity: 0.85;
+}
+
+body.story[data-theme='animalsounds'] .as-tile-emoji {
+  font-size: 84px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+body.story[data-theme='animalsounds'] .as-tile-name {
+  font-size: 1.05em;
+  font-weight: 700;
+  color: var(--as-tile-text);
+  pointer-events: none;
+}
+
+body.story[data-theme='animalsounds'] .as-tile.as-tile--correct {
+  background: var(--as-tile-fill-correct);
+  border-color: var(--as-tile-border-correct);
+  animation: asBounce 0.5s ease-out;
+}
+
+body.story[data-theme='animalsounds'] .as-tile.as-tile--reveal {
+  background: var(--as-tile-fill-glow);
+  border-color: var(--as-tile-border-glow);
+  animation: asPulseRing 1.4s ease-in-out infinite;
+}
+
+/* Wrong-tap feedback (rule revised 2026-08-17): 250ms kinesthetic shake
+   PLUS a red tint on the tapped tile, paired with `playWrong()` in the
+   controller. The tint persists for the rest of the round so the child
+   can see which one they chose while the spoken correction plays; the
+   round still always resolves by revealing the right answer, and no
+   score is shown. */
+body.story[data-theme='animalsounds'] .as-tile.as-tile--wrong {
+  background: var(--as-tile-fill-wrong);
+  border-color: var(--as-tile-border-wrong);
+  animation: asShake 250ms ease-in-out;
+}
+
+/* A small ✗ badge on the wrongly-tapped tile. Sized and coloured to read
+   as "not this one" rather than as a punishment mark. */
+body.story[data-theme='animalsounds'] .as-tile.as-tile--wrong::after {
+  content: '✗';
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  font-size: 1.5em;
+  font-weight: 800;
+  color: var(--as-tile-border-wrong);
+  pointer-events: none;
+}
+
+@keyframes asFlyIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-30px) scale(0.4);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(6px) scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes asBounce {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.06); }
+  60%  { transform: scale(0.98); }
+  100% { transform: scale(1); }
+}
+
+@keyframes asPulseRing {
+  0%, 100% {
+    box-shadow:
+      0 4px 12px rgba(10, 40, 80, 0.15),
+      0 0 0 0 rgba(14, 165, 233, 0.55);
+  }
+  50% {
+    box-shadow:
+      0 4px 12px rgba(10, 40, 80, 0.15),
+      0 0 0 12px rgba(14, 165, 233, 0);
+  }
+}
+
+@keyframes asShake {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-7px); }
+  40%      { transform: translateX( 7px); }
+  60%      { transform: translateX(-5px); }
+  80%      { transform: translateX( 4px); }
+}
+
+/* ── Caption — accessibility/parent-readable mirror of TTS narration ─── */
+
+body.story[data-theme='animalsounds'] .as-caption {
+  background: var(--as-caption-bg);
+  color: var(--as-caption-text);
+  border-radius: 16px;
+  padding: 12px 18px;
+  font-size: clamp(1em, 2.4vw, 1.2em);
+  font-weight: 600;
+  text-align: center;
+  box-shadow: var(--as-caption-shadow);
+  max-width: 720px;
+  margin: 0 auto;
+  min-height: 1.4em;
+  animation: asCaptionIn 0.4s ease-out;
+}
+
+@keyframes asCaptionIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Footer row — Replay + Next ────────────────────────────────────── */
+
+body.story[data-theme='animalsounds'] .as-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+body.story[data-theme='animalsounds'] .as-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 22px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(255, 255, 255, 0.92);
+  color: #10283a;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 1em;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(10, 40, 80, 0.15);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+body.story[data-theme='animalsounds'] .as-action:hover {
+  transform: translateY(-1px);
+  background: #ffffff;
+}
+
+body.story[data-theme='animalsounds'] .as-action:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+body.story[data-theme='animalsounds'] .as-action--primary {
+  background: var(--as-accent);
+  color: #ffffff;
+}
+
+body.story[data-theme='animalsounds'] .as-action--primary:hover {
+  background: #0284c7;
+}
+
+/* ── Session-complete overlay — appears after the 8th round ───────── */
+
+body.story[data-theme='animalsounds'] .as-done {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 40, 80, 0.55);
+  z-index: 50;
+  padding: 20px;
+}
+
+body.story[data-theme='animalsounds'] .as-done.as-done--show {
+  display: flex;
+}
+
+body.story[data-theme='animalsounds'] .as-done-card {
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 32px 28px;
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+  color: #10283a;
+  box-shadow: 0 24px 80px rgba(10, 40, 80, 0.4);
+  animation: asDoneIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes asDoneIn {
+  from { opacity: 0; transform: scale(0.7) translateY(20px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+body.story[data-theme='animalsounds'] .as-done-emoji {
+  font-size: 72px;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+body.story[data-theme='animalsounds'] .as-done-title {
+  margin: 0 0 8px;
+  font-size: 1.6em;
+  color: var(--as-accent);
+}
+
+body.story[data-theme='animalsounds'] .as-done-text {
+  margin: 0 0 24px;
+  font-size: 1.1em;
+  color: #555;
+}
+
+body.story[data-theme='animalsounds'] .as-done-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ── Reduced motion fallback ──────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  body.story[data-theme='animalsounds'] .as-prompt,
+  body.story[data-theme='animalsounds'] .as-prompt-speaker,
+  body.story[data-theme='animalsounds'] .as-tile,
+  body.story[data-theme='animalsounds'] .as-caption,
+  body.story[data-theme='animalsounds'] .as-tile.as-tile--correct,
+  body.story[data-theme='animalsounds'] .as-tile.as-tile--reveal,
+  body.story[data-theme='animalsounds'] .as-tile.as-tile--wrong,
+  body.story[data-theme='animalsounds'] .as-done-card {
+    animation: none;
+  }
+  body.story[data-theme='animalsounds'] .as-tile:hover {
+    transform: none;
+  }
+  body.story[data-theme='animalsounds'] {
+    transition: none;
+  }
+}
+
+/* ── Dark mode ────────────────────────────────────────────────────── */
+
+body.dark-mode.story[data-theme='animalsounds'] {
+  --as-tile-bg: rgba(255, 255, 255, 0.08);
+  --as-tile-bg-hover: rgba(255, 255, 255, 0.16);
+  --as-tile-border: rgba(180, 215, 255, 0.3);
+  --as-tile-fill-correct: rgba(46, 125, 50, 0.35);
+  --as-tile-fill-glow: rgba(14, 165, 233, 0.32);
+  --as-tile-fill-wrong: rgba(226, 61, 90, 0.3);
+  --as-tile-text: #eef6ff;
+  --as-prompt-bg: #10283a;
+  --as-prompt-text: #eef6ff;
+  --as-prompt-border: rgba(180, 215, 255, 0.18);
+  --as-caption-bg: rgba(12, 28, 45, 0.92);
+  --as-caption-text: #eef6ff;
+}
+
+body.dark-mode.story[data-theme='animalsounds'] .as-prompt-hint {
+  color: rgba(180, 215, 255, 0.7);
+}
+
+body.dark-mode.story[data-theme='animalsounds'] .as-done-card {
+  background: #10283a;
+  color: #eef6ff;
+}
+
+body.dark-mode.story[data-theme='animalsounds'] .as-done-text {
+  color: #b6cade;
+}
+
+body.dark-mode.story[data-theme='animalsounds'] .as-action {
+  background: #17334a;
+  color: #eef6ff;
+}
+
+body.dark-mode.story[data-theme='animalsounds'] .as-action--primary {
+  background: var(--as-accent);
+  color: #ffffff;
+}
+
+/* ── Responsive — stack tiles on small phones ─────────────────────── */
+
+@media (max-width: 600px) {
+  body.story[data-theme='animalsounds'] .as-tiles {
+    grid-template-columns: 1fr;
+  }
+  body.story[data-theme='animalsounds'] .as-tile {
+    min-height: 120px;
+    flex-direction: row;
+    gap: 16px;
+  }
+  body.story[data-theme='animalsounds'] .as-tile-emoji {
+    font-size: 60px;
+  }
+  body.story[data-theme='animalsounds'] .as-prompt-speaker {
+    font-size: 40px;
+  }
+  body.story[data-theme='animalsounds'] .as-shell {
+    padding: 12px 12px 60px;
+    gap: 14px;
+  }
+  body.story[data-theme='animalsounds'] .as-stage {
+    min-height: auto;
+  }
+}

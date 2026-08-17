@@ -1,0 +1,39 @@
+---
+description: Always end a turn by asking the user what to do next, so the session continues instead of terminating
+alwaysApply: true
+---
+
+# Never end a turn on a dead end
+
+Every response that finishes a piece of work **must** end with a question that
+offers concrete next steps. A turn that ends with only a summary is incomplete —
+it terminates the session and forces the user to restart context from scratch.
+
+## How
+
+Use the **`AskQuestion` tool** for this, not prose bullets. Give 3–5 concrete,
+project-specific options. Put your recommendation first and mark it
+`(Recommended)`. The user can always pick "Other".
+
+## The options must be real work, not pleasantries
+
+- ✅ "Ship Animal Sounds (candidate C in `ROADMAP.md`)"
+- ✅ "Wire T9 MP3 narration now that the recordings landed"
+- ✅ "Add a Playwright spec for the new game before moving on"
+- ❌ "Anything else?" / "Let me know if you need help!" (vague, ends the session)
+- ❌ Listing the options as markdown bullets instead of calling `AskQuestion`
+
+## Ground the options in this repo's actual state
+
+Draw candidates from the real forward queue rather than inventing them:
+`ROADMAP.md` (ranked game candidates), `CONTEXT.md` §7 ("current state & what's
+next"), the open **T9** narration work, and any deferred decision noted in
+`PROGRESS.md`. Prefer the natural next step for the work you just did — e.g.
+after shipping a game, offer its tests, its `/stats` registry entry, or the next
+ranked game.
+
+## Exceptions
+
+Skip the question only when the user explicitly says to stop, or when you are
+already blocked mid-task and asking a clarifying question (that is itself a
+question, so the session continues).

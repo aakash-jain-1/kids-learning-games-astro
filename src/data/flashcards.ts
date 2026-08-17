@@ -344,6 +344,8 @@ export const DECKS: readonly Deck[] = [
       { e: E(0x1f3c3), n: 'Fast', f: 'A cheetah is fast — it can run faster than a car in a city!' },
       { e: E(0x1f422), n: 'Slow', f: 'A turtle is slow — but it always reaches where it is going!' },
       { e: E(0x1f4aa), n: 'Strong', f: 'An elephant is strong — it can push down a whole tree!' },
+      { e: E(0x1f940), n: 'Weak', f: 'A wilted flower is weak — its stem is too floppy to stand up!' },
+      { e: E(0x1faa8), n: 'Heavy', f: 'A big rock is heavy — you need both hands to lift it!' },
       { e: E(0x1fab6), n: 'Light', f: 'A feather is light — it floats gently in the air!' },
       { e: E(0x1f603), n: 'Happy', f: 'You feel happy when you laugh and play with your friends!' },
       { e: E(0x1f622), n: 'Sad', f: 'You feel sad when something makes you want to cry!' },

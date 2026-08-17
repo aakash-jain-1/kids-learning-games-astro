@@ -14,7 +14,7 @@ PROJECT_DIR="$(cd -- "$HERE/.." && pwd)"
 bash "$HERE/stop-dev.sh"
 
 echo ""
-echo "== starting fresh dev server (http://127.0.0.1:4321/kids-learning-games/) =="
+echo "== starting fresh dev server (http://127.0.0.1:4321/kids-learning-games-astro/) =="
 cd "$PROJECT_DIR"
 
 # Run astro directly from node_modules so we bypass any npx version-resolution

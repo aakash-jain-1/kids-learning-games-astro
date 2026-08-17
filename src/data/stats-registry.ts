@@ -112,6 +112,10 @@ import {
   TOTAL_TO_MEET as DAYS_PARADE_TOTAL,
   loadDaysParadeStats,
 } from '@/data/days-parade';
+import {
+  STATS_KEY as ANIMAL_SOUNDS_KEY,
+  loadAnimalSoundsStats,
+} from '@/data/animal-sounds';
 
 import { loadQuizState } from '@/lib/quiz';
 import { loadLearned } from '@/lib/progress';
@@ -526,6 +530,19 @@ export const STATS_REGISTRY: readonly StatsRegistryEntry[] = [
     storageKey: WEEK_FRIENDS_KEY,
     family: 'preschool-cognitive',
     load: loadWeekFriendsStats,
+  }),
+  // Animal Sounds is science/listening rather than sorting/sequencing,
+  // but it shares the exact round-and-first-try shape of this family and
+  // adding a 7th family for a single game wasn't worth the /stats churn
+  // (decided 2026-08-17). Revisit if more science games land.
+  preschoolStatsEntry({
+    id: 'animal-sounds',
+    title: 'Animal Sounds',
+    emoji: '🐄',
+    hrefPath: 'games/animal-sounds-game',
+    storageKey: ANIMAL_SOUNDS_KEY,
+    family: 'preschool-cognitive',
+    load: loadAnimalSoundsStats,
   }),
 
   // Family B — story

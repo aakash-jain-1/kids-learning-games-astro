@@ -6,7 +6,9 @@
 > win. Keep it short and current — see the update rule in
 > `.cursor/rules/maintain-context.mdc`.
 >
-> **Last verified against the codebase**: 2026-06-23 (shared Reset control ship).
+> **Last verified against the codebase**: 2026-08-17 (Animal Sounds shipped —
+> game count now 24; real animal recordings + `src/lib/clip.ts` added;
+> tooling/platform notes refreshed for the macOS dev box).
 
 ---
 
@@ -15,7 +17,7 @@
 An **Astro + TypeScript + `@vite-pwa/astro` (Workbox)** static PWA of
 educational mini-games for young children. It began as a proof-of-concept
 migration of the vanilla HTML/CSS/JS `kids-learning-games` repo and is now a
-feature-driven project in its own right. **23 games** ship across **three
+feature-driven project in its own right. **24 games** ship across **three
 shared layouts**, deployed to GitHub Pages at
 `https://aakash-jain-1.github.io/kids-learning-games-astro/`. Zero-JS-by-default
 static output; only interactive islands ship JavaScript.
@@ -41,25 +43,33 @@ static output; only interactive islands ship JavaScript.
 - **Strict TypeScript** (`astro/tsconfigs/strict`); path alias `@/* → src/*`.
 - **PWA** via `@vite-pwa/astro` with `injectManifest` — SW source is
   `src/service-worker.ts` (Workbox: precaching + `StaleWhileRevalidate` for
-  the GitHub API + `setCatchHandler` offline fallback).
+  the GitHub API + `setCatchHandler` offline fallback). `globPatterns` includes
+  `mp3` so the vendored animal calls work offline.
+- **Vendored audio**: `public/sounds/animals/` holds 14 real animal recordings
+  (~450KB) used as the Animal Sounds prompts, with licences and the mastering
+  standard in `public/sounds/animals/CREDITS.md`. Re-mastering clips needs
+  **ffmpeg** (`brew install ffmpeg`); nothing else in the build does.
 - **Playwright** smoke tests (chromium-only, run against `astro preview`).
 - **CI**: `.github/workflows/deploy.yml` runs `test → build → deploy` to GH
   Pages on push to `main` (Playwright is a **hard deploy gate**).
   `test.yml` runs the suite independently for badge/PR feedback.
 - Package scripts: `npm run dev` / `dev:fresh` / `stop` / `build` / `preview`
   / `check` / `test` / `test:ui` / `test:install`. (`dev:fresh`/`stop` are
-  bash scripts in `scripts/` — note this is a Windows dev box.)
-- **Windows dev notes**: scripts use `cross-env` so the `ASTRO_TELEMETRY_DISABLED=1`
-  prefix works under `cmd.exe`. Node lives at `C:\Program Files\nodejs` (add to
-  PATH or restart the app if a terminal can't find `node`). The old corporate
-  proxy is gone (`NO_PROXY` no longer needed), but `playwright install chromium`
-  still stalls on Windows during *extraction* (the download hits 100%, then the
-  unzip hangs — Defender exclusion doesn't fix it). So run the suite against
-  installed Google Chrome: `PW_CHANNEL=chrome npm test -- --workers=1` (PowerShell:
-  `$env:PW_CHANNEL='chrome'; npm test -- --workers=1`). CI is unaffected — Linux
-  runners use bundled Chromium and never set `PW_CHANNEL`.
+  bash scripts in `scripts/`.)
+- The dev server serves under the Astro `base`, so the app lives at
+  `http://localhost:4321/kids-learning-games-astro` — a bare `localhost:4321`
+  404s.
+- **Dev box is macOS** (verified 2026-08-17; Node 24, npm 11). The bash helpers
+  in `scripts/` run natively. `npm run test:install` (bundled Chromium) works
+  here, so the plain `npm test` path is the default.
+- **`PW_CHANNEL` escape hatch**: `playwright.config.ts` honours a `PW_CHANNEL`
+  env var to run against a locally-installed browser instead of bundled
+  Chromium (`PW_CHANNEL=chrome npm test`). It exists because bundled-Chromium
+  *extraction* stalled hard on the project's former Windows box; keep it as a
+  fallback if the bundled download ever misbehaves. CI never sets it — Linux
+  runners use bundled Chromium.
 
-## 4. The 23 games & three layouts
+## 4. The 24 games & three layouts
 
 - **`GridLayout.astro`** — foundational-set games (scan a fixed chart, tap to
   hear): Alphabets, Numbers, Colors, Shapes, Animals, Birds, Hindi (7).
@@ -70,7 +80,7 @@ static output; only interactive islands ship JavaScript.
   Woodcutter (2 story) + Counting Friends, More Friends, Number Friends,
   Pattern Sequences, Number Bond Pop (5 preschool-math) + Letter Friends,
   Sound Friends (2 preschool-literacy) + Sorting Friends, Days Parade,
-  Week Friends (3 preschool-cognitive).
+  Week Friends, Animal Sounds (4 preschool-cognitive).
 
 Each game = one `src/pages/games/<slug>.astro` + a typed `src/data/<game>.ts`
 data file + a layout-specific themed CSS block. A parent dashboard lives at
@@ -81,8 +91,12 @@ data file + a layout-specific themed CSS block. A parent dashboard lives at
 1. **Data and view are separate.** Content lives in `src/data/<game>.ts` as
    typed, `readonly` arrays. No big inline JS literals in `.astro` pages.
 2. **Reuse `src/lib/` primitives**, never re-implement: `settings.ts`
-   (single `kids_settings_v1` key), `audio.ts` (singleton `AudioContext`),
-   `speech.ts` (Web Speech wrapper), `achievements.ts` (toasts), `quiz.ts`
+   (single `kids_settings_v1` key), `audio.ts` (singleton `AudioContext` for
+   synthesised tones), `speech.ts` (Web Speech wrapper — also owns
+   `onFirstGesture`, the shared "speech is blocked until the first tap" hook
+   used by all 11 round-based games), `clip.ts` (playback for vendored
+   recordings, with an `onError` fallback path so a missing clip degrades to
+   speech), `achievements.ts` (toasts), `quiz.ts`
    (`mountQuiz` controller + `<gameId>_quiz_v1` state), `progress.ts`
    (`kids_progress_v1:<gameId>` learned-set), `retention.ts` (sitewide
    `kids_play_history_v1` activity), `preschool-themes.ts` (shared 6-theme
@@ -96,8 +110,15 @@ data file + a layout-specific themed CSS block. A parent dashboard lives at
    libs were extracted exactly when a second game needed them.
 6. **Base-path aware links** via `import.meta.env.BASE_URL`, never hardcoded.
 7. **Event wiring in TypeScript** (`addEventListener`), never `onclick=`.
-8. **Errorless, age-safe feedback** for ages 3–4: no red/buzzer/shame coding.
-   Wrong taps get a kinesthetic shake + guided count, never punishment.
+8. **Guided wrong-answer feedback** for ages 3–4. A wrong tap gets a 250ms
+   kinesthetic shake, a **red error tint**, a short error tone (`playWrong()`
+   from `@/lib/audio`), and a spoken correction that always ends by revealing
+   the right answer. Rounds are never failed and no score is shown to the
+   child — they are corrected, then move on. **Revised 2026-08-17** at the
+   user's request; this supersedes the original errorless rule ("no
+   red/buzzer/shame coding, shake only"). **Animal Sounds is the first and so
+   far only adopter**; the other 23 games still use shake-only feedback, so the
+   app is mid-migration on this — see §7.
 9. **The Astro repo is the source of truth on *patterns*** (the vanilla repo
    is treated as a spec of intent, not a template to copy).
 
@@ -116,16 +137,48 @@ data file + a layout-specific themed CSS block. A parent dashboard lives at
 `src/data/stats-registry.ts` is the single source of truth tying every game to
 its storage keys and the `/stats` page (6 families: preschool-math,
 preschool-literacy, preschool-cognitive, story, card-set, card-pure). Adding a
-game = one entry.
+game = one entry. Animal Sounds (2026-08-17) is filed under
+**preschool-cognitive** rather than opening a `preschool-science` family for a
+single listening game — the dashboard stays at 6 families.
 
 ## 7. Current state & what's next
 
 - **Migration complete** (all 13 vanilla games ported, since 2026-05-08).
-- **Feature-driven phase active**: 10 preschool games added since (cardinality
+- **Feature-driven phase active**: 11 preschool games added since (cardinality
   triad + Pattern Sequences + Letter Friends + Number Bond Pop + Sound
-  Friends + Sorting Friends + Week Friends + Days Parade). Total **23 games**,
-  all live.
-- **Latest ship (2026-06-23)**: a shared **"🔄 Reset" control on every game** —
+  Friends + Sorting Friends + Week Friends + Days Parade + Animal Sounds).
+  Total **24 games**, all live.
+- **Latest ship (2026-08-17, same day)**: **real audio** — three silent bugs
+  fixed and the Animal Sounds prompts replaced with genuine recordings.
+  (1) `speech.ts` no longer wedges Chrome's speech queue by calling `speak()` in
+  the same task as `cancel()` — this was producing *no audio at all* across all
+  24 games. (2) The per-game "narrate on first tap" `kickoff` blocks, which
+  double-narrated when the first tap landed on a control that narrates, are now
+  the shared `onFirstGesture()` (11 consumers, ~80 lines of duplication gone).
+  (3) 14 **real animal calls** vendored to `public/sounds/animals/` and played
+  via the new `clip.ts`; `lion`/`monkey`/`snake`/`turkey` have no usable
+  recording yet so they never carry a *prompt*, but remain picture options.
+  Narration is clip-aware (`buildNarration(round, { withClip })`) so the voice
+  never pronounces the answer over the recording. Caveat worth knowing: the
+  specs run with `sound: false`, so playback itself is still untested — the new
+  spec asserts the clip **requests** instead, which is what caught a base-path
+  bug the speech fallback had hidden.
+- **Prior ship (2026-08-17)**: **Animal Sounds** — fourth preschool-cognitive
+  game (listening / auditory discrimination, "who says moo?"). Inverts the
+  Sound Friends prompt: the round plays an animal **call** (with the
+  onomatopoeia shown as text) and offers three animal picture tiles; the child
+  taps the animal that makes it. 8-round session over a curated pool of **18
+  unambiguous, iconic calls** (`src/data/animal-sounds.ts`) — the raw `sound`
+  fields in `animals.ts`/`birds.ts` could not be used directly because they collide
+  (Bear and Tiger both "Growl!") and some are not onomatopoeic ("Float!"), so
+  the pool declares explicit **sound-collision groups** to keep every round
+  single-answer. Animal identity (emoji, name) is still sourced from
+  `@/data/animals` + `@/data/birds`; Bee and Frog were added to `animals.ts`
+  to supply two iconic toddler calls (39 animals, new `amphibian` group, so
+  the Animals game gained a 6th filter pill). Bespoke
+  `animal_sounds_stats_v1` (no stages). **First game to ship the revised
+  red + error-tone wrong-answer feedback** (§5 rule 8).
+- **Prior ship (2026-06-23)**: a shared **"🔄 Reset" control on every game** —
   restart the current session (a confirmed `location.reload()`; saved progress
   in LocalStorage survives, only in-session round/score/selection state resets).
   Lives entirely in the shared `GameControls.astro` (new `🔄 Reset` pill
@@ -182,11 +235,12 @@ game = one entry.
   the child advances on ≥75% first-try accuracy, never drops. Added two
   themes (meadow, jungle) and a `stage`/`bestStage` row on `/stats`.
 - **Forward queue**: see [ROADMAP.md](ROADMAP.md) for the ranked candidate
-  games. **Sound Friends** (candidate A) + **Sorting Friends** (candidate B)
-  shipped 2026-06-06; **Week Friends** + **Days Parade** (Days of the Week —
-  learn-then-sequence pair, user-requested) shipped 2026-06-17; next up is
-  **Animal Sounds → Rhyme Time → Feeling Friends → Memory Match**, mapped to
-  the early-learning domains they fill.
+  games, and [docs/GAME-DESIGNS-2026-08.md](docs/GAME-DESIGNS-2026-08.md) for
+  the full six-game design set approved 2026-08-17. **Sound Friends**
+  (candidate A) + **Sorting Friends** (candidate B) shipped 2026-06-06;
+  **Week Friends** + **Days Parade** shipped 2026-06-17; **Animal Sounds**
+  shipped 2026-08-17. Next up is **Rhyme Time → Opposites Friends → Feeling
+  Friends → Memory Match**.
 - **Open queued work**: **T9** — replace Web Speech with pre-recorded MP3
   narration (parked on the user's recording session; integration is ~30–45 min
   of agent work once MP3s land in `src/assets/narration/shared/`).

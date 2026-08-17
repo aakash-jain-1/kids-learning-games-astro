@@ -1,7 +1,7 @@
 /**
  * Data for the Animals game — fifth GridLayout port.
  *
- * Foundational-set pedagogy: 37 animals shown as a scannable grid where
+ * Foundational-set pedagogy: 39 animals shown as a scannable grid where
  * each tile combines a *big emoji* of the animal with the animal's name
  * underneath. Tap a tile and the detail card shows the same animal
  * rendered as a Fluent UI 3D PNG (~260px) plus its iconic sound and a
@@ -10,15 +10,27 @@
  * no animal added, none removed, every `info` and `sound` string copied
  * across as-is.
  *
- * Synthesized 5-group filter (vanilla had none — deviation):
- *   - mammal  = Bear, Cat, Cow, Dog, Elephant, Fox, Giraffe, Horse,
- *               Koala, Lion, Monkey, Panda, Pig, Rabbit, Sheep, Tiger,
- *               Unicorn, Wolf, Yak, Zebra        (20)
- *   - bird    = Chicken, Duck, Nightingale, Owl, Penguin, Quail,
- *               Vulture                          (7)
- *   - reptile = Alligator, Iguana, Snake, Turtle (4)
- *   - sea     = Fish, Jellyfish, Octopus, Whale  (4)
- *   - insect  = Ant, Butterfly                   (2)
+ * Synthesized 6-group filter (vanilla had none — deviation):
+ *   - mammal    = Bear, Cat, Cow, Dog, Elephant, Fox, Giraffe, Horse,
+ *                 Koala, Lion, Monkey, Panda, Pig, Rabbit, Sheep, Tiger,
+ *                 Unicorn, Wolf, Yak, Zebra        (20)
+ *   - bird      = Chicken, Duck, Nightingale, Owl, Penguin, Quail,
+ *                 Vulture                          (7)
+ *   - reptile   = Alligator, Iguana, Snake, Turtle (4)
+ *   - amphibian = Frog                             (1)
+ *   - sea       = Fish, Jellyfish, Octopus, Whale  (4)
+ *   - insect    = Ant, Bee, Butterfly              (3)
+ *
+ * Bee + Frog added 2026-08-17 (additive deviation from vanilla). Both are
+ * conspicuous omissions from a preschool animal deck — "Buzz" and
+ * "Ribbit" are two of the first animal sounds a 3yo learns — and both
+ * were already drawn in the Flashcards decks (Bee in `insects`, Frog in
+ * `animals`) without a `sound` field. Frog is an amphibian, not a
+ * reptile, so filing it honestly required the 6th group rather than
+ * bending it into `reptile`; `amphibian` sorts after `reptile` to keep
+ * the deck's biological ordering. Added for the Animal Sounds game,
+ * which needs iconic unambiguous calls, but the Animals grid gains them
+ * too.
  *
  * Why synthesize groups? Same reason as Shapes (round/basic/special) and
  * Colors (warm/cool/neutral) — every other GridLayout game ships with a
@@ -82,7 +94,13 @@
  *   - `fact`   — kid-friendly fun fact, read aloud + shown in detail
  */
 
-export type AnimalGroup = 'mammal' | 'bird' | 'reptile' | 'sea' | 'insect';
+export type AnimalGroup =
+  | 'mammal'
+  | 'bird'
+  | 'reptile'
+  | 'amphibian'
+  | 'sea'
+  | 'insect';
 
 export interface AnimalCard {
   /** Display + spoken name (e.g. "Cat") */
@@ -108,9 +126,11 @@ const labelOf = (group: AnimalGroup): string =>
       ? 'Bird'
       : group === 'reptile'
         ? 'Reptile'
-        : group === 'sea'
-          ? 'Sea'
-          : 'Insect';
+        : group === 'amphibian'
+          ? 'Amphibian'
+          : group === 'sea'
+            ? 'Sea'
+            : 'Insect';
 
 const card = (
   name: string,
@@ -198,6 +218,10 @@ export const ALL_CARDS: readonly AnimalCard[] = [
   card('Turtle',    'reptile', '\u{1F422}', 'Turtle/3D/turtle_3d.png',       'Snap!',
     'Turtles carry their house on their back!'),
 
+  // -- amphibian (1) --
+  card('Frog', 'amphibian', '\u{1F438}', 'Frog/3D/frog_3d.png', 'Ribbit!',
+    'Frogs hop high and swim in ponds!'),
+
   // -- sea (4) --
   card('Fish',      'sea', '\u{1F420}', 'Tropical%20fish/3D/tropical_fish_3d.png', 'Blub Blub!',
     'Fish swim underwater with fins!'),
@@ -208,9 +232,11 @@ export const ALL_CARDS: readonly AnimalCard[] = [
   card('Whale',     'sea', '\u{1F40B}', 'Whale/3D/whale_3d.png',                   'Whooosh!',
     'Whales are the biggest animals in the ocean!'),
 
-  // -- insect (2) --
+  // -- insect (3) --
   card('Ant',       'insect', '\u{1F41C}', 'Ant/3D/ant_3d.png',             'Busy!',
     'Ants are tiny but very strong!'),
+  card('Bee',       'insect', '\u{1F41D}', 'Honeybee/3D/honeybee_3d.png',   'Buzz Buzz!',
+    'Bees make sweet honey from flowers!'),
   card('Butterfly', 'insect', '\u{1F98B}', 'Butterfly/3D/butterfly_3d.png', 'Flutter!',
     'Butterflies have colorful wings!'),
 ];
@@ -221,12 +247,13 @@ export interface AnimalFilter {
 }
 
 export const FILTERS: readonly AnimalFilter[] = [
-  { key: 'all',     label: '\u{1F43E} All' },
-  { key: 'mammal',  label: '\u{1F981} Mammals' },
-  { key: 'bird',    label: '\u{1F985} Birds' },
-  { key: 'reptile', label: '\u{1F40D} Reptiles' },
-  { key: 'sea',     label: '\u{1F41F} Sea' },
-  { key: 'insect',  label: '\u{1F41B} Insects' },
+  { key: 'all',       label: '\u{1F43E} All' },
+  { key: 'mammal',    label: '\u{1F981} Mammals' },
+  { key: 'bird',      label: '\u{1F985} Birds' },
+  { key: 'reptile',   label: '\u{1F40D} Reptiles' },
+  { key: 'amphibian', label: '\u{1F438} Amphibians' },
+  { key: 'sea',       label: '\u{1F41F} Sea' },
+  { key: 'insect',    label: '\u{1F41B} Insects' },
 ];
 
 import type { QuizQuestion } from '@/lib/quiz';
