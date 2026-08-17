@@ -199,13 +199,16 @@ const ALL_IDS: readonly AnimalId[] = [
  * still teaches the missing call by voice ("that's the lion, the lion says
  * roar").
  *
- * `lion`, `monkey`, `snake` and `turkey` are absent — see
- * `public/sounds/animals/CREDITS.md` for why, and for how to add one.
+ * Only `snake` is absent: a genuine hiss doesn't exist on Wikimedia Commons,
+ * and a rattlesnake rattle can't stand in for one (it isn't the call the game
+ * teaches, and it would be a buzz inside the bee/snake collision group). See
+ * `public/sounds/animals/CREDITS.md` for the search, and for how to add one.
  */
 const CLIP_BACKED_IDS: readonly AnimalId[] = [
   'cow', 'dog', 'cat', 'pig', 'sheep', 'duck',
   'horse', 'chicken', 'rooster', 'frog', 'bee',
-  'elephant', 'wolf', 'owl',
+  'lion', 'elephant', 'monkey', 'wolf', 'owl',
+  'turkey',
 ];
 
 const CLIP_SET: ReadonlySet<AnimalId> = new Set(CLIP_BACKED_IDS);

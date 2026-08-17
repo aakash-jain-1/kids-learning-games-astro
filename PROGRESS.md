@@ -417,7 +417,97 @@ before deciding.
 
 ## Changelog
 
-### 2026-08-17 (latest) — fix(audio): real animal recordings replace TTS onomatopoeia, plus two silent audio bugs fixed across all 24 games
+### 2026-08-17 (latest) — feat(audio): lion, monkey and turkey recordings land — 17 of 18 Animal Sounds animals now clip-backed; snake ruled out; flaky clip-path spec fixed
+
+**Why now.** The earlier ship left four animals without a recording, three of
+them only because Wikimedia Commons rate-limited the download (HTTP 429) from
+behind a corporate proxy. Off that network the fetches went through first try,
+so the gap was environmental, not a sourcing dead end.
+
+**Effect on play.** Tier 3 (wild animals) had only 3 promptable targets covering
+2 rounds, so a session repeated itself; it now has 5 (lion, elephant, monkey,
+wolf, owl). Tier 2 is complete at 6 with turkey. No code change was needed
+beyond adding the ids — the tier lists already declared their full pedagogical
+intent and filtered through `promptable()`, exactly so a new clip restores its
+animal with no other edit.
+
+**Sourcing.** BigSoundBank has no isolated call for any of the four (checked its
+full 3,963-entry sitemap: every "hiss" is a steam train, and the lion/monkey
+hits are zoo *ambience*). On Commons, keyword search is actively misleading —
+`filetype:audio turkey gobble` returns Wiktionary and Lingua Libre clips of
+humans **pronouncing** "gobble", plus guinea fowl (*Numida meleagris*)
+mislabelled as turkey. What worked was pulling the media used *on the enwiki
+articles*: if an article illustrates a call, that file is the canonical
+well-licensed recording.
+
+- **lion** — `Lionroar.wav`, CC BY 4.0, Growcott et al., from a 2025 *Ecology &
+  Evolution* paper. Attribution required.
+- **monkey** — `Pant-hoot call made by a male chimpanzee.ogg`, CC BY 4.0,
+  Fedurek et al. Attribution required.
+- **turkey** — `Gobbler.ogg`, public domain, *bod* via pdsounds.org.
+
+**`snake` is ruled out, not deferred.** Fifteen species-specific and non-English
+terms (`Python regius`, `Pituophis`, `hognose`, `Naja`, `Natrix`, `serpent
+sifflement`, `Schlange zischen`, …) across the whole Commons audio namespace
+returned exactly one non-pronunciation result: a Finnish dialect recording. A
+rattlesnake rattle *is* available and is deliberately **not** used — it isn't
+the call the game teaches ("hisss"), and as a buzz it falls inside the existing
+`bee`/`snake` collision group, so a child tapping "bee" for it would be
+defensibly right. Snake stays a picture option and the guided correction still
+teaches its call by voice.
+
+**Mastering needed three fixes over the first attempt.** These sources are long
+field recordings — a 42s roaring *bout*, a 12s pant-hoot, three gobbles over
+10s — so unlike the first batch a silence-trim can't isolate one call:
+
+1. `alimiter` was *boosting* rather than just holding the ceiling, landing RMS
+   2.5 dB hot. It needs `level=0` — the same trap as the first batch, which is
+   now called out in `CREDITS.md`.
+2. Maximising *total* energy over a fixed 2.5s window picks up the silence
+   between calls: the lion window spanned two roars with a −27 dBFS gap, so the
+   +6.7 dB make-up gain lifted the ambience floor into audibility. Maximising
+   *mean* energy over an adaptive-length window finds the densest single call.
+3. Fades and the limiter both move RMS, so make-up gain is now applied in a
+   feedback loop that measures the rendered MP3 and corrects. All three land on
+   −18.50 dBFS exactly, against −18.4…−18.6 for the existing clips.
+
+Two windows were then chosen by hand from an energy dump, because the heuristic
+was wrong in ways that matter: the turkey pick started *after* the attack (the
+rasp at the front is what makes a gobble a gobble; the first of the three
+gobbles was also unusable, starting at sample 0 already at −0.3 dBFS, i.e.
+truncated), and the lion pick sat on busy ambience rather than the cleanly
+isolated roar at 22.9s.
+
+**Verifying by ear wasn't possible, so it was done by shape.** A coarse
+band-energy fingerprint, calibrated against the 14 known-good clips, confirms
+lion is 0–250 Hz dominant with a −35.7 dB rolloff above 4 kHz (a textbook roar,
+and proof the make-up gain didn't raise audible hiss), monkey is mid-band like
+the other vocal calls, turkey a mid-range rasp. None resembles noise or speech.
+
+#### The clip-path spec was flaky, and the suite can't see playback at all
+
+The regression spec added with the base-path fix asserts that clip **requests**
+happen. It fails intermittently — 2 passes then a fail on identical code —
+because `beforeEach` already loads the page twice, so the third load usually
+serves the preload from the memory cache, which fires no `response` event. It
+now disables the HTTP cache over CDP first, which makes it deterministic (5/5)
+and, verified by reintroducing the bug and rebuilding, still catches it.
+
+Two things that verification exposed and are worth remembering:
+
+- **`playwright.config.ts` runs `preview`, never `build`.** The suite tests
+  whatever is in `dist/`, so a source-only edit is invisible to it — the first
+  attempt at reintroducing the bug "passed" against a stale bundle.
+- **Playwright's bundled Chromium has no MP3 codec**, so the suite fundamentally
+  cannot assert that a clip decodes and plays. A companion spec now checks the
+  asset is served as `audio/*` at the expected relative path (the half that
+  can't flake), and decode + playback of all 17 clips was verified manually in
+  real Chrome (`channel: 'chrome'`), where every clip reports its expected
+  duration and advances `currentTime`.
+
+158 tests green. Precache is now 145 entries; all 17 clips ship offline.
+
+### 2026-08-17 — fix(audio): real animal recordings replace TTS onomatopoeia, plus two silent audio bugs fixed across all 24 games
 
 **Why now.** The user reported "can't hear sounds" in the freshly-shipped Animal
 Sounds. Two separate real bugs, then the underlying content problem: a listening

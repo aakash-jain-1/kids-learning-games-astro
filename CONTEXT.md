@@ -7,8 +7,9 @@
 > `.cursor/rules/maintain-context.mdc`.
 >
 > **Last verified against the codebase**: 2026-08-17 (Animal Sounds shipped —
-> game count now 24; real animal recordings + `src/lib/clip.ts` added;
-> tooling/platform notes refreshed for the macOS dev box).
+> game count now 24; real animal recordings + `src/lib/clip.ts` added, now 17 of
+> 18 animals clip-backed; tooling/platform notes refreshed for the macOS dev
+> box).
 
 ---
 
@@ -45,11 +46,14 @@ static output; only interactive islands ship JavaScript.
   `src/service-worker.ts` (Workbox: precaching + `StaleWhileRevalidate` for
   the GitHub API + `setCatchHandler` offline fallback). `globPatterns` includes
   `mp3` so the vendored animal calls work offline.
-- **Vendored audio**: `public/sounds/animals/` holds 14 real animal recordings
-  (~450KB) used as the Animal Sounds prompts, with licences and the mastering
+- **Vendored audio**: `public/sounds/animals/` holds 17 real animal recordings
+  (~500KB) used as the Animal Sounds prompts, with licences and the mastering
   standard in `public/sounds/animals/CREDITS.md`. Re-mastering clips needs
   **ffmpeg** (`brew install ffmpeg`); nothing else in the build does.
 - **Playwright** smoke tests (chromium-only, run against `astro preview`).
+  Note `preview` serves `dist/`, so the suite tests the **last build** — rebuild
+  before trusting a run. Bundled Chromium also has no MP3 codec, so playback
+  can't be asserted there; only that clips are requested and served.
 - **CI**: `.github/workflows/deploy.yml` runs `test → build → deploy` to GH
   Pages on push to `main` (Playwright is a **hard deploy gate**).
   `test.yml` runs the suite independently for badge/PR feedback.
@@ -155,14 +159,18 @@ single listening game — the dashboard stays at 6 families.
   24 games. (2) The per-game "narrate on first tap" `kickoff` blocks, which
   double-narrated when the first tap landed on a control that narrates, are now
   the shared `onFirstGesture()` (11 consumers, ~80 lines of duplication gone).
-  (3) 14 **real animal calls** vendored to `public/sounds/animals/` and played
-  via the new `clip.ts`; `lion`/`monkey`/`snake`/`turkey` have no usable
-  recording yet so they never carry a *prompt*, but remain picture options.
+  (3) **real animal calls** vendored to `public/sounds/animals/` and played via
+  the new `clip.ts`. Now **17 of the 18** curated animals: `lion`, `monkey` and
+  `turkey` landed once the earlier corporate-proxy blocker was gone, leaving
+  only `snake` — Commons has no genuine hiss, and a rattlesnake rattle can't
+  stand in (wrong call, and a buzz inside the `bee`/`snake` collision group).
+  Animals without a clip never carry a *prompt* but remain picture options.
   Narration is clip-aware (`buildNarration(round, { withClip })`) so the voice
   never pronounces the answer over the recording. Caveat worth knowing: the
-  specs run with `sound: false`, so playback itself is still untested — the new
-  spec asserts the clip **requests** instead, which is what caught a base-path
-  bug the speech fallback had hidden.
+  specs run with `sound: false`, and Playwright's bundled Chromium has no MP3
+  codec, so the suite asserts clip **requests** rather than playback — that is
+  what caught a base-path bug the speech fallback had hidden. Actual decode and
+  playback of all 17 clips was verified manually in real Chrome.
 - **Prior ship (2026-08-17)**: **Animal Sounds** — fourth preschool-cognitive
   game (listening / auditory discrimination, "who says moo?"). Inverts the
   Sound Friends prompt: the round plays an animal **call** (with the

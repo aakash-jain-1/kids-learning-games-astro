@@ -56,7 +56,7 @@ All three layouts share the same head/meta, PWA wiring, nav, settings modal, bui
 ├── tsconfig.json
 ├── public/
 │   ├── assets/                   # icons, copied from parent project
-│   ├── sounds/animals/           # 14 real animal calls (CC0/PD/CC-BY) + CREDITS.md
+│   ├── sounds/animals/           # 17 real animal calls (CC0/PD/CC-BY) + CREDITS.md
 │   └── offline.html              # offline fallback
 ├── src/
 │   ├── components/
@@ -66,7 +66,7 @@ All three layouts share the same head/meta, PWA wiring, nav, settings modal, bui
 │   │   └── SettingsModal.astro   # unified settings UI (fixes H1)
 │   ├── data/
 │   │   ├── alphabets.ts          # typed 26-letter A–Z deck
-│   │   ├── animal-sounds.ts      # curated 18-call pool for Animal Sounds (identity joined from animals.ts + birds.ts; 14 backed by real recordings)
+│   │   ├── animal-sounds.ts      # curated 18-call pool for Animal Sounds (identity joined from animals.ts + birds.ts; 17 backed by real recordings)
 │   │   ├── animals.ts            # typed 39-animal deck (mammal/bird/reptile/sea/insect/amphibian filter)
 │   │   ├── birds.ts              # typed 15-bird deck (songbird/raptor/waterbird/tropical/ground filter)
 │   │   ├── colors.ts             # typed 12-colour deck (warm/cool/neutral filter)
