@@ -189,6 +189,11 @@ test.describe('animal sounds (preschool listening — who says moo?)', () => {
    *
    * This runs even with `sound: false`, because the page preloads its clips
    * regardless of the sound setting.
+   *
+   * The HTTP cache has to be disabled first: `beforeEach` already loads this
+   * page twice, so by the third load the preload is usually a memory-cache hit
+   * that never reaches the network and fires no `response` event. Without this
+   * the assertion below passes or fails depending on cache timing.
    */
   test('the animal call clips are requested from the correct path and served', async ({
     page,
@@ -204,6 +209,10 @@ test.describe('animal sounds (preschool listening — who says moo?)', () => {
       }
     });
 
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Network.enable');
+    await cdp.send('Network.setCacheDisabled', { cacheDisabled: true });
+
     await page.goto('games/animal-sounds-game.html');
     await expect
       .poll(() => clipResponses.length, { timeout: 10_000 })
@@ -216,6 +225,21 @@ test.describe('animal sounds (preschool listening — who says moo?)', () => {
       expect(r.status, `clip must be served, got ${r.status} for ${r.url}`).toBeLessThan(400);
       expect(r.type, `clip must be audio, got "${r.type}"`).toContain('audio');
     }
+  });
+
+  /**
+   * Companion to the test above, and the half that can't flake: assert the
+   * asset really is deployed at the path the game asks for, independently of
+   * whether the browser happens to hit the network on this load. `cow` is in
+   * tier 1, so it's always in the clip set.
+   */
+  test('a vendored clip is served as audio at the expected relative path', async ({
+    page,
+  }) => {
+    const res = await page.request.get('sounds/animals/cow.mp3');
+    expect(res.status()).toBe(200);
+    expect(res.headers()['content-type'] ?? '').toContain('audio');
+    expect((await res.body()).byteLength).toBeGreaterThan(1000);
   });
 
   test('the prompt card is a button so the call can be replayed', async ({ page }) => {
