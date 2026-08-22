@@ -58,6 +58,13 @@ body.grid {
   --gl-cat-color: #fff;
   --gl-cat-glow: rgba(76, 175, 80, 0.45);
 
+  /* Idle (non-active) filter pill. Global `.cat-btn` is white-on-
+     translucent-white, which vanishes on themes with a pale page. */
+  --gl-cat-idle-bg: rgba(255, 255, 255, 0.1);
+  --gl-cat-idle-border: rgba(255, 255, 255, 0.18);
+  --gl-cat-idle-color: rgba(255, 255, 255, 0.75);
+  --gl-cat-idle-bg-hover: rgba(255, 255, 255, 0.22);
+
   --gl-detail-bg: rgba(255, 255, 255, 0.95);
   --gl-detail-bg-dark: rgba(26, 18, 40, 0.92);
   --gl-detail-border: rgba(76, 175, 80, 0.4);
@@ -158,8 +165,18 @@ body.grid {
   transition: width 0.35s ease;
 }
 
-/* Layout-local override of the shared `.cat-btn.active` rule, using
-   grid-layout theme tokens. Global styles ship the base/hover. */
+/* Layout-local override of the shared `.cat-btn` rules, using
+   grid-layout theme tokens. Global styles ship the shape. */
+body.grid .cat-btn {
+  background: var(--gl-cat-idle-bg);
+  border-color: var(--gl-cat-idle-border);
+  color: var(--gl-cat-idle-color);
+}
+
+body.grid .cat-btn:hover {
+  background: var(--gl-cat-idle-bg-hover);
+}
+
 body.grid .cat-btn.active {
   background: var(--gl-cat-bg);
   color: var(--gl-cat-color);
@@ -1024,6 +1041,17 @@ body.grid .cat-btn.active {
 body.grid[data-theme='colors'] {
   --gl-bg: linear-gradient(135deg, #fbc2eb 0%, #a6c1ee 100%);
 
+  /* The only pale grid page, so the white default chrome has to be
+     re-inked or it disappears into the background. */
+  --gl-title-color: #6b1f4d;
+  --gl-subtitle-color: rgba(74, 14, 78, 0.8);
+  --gl-progress-bg: rgba(74, 14, 78, 0.14);
+  --gl-progress-color: #5d1a44;
+  --gl-cat-idle-bg: rgba(74, 14, 78, 0.08);
+  --gl-cat-idle-border: rgba(74, 14, 78, 0.22);
+  --gl-cat-idle-color: rgba(74, 14, 78, 0.85);
+  --gl-cat-idle-bg-hover: rgba(74, 14, 78, 0.16);
+
   --quiz-heading: #c1466b;
   --quiz-opt-bg: #fff5f0;
   --quiz-opt-border: #ffd4b8;
@@ -1069,6 +1097,10 @@ body.grid[data-theme='colors'] {
    children can tell games apart at a glance. Tile face = warm cream
    with orange-on-tap; OLED-style detail card stays neutral. */
 body.grid[data-theme='numbers'] {
+  /* Mid-saturation header gradient: white ink measures under 3:1
+     against it and only reads because of the title shadow. */
+  --gl-title-color: #04304f;
+  --gl-subtitle-color: #04304fcc;
   --gl-bg: linear-gradient(135deg, #4facfe 0%, #00d2c4 100%);
 
   --quiz-heading: #00838f;
@@ -1117,6 +1149,10 @@ body.grid[data-theme='numbers'] {
    pills lean on a deep purple accent so they're visually distinct
    from both the warm tile interior and the warm background. */
 body.grid[data-theme='shapes'] {
+  /* Mid-saturation header gradient: white ink measures under 3:1
+     against it and only reads because of the title shadow. */
+  --gl-title-color: #5c0a3a;
+  --gl-subtitle-color: #5c0a3acc;
   --gl-bg: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
 
   --quiz-heading: #6a1b9a;
@@ -1159,6 +1195,10 @@ body.grid[data-theme='shapes'] {
    pills lean on the deep-navy accent for contrast against both the
    warm tile interior and the cool background. */
 body.grid[data-theme='animals'] {
+  /* Mid-saturation header gradient: white ink measures under 3:1
+     against it and only reads because of the title shadow. */
+  --gl-title-color: #04333f;
+  --gl-subtitle-color: #04333fcc;
   --gl-bg: linear-gradient(135deg, #43cea2 0%, #185a9d 100%);
 
   --quiz-heading: #185a9d;
@@ -1204,6 +1244,10 @@ body.grid[data-theme='animals'] {
    deep-coral accent (`#c41e58`) for strong contrast against both
    the warm tile interior and the warm gradient background. */
 body.grid[data-theme='birds'] {
+  /* Mid-saturation header gradient: white ink measures under 3:1
+     against it and only reads because of the title shadow. */
+  --gl-title-color: #5c1226;
+  --gl-subtitle-color: #5c1226cc;
   --gl-bg: linear-gradient(135deg, #ff9a56 0%, #ff6a88 100%);
 
   --quiz-heading: #c41e58;
@@ -1250,6 +1294,10 @@ body.grid[data-theme='birds'] {
    a saffron→green diagonal that echoes the flag without dominating
    the grid. Action / pill accent is deep saffron `#cc5500`. */
 body.grid[data-theme='hindi'] {
+  /* Mid-saturation header gradient: white ink measures under 3:1
+     against it and only reads because of the title shadow. */
+  --gl-title-color: #6b2c00;
+  --gl-subtitle-color: #6b2c00cc;
   --gl-bg: linear-gradient(135deg, #ff9933 0%, #fff4e6 50%, #138808 100%);
 
   --quiz-heading: #cc5500;
@@ -1320,6 +1368,9 @@ body.dark-mode.grid {
 }
 
 body.dark-mode.grid[data-theme='numbers'] {
+  /* Page really is dark here, so the shared white chrome is right. */
+  --gl-title-color: #ffffff;
+  --gl-subtitle-color: rgba(255, 255, 255, 0.85);
   --gl-bg: linear-gradient(160deg, #001f3f 0%, #003b6f 50%, #00536b 100%);
   --gl-tile-bg: linear-gradient(145deg, #1a2e3a, #0d1d28);
   --gl-tile-bg-hover: linear-gradient(145deg, #2a4050, #1a2e3a);
@@ -1335,6 +1386,16 @@ body.dark-mode.grid[data-theme='numbers'] {
 
 body.dark-mode.grid[data-theme='colors'] {
   --gl-bg: linear-gradient(160deg, #1a0d24 0%, #2e1538 50%, #3d1f4a 100%);
+  /* Undo the light theme's dark re-inking — the page is dark again here,
+     so the shared white chrome is correct. */
+  --gl-title-color: #ffffff;
+  --gl-subtitle-color: rgba(255, 255, 255, 0.85);
+  --gl-progress-bg: rgba(255, 255, 255, 0.18);
+  --gl-progress-color: #ffffff;
+  --gl-cat-idle-bg: rgba(255, 255, 255, 0.1);
+  --gl-cat-idle-border: rgba(255, 255, 255, 0.18);
+  --gl-cat-idle-color: rgba(255, 255, 255, 0.75);
+  --gl-cat-idle-bg-hover: rgba(255, 255, 255, 0.22);
   --gl-detail-bg: rgba(26, 13, 36, 0.95);
   --gl-detail-border: rgba(255, 139, 84, 0.35);
   --gl-detail-letter-color: #ffd2c2;
@@ -1347,6 +1408,9 @@ body.dark-mode.grid[data-theme='colors'] {
 }
 
 body.dark-mode.grid[data-theme='shapes'] {
+  /* Page really is dark here, so the shared white chrome is right. */
+  --gl-title-color: #ffffff;
+  --gl-subtitle-color: rgba(255, 255, 255, 0.85);
   --gl-bg: linear-gradient(160deg, #2c003e 0%, #3d0d4d 50%, #4a0072 100%);
   --gl-tile-bg: linear-gradient(145deg, #2a1f3a, #1a1328);
   --gl-tile-bg-hover: linear-gradient(145deg, #3d2842, #2a1f3a);
@@ -1361,6 +1425,9 @@ body.dark-mode.grid[data-theme='shapes'] {
 }
 
 body.dark-mode.grid[data-theme='animals'] {
+  /* Page really is dark here, so the shared white chrome is right. */
+  --gl-title-color: #ffffff;
+  --gl-subtitle-color: rgba(255, 255, 255, 0.85);
   --gl-bg: linear-gradient(160deg, #052a3d 0%, #0d4d6e 50%, #185a9d 100%);
   --gl-tile-bg: linear-gradient(145deg, #1a3a4a, #0d2530);
   --gl-tile-bg-hover: linear-gradient(145deg, #2a5060, #1a3a4a);
@@ -1375,6 +1442,9 @@ body.dark-mode.grid[data-theme='animals'] {
 }
 
 body.dark-mode.grid[data-theme='birds'] {
+  /* Page really is dark here, so the shared white chrome is right. */
+  --gl-title-color: #ffffff;
+  --gl-subtitle-color: rgba(255, 255, 255, 0.85);
   --gl-bg: linear-gradient(160deg, #3d0d24 0%, #5e1a3c 50%, #7a2747 100%);
   --gl-tile-bg: linear-gradient(145deg, #3a1f2e, #2a1322);
   --gl-tile-bg-hover: linear-gradient(145deg, #4a2f3e, #3a1f2e);
@@ -1393,6 +1463,9 @@ body.dark-mode.grid[data-theme='birds'] {
    wood-brown to forest green at the bottom, with warm-gold tile text
    for the Devanagari script glow. */
 body.dark-mode.grid[data-theme='hindi'] {
+  /* Page really is dark here, so the shared white chrome is right. */
+  --gl-title-color: #ffffff;
+  --gl-subtitle-color: rgba(255, 255, 255, 0.85);
   --gl-bg: linear-gradient(160deg, #2a1500 0%, #3d2510 50%, #0d2510 100%);
   --gl-tile-bg: linear-gradient(145deg, #3a2a1a, #2a1f10);
   --gl-tile-bg-hover: linear-gradient(145deg, #4a3a2a, #3a2a1a);

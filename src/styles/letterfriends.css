@@ -45,6 +45,10 @@
 
 body.story[data-theme='letterfriends'] {
   --st-bg: linear-gradient(135deg, #fff0e6 0%, #fee6f0 100%);
+  /* Pale page tint: the shared white title would be invisible on it.
+     See --st-title-color in story.css. */
+  --st-title-color: #8a1538;
+  --st-title-shadow: none;
 
   /* Tile surface tokens — translucent white card per tile, mirrors
      the Number Friends `.nf-group` palette intentionally so a
@@ -118,8 +122,8 @@ body.story[data-theme='letterfriends'] .lf-header {
 body.story[data-theme='letterfriends'] .lf-title {
   margin: 0;
   font-size: clamp(1.6em, 4vw, 2.2em);
-  color: #fff;
-  text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.35);
+  color: var(--st-title-color);
+  text-shadow: var(--st-title-shadow);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -426,6 +430,11 @@ body.story[data-theme='letterfriends'] .lf-action:active {
   transform: translateY(1px) scale(0.98);
 }
 
+body.story[data-theme='letterfriends'] .lf-action[disabled] {
+  opacity: 0.5;
+  cursor: default;
+}
+
 body.story[data-theme='letterfriends'] .lf-action--primary {
   background: var(--lf-target-accent);
   color: #ffffff;
@@ -516,6 +525,11 @@ body.story[data-theme='letterfriends'] .lf-done-actions {
 /* ── Dark mode ────────────────────────────────────────────────────── */
 
 body.dark-mode.story[data-theme='letterfriends'] {
+  /* No --st-bg override below, so the page keeps its pale light-mode
+     gradient even here — dark mode only re-tints the cards. The light
+     theme's dark title ink is therefore correct in both modes and is
+     deliberately not reset. Restore the white default if this block
+     ever gains a dark --st-bg. */
   --lf-tile-bg: rgba(255, 255, 255, 0.08);
   --lf-tile-bg-hover: rgba(255, 255, 255, 0.16);
   --lf-tile-border: rgba(180, 200, 255, 0.3);

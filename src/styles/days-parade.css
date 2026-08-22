@@ -501,8 +501,11 @@ body.dark-mode.story[data-theme='daysparade'] {
   --dp-pill-text: #9be8de;
 }
 
+/* Dark mode re-tints the panels but leaves `--st-bg` at the pale
+   light-mode gradient, so a pale-mint title would vanish. Keep the
+   light-mode ink until this theme gains a dark page background. */
 body.dark-mode.story[data-theme='daysparade'] .dp-title {
-  color: #d4f0ea;
+  color: #0f2e2a;
   text-shadow: none;
 }
 

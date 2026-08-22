@@ -36,6 +36,10 @@
 
 body.story[data-theme='weekfriends'] {
   --st-bg: linear-gradient(135deg, #eceefb 0%, #e3e7f7 100%);
+  /* Pale page tint: the shared white title would be invisible on it.
+     See --st-title-color in story.css. */
+  --st-title-color: #2c3670;
+  --st-title-shadow: none;
 
   --week-accent: #5c6bc0; /* cognitive-family game accent — indigo. */
 
@@ -101,8 +105,8 @@ body.story[data-theme='weekfriends'] .week-header {
 body.story[data-theme='weekfriends'] .week-title {
   margin: 0;
   font-size: clamp(1.6em, 4vw, 2.2em);
-  color: #fff;
-  text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.35);
+  color: var(--st-title-color);
+  text-shadow: var(--st-title-shadow);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -512,6 +516,11 @@ body.story[data-theme='weekfriends'] .week-done-actions {
 /* ── Dark mode ────────────────────────────────────────────────────── */
 
 body.dark-mode.story[data-theme='weekfriends'] {
+  /* No --st-bg override below, so the page keeps its pale light-mode
+     gradient even here — dark mode only re-tints the cards. The light
+     theme's dark title ink is therefore correct in both modes and is
+     deliberately not reset. Restore the white default if this block
+     ever gains a dark --st-bg. */
   --week-opt-bg: rgba(255, 255, 255, 0.1);
   --week-opt-bg-hover: rgba(255, 255, 255, 0.18);
   --week-opt-text: #e7eaff;

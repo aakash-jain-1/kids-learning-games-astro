@@ -417,7 +417,68 @@ before deciding.
 
 ## Changelog
 
-### 2026-08-22 (latest) — feat(preschool): Sound, Rhyme and Week Friends drop sessions; the SSR handoff gets a real fix
+### 2026-08-22 (latest) — fix(a11y): page titles you can read, and disabled buttons that look disabled
+
+Two defects noticed while screenshotting the previous ship, both of which turned
+out to be far bigger than the games they were spotted on. Auditing every page
+before touching anything is the only reason this is one change rather than five.
+
+**The numbers.** 16 of 22 page titles failed a contrast check; 10 of those sat
+below 2:1, which is not "hard to read" but *invisible* — white on a pale tint.
+11 of the 15 disabled controls in the app rendered at `opacity: 1` with a full
+accent fill, so "Next round →" looked identically tappable before and after it
+became tappable. Both had a single cause. `--st-title-color` and
+`--gl-title-color` default to white because the layouts were written for deep
+gradient pages; every theme that later shipped a pale background inherited a
+white title and nobody re-inked it. And nothing, anywhere, dimmed `[disabled]` —
+Week Friends and Sorting Friends happened to do it themselves.
+
+**The fix.** Eleven pale themes now set their own title ink, on-brand and dark
+(1.1:1 → 6–12:1). The `.X-title` rules stopped hardcoding `#fff` and read the
+token, so the token is now the single place a theme controls this.
+
+Five *saturated* grid headers — Animals, Birds, Hindi, Numbers, Shapes — were
+re-inked too, which deserves a note because they didn't look broken. White on a
+mid-tone brand fill measures 1.7–2.4:1 and only reads because of the title's
+text shadow, which contrast maths can't see. Rather than special-case them, they
+now use dark on-brand ink like everything else; each is one token to revert.
+
+Routines is the one genuinely dynamic case: the page background morphs per scene
+through ten skies, nine pale and one dark. A static ink is wrong either way, so
+the ink keys off `<body data-sky>`, which the page now mirrors from the scene's
+existing `bg` field — no new data, no new array.
+
+Grid also gained `--gl-cat-idle-*` for the non-active filter pills, applied to
+`colors`. Those pills are white-on-translucent-white everywhere, and `colors` is
+where it was worst. The other five themes are noted as follow-up in CONTEXT.md
+§7 now that the tokens exist.
+
+**The part worth remembering.** The first attempt reset the title back to white
+under `body.dark-mode`, on the reasonable assumption that dark mode means a dark
+page. Auditing dark mode showed it doesn't: ten StoryLayout themes never
+redefine `--st-bg`, so they keep the pale light-mode gradient while every token
+around them turns near-white — a bug CONTEXT.md §7 already tracked but which had
+never been connected to titles. Those themes deliberately carry their dark ink
+into dark mode, each dark block says why, and whoever finally adds the dark
+`--st-bg` has to restore the white title in the same change. Days Parade was
+caught by the same pass: its light mode was already fine, its dark mode measured
+1.03:1.
+
+`tests/headings.spec.ts` enforces both rules from rendered pixels rather than CSS
+values, for the reason `ctrl-pills.spec.ts` gives: asserting `color: #fff` would
+only restate the stylesheet and would have passed happily for the entire life of
+the bug. The game list is read off the home page so a new game opts in
+automatically. Background is the modal colour inside the title's own box, so a
+heading on a card or gradient is still measured against what is actually behind
+it. Both modes are checked, which is the only reason the dark-mode finding
+surfaced at all. 207 tests pass.
+
+One aside for the next person who hits it: `npx playwright install chromium`
+stalls indefinitely on this Windows box (Defender scanning the unzip). The
+config already has the escape hatch — `PW_CHANNEL=chrome npx playwright test`
+uses installed Chrome and needs no download.
+
+### 2026-08-22 — feat(preschool): Sound, Rhyme and Week Friends drop sessions; the SSR handoff gets a real fix
 
 Finishes the no-sessions arc (CONTEXT.md §5 rule 11). Four games converted
 earlier the same day; this is the remaining three, plus a proper fix for a bug

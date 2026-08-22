@@ -75,7 +75,13 @@ body.story {
 /* ── Routines theme — warm sunrise/coral palette ───────────────── */
 body.story[data-theme='routines'] {
   /* The body bg is morphed per scene by the page script via `--st-bg`,
-     so the theme block leaves it at the default. */
+     so the theme block leaves it at the default. Nine of the ten scene
+     backgrounds are pale, so the title is inked dark here and flipped
+     back for the one dark sky (bedtime) below. */
+  --st-title-color: #8f3a00;
+  --st-title-shadow: none;
+  --st-prog-text: rgba(93, 44, 4, 0.85);
+  --st-prog-bg: rgba(93, 44, 4, 0.14);
   --st-prog-fg: linear-gradient(90deg, #ff9a56, #ffd740);
   --st-btn-next-bg: linear-gradient(145deg, #ff9a56, #ff6f20);
   --st-quiz-heading: #e65100;
@@ -83,6 +89,16 @@ body.story[data-theme='routines'] {
   --st-quiz-opt-border: #ffe0b2;
   --st-quiz-opt-hover-bg: #ffe0b2;
   --st-done-accent: #ff9a56;
+}
+
+/* Bedtime is the only scene whose body bg is dark, so it wants the
+   default white chrome back. The page script mirrors the scene's `bg`
+   name onto `<body data-sky>`. */
+body.story[data-theme='routines'][data-sky='sky-night'] {
+  --st-title-color: #fff;
+  --st-title-shadow: 2px 2px 8px rgba(0, 0, 0, 0.4);
+  --st-prog-text: rgba(255, 255, 255, 0.8);
+  --st-prog-bg: rgba(255, 255, 255, 0.3);
 }
 
 /* ── Woodcutter theme — deep navy → purple sky with gold accents ─ */

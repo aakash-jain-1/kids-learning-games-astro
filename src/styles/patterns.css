@@ -43,6 +43,10 @@
 
 body.story[data-theme='patterns'] {
   --st-bg: linear-gradient(135deg, #d8e8ff 0%, #f0e6ff 100%);
+  /* Pale page tint: the shared white title would be invisible on it.
+     See --st-title-color in story.css. */
+  --st-title-color: #26417f;
+  --st-title-shadow: none;
 
   /* The four pattern colors. Tuned for high contrast on the scene
      bg AND for accessibility (each pair of colors has WCAG AAA
@@ -129,8 +133,8 @@ body.story[data-theme='patterns'] .ps-header {
 body.story[data-theme='patterns'] .ps-title {
   margin: 0;
   font-size: clamp(1.6em, 4vw, 2.2em);
-  color: #fff;
-  text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.35);
+  color: var(--st-title-color);
+  text-shadow: var(--st-title-shadow);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -407,6 +411,11 @@ body.story[data-theme='patterns'] .ps-action:active {
   transform: translateY(1px) scale(0.98);
 }
 
+body.story[data-theme='patterns'] .ps-action[disabled] {
+  opacity: 0.5;
+  cursor: default;
+}
+
 body.story[data-theme='patterns'] .ps-action--primary {
   background: #4caf50;
   color: #ffffff;
@@ -547,6 +556,11 @@ body.story[data-theme='patterns'] .ps-done-actions {
 /* ── Dark mode ────────────────────────────────────────────────────── */
 
 body.dark-mode.story[data-theme='patterns'] {
+  /* No --st-bg override below, so the page keeps its pale light-mode
+     gradient even here — dark mode only re-tints the cards. The light
+     theme's dark title ink is therefore correct in both modes and is
+     deliberately not reset. Restore the white default if this block
+     ever gains a dark --st-bg. */
   --ps-seq-bg: rgba(255, 255, 255, 0.06);
   --ps-seq-border: rgba(180, 200, 255, 0.25);
   --ps-circle-border: rgba(180, 200, 255, 0.55);

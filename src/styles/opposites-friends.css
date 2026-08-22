@@ -430,6 +430,11 @@ body.story[data-theme='oppositesfriends'] .of-action:active {
   transform: translateY(1px) scale(0.98);
 }
 
+body.story[data-theme='oppositesfriends'] .of-action[disabled] {
+  opacity: 0.5;
+  cursor: default;
+}
+
 body.story[data-theme='oppositesfriends'] .of-action--primary {
   background: var(--of-accent);
   color: #ffffff;

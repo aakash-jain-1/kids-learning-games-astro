@@ -14,6 +14,7 @@ const description =
 // `.scene-box` on every navigate.
 const initialScene = SCENES[0]!;
 const initialBodyBg = BODY_BGS[0]!;
+const initialSky = initialScene.bg;
 const totalScenes = SCENES.length;
 ---
 
@@ -111,8 +112,9 @@ const totalScenes = SCENES.length;
     </section>
   </main>
 
-  <script is:inline define:vars={{ initialBodyBg }}>
+  <script is:inline define:vars={{ initialBodyBg, initialSky }}>
     document.body.style.setProperty('--st-bg', initialBodyBg);
+    document.body.dataset.sky = initialSky;
   </script>
 </StoryLayout>
 
@@ -232,6 +234,7 @@ const totalScenes = SCENES.length;
     progFill.style.width = `${((idx + 1) / SCENES.length) * 100}%`;
 
     document.body.style.setProperty('--st-bg', BODY_BGS[idx] ?? '');
+    document.body.dataset.sky = s.bg;
 
     prevBtn.hidden = idx === 0;
     nextBtn.textContent = isLastScene() ? 'Quiz ✔' : 'Next ▶';

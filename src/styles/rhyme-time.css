@@ -476,6 +476,11 @@ body.story[data-theme='rhymetime'] .rt-action:active {
   transform: translateY(1px) scale(0.98);
 }
 
+body.story[data-theme='rhymetime'] .rt-action[disabled] {
+  opacity: 0.5;
+  cursor: default;
+}
+
 body.story[data-theme='rhymetime'] .rt-action--primary {
   background: var(--rt-accent);
   color: #ffffff;

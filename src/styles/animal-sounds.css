@@ -439,6 +439,11 @@ body.story[data-theme='animalsounds'] .as-action:active {
   transform: translateY(1px) scale(0.98);
 }
 
+body.story[data-theme='animalsounds'] .as-action[disabled] {
+  opacity: 0.5;
+  cursor: default;
+}
+
 body.story[data-theme='animalsounds'] .as-action--primary {
   background: var(--as-accent);
   color: #ffffff;

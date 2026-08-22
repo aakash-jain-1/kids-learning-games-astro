@@ -35,6 +35,10 @@ body.story[data-theme='addition'] {
      used when no round is active (initial empty state + session-done
      overlay backdrop). */
   --st-bg: linear-gradient(135deg, #d8e6ff 0%, #f0e6ff 100%);
+  /* Pale page tint: the shared white title would be invisible on it.
+     See --st-title-color in story.css. */
+  --st-title-color: #26417f;
+  --st-title-shadow: none;
 
   /* Numeral-button surface — solid white card with a hairline. Bumped
      to white (not the story `--st-card-bg` semi-transparent) because
@@ -124,8 +128,8 @@ body.story[data-theme='addition'] .cf-header {
 body.story[data-theme='addition'] .cf-title {
   margin: 0;
   font-size: clamp(1.6em, 4vw, 2.2em);
-  color: #fff;
-  text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.35);
+  color: var(--st-title-color);
+  text-shadow: var(--st-title-shadow);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -481,6 +485,11 @@ body.story[data-theme='addition'] .cf-action:active {
   transform: translateY(1px) scale(0.98);
 }
 
+body.story[data-theme='addition'] .cf-action[disabled] {
+  opacity: 0.5;
+  cursor: default;
+}
+
 body.story[data-theme='addition'] .cf-action--primary {
   background: #4caf50;
   color: #ffffff;
@@ -574,6 +583,11 @@ body.story[data-theme='addition'] .cf-done-actions {
    Numeral buttons get a dark surface with bright text + a brighter
    glow so the high-contrast invariant carries over. */
 body.dark-mode.story[data-theme='addition'] {
+  /* No --st-bg override below, so the page keeps its pale light-mode
+     gradient even here — dark mode only re-tints the cards. The light
+     theme's dark title ink is therefore correct in both modes and is
+     deliberately not reset. Restore the white default if this block
+     ever gains a dark --st-bg. */
   --cf-btn-bg: #1a1f3a;
   --cf-btn-bg-hover: #232847;
   --cf-btn-text: #f0f4ff;

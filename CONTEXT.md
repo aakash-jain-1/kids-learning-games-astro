@@ -6,12 +6,15 @@
 > win. Keep it short and current — see the update rule in
 > `.cursor/rules/maintain-context.mdc`.
 >
-> **Last verified against the codebase**: 2026-08-22 (**§5 rule 11 — no sampled
-> sessions — is now applied everywhere it applies**: Animal Sounds (27),
+> **Last verified against the codebase**: 2026-08-22 (**a contrast + affordance
+> sweep**: 16 unreadable page titles and 11 full-opacity `disabled` buttons
+> fixed across the app, adding the §5 rule 10 corollary and
+> `tests/headings.spec.ts`. Game count unchanged at 27. Same day, earlier:
+> **§5 rule 11 — no sampled
+> sessions — was applied everywhere it applies**: Animal Sounds (27),
 > Letter Friends (26), Sound Friends (26), Rhyme Time (18), Feeling Friends
 > (20), Opposites Friends (20) and Week Friends (6). Sorting Friends was
-> examined and needs no change. Game count unchanged at 27. Same day,
-> earlier: Rhyme Time
+> examined and needs no change. Earlier still: Rhyme Time
 > shipped (fourth of the six-game August arc); the shared `.ctrl-pill` chips
 > were fixed after measuring 1.07:1 contrast, adding §5 rule 10; Opposites
 > Friends shipped; and a `clip.ts` playback bug fixed that made Animal Sounds
@@ -157,6 +160,14 @@ data file + a layout-specific themed CSS block. A parent dashboard lives at
    white label); `tests/ctrl-pills.spec.ts` enforces it from rendered pixels
    rather than from CSS values, which is the only way the relationship is
    actually observable.
+
+    **Corollary for *themed* chrome (added 2026-08-22):** a shared token whose
+    default suits a dark page — `--st-title-color`, `--gl-title-color` — is a
+    trap for the next theme that ships a pale one. A theme that changes its
+    background owns re-inking every token that paints on it.
+    `tests/headings.spec.ts` is the enforcement, and it also holds the rule
+    that **a `disabled` control must not render at full strength**, since a
+    fully-saturated "Next round" reads as tappable for the whole time it isn't.
 11. **A bounded set is played to completion — no sampled sessions.** Where the
     content is a finite set worth exhausting, a game runs through **every item
     exactly once**, tier-ordered, rather than sampling N rounds from the pool.
@@ -237,7 +248,25 @@ this family stays at one for now.)
   Friends + Sorting Friends + Week Friends + Days Parade + Animal Sounds +
   Feeling Friends + Opposites Friends + Rhyme Time). Total **27 games**, all
   live.
-- **Latest ship (2026-08-22)**: **Sound, Rhyme and Week Friends drop sessions**,
+- **Latest ship (2026-08-22)**: **Titles you can read and disabled buttons that
+  look disabled.** Both defects were spotted on two games and turned out to be
+  systemic: **16 of 22 page titles** failed a contrast check and **11 of 15
+  disabled controls** rendered at full accent opacity. One cause each — shared
+  tokens (`--st-title-color`, `--gl-title-color`) default to white for a dark
+  page, and nothing ever dimmed `[disabled]`.
+
+  Eleven pale themes now ink their own title (1.1:1 → 6–12:1); the five
+  saturated grid headers were re-inked too, since white only read there thanks
+  to a text shadow and measured 1.7–2.4:1. Routines keys its ink off the scene,
+  because nine of its ten skies are pale and bedtime is not. Grid gained
+  `--gl-cat-idle-*` so the `colors` filter pills stop being white-on-white.
+
+  The find that mattered most came from checking **dark mode**: the ten themes
+  that never darken their page were failing identically there, so the fix is
+  *not* to reset the ink under `body.dark-mode` — see §7. `tests/headings.spec.ts`
+  now measures both modes from rendered pixels, like `ctrl-pills.spec.ts`.
+  207 tests pass.
+- **Prior ship (2026-08-22, same day)**: **Sound, Rhyme and Week Friends drop sessions**,
   completing §5 rule 11 across every game it applies to. Sound Friends 8 → **26**
   (bare letter tiles mean an unasked letter is a silent distractor — being the
   target is the only way it earns its "A says ah" narration). Rhyme Time 8 →
@@ -254,7 +283,7 @@ this family stays at one for now.)
   Opposites and Rhyme Time can be the same pair. Now pinned by construction via
   `generateRun(rand, startWith)`. Caught by `--repeat-each=10`, not by a single
   pass — see rule 11.
-- **Prior ship (2026-08-22, same day)**: **Letter, Feeling and Opposites Friends
+- **Earlier the same day**: **Letter, Feeling and Opposites Friends
   drop sessions**, taking §5 rule 11 to four games.
   Letter Friends goes 8 rounds → **26** (the whole alphabet; the other 18
   letters were never absent, they were just never the thing being *asked for*).
@@ -478,7 +507,11 @@ this family stays at one for now.)
     applying to the other **10**. Note the consequence that bites elsewhere: on
     those themes `body.dark-mode` is set while the page is *light*, so **no
     shared chrome may key its colours off the dark-mode class** — see the
-    `.ctrl-pill` note in §5 rule 10.
+    `.ctrl-pill` note in §5 rule 10. Since 2026-08-22 those ten themes also
+    carry their **light-mode dark title ink into dark mode on purpose**, which
+    is correct exactly while the page stays pale: whoever adds the dark
+    `--st-bg` must restore the white title in the same change. Each dark block
+    says so, and `tests/headings.spec.ts` fails if they don't.
   - **The per-round scene never paints in 10 of the preschool games.** Same
     10 stylesheets declare the six `data-scene` gradients on their `.X-stage`
     element but read `--st-bg` on `body` — a custom property set on a
@@ -487,14 +520,12 @@ this family stays at one for now.)
     travel together: both were found in Animal Sounds by *screenshotting* the
     finished game, which neither the type checker nor the suite can do.
   - **Wrong-answer feedback migration** — 23 games still shake-only (§5 rule 8).
-  - **A disabled "Next round" looks tappable** in Sound Friends, Rhyme Time and
-    Letter Friends: the primary action keeps its full accent fill at
-    `opacity: 1` while `disabled`. Week Friends dims it to 0.5 and is the
-    pattern to copy. Seen while screenshotting the run-mode ship; not fixed
-    there to keep that change reviewable.
-  - **White page titles on a pale tint** in Sound Friends and Letter Friends —
-    the same low-contrast bug fixed in Animal Sounds (2026-08-22) and Rhyme
-    Time, which use a dark accent instead.
+  - **Grid filter pills are white-on-translucent-white** (`.cat-btn` in
+    `global.css`). Fixed for the `colors` theme on 2026-08-22 via the new
+    `--gl-cat-idle-*` tokens; the same override is still owed to Animals,
+    Birds, Hindi, Numbers and Shapes, where the idle pills are the least
+    readable thing on the page (Hindi's worst — the gradient goes cream
+    behind them). Tokens exist, so each is a four-line block.
 - **Deferred design decision**: `StageLayout` carve (deferred 5x — the
   `body.story` scope already does the isolation work). Option C unified
   `DeckLayout` decided NO-GO. The vanilla repo is a no-touch zone.
