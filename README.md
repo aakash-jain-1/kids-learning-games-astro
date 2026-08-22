@@ -25,6 +25,36 @@ All three layouts share the same head/meta, PWA wiring, nav, settings modal, bui
 > evidence to date still leans towards keeping layouts separate (see
 > PROGRESS.md for the full evidence trail).
 
+## What's shipped, and what's next
+
+**25 games are live.** The prose above and below predates the preschool arc and
+undercounts — [PROGRESS.md](./PROGRESS.md) and
+[`src/data/stats-registry.ts`](./src/data/stats-registry.ts) are authoritative on
+the game count and the `/stats` families.
+
+| Where to look | What it holds |
+|---|---|
+| [docs/GAME-DESIGNS-2026-08.md](./docs/GAME-DESIGNS-2026-08.md) | **The current six-game arc**, approved 2026-08-17. Full pre-build spec per game: mechanic, content, session shape, storage key, theme, stats family. |
+| [ROADMAP.md](./ROADMAP.md) | Every candidate game ranked by payoff for a 3-year-old, against early-learning standards, plus a domain-coverage snapshot showing which gaps are still open. |
+| [PROGRESS.md](./PROGRESS.md) | Append-only changelog — what actually landed, and why each design decision went the way it did. Large; grep it by date heading. |
+| [CONTEXT.md](./CONTEXT.md) | Fast orientation map for a new contributor or agent: stack, conventions, storage keys, current state. |
+
+The six-game arc stands at **2 shipped, 4 queued**. In build order (ascending
+risk, not payoff rank):
+
+1. **Animal Sounds** — shipped 2026-08-17. "Who says moo?" — a real recording
+   plays, tap the animal that makes it. 17 of 18 calls are vendored CC0/PD/CC-BY
+   audio.
+2. **Feeling Friends** — shipped 2026-08-17. "Show me sad" over three faces, then
+   later rounds swap to a situation ("her ice cream fell on the ground") so the
+   child infers the feeling rather than just recognising it. Opened the
+   `preschool-social` stats family.
+3. **Opposites Friends** — next. "Big — which one is small?" over 10 clean pairs.
+4. **Rhyme Time** — "What rhymes with cat?" Audio-first phonological awareness.
+5. **Where's Teddy?** — spatial and positional words (in / on / under / behind).
+6. **Memory Match** — flip cards to find pairs; working memory, and a new
+   mechanic for this repo.
+
 ## What this POC demonstrates
 
 - **Zero-JS-by-default static output**: `astro build` produces plain HTML files. Same deploy target as today (GitHub Pages), same runtime cost. Only the interactive islands (card machine, grid, story shell, modals) ship JavaScript.

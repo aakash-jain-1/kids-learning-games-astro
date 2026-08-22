@@ -1,6 +1,9 @@
-# Game designs — August 2026 arc (six new games)
+# Game designs — August 2026 arc (six games: 2 shipped, 4 queued)
 
-> **Status: APPROVED. Build in progress — 2 of 6 shipped.**
+> **Status: APPROVED. Build in progress — 2 of 6 shipped.** Keep the count in
+> the title and in this line in step; they are the two places a reader checks
+> first. A shipped game's section below is **frozen as the pre-build spec** —
+> its [PROGRESS.md](../PROGRESS.md) entry is authoritative on what landed.
 >
 > - §1 **Animal Sounds** — **shipped 2026-08-17**; superseded by its
 >   [PROGRESS.md](../PROGRESS.md) entry, which is authoritative on what actually
