@@ -1,0 +1,482 @@
+---
+import StoryLayout from '@/layouts/StoryLayout.astro';
+import GameControls from '@/components/GameControls.astro';
+import '@/styles/memory-match.css';
+
+import {
+  generateRun,
+  lookupAnimal,
+  buildBoardNarration,
+  TOTAL_PAIRS,
+  BOARD_COUNT,
+} from '@/data/memory-match';
+
+const title = 'Memory Match — Kids Learning Games';
+const description =
+  'A memory game for ages 3–4. Turn over two cards and keep them when they match. Three boards in a row, each a little bigger — 3 pairs, then 4, then 6. No timer, no score, no way to lose. Audio narration and thirteen friendly animals.';
+
+// SSR a deterministic first board so the page never paints blank. The cards
+// are face down, so the page script re-deals a random run on mount without
+// anything visibly changing — the reshuffle is literally behind the cards.
+const SSR_BOARD = generateRun(() => 0.42)[0]!;
+const ssrNarration = buildBoardNarration(SSR_BOARD);
+---
+
+<StoryLayout
+  title={title}
+  description={description}
+  themeColor="#ea580c"
+  theme="memorymatch"
+>
+  <main class="mm-shell" aria-label="Memory Match game">
+    <header class="mm-header">
+      <h1 class="mm-title">
+        <span aria-hidden="true">🃏</span>
+        <span>Memory Match</span>
+      </h1>
+
+      <div class="mm-header-right" style="display: flex; gap: 10px; align-items: center;">
+        <span
+          class="mm-progress-pill"
+          id="mmProgressPill"
+          aria-label={`No pairs found yet, of ${TOTAL_PAIRS}`}
+        >
+          <span id="mmProgressText">0 / {TOTAL_PAIRS}</span>
+          <span class="mm-progress-bar" aria-hidden="true">
+            <span class="mm-progress-fill" id="mmProgressFill"></span>
+          </span>
+        </span>
+        <GameControls />
+      </div>
+    </header>
+
+    <section
+      class="mm-stage"
+      id="mmStage"
+      data-scene={SSR_BOARD.theme}
+      data-board={SSR_BOARD.index}
+      data-pairs={SSR_BOARD.pairs}
+      aria-label="Memory Match board"
+    >
+      <div class="mm-caption" id="mmCaption" role="status" aria-live="polite">
+        {ssrNarration.intro}
+      </div>
+
+      <div
+        class="mm-board"
+        id="mmBoard"
+        data-pairs={SSR_BOARD.pairs}
+        aria-label={`${SSR_BOARD.pairs} pairs to find — tap a card to turn it over`}
+      >
+        {
+          SSR_BOARD.cards.map((c) => (
+            <button
+              type="button"
+              class="mm-card"
+              id={`mmCard${c.slot}`}
+              data-slot={c.slot}
+              data-animal={c.animal}
+              style={`--mm-i: ${c.slot * 0.05}s`}
+              aria-label="Face-down card — tap to turn it over"
+            >
+              <span class="mm-card-inner">
+                <span class="mm-face mm-face--back" aria-hidden="true">🐾</span>
+                <span class="mm-face mm-face--front" aria-hidden="true">
+                  {lookupAnimal(c.animal).emoji}
+                </span>
+              </span>
+            </button>
+          ))
+        }
+      </div>
+    </section>
+
+    <footer class="mm-footer">
+      <button type="button" class="mm-action" id="mmReplayBtn" aria-label="Hear what to do again">
+        🔊 Say it again
+      </button>
+    </footer>
+
+    <div class="mm-done" id="mmDone" role="dialog" aria-live="polite" aria-labelledby="mmDoneTitle">
+      <div class="mm-done-card">
+        <div class="mm-done-emoji" aria-hidden="true">🏆</div>
+        <h2 class="mm-done-title" id="mmDoneTitle">All {BOARD_COUNT} boards cleared!</h2>
+        <p class="mm-done-text" id="mmDoneText">
+          You found all {TOTAL_PAIRS} pairs. What a memory!
+        </p>
+        <div class="mm-done-actions">
+          <button type="button" class="mm-action mm-action--primary" id="mmPlayAgainBtn">
+            ▶ Play again
+          </button>
+          <a class="mm-action" href={import.meta.env.BASE_URL}>
+            🏠 Home
+          </a>
+        </div>
+      </div>
+    </div>
+  </main>
+</StoryLayout>
+
+<script>
+  import { playTap, playCorrect } from '@/lib/audio';
+  import { speak, cancelSpeech, isSpeechSupported, onFirstGesture } from '@/lib/speech';
+  import { launchConfetti } from '@/lib/achievements';
+  import { getSettings } from '@/lib/settings';
+  import {
+    generateRun,
+    lookupAnimal,
+    buildBoardNarration,
+    matchLine,
+    missLine,
+    loadMemoryMatchStats,
+    saveMemoryMatchStats,
+    TOTAL_PAIRS,
+    BOARD_COUNT,
+    type MemoryBoard,
+    type AnimalId,
+  } from '@/data/memory-match';
+  import { recordPlay, todayLocal } from '@/lib/retention';
+
+  const GAME_ID = 'memory-match';
+  // Burnt orange: the warm end of the palette, and the one not already
+  // spoken for by the literacy pink, the math green, the listening sky, the
+  // social indigo, the opposites amber, the sorting teal or the spatial
+  // violet.
+  const MM_COLORS = ['#ea580c', '#fb923c', '#fbbf24', '#2e7d32', '#ffffff'];
+
+  /** How long two non-matching cards stay face up. */
+  const MISS_HOLD_MS = 1400;
+  /** Pause on a cleared board before the next one is dealt. */
+  const BOARD_HOLD_MS = 1500;
+
+  // ── State ──────────────────────────────────────────────────────────
+
+  /**
+   * The run is re-dealt client-side rather than continued from the SSR'd
+   * board, which is safe here in a way it is not in the sibling games. Their
+   * SSR round shows the child a *question*, so replacing it mid-glance
+   * changes what they are answering — hence the readSSRRound handoff. Every
+   * card here is face down and identical, so a reshuffle is invisible and
+   * there is nothing to stay in sync with.
+   */
+  let run: MemoryBoard[] = generateRun();
+  let boardIdx = 0;
+  /** Slots currently face up and not yet resolved. */
+  let flipped: number[] = [];
+  /** True while a non-match is being held face up — taps are ignored. */
+  let resolving = false;
+  let pairsFoundTotal = 0;
+  let pairsFoundThisBoard = 0;
+  /**
+   * Animals whose cards have been turned over and turned back at least once.
+   * A pair matched while its animal is in here was found by elimination
+   * rather than by remembering, so it doesn't count toward first-try.
+   */
+  let seenAndMissed = new Set<AnimalId>();
+  let currentIntro = '';
+  let lastSpokenLine = '';
+
+  // ── DOM refs ───────────────────────────────────────────────────────
+  const stage = document.getElementById('mmStage') as HTMLElement;
+  const boardEl = document.getElementById('mmBoard') as HTMLElement;
+  const captionEl = document.getElementById('mmCaption') as HTMLElement;
+  const progressText = document.getElementById('mmProgressText') as HTMLElement;
+  const progressFill = document.getElementById('mmProgressFill') as HTMLElement;
+  const progressPill = document.getElementById('mmProgressPill') as HTMLElement;
+  const replayBtn = document.getElementById('mmReplayBtn') as HTMLButtonElement;
+  const doneEl = document.getElementById('mmDone') as HTMLElement;
+  const playAgainBtn = document.getElementById('mmPlayAgainBtn') as HTMLButtonElement;
+
+  // ── Audio helpers ──────────────────────────────────────────────────
+
+  /**
+   * Speak `text` if the user has sound enabled. Same shape as the rest of
+   * the preschool family: silent-mode setTimeout fallback + watchdog
+   * alongside speechSynthesis.onend, so headless CI runners without a TTS
+   * engine don't deadlock anything waiting on the callback.
+   */
+  const narrate = (text: string, opts?: { onEnd?: () => void }): void => {
+    const onEnd = opts?.onEnd;
+    lastSpokenLine = text;
+
+    if (!getSettings().sound || !isSpeechSupported()) {
+      if (onEnd) setTimeout(onEnd, 600);
+      return;
+    }
+
+    let fired = false;
+    const wrap = (): void => {
+      if (fired) return;
+      fired = true;
+      onEnd?.();
+    };
+    const watchdogMs = Math.max(800, text.length * 100 + 600);
+    if (onEnd) setTimeout(wrap, watchdogMs);
+    speak(text, { onEnd: onEnd ? wrap : undefined });
+  };
+
+  const setCaption = (text: string): void => {
+    captionEl.textContent = text;
+  };
+
+  // ── Rendering ──────────────────────────────────────────────────────
+
+  const cardAt = (slot: number): HTMLButtonElement | null =>
+    boardEl.querySelector<HTMLButtonElement>(`.mm-card[data-slot="${slot}"]`);
+
+  /** Draw a board's cards face down, replacing whatever was there. */
+  const renderBoard = (): void => {
+    const board = run[boardIdx]!;
+    const narration = buildBoardNarration(board);
+
+    flipped = [];
+    resolving = false;
+    pairsFoundThisBoard = 0;
+
+    stage.dataset.scene = board.theme;
+    stage.dataset.board = String(board.index);
+    stage.dataset.pairs = String(board.pairs);
+    boardEl.dataset.pairs = String(board.pairs);
+    boardEl.setAttribute(
+      'aria-label',
+      `${board.pairs} pairs to find — tap a card to turn it over`,
+    );
+
+    boardEl.innerHTML = board.cards
+      .map(
+        (c) => `
+        <button type="button" class="mm-card" id="mmCard${c.slot}"
+          data-slot="${c.slot}" data-animal="${c.animal}"
+          style="--mm-i: ${c.slot * 0.05}s"
+          aria-label="Face-down card — tap to turn it over">
+          <span class="mm-card-inner">
+            <span class="mm-face mm-face--back" aria-hidden="true">🐾</span>
+            <span class="mm-face mm-face--front" aria-hidden="true">${
+              lookupAnimal(c.animal).emoji
+            }</span>
+          </span>
+        </button>`,
+      )
+      .join('');
+
+    currentIntro = narration.intro;
+    setCaption(narration.intro);
+    updateProgress();
+  };
+
+  const updateProgress = (): void => {
+    progressText.textContent = `${pairsFoundTotal} / ${TOTAL_PAIRS}`;
+    progressFill.style.width = `${(pairsFoundTotal / TOTAL_PAIRS) * 100}%`;
+    progressPill.setAttribute(
+      'aria-label',
+      `${pairsFoundTotal} of ${TOTAL_PAIRS} pairs found`,
+    );
+  };
+
+  // ── Play ───────────────────────────────────────────────────────────
+
+  const onCardTap = (el: HTMLButtonElement): void => {
+    if (resolving || el.disabled) return;
+    const slot = Number(el.dataset.slot);
+    if (flipped.includes(slot)) return;
+
+    playTap();
+    el.classList.add('mm-card--up');
+    el.setAttribute('aria-label', `${lookupAnimal(el.dataset.animal as AnimalId).name}`);
+    flipped.push(slot);
+
+    if (flipped.length < 2) return;
+
+    const [aSlot, bSlot] = flipped as [number, number];
+    const a = cardAt(aSlot);
+    const b = cardAt(bSlot);
+    if (!a || !b) return;
+
+    const aId = a.dataset.animal as AnimalId;
+    const bId = b.dataset.animal as AnimalId;
+
+    if (aId === bId) {
+      resolveMatch(a, b, aId);
+    } else {
+      resolveMiss(a, b, aId, bId);
+    }
+  };
+
+  const resolveMatch = (
+    a: HTMLButtonElement,
+    b: HTMLButtonElement,
+    id: AnimalId,
+  ): void => {
+    flipped = [];
+    for (const el of [a, b]) {
+      el.classList.remove('mm-card--up');
+      el.classList.add('mm-card--matched');
+      el.disabled = true;
+      el.setAttribute('aria-label', `${lookupAnimal(id).name} — matched`);
+    }
+
+    playCorrect();
+    pairsFoundTotal++;
+    pairsFoundThisBoard++;
+    bumpStats(!seenAndMissed.has(id));
+    updateProgress();
+
+    const line = matchLine(id);
+    setCaption(line);
+
+    if (pairsFoundThisBoard >= run[boardIdx]!.pairs) {
+      finishBoard();
+      return;
+    }
+    narrate(line);
+  };
+
+  const resolveMiss = (
+    a: HTMLButtonElement,
+    b: HTMLButtonElement,
+    aId: AnimalId,
+    bId: AnimalId,
+  ): void => {
+    resolving = true;
+    // Both animals are now "known and missed", so matching either later is
+    // elimination rather than recall.
+    seenAndMissed.add(aId);
+    seenAndMissed.add(bId);
+
+    a.classList.add('mm-card--miss');
+    b.classList.add('mm-card--miss');
+
+    const line = missLine(aId, bId);
+    setCaption(line);
+    // No error tone and no shake — see the data module's header on why a
+    // non-match isn't a wrong answer.
+    narrate(line);
+
+    setTimeout(() => {
+      for (const el of [a, b]) {
+        el.classList.remove('mm-card--up', 'mm-card--miss');
+        el.setAttribute('aria-label', 'Face-down card — tap to turn it over');
+      }
+      flipped = [];
+      resolving = false;
+      setCaption(currentIntro);
+    }, MISS_HOLD_MS);
+  };
+
+  const finishBoard = (): void => {
+    resolving = true;
+    const narration = buildBoardNarration(run[boardIdx]!);
+    const last = boardIdx >= BOARD_COUNT - 1;
+
+    setCaption(narration.cleared);
+    narrate(narration.cleared);
+    launchConfetti(MM_COLORS);
+
+    setTimeout(() => {
+      if (last) {
+        showRunComplete();
+        return;
+      }
+      boardIdx++;
+      renderBoard();
+      resolving = false;
+      narrate(currentIntro);
+    }, BOARD_HOLD_MS);
+  };
+
+  const showRunComplete = (): void => {
+    cancelSpeech();
+    const stats = loadMemoryMatchStats();
+    saveMemoryMatchStats({
+      ...stats,
+      // Still the `sessions` field on disk — the stored schema is shared with
+      // every other preschool game — but it counts full runs through all
+      // three boards (CONTEXT.md §5 rule 11).
+      sessions: stats.sessions + 1,
+      lastPlayed: todayLocal(),
+    });
+    recordPlay(GAME_ID);
+    doneEl.classList.add('mm-done--show');
+    launchConfetti(MM_COLORS);
+    narrate('Amazing! You remembered every single pair!');
+  };
+
+  const onPlayAgain = (): void => {
+    playTap();
+    doneEl.classList.remove('mm-done--show');
+    run = generateRun();
+    boardIdx = 0;
+    pairsFoundTotal = 0;
+    seenAndMissed = new Set<AnimalId>();
+    renderBoard();
+    narrate(currentIntro);
+  };
+
+  // ── Stats persistence ──────────────────────────────────────────────
+
+  const bumpStats = (foundByMemory: boolean): void => {
+    const stats = loadMemoryMatchStats();
+    saveMemoryMatchStats({
+      ...stats,
+      rounds: stats.rounds + 1,
+      correctFirstTry: stats.correctFirstTry + (foundByMemory ? 1 : 0),
+      lastPlayed: todayLocal(),
+    });
+    recordPlay(GAME_ID);
+  };
+
+  // ── Event wiring ───────────────────────────────────────────────────
+
+  // Delegated, because the board is re-rendered between boards.
+  boardEl.addEventListener('click', (ev) => {
+    const el = (ev.target as HTMLElement).closest('.mm-card');
+    if (el instanceof HTMLButtonElement) onCardTap(el);
+  });
+
+  const onReplay = (): void => {
+    playTap();
+    cancelSpeech();
+    const text = resolving && lastSpokenLine ? lastSpokenLine : currentIntro;
+    setCaption(text);
+    narrate(text);
+  };
+
+  replayBtn.addEventListener('click', onReplay);
+  playAgainBtn.addEventListener('click', onPlayAgain);
+
+  document.getElementById('btnSettings')?.addEventListener('click', () => {
+    playTap();
+    (window as unknown as { openSettings?: () => void }).openSettings?.();
+  });
+
+  document.getElementById('btnQuiz')?.addEventListener('click', () => {
+    playTap();
+    cancelSpeech();
+    narrate(currentIntro);
+  });
+
+  document.getElementById('btnStats')?.addEventListener('click', () => {
+    playTap();
+    const stats = loadMemoryMatchStats();
+    const ratio =
+      stats.rounds === 0
+        ? 0
+        : Math.round((stats.correctFirstTry / stats.rounds) * 100);
+    const lines = [
+      `🏆 Full runs finished: ${stats.sessions}`,
+      `🌟 Pairs found: ${stats.rounds}`,
+      `🎯 Found by remembering: ${stats.correctFirstTry} (${ratio}%)`,
+      stats.lastPlayed ? `📅 Last played: ${stats.lastPlayed}` : '📅 Last played: never',
+    ];
+    alert(lines.join('\n'));
+  });
+
+  // ── Initial state binding ──────────────────────────────────────────
+  // Re-deal over the SSR'd board. Every card is face down and identical, so
+  // this is invisible; it just replaces the deterministic SSR deal with a
+  // random one.
+  renderBoard();
+
+  // Speech is blocked until the first gesture, so the intro waits for it.
+  onFirstGesture(() => narrate(currentIntro));
+</script>

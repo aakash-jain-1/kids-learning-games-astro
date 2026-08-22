@@ -132,6 +132,10 @@ import {
   STATS_KEY as WHERES_TEDDY_KEY,
   loadWheresTeddyStats,
 } from '@/data/wheres-teddy';
+import {
+  STATS_KEY as MEMORY_MATCH_KEY,
+  loadMemoryMatchStats,
+} from '@/data/memory-match';
 
 import { loadQuizState } from '@/lib/quiz';
 import { loadLearned } from '@/lib/progress';
@@ -602,6 +606,15 @@ export const STATS_REGISTRY: readonly StatsRegistryEntry[] = [
     storageKey: WHERES_TEDDY_KEY,
     family: 'preschool-cognitive',
     load: loadWheresTeddyStats,
+  }),
+  preschoolStatsEntry({
+    id: 'memory-match',
+    title: 'Memory Match',
+    emoji: '🃏',
+    hrefPath: 'games/memory-match-game',
+    storageKey: MEMORY_MATCH_KEY,
+    family: 'preschool-cognitive',
+    load: loadMemoryMatchStats,
   }),
 
   // Family A4 — preschool-social

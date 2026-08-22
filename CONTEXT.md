@@ -6,8 +6,19 @@
 > win. Keep it short and current — see the update rule in
 > `.cursor/rules/maintain-context.mdc`.
 >
-> **Last verified against the codebase**: 2026-08-22 (**Where's Teddy? shipped**
-> — fifth of the six-game August arc, **28 games**, and the first to teach
+> **Last verified against the codebase**: 2026-08-23 (**Memory Match shipped —
+> the August arc is complete**, 6 of 6, **29 games**, and the first game whose
+> skill is *remembering* rather than recognising. It answers the arc's last
+> open design question (Q5) by dissolving it: the board growth the design doc
+> wanted as persisted stages became the shape of **one run** — 3 → 4 → 6 pairs
+> back to back, which is exactly the 13-animal pool dealt once. It is also the
+> one preschool game that deliberately does **not** apply §5 rule 8, because a
+> non-match is not a wrong answer. Shipped alongside it: a **UTC-vs-local date
+> bug** found by a test failing at 00:35 local — all 16 `lastPlayed` writes
+> stamped the UTC date while the dashboard compared against the local one, so
+> every session before 05:30 local rendered as "yesterday". Earlier:
+> **Where's Teddy? shipped**
+> — fifth of the arc, and the first to teach
 > spatial/positional language. It carries a lesson worth reusing: three of its
 > five prepositions are drawn purely by *where an emoji sits*, and every
 > behavioural test passed while two of them were visually wrong, so
@@ -37,7 +48,7 @@
 An **Astro + TypeScript + `@vite-pwa/astro` (Workbox)** static PWA of
 educational mini-games for young children. It began as a proof-of-concept
 migration of the vanilla HTML/CSS/JS `kids-learning-games` repo and is now a
-feature-driven project in its own right. **28 games** ship across **three
+feature-driven project in its own right. **29 games** ship across **three
 shared layouts**, deployed to GitHub Pages at
 `https://aakash-jain-1.github.io/kids-learning-games-astro/`. Zero-JS-by-default
 static output; only interactive islands ship JavaScript.
@@ -104,7 +115,7 @@ static output; only interactive islands ship JavaScript.
   *extraction* has stalled hard on this machine before, which is why the
   hatch exists.) CI never sets it — Linux runners use bundled Chromium.
 
-## 4. The 28 games & three layouts
+## 4. The 29 games & three layouts
 
 - **`GridLayout.astro`** — foundational-set games (scan a fixed chart, tap to
   hear): Alphabets, Numbers, Colors, Shapes, Animals, Birds, Hindi (7).
@@ -115,8 +126,8 @@ static output; only interactive islands ship JavaScript.
   Woodcutter (2 story) + Counting Friends, More Friends, Number Friends,
   Pattern Sequences, Number Bond Pop (5 preschool-math) + Letter Friends,
   Sound Friends, Rhyme Time (3 preschool-literacy) + Sorting Friends,
-  Days Parade, Week Friends, Animal Sounds, Opposites Friends, Where's Teddy?
-  (6 preschool-cognitive) + Feeling Friends (1 preschool-social).
+  Days Parade, Week Friends, Animal Sounds, Opposites Friends, Where's Teddy?,
+  Memory Match (7 preschool-cognitive) + Feeling Friends (1 preschool-social).
 
 Each game = one `src/pages/games/<slug>.astro` + a typed `src/data/<game>.ts`
 data file + a layout-specific themed CSS block. A parent dashboard lives at
@@ -156,10 +167,18 @@ data file + a layout-specific themed CSS block. A parent dashboard lives at
    Opposites Friends, Rhyme Time and Where's Teddy? are the only adopters so
    far**; the other 23 games still use shake-only feedback, so the app is
    mid-migration — see §7.
+
+    **Memory Match is a deliberate exception (2026-08-23), not a laggard.**
+    The rule governs answers that are *wrong*; turning over two cards that
+    don't match is how memory is played, and a child playing perfectly still
+    does it. So a non-match gets no red, no tone and no shake — the two cards
+    hold face up long enough to encode, get *named* ("A pig and a lion. Not a
+    pair yet."), and turn back. Before applying rule 8 to a new game, check
+    that the tap it punishes is actually a mistake.
 9. **The Astro repo is the source of truth on *patterns*** (the vanilla repo
    is treated as a spec of intent, not a template to copy).
 10. **Shared chrome carries its own contrast.** A primitive in `global.css`
-    renders on backdrops it cannot see — 28 themed games plus `/stats` and
+    renders on backdrops it cannot see — 29 themed games plus `/stats` and
     the home hero — so it must not depend on the surface behind it. In
     particular, **don't key colours off `body.dark-mode`**: for months eleven
     `StoryLayout` themes painted a *light* background while that class was
@@ -193,7 +212,16 @@ data file + a layout-specific themed CSS block. A parent dashboard lives at
     pairs × 2 directions), Rhyme Time 18 (9 pairs × 2 directions), Week Friends
     6. Each exports `generateRun` plus a `TOTAL_ROUNDS` **derived from the
     content**, so adding a letter, a vignette or a pair lengthens the run
-    instead of leaving it unreachable.
+    instead of leaving it unreachable. **Built this way from the start (2):**
+    Where's Teddy? 25 (5 pairs × 5 relations), Memory Match 13 (a 13-animal
+    pool dealt across boards of 3 + 4 + 6 pairs).
+
+    **The rule can also settle a difficulty question**, which is how Memory
+    Match's board growth stopped being a stage model. The design doc wanted
+    3 → 4 → 6 pairs across *sessions*, persisted; noticing that 3 + 4 + 6 is
+    exactly the pool turned it into three boards inside one run, and the
+    progression came free. Worth reaching for before adding stage state: a
+    ramp that fits inside a run needs nothing remembered between sittings.
 
     It does **not** apply everywhere, and the test is whether a finite set exists
     to exhaust. **Sorting Friends** looks like a candidate and isn't: its 8
@@ -254,12 +282,46 @@ this family stays at one for now.)
 ## 7. Current state & what's next
 
 - **Migration complete** (all 13 vanilla games ported, since 2026-05-08).
-- **Feature-driven phase active**: 14 preschool games added since (cardinality
+- **Feature-driven phase active**: 15 preschool games added since (cardinality
   triad + Pattern Sequences + Letter Friends + Number Bond Pop + Sound
   Friends + Sorting Friends + Week Friends + Days Parade + Animal Sounds +
-  Feeling Friends + Opposites Friends + Rhyme Time + Where's Teddy?). Total
-  **28 games**, all live.
-- **Latest ship (2026-08-22)**: **Where's Teddy?** — fifth of the six-game
+  Feeling Friends + Opposites Friends + Rhyme Time + Where's Teddy? +
+  Memory Match). Total **29 games**, all live.
+- **Latest ship (2026-08-23)**: **Memory Match** — sixth and last of the
+  August arc, **which closes it**, and the first game whose skill is
+  *remembering* rather than recognising or discriminating.
+
+  Three decisions carry it. **The board growth is the run**: 3 → 4 → 6 pairs
+  played back to back, which is exactly the 13-animal pool dealt once, so the
+  arc's last open design question (Q5 — bespoke stage model, or bend
+  `preschool-stages.ts`?) was answered by needing neither. **A non-match is
+  not a wrong answer**, so §5 rule 8 is deliberately not applied — see the
+  exception noted there. And **matched cards stay on the board**, face up:
+  removing them reflows the grid and destroys the positions the child has
+  just memorised.
+
+  The bug worth remembering is a layout one. The twelve-card board was sized
+  by width alone, which pushed its bottom row under the fold on a phone — and
+  *a child memorising positions cannot scroll to see the rest of the board*,
+  so that isn't cosmetic, it breaks the mechanic. Cards are now sized by
+  whichever axis runs out first, and `tests/memory-match.spec.ts` asserts at
+  three viewports that no card falls below the fold.
+
+  Two smaller ones, both caught by looking: the animal emoji rendered at a
+  quarter of the card, because `.mm-card` is a `<button>` and buttons don't
+  inherit font-size, so `em` resolved against the UA's ~13px default; and the
+  spoken lines said "A elephant", "fishs" and "butterflys", so plural and
+  article are now spelled out per animal in the data rather than derived.
+- **Also 2026-08-23 — a UTC-vs-local date bug**, found because a test failed
+  at 00:35 local. All 16 per-game `lastPlayed` writes stamped
+  `new Date().toISOString().slice(0, 10)` (UTC) while `formatLastPlayed`
+  compares against a *local* date, so east of UTC every session before the UTC
+  rollover (00:00–05:30 local in UTC+5:30 — i.e. this project's own users)
+  displayed as "yesterday" the moment it was played. `retention.ts` already
+  had `todayLocal()` and already explained why local is the right clock; the
+  games simply weren't using it. Now exported and used everywhere, including
+  `quiz.ts`.
+- **Previous ship (2026-08-22)**: **Where's Teddy?** — fifth of the six-game
   August arc, and the first game teaching spatial/positional language
   (`in / on / under / next to / behind`). A run is the full 5 × 5 grid: every
   preposition asked about every object/landmark pair, because "under" is only
@@ -555,9 +617,10 @@ this family stays at one for now.)
   (candidate A) + **Sorting Friends** (candidate B) shipped 2026-06-06;
   **Week Friends** + **Days Parade** shipped 2026-06-17; **Animal Sounds** and
   **Feeling Friends** shipped 2026-08-17; **Opposites Friends**, **Rhyme
-  Time** and **Where's Teddy?** shipped 2026-08-22 (**5 of the 6 designs
-  done**). Remaining in the set: **Memory Match**, which is still blocked on an
-  open question (Q5, board progression).
+  Time** and **Where's Teddy?** shipped 2026-08-22; **Memory Match** shipped
+  2026-08-23. **The six-game set is complete** — the design doc's remaining
+  open question is Q6 (palette headroom for a future stats family), which
+  blocks nothing that is currently planned.
 - **Open queued work**:
   - **T9** — replace Web Speech with pre-recorded MP3 narration (parked on the
     user's recording session; integration is ~30–45 min of agent work once MP3s

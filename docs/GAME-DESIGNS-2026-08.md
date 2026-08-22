@@ -390,6 +390,34 @@ meaningless for a memory board. See **Q5**.
 - Theme key `memorymatch`.
 - Stats family: `preschool-cognitive`.
 
+### What actually shipped (2026-08-23)
+
+> The softened mechanic above shipped as written, and the reasoning got
+> sharper in the process: a non-match isn't a *softened* wrong answer, it
+> isn't a wrong answer at all, which is now an explicit exception under
+> CONTEXT.md §5 rule 8.
+>
+> Three corrections to the plan. The **pool grew 8 → 13**, because 3 + 4 + 6
+> pairs is 13 and that lets a run deal every animal exactly once (see Q5).
+> **`rounds` counts pairs found**, not boards completed — boards are derivable
+> (three per run) and pairs are what makes `correctFirstTry / rounds` mean
+> something. And `correctFirstTry` shipped as *"matched without either card
+> having been turned over and missed earlier"*, i.e. found by remembering
+> rather than by elimination.
+>
+> The real difficulty was not the mechanic but **fitting the board on a
+> screen**. Sized by width alone, the twelve-card board pushed its bottom row
+> under the fold on a phone, and a child memorising positions cannot scroll to
+> see the rest of it — so that is a broken mechanic, not a layout blemish.
+> Cards are now sized by whichever axis runs out first, and the spec asserts
+> at three viewports that nothing falls below the fold.
+>
+> Two smaller ones, both found by looking at a screenshot rather than by a
+> test: the animal emoji rendered at a quarter of the card (`.mm-card` is a
+> `<button>`, buttons don't inherit font-size, so `em` resolved against the
+> UA's ~13px default), and the spoken lines said "A elephant", "fishs" and
+> "butterflys" — plural and article are now per-animal literals in the data.
+
 ---
 
 ## 7. Proposed build sequence
@@ -403,7 +431,7 @@ Ordered by ascending risk, so early wins de-risk the later ones.
 | 3 | **Opposites Friends** | 2 cards (bug fix) | Touches shipped Flashcards content | Shipped 2026-08-22. The Flashcards risk never materialised — it reads the deck rather than editing it, and pins the two unusable emoji locally instead. |
 | 4 | **Rhyme Time** | Restructure 10 pairs | Distractors must not accidentally rhyme | Shipped 2026-08-22. The named risk was cheap to retire — unique rimes per family plus a load-time assertion make a rhyming distractor unrepresentable. The unforeseen one was **pronunciation**: a bare rime, and the homograph `bow`, both mislead by ear, which cost one pair. |
 | 5 | **Where's Teddy?** | 5 prepositions × 5 pairs | "Behind" may not read visually | **Shipped 2026-08-22.** The risk was real but the fallback wasn't needed — see §5. |
-| 6 | **Memory Match** | Curate 8 | Errorless tension; new mechanic | Blocked on **Q5**. |
+| 6 | **Memory Match** | Curate 8 | Errorless tension; new mechanic | **Shipped 2026-08-23.** Both named risks were real and both were cheap. The errorless tension resolved by noticing a non-match isn't a wrong answer at all, so rule 8 simply doesn't apply. The pool grew 8 → 13 so a run could deal it exactly once. The unforeseen risk was **layout**: a twelve-card board sized by width alone puts its bottom row under the fold, and a child memorising positions can't scroll. |
 
 Each game ships as its own commit with its own Playwright spec, keeping the suite
 green (baseline was 148 tests in 17 files on 2026-08-17; 170 in 19 after the
@@ -415,11 +443,12 @@ Friends suite).
 
 ## 8. Open questions blocking the build
 
-> **Q1–Q4 are answered** (see the status block at the top); they are kept here
-> for the reasoning, not as open work. **Q5 and Q6 are still open**, and Q6 got
-> narrower: indigo `#6366f1` is now taken by `preschool-social`, so a future
-> family has to be distinct from *seven* dots, and cyan `#06b6d4` sits close to
-> the teal `#14b8a6` already used by `preschool-cognitive`.
+> **Q1–Q5 are answered** (see the status block at the top, and the answer
+> inline under Q5); they are kept here for the reasoning, not as open work.
+> **Only Q6 is still open**, and it got narrower: indigo `#6366f1` is now taken
+> by `preschool-social`, so a future family has to be distinct from *seven*
+> dots, and cyan `#06b6d4` sits close to the teal `#14b8a6` already used by
+> `preschool-cognitive`. Nothing currently planned is blocked on it.
 
 **Q1 — Stats families.** Feeling Friends clearly needs a new `preschool-social`
 family. Animal Sounds is science/listening, which fits no existing family well.
@@ -442,6 +471,27 @@ shipped Animals game's deck) or defining them locally in `animal-sounds.ts`.
 
 **Q5 — Memory Match progression.** Bespoke board-size progression, or bend
 `preschool-stages.ts` to cover it?
+
+> **Answered 2026-08-23: neither.** The growth is the shape of **one run** —
+> a sitting plays all three boards back to back, 3 → 4 → 6 pairs, and nothing
+> about difficulty is persisted.
+>
+> It fell out of §5 rule 11 once someone noticed that **3 + 4 + 6 = 13**, so a
+> run can deal every animal in the pool exactly once and finish. That also
+> removes what made the question hard: `StageMeta` is
+> `{ rounds, maxN, frameSize, allThemes }`, of which `maxN` and `frameSize`
+> are meaningless for a memory board, and widening a three-consumer shared
+> module to carry two dead fields for a fourth consumer makes it worse for
+> the three using it properly.
+>
+> Growing inside a sitting is also better pedagogy than growing across them.
+> A stage the child has to re-earn depends on what happened last time, which
+> a 3-year-old doesn't remember and a parent can't see; three boards in a row
+> ramp while she is already warmed up, and every play ends on the hardest
+> board she can do.
+>
+> Generalised into CONTEXT.md §5 rule 11: **before adding stage state, check
+> whether the ramp fits inside a run.**
 
 **Q6 — Palette.** Six families already claim green, pink, teal, blue, amber,
 purple. New families need visibly distinct dots on the `/stats` activity chart;

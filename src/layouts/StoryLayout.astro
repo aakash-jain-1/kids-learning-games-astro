@@ -126,7 +126,8 @@ interface Props {
     | 'feelingfriends'
     | 'oppositesfriends'
     | 'rhymetime'
-    | 'wheresteddy';
+    | 'wheresteddy'
+    | 'memorymatch';
 }
 
 const {
@@ -286,5 +287,9 @@ const canonicalUrl =
   html.pre-dark body.story[data-theme='wheresteddy'] {
     background: #1b1030;
     color: #ece4ff;
+  }
+  html.pre-dark body.story[data-theme='memorymatch'] {
+    background: #2a1206;
+    color: #ffe8d6;
   }
 </style>

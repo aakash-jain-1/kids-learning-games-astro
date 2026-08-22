@@ -417,7 +417,91 @@ before deciding.
 
 ## Changelog
 
-### 2026-08-22 (latest) — fix(wheres-teddy): tune the scene offsets to both emoji fonts, not just Windows'
+### 2026-08-23 (latest) — feat(games): Memory Match — working memory (29th game), and the August arc closes
+
+Sixth and last of the 2026-08 design set (docs/GAME-DESIGNS-2026-08.md §6), and
+the first game here whose skill is **remembering** rather than recognising,
+discriminating or sequencing. Cards face down, flip two, keep them if they
+match. No timer, no move counter, no score.
+
+**A non-match is not a wrong answer.** This is the one preschool game that
+deliberately does not apply §5 rule 8, and the reasoning is the part worth
+keeping. Rule 8 governs answers that are *wrong*; turning over two cards that
+don't match is how memory is played. On the first flip of a board there is no
+information to be wrong about, and a child playing perfectly still turns over
+non-matching pairs. Red-tinting the primary mechanic would mean punishing her
+for doing the thing correctly. So a non-match holds both cards face up ~1.4s,
+*names* them — "A pig and a lion. Not a pair yet. Remember where they are!" —
+and turns them back with no tone and no shake. The rule now carries an explicit
+exception, phrased as a check: before applying it to a new game, confirm the
+tap it punishes is actually a mistake.
+
+**Q5 was answered by dissolving it.** The design doc wanted the board to grow
+3 → 4 → 6 pairs and asked whether that needed a bespoke stage model or a bent
+`preschool-stages.ts`. Neither: **3 + 4 + 6 = 13**, so a pool of 13 animals is
+dealt exactly once across three boards played back to back, and the growth
+becomes the shape of one run (§5 rule 11) with nothing persisted. That also
+sidesteps what made the question awkward — `StageMeta` is
+`{ rounds, maxN, frameSize, allThemes }` and two of those are meaningless for a
+memory board, so widening a three-consumer module for a fourth would have made
+it worse for the three using it properly. Growing inside a sitting is the
+better pedagogy anyway: a stage you re-earn depends on last time, which a
+3-year-old doesn't remember and a parent can't see.
+
+**The bug worth recording is a layout one.** Sized by width alone — the obvious
+way, and what every sibling game does — the twelve-card board pushed its bottom
+row under the fold on a phone. That is not a cosmetic overflow: *a child
+memorising positions cannot scroll to see the rest of the board*, so the
+mechanic is simply broken. Cards are now sized by whichever axis runs out
+first, `min(width available across the columns, height available across the
+rows)`, with a floor that keeps them tappable. `tests/memory-match.spec.ts`
+asserts at phone, tablet and desktop that no card falls below the fold; removing
+the height term fails the phone case, which is how it was checked for being
+vacuous.
+
+Two smaller defects, both found by looking at a screenshot rather than by a
+test:
+
+- The animal emoji rendered at roughly a quarter of the card. `.mm-card` is a
+  `<button>`, buttons **don't inherit font-size**, so `font-size: 2.9em`
+  resolved against the UA's ~13px button default rather than the page. Both
+  faces now scale from the card's own width.
+- The spoken lines said "A elephant", "fishs" and "butterflys". Plural and
+  article are now per-animal literals in the data, not derived — every one of
+  these words is read aloud, and both rules have exceptions inside this very
+  pool.
+
+Also here: matched cards **stay on the board** face up instead of being
+removed, because removing them reflows the grid and destroys the positions
+being memorised; the spec pins every card's rect across a match. Card backs are
+asserted pixel-identical (a back that differed by a character would make the
+board readable without flipping) and carry an identical `aria-label`, so the
+same is true through a screen reader. 16 new tests, 238 pass.
+
+### 2026-08-23 — fix(stats): `lastPlayed` was stamped in UTC and compared in local time
+
+Found by the suite failing at 00:35 local, which is 19:05 UTC the previous day.
+
+All 16 per-game `lastPlayed` writes used
+`new Date().toISOString().slice(0, 10)` — a **UTC** date — while
+`formatLastPlayed` in `retention.ts` compares against a **local** one. East of
+UTC that disagrees for the whole window between local midnight and the UTC
+rollover: in UTC+5:30, every session played between 00:00 and 05:30 local
+displayed as *"yesterday"* the moment it finished, and the `/stats` activity
+dot for the same play landed on the right day while the card said the wrong
+one. This project's own users are in that timezone; CI runs in UTC and never
+saw it.
+
+`retention.ts` already had `todayLocal()`, and its comment already explained
+why local is the right clock for "did we play today" — the games just weren't
+using it. It is now exported and used by all 15 game pages plus `quiz.ts`, and
+the UTC form is gone from `src/`.
+
+Worth noting how it surfaced: no assertion was written for this. A date test
+happened to run either side of a boundary that only exists off-UTC. Tests that
+touch "today" are worth running once at an awkward hour.
+
+### 2026-08-22 — fix(wheres-teddy): tune the scene offsets to both emoji fonts, not just Windows'
 
 CI went red on the ship below, and it was right to. The per-pair `on` /
 `behind` offsets were measured against **Segoe UI Emoji**, the font on the

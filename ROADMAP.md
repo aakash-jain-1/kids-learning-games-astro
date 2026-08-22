@@ -20,6 +20,7 @@ and the bootstrap context in [CONTEXT.md](CONTEXT.md).
 | Cognitive — sorting / categorization | Partial (1) | Sorting Friends (single-attribute sort: habitat / kind / size) |
 | Cognitive — contrast / vocabulary | Partial (1) | Opposites Friends (10 opposite pairs, asked both directions) |
 | Cognitive — spatial / positional language | Partial (1) | Where's Teddy? (5 prepositions, each asked about all 5 object/landmark pairs) |
+| Cognitive — working memory | Partial (1) | Memory Match (3 → 4 → 6 pair boards in one run; the 13-animal pool dealt once) |
 | Cognitive — temporal sequencing (days / time) | Partial (2) | Days Parade (learn/meet all 7 days), Week Friends (days of the week — "what comes next?") |
 | Social-emotional (emotions / empathy) | Partial (1) | Feeling Friends (name the feeling on a face; infer it from a situation) |
 | Listening / auditory discrimination | Partial (1) | Animal Sounds (match a call to the animal that makes it) |
@@ -35,9 +36,10 @@ tap — see CONTEXT.md §5 rule 8); every game from C onward adopts it. The rank
 letters below are the original payoff ranking; the **build order** is the
 ascending-risk sequence in
 [docs/GAME-DESIGNS-2026-08.md](docs/GAME-DESIGNS-2026-08.md) §7, which is why
-Opposites Friends (I) went before Rhyme Time (D). **Memory Match is next**, and
-is the last of the 2026-08 design set — it is still blocked on Q5 (board
-progression), so that question needs answering before it can start.
+Opposites Friends (I) went before Rhyme Time (D). **The 2026-08 design set is
+complete** as of 2026-08-23 (Memory Match, the last of the six, shipped). The
+candidates below with no ship date are the remaining ranked ideas; none is
+currently in progress.
 
 | # | Game | Domain | Core skill / mechanic | Status |
 |---|---|---|---|---|
@@ -47,7 +49,7 @@ progression), so that question needs answering before it can start.
 | D | **Rhyme Time** | Literacy (phonological awareness) | "What rhymes with cat? hat / dog / star." Audio-first; recognition emerges at 3, production ~4. Shipped with the rime shown but never spoken (TTS can't be trusted with a bare rime), and a tier-3 distractor that shares the target's *first* sound so the round can only be won by listening to the end. | **Done 2026-08-22** ([PROGRESS.md](PROGRESS.md)) |
 | E | **Feeling Friends** | Social-emotional | "Show me happy" — tap the face / read a feeling. Opened the SEL domain, and the `preschool-social` stats family with it. Built to the agreed scope: tiers 1–2 face recognition + tier 3 situational vignettes. | **Done 2026-08-17** ([PROGRESS.md](PROGRESS.md)) |
 | J | **Where's Teddy?** | Language (spatial / positional words) | "Where is teddy? in / on / under / behind." Tap the picture where teddy is. Came from the 2026-08 design set rather than the original payoff ranking, which is why it has no earlier letter. Shipped with all five prepositions rather than the three the design doc was ready to fall back to: `in` and `behind` are the one pair flat emoji cannot draw distinguishably, so they are simply never offered in the same round. | **Done 2026-08-22** ([PROGRESS.md](PROGRESS.md)) |
-| F | **Memory Match** | Cognitive (working memory) | Flip cards to find matching pairs. New mechanic; reuses any card deck (animals / shapes / colors). | Queued — designed, **blocked on Q5** (board progression) |
+| F | **Memory Match** | Cognitive (working memory) | Flip cards to find matching pairs. Q5 was answered by dissolving it: the board growth the design doc wanted as persisted stages (3 → 4 → 6 pairs) is exactly the 13-animal pool, so it became three boards inside **one run** and no stage state was needed. The one game that deliberately does not apply the wrong-answer rule — a non-match is how memory is played, not a mistake. | **Done 2026-08-23** ([PROGRESS.md](PROGRESS.md)) |
 | I | **Opposites Friends** | Cognitive (contrast / vocabulary) | "Big — which one is small?" Tap the opposite. Generalises the More Friends contrast to 10 pairs, asked in both directions. Shipped with declared meaning-collision groups (`big/heavy/strong`, `small/light/weak`) so no wrong tap is ever defensible. | **Done 2026-08-22** ([PROGRESS.md](PROGRESS.md)) |
 | G | **Week Friends** (Days of the Week) | Cognitive (temporal sequencing) | "What day comes next?" Run of days + "?" slot, tap the next day. Sunday-first like the song; errorless "let's sing the days" reveal. User-requested. | **Done 2026-06-17** ([PROGRESS.md](PROGRESS.md)) |
 | H | **Days Parade** (Learn the Days) | Cognitive (temporal — foundation) | Meet/learn all 7 days first: tap each to hear it, "Sing the days" walk in order, "Today is…" badge, collect-them-all. The prequel to Week Friends (learn → then sequence). User-requested. | **Done 2026-06-17** ([PROGRESS.md](PROGRESS.md)) |

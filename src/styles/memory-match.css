@@ -1,0 +1,535 @@
+/**
+ * Memory Match — working memory.
+ *
+ * Two things in here are load-bearing rather than decorative.
+ *
+ * **The flip is a real 3D rotation**, not a swap of contents. A card that
+ * turns over reads as the *same* card showing its other side, which is what
+ * makes "remember where it is" a coherent instruction; cross-fading the face
+ * in reads as two different cards occupying a slot and quietly breaks the
+ * mental model the game runs on.
+ *
+ * **Matched cards stay on the board**, face up and settled, rather than
+ * vanishing. A 3-year-old tracking position needs the layout to hold still —
+ * removing tiles reflows everything they had just memorised. It also lets the
+ * finished board be looked at, which is the reward.
+ */
+
+/* ── Theme tokens ──────────────────────────────────────────────────── */
+
+body.story[data-theme='memorymatch'] {
+  --st-bg: linear-gradient(135deg, #fff1e6 0%, #ffe4d3 100%);
+  /* Pale page tint: the shared white title would be invisible on it.
+     See --st-title-color in story.css. */
+  --st-title-color: #7c2d12;
+  --st-title-shadow: none;
+
+  --mm-accent: #ea580c;
+  --mm-accent-soft: rgba(234, 88, 12, 0.16);
+
+  /* The card back. Held constant for every card on every board — the backs
+     must be indistinguishable or the game is solvable without memory. */
+  --mm-back-bg: linear-gradient(145deg, #fb923c 0%, #ea580c 55%, #c2410c 100%);
+  --mm-back-ink: rgba(255, 255, 255, 0.9);
+
+  --mm-face-bg: #fffaf5;
+  --mm-face-border: rgba(234, 88, 12, 0.22);
+  --mm-card-shadow: 0 6px 16px rgba(124, 45, 18, 0.2);
+
+  --mm-matched-bg: #eafbe7;
+  --mm-matched-border: rgba(46, 125, 50, 0.4);
+
+  --mm-caption-bg: rgba(255, 255, 255, 0.94);
+  --mm-caption-text: #4a2010;
+
+  --mm-pill-bg: rgba(255, 255, 255, 0.9);
+  --mm-pill-text: #7c2d12;
+}
+
+/* Per-board scenery, set on the stage by the page script. Each board in a
+   run gets a different one so a new board feels like a new place. */
+body.story[data-theme='memorymatch'] .mm-stage[data-scene='pond'] {
+  --st-bg: linear-gradient(180deg, #b8e0ff 0%, #6fb6e6 60%, #4a8c4a 100%);
+}
+body.story[data-theme='memorymatch'] .mm-stage[data-scene='orchard'] {
+  --st-bg: linear-gradient(180deg, #ffe6c8 0%, #ffb88c 50%, #88b94a 100%);
+}
+body.story[data-theme='memorymatch'] .mm-stage[data-scene='sea'] {
+  --st-bg: linear-gradient(180deg, #b3e8ec 0%, #4dc4cf 60%, #f4d97a 100%);
+}
+body.story[data-theme='memorymatch'] .mm-stage[data-scene='garden'] {
+  --st-bg: linear-gradient(180deg, #fff4b8 0%, #ffd666 60%, #6fbf3a 100%);
+}
+body.story[data-theme='memorymatch'] .mm-stage[data-scene='meadow'] {
+  --st-bg: linear-gradient(180deg, #d6f5c8 0%, #9bd96f 55%, #5aa83a 100%);
+}
+body.story[data-theme='memorymatch'] .mm-stage[data-scene='jungle'] {
+  --st-bg: linear-gradient(180deg, #c2f0d8 0%, #5cbf8a 55%, #2f7d52 100%);
+}
+
+body.story[data-theme='memorymatch'] {
+  background: var(--st-bg);
+}
+
+/* ── Layout shell ──────────────────────────────────────────────────── */
+
+body.story[data-theme='memorymatch'] .mm-shell {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 16px 20px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: calc(100vh - 36px);
+}
+
+body.story[data-theme='memorymatch'] .mm-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+body.story[data-theme='memorymatch'] .mm-title {
+  margin: 0;
+  font-size: clamp(1.6em, 4vw, 2.2em);
+  color: var(--st-title-color);
+  text-shadow: var(--st-title-shadow);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+body.story[data-theme='memorymatch'] .mm-progress-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--mm-pill-bg);
+  color: var(--mm-pill-text);
+  font-weight: 700;
+  font-size: 0.95em;
+  white-space: nowrap;
+}
+
+body.story[data-theme='memorymatch'] .mm-progress-bar {
+  display: inline-block;
+  width: 74px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--mm-accent-soft);
+  overflow: hidden;
+}
+
+body.story[data-theme='memorymatch'] .mm-progress-fill {
+  display: block;
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: var(--mm-accent);
+  transition: width 0.3s ease;
+}
+
+/* ── Stage ─────────────────────────────────────────────────────────── */
+
+body.story[data-theme='memorymatch'] .mm-stage {
+  position: relative;
+  /* Reads `--st-bg` from the `data-scene` rules above, which set it on this
+     element — a `background` on `body` can never see a custom property
+     written on a descendant. The veil is a stacked background layer rather
+     than a `filter`, so the white cards inside stay bright in dark mode. */
+  background:
+    linear-gradient(
+      rgba(40, 16, 4, var(--mm-scene-veil, 0)),
+      rgba(40, 16, 4, var(--mm-scene-veil, 0))
+    ),
+    var(--st-bg);
+  border-radius: 24px;
+  padding: 22px 16px 26px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  min-height: 420px;
+  transition: background 0.5s ease;
+}
+
+body.story[data-theme='memorymatch'] .mm-caption {
+  background: var(--mm-caption-bg);
+  color: var(--mm-caption-text);
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: clamp(0.95em, 2.4vw, 1.1em);
+  text-align: center;
+  max-width: 92%;
+  animation: mm-caption-in 0.28s ease;
+}
+
+@keyframes mm-caption-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ── The board ─────────────────────────────────────────────────────── */
+
+/**
+ * Column counts are per board size rather than auto-fitting, because the
+ * shape of the grid is part of what the child memorises — "the cow is top
+ * right" only survives if the grid keeps the same shape while cards are
+ * turned over. Auto-fit would reflow at awkward widths mid-board.
+ *
+ * **The whole board has to be on screen at once.** This is the one layout
+ * constraint the game cannot trade away: a child memorising positions cannot
+ * scroll to see the rest of the board, and a twelve-card board sized only by
+ * width pushes its bottom row under the fold on a phone. So each card is
+ * sized by whichever axis runs out first — the width left across the
+ * columns, or the height left across the rows — with a hard floor so the
+ * cards stay tappable on a short landscape screen even if that means the
+ * page scrolls after all.
+ *
+ * The height terms below are `(available - gaps) * 3 / (4 * rows)`, i.e. the
+ * card width implied by a 3:4 card when `rows` of them have to fit.
+ */
+body.story[data-theme='memorymatch'] .mm-board {
+  --mm-gap: clamp(8px, 1.8vw, 14px);
+  --mm-avail-h: min(52vh, 460px);
+  display: grid;
+  justify-content: center;
+  gap: var(--mm-gap);
+}
+
+/* 3 pairs — 3 columns x 2 rows. */
+body.story[data-theme='memorymatch'] .mm-board[data-pairs='3'] {
+  --mm-w: max(
+    56px,
+    min(calc((100vw - 96px) / 3), calc((var(--mm-avail-h) - var(--mm-gap)) * 0.375), 132px)
+  );
+  grid-template-columns: repeat(3, var(--mm-w));
+}
+
+/* 4 pairs — 4 columns x 2 rows. */
+body.story[data-theme='memorymatch'] .mm-board[data-pairs='4'] {
+  --mm-w: max(
+    56px,
+    min(calc((100vw - 108px) / 4), calc((var(--mm-avail-h) - var(--mm-gap)) * 0.375), 124px)
+  );
+  grid-template-columns: repeat(4, var(--mm-w));
+}
+
+/* 6 pairs — 4 columns x 3 rows. */
+body.story[data-theme='memorymatch'] .mm-board[data-pairs='6'] {
+  --mm-w: max(
+    56px,
+    min(
+      calc((100vw - 108px) / 4),
+      calc((var(--mm-avail-h) - 2 * var(--mm-gap)) * 0.25),
+      116px
+    )
+  );
+  grid-template-columns: repeat(4, var(--mm-w));
+}
+
+/* ── A card ────────────────────────────────────────────────────────── */
+
+body.story[data-theme='memorymatch'] .mm-card {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  border: none;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  perspective: 800px;
+  -webkit-tap-highlight-color: transparent;
+  animation: mm-deal 0.34s ease both;
+  animation-delay: var(--mm-i, 0s);
+}
+
+@keyframes mm-deal {
+  from { opacity: 0; transform: translateY(16px) scale(0.9); }
+  to   { opacity: 1; transform: none; }
+}
+
+body.story[data-theme='memorymatch'] .mm-card:hover:not(:disabled) {
+  transform: translateY(-3px);
+}
+
+body.story[data-theme='memorymatch'] .mm-card:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/**
+ * A matched card is `disabled` because it can no longer be played, but it
+ * must NOT read as greyed-out furniture — it is the child's trophy and the
+ * thing they scan to see how far they have got. So the §5 rule 10 corollary
+ * (a disabled control must not render at full strength) is satisfied by the
+ * settled green face rather than by dimming, and the cursor still says
+ * "not tappable".
+ */
+body.story[data-theme='memorymatch'] .mm-card:disabled {
+  cursor: default;
+}
+
+body.story[data-theme='memorymatch'] .mm-card-inner {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transition: transform 0.38s cubic-bezier(0.4, 0.1, 0.3, 1.2);
+  border-radius: 14px;
+}
+
+body.story[data-theme='memorymatch'] .mm-card--up .mm-card-inner,
+body.story[data-theme='memorymatch'] .mm-card--matched .mm-card-inner {
+  transform: rotateY(180deg);
+}
+
+body.story[data-theme='memorymatch'] .mm-face {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  box-shadow: var(--mm-card-shadow);
+}
+
+/**
+ * Both faces size their glyph from the card itself (`--mm-w`, set per board
+ * size above) rather than from `em` or `vw`.
+ *
+ * `em` is actively wrong here: `.mm-card` is a `<button>`, and a button does
+ * not inherit font-size, so `em` resolves against the UA's ~13px button
+ * default and the animal came out about a quarter of the card. On a memory
+ * card the picture *is* the content — it has to be recognisable in the
+ * half-second it is face up — so it scales with the card on every board and
+ * every screen instead.
+ */
+body.story[data-theme='memorymatch'] .mm-face--back,
+body.story[data-theme='memorymatch'] .mm-face--front {
+  line-height: 1;
+}
+
+/* A paw rather than a "?": the audience can't read punctuation yet, and it
+   quietly says "animals under here". Small and held back, so the backs stay
+   a flat uniform field — anything eye-catching would pull taps toward
+   whichever card the child happened to be looking at. */
+body.story[data-theme='memorymatch'] .mm-face--back {
+  background: var(--mm-back-bg);
+  color: var(--mm-back-ink);
+  font-size: calc(var(--mm-w, 100px) * 0.28);
+  opacity: 0.92;
+}
+
+body.story[data-theme='memorymatch'] .mm-face--front {
+  background: var(--mm-face-bg);
+  border: 2px solid var(--mm-face-border);
+  transform: rotateY(180deg);
+  font-size: calc(var(--mm-w, 100px) * 0.6);
+}
+
+body.story[data-theme='memorymatch'] .mm-card--matched .mm-face--front {
+  background: var(--mm-matched-bg);
+  border-color: var(--mm-matched-border);
+  animation: mm-pop 0.42s ease;
+}
+
+@keyframes mm-pop {
+  0%   { transform: rotateY(180deg) scale(1); }
+  45%  { transform: rotateY(180deg) scale(1.14); }
+  100% { transform: rotateY(180deg) scale(1); }
+}
+
+/**
+ * A non-match gets a soft neutral pulse — no red, no shake, no error tone.
+ * See the data module's header: turning over two cards that don't match is
+ * how the game is played, not a mistake, so §5 rule 8's wrong-answer
+ * treatment is deliberately not applied here.
+ */
+body.story[data-theme='memorymatch'] .mm-card--miss .mm-face--front {
+  animation: mm-miss 0.7s ease;
+}
+
+@keyframes mm-miss {
+  0%, 100% { box-shadow: var(--mm-card-shadow); }
+  50%      { box-shadow: 0 0 0 4px var(--mm-accent-soft), var(--mm-card-shadow); }
+}
+
+/* ── Footer ────────────────────────────────────────────────────────── */
+
+body.story[data-theme='memorymatch'] .mm-footer {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+body.story[data-theme='memorymatch'] .mm-action {
+  border: none;
+  border-radius: 999px;
+  padding: 12px 22px;
+  font-family: inherit;
+  font-size: 1em;
+  font-weight: 700;
+  background: #ffffff;
+  color: #7c2d12;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(124, 45, 18, 0.16);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+body.story[data-theme='memorymatch'] .mm-action:hover {
+  transform: translateY(-2px);
+}
+
+body.story[data-theme='memorymatch'] .mm-action--primary {
+  background: var(--mm-accent);
+  color: #ffffff;
+}
+
+/* §5 rule 10 corollary: a disabled control must not render at full
+   strength, or it reads as tappable for the whole time it isn't. */
+body.story[data-theme='memorymatch'] .mm-action[disabled] {
+  opacity: 0.5;
+  cursor: default;
+  transform: none;
+}
+
+/* ── Run complete ──────────────────────────────────────────────────── */
+
+body.story[data-theme='memorymatch'] .mm-done {
+  position: fixed;
+  inset: 0;
+  display: none;
+  place-items: center;
+  background: rgba(40, 16, 4, 0.55);
+  z-index: 60;
+  padding: 20px;
+}
+
+body.story[data-theme='memorymatch'] .mm-done--show {
+  display: grid;
+}
+
+body.story[data-theme='memorymatch'] .mm-done-card {
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 30px 28px;
+  text-align: center;
+  max-width: 420px;
+  animation: mm-caption-in 0.32s ease;
+}
+
+body.story[data-theme='memorymatch'] .mm-done-emoji {
+  font-size: 3.2em;
+  line-height: 1;
+}
+
+body.story[data-theme='memorymatch'] .mm-done-title {
+  margin: 10px 0 6px;
+  color: var(--mm-accent);
+}
+
+body.story[data-theme='memorymatch'] .mm-done-text {
+  margin: 0 0 18px;
+  color: #6b4030;
+}
+
+body.story[data-theme='memorymatch'] .mm-done-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ── Dark mode ─────────────────────────────────────────────────────── */
+
+body.dark-mode.story[data-theme='memorymatch'] {
+  /* The page background HAS to be redefined here. Without it `body` keeps
+     resolving `--st-bg` to the *light* gradient at the top of this file
+     while every token below flips to its dark value — the bug that shipped
+     in ten sibling themes and was fixed across all of them 2026-08-22. */
+  --st-bg: linear-gradient(135deg, #2a1206 0%, #3d1c0a 100%);
+  --st-title-color: #ffe8d6;
+  --st-title-shadow: 2px 2px 8px rgba(0, 0, 0, 0.45);
+  --mm-scene-veil: 0.66;
+
+  /* Card faces stay light. They hold emoji that need a bright ground to
+     read, and they sit on a veiled stage so they don't glare. */
+  --mm-face-bg: #f7ece2;
+  --mm-face-border: rgba(234, 88, 12, 0.35);
+  --mm-card-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+
+  --mm-matched-bg: #d8ecd2;
+  --mm-matched-border: rgba(46, 125, 50, 0.55);
+
+  --mm-caption-bg: rgba(50, 24, 10, 0.94);
+  --mm-caption-text: #ffe8d6;
+
+  --mm-pill-bg: rgba(61, 28, 10, 0.92);
+  --mm-pill-text: #ffe8d6;
+}
+
+body.dark-mode.story[data-theme='memorymatch'] .mm-done-card {
+  background: #3d1c0a;
+}
+
+body.dark-mode.story[data-theme='memorymatch'] .mm-done-text {
+  color: #e8c9b4;
+}
+
+body.dark-mode.story[data-theme='memorymatch'] .mm-action {
+  background: #52260e;
+  color: #ffe8d6;
+}
+
+body.dark-mode.story[data-theme='memorymatch'] .mm-action--primary {
+  background: var(--mm-accent);
+  color: #ffffff;
+}
+
+/* ── Small screens ─────────────────────────────────────────────────── */
+
+@media (max-width: 560px) {
+  body.story[data-theme='memorymatch'] .mm-shell {
+    padding: 12px 12px 72px;
+  }
+  body.story[data-theme='memorymatch'] .mm-stage {
+    padding: 16px 10px 20px;
+    min-height: 380px;
+  }
+  /* The twelve-card board drops to three columns so the cards stay big
+     enough to tap and to read. Four rows is fine — the shape only has to be
+     stable *within* a board, and it is. */
+  body.story[data-theme='memorymatch'] .mm-board[data-pairs='6'] {
+    --mm-w: max(
+      52px,
+      min(
+        calc((100vw - 84px) / 3),
+        calc((var(--mm-avail-h) - 3 * var(--mm-gap)) * 0.1875),
+        116px
+      )
+    );
+    grid-template-columns: repeat(3, var(--mm-w));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.story[data-theme='memorymatch'] .mm-card,
+  body.story[data-theme='memorymatch'] .mm-caption,
+  body.story[data-theme='memorymatch'] .mm-done-card {
+    animation: none;
+  }
+  body.story[data-theme='memorymatch'] .mm-card-inner {
+    transition: none;
+  }
+  body.story[data-theme='memorymatch'] .mm-card--matched .mm-face--front,
+  body.story[data-theme='memorymatch'] .mm-card--miss .mm-face--front {
+    animation: none;
+  }
+}
