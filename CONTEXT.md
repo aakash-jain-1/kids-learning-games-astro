@@ -6,13 +6,15 @@
 > win. Keep it short and current — see the update rule in
 > `.cursor/rules/maintain-context.mdc`.
 >
-> **Last verified against the codebase**: 2026-08-22 (Rhyme Time shipped —
-> game count now 27, fourth of the six-game August arc, filed under the
-> existing `preschool-literacy` family. Same day: the shared `.ctrl-pill`
-> control chips were fixed after measuring 1.07:1 contrast on most surfaces,
-> which added §5 rule 10; Opposites Friends shipped; and a `clip.ts` playback
-> bug fixed that made Animal Sounds narrate over its own correction. Platform
-> note corrected — the dev box is Windows, not macOS).
+> **Last verified against the codebase**: 2026-08-22 (Animal Sounds expanded to
+> **27 animals played as one continuous run** instead of an 8-round session,
+> which added §5 rule 11 — the no-sessions direction is project-wide intent for
+> bounded-set games. Game count unchanged at 27. Same day, earlier: Rhyme Time
+> shipped (fourth of the six-game August arc); the shared `.ctrl-pill` chips
+> were fixed after measuring 1.07:1 contrast, adding §5 rule 10; Opposites
+> Friends shipped; and a `clip.ts` playback bug fixed that made Animal Sounds
+> narrate over its own correction. Platform note corrected — the dev box is
+> Windows, not macOS).
 
 ---
 
@@ -51,14 +53,23 @@ static output; only interactive islands ship JavaScript.
   `src/service-worker.ts` (Workbox: precaching + `StaleWhileRevalidate` for
   the GitHub API + `setCatchHandler` offline fallback). `globPatterns` includes
   `mp3` so the vendored animal calls work offline.
-- **Vendored audio**: `public/sounds/animals/` holds 17 real animal recordings
-  (~500KB) used as the Animal Sounds prompts, with licences and the mastering
-  standard in `public/sounds/animals/CREDITS.md`. Re-mastering clips needs
-  **ffmpeg** (`brew install ffmpeg`); nothing else in the build does.
+- **Vendored audio**: `public/sounds/animals/` holds **27** real animal
+  recordings (~800KB) used as the Animal Sounds prompts, with licences and the
+  mastering standard in `public/sounds/animals/CREDITS.md`. Re-mastering clips
+  needs **ffmpeg**; nothing else in the build does. Loudness is matched on
+  **EBU R128 integrated LUFS**, not RMS — RMS averages the silence between calls
+  in, so sparse ones measure quiet while sounding fine (see CREDITS for the
+  full rule, including why clips are only ever attenuated, never boosted).
 - **Playwright** smoke tests (chromium-only, run against `astro preview`).
   Note `preview` serves `dist/`, so the suite tests the **last build** — rebuild
   before trusting a run. Bundled Chromium also has no MP3 codec, so playback
   can't be asserted there; only that clips are requested and served.
+  **Local workers are capped at 4** (CI stays at 1). Workers aren't CPU-bound
+  here — every game page pulls its Fluent 3D art from jsDelivr and specs
+  navigate with `waitUntil: 'load'` — so past ~4 browsers the CDN throttles and
+  specs fail on navigation timeout *while showing a fully rendered page*. If you
+  ever see that failure shape in specs you didn't touch, suspect concurrency,
+  not the game.
 - **CI**: `.github/workflows/deploy.yml` runs `test → build → deploy` to GH
   Pages on push to `main` (Playwright is a **hard deploy gate**).
   `test.yml` runs the suite independently for badge/PR feedback.
@@ -141,9 +152,27 @@ data file + a layout-specific themed CSS block. A parent dashboard lives at
     set (§7), so the dark variant would land on a light page. `currentColor`
     is no safer there, since those themes inherit white text onto that light
     background. `.ctrl-pill` is the worked example (self-contained dark chip,
-    white label); `tests/ctrl-pills.spec.ts` enforces it from rendered pixels
-    rather than from CSS values, which is the only way the relationship is
-    actually observable.
+   white label); `tests/ctrl-pills.spec.ts` enforces it from rendered pixels
+   rather than from CSS values, which is the only way the relationship is
+   actually observable.
+11. **A bounded set is played to completion — no sampled sessions.** Where the
+    content is a finite set worth exhausting, a game runs through **every item
+    exactly once**, tier-ordered, rather than sampling N rounds from the pool.
+    Sampling leaves coverage to chance: an 8-round session over 27 animals could
+    finish without the child meeting most of them while repeating `cow` three
+    plays running, in a game whose whole purpose is breadth. Finishing should
+    mean "you've heard all of them" — a goal a 3yo can hold, unlike an arbitrary
+    eight. **Directed by the user 2026-08-22 as project-wide intent**; Animal
+    Sounds is the first adopter (`generateRun`, `TOTAL_ROUNDS` derived from the
+    tier lists so it can't drift when the pool grows).
+
+    It does **not** apply everywhere, and the test is whether a finite set
+    exists to exhaust. Letter Friends (26 letters), Feeling Friends (8 feelings)
+    and Opposites Friends (10 pairs) qualify and should convert when next
+    touched; a generated-question game like Counting Friends does not, because
+    there is no finite set of addition facts to complete. Converting also means
+    revisiting preload: warm a rolling window ahead of the current round, not the
+    whole run, or start-up cost grows with the pool.
 
 ## 6. LocalStorage keys (state shapes)
 
@@ -151,7 +180,10 @@ data file + a layout-specific themed CSS block. A parent dashboard lives at
 - `kids_progress_v1:<gameId>` — learned-item set (sorted string array).
 - `<gameId>_quiz_v1` — `{ attempts, bestScore, lastPlayed }` quiz metrics.
 - `<game>_stats_v1` — bespoke preschool schema `{ sessions, rounds, correctFirstTry, lastPlayed }`
-  (newest: `rhyme_time_stats_v1`, 2026-08-22).
+  (newest: `rhyme_time_stats_v1`, 2026-08-22). In games converted to §5 rule 11
+  the `sessions` field is kept on disk (the shape is shared across every
+  preschool game) but now counts **completed runs**, and the UI labels it that
+  way — `animal_sounds_stats_v1` is the first.
   The staged preschool-math games (Counting / More / Number Friends + Number
   Bond Pop) also carry `{ stage, bestStage }` (1..3) for their auto-advancing
   stages (added 2026-06-03; Number Bond Pop adopted them at ship 2026-06-06).
@@ -178,7 +210,26 @@ this family stays at one for now.)
   Friends + Sorting Friends + Week Friends + Days Parade + Animal Sounds +
   Feeling Friends + Opposites Friends + Rhyme Time). Total **27 games**, all
   live.
-- **Latest ship (2026-08-22)**: **Rhyme Time** — third preschool-literacy
+- **Latest ship (2026-08-22)**: **Animal Sounds — 27 animals, one run, no
+  sessions.** Direct user request ("we need a large number", "no more sessions,
+  all in one go"). Ten new mastered recordings (`goat`, `donkey`, `goose`,
+  `crow`, `bear`, `tiger`, `dove`, `peacock`, `cricket`, `seagull`) take the
+  clip-backed pool from 17 to 27; six of them also needed adding to the browsing
+  decks that supply picture + name (`animals.ts` → 42, `birds.ts` → 18).
+  `generateSession` becomes `generateRun`: every clip-backed animal plays
+  **exactly once**, tier-ordered farmyard → wild, and `TOTAL_ROUNDS` is derived
+  rather than the literal 8. See §5 rule 11 — this is project-wide intent, and
+  which games it applies to. Four candidates were **rejected** and the reasons
+  recorded in CREDITS; `eagle` is the instructive one — the real bald-eagle call
+  is an unrecognisable chatter and the screech everyone "knows" is a dubbed
+  red-tailed hawk, so no honest eagle round exists. Also here: preload became a
+  rolling window (27 clips up front is ~800KB before the first question); the
+  clip set was re-levelled on EBU R128 LUFS rather than RMS (§3); and **Animal
+  Sounds got the dark-mode + scene-token fixes**, so the counts below drop from
+  11 to 10. Incidentally, `playwright.config.ts` now caps local workers at 4
+  (§3) after the longer run test exposed CDN-throttling failures in ten
+  unrelated specs.
+- **Prior ship (2026-08-22, same day)**: **Rhyme Time** — third preschool-literacy
   game and the fourth of the six-game August arc. A word shows with its
   picture ("Dog"); three picture cards below, tap the one that rhymes. It is
   the end-of-word partner to Sound Friends' start-of-word skill, which is why
@@ -275,8 +326,9 @@ this family stays at one for now.)
   game (listening / auditory discrimination, "who says moo?"). Inverts the
   Sound Friends prompt: the round plays an animal **call** (with the
   onomatopoeia shown as text) and offers three animal picture tiles; the child
-  taps the animal that makes it. 8-round session over a curated pool of **18
-  unambiguous, iconic calls** (`src/data/animal-sounds.ts`) — the raw `sound`
+  taps the animal that makes it. Shipped as an 8-round session over a curated
+  pool of **18 unambiguous, iconic calls** (`src/data/animal-sounds.ts`) —
+  *both numbers superseded by the 2026-08-22 run-mode ship above* — the raw `sound`
   fields in `animals.ts`/`birds.ts` could not be used directly because they collide
   (Bear and Tiger both "Growl!") and some are not onomatopoeic ("Float!"), so
   the pool declares explicit **sound-collision groups** to keep every round
@@ -358,18 +410,20 @@ this family stays at one for now.)
   - **Dark mode is broken across the `StoryLayout` preschool family.** None of
     the sibling themes redefine `--st-bg` under `body.dark-mode`, so they keep
     their pale light-mode gradient and paint near-white text on it. Feeling
-    Friends, Opposites Friends and Rhyme Time each fix it for themselves (dark
-    `--st-bg` + a scene-veil background layer, chosen over a `filter` so the
-    white cards stay bright); the same 4-line pattern needs applying to the
-    other **11**. Note the consequence that bites elsewhere: on those themes
-    `body.dark-mode` is set while the page is *light*, so **no shared chrome
-    may key its colours off the dark-mode class** — see the `.ctrl-pill` note
-    in §5 rule 10.
-  - **The per-round scene never paints in 11 of the preschool games.** Same
-    11 stylesheets declare the six `data-scene` gradients on their `.X-stage`
+    Friends, Opposites Friends, Rhyme Time and now Animal Sounds each fix it for
+    themselves (dark `--st-bg` + a scene-veil background layer, chosen over a
+    `filter` so the white cards stay bright); the same 4-line pattern needs
+    applying to the other **10**. Note the consequence that bites elsewhere: on
+    those themes `body.dark-mode` is set while the page is *light*, so **no
+    shared chrome may key its colours off the dark-mode class** — see the
+    `.ctrl-pill` note in §5 rule 10.
+  - **The per-round scene never paints in 10 of the preschool games.** Same
+    10 stylesheets declare the six `data-scene` gradients on their `.X-stage`
     element but read `--st-bg` on `body` — a custom property set on a
-    descendant can't reach an ancestor. One line each; the three games above
-    read it on the stage, where it's set.
+    descendant can't reach an ancestor. One line each; the four games above
+    read it on the stage, where it's set. Worth knowing that these two bugs
+    travel together: both were found in Animal Sounds by *screenshotting* the
+    finished game, which neither the type checker nor the suite can do.
   - **Wrong-answer feedback migration** — 23 games still shake-only (§5 rule 8).
 - **Deferred design decision**: `StageLayout` carve (deferred 5x — the
   `body.story` scope already does the isolation work). Option C unified

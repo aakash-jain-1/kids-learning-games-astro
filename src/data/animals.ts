@@ -1,7 +1,7 @@
 /**
  * Data for the Animals game — fifth GridLayout port.
  *
- * Foundational-set pedagogy: 39 animals shown as a scannable grid where
+ * Foundational-set pedagogy: 42 animals shown as a scannable grid where
  * each tile combines a *big emoji* of the animal with the animal's name
  * underneath. Tap a tile and the detail card shows the same animal
  * rendered as a Fluent UI 3D PNG (~260px) plus its iconic sound and a
@@ -11,15 +11,22 @@
  * across as-is.
  *
  * Synthesized 6-group filter (vanilla had none — deviation):
- *   - mammal    = Bear, Cat, Cow, Dog, Elephant, Fox, Giraffe, Horse,
- *                 Koala, Lion, Monkey, Panda, Pig, Rabbit, Sheep, Tiger,
- *                 Unicorn, Wolf, Yak, Zebra        (20)
+ *   - mammal    = Bear, Cat, Cow, Dog, Donkey, Elephant, Fox, Giraffe,
+ *                 Goat, Horse, Koala, Lion, Monkey, Panda, Pig, Rabbit,
+ *                 Sheep, Tiger, Unicorn, Wolf, Yak, Zebra   (22)
  *   - bird      = Chicken, Duck, Nightingale, Owl, Penguin, Quail,
  *                 Vulture                          (7)
  *   - reptile   = Alligator, Iguana, Snake, Turtle (4)
  *   - amphibian = Frog                             (1)
  *   - sea       = Fish, Jellyfish, Octopus, Whale  (4)
- *   - insect    = Ant, Bee, Butterfly              (3)
+ *   - insect    = Ant, Bee, Butterfly, Cricket     (4)
+ *
+ * Donkey + Goat + Cricket added 2026-08-22 (additive deviation from
+ * vanilla), for the same reason Bee and Frog were: all three are animals a
+ * preschool deck shouldn't be missing, and "Hee-haw", "Maa" and "Chirp" are
+ * among the most recognisable calls a child hears. Added for the Animal
+ * Sounds run, which needed more clip-backed animals, but the Animals grid
+ * gains them too.
  *
  * Bee + Frog added 2026-08-17 (additive deviation from vanilla). Both are
  * conspicuous omissions from a preschool animal deck — "Buzz" and
@@ -150,7 +157,7 @@ const card = (
 });
 
 export const ALL_CARDS: readonly AnimalCard[] = [
-  // -- mammal (20) --
+  // -- mammal (22) --
   card('Bear',     'mammal', '\u{1F43B}', 'Bear/3D/bear_3d.png',                'Growl!',
     'Bears are big and love honey!'),
   card('Cat',      'mammal', '\u{1F431}', 'Cat%20face/3D/cat_face_3d.png',      'Meow!',
@@ -159,12 +166,16 @@ export const ALL_CARDS: readonly AnimalCard[] = [
     'Cows give us milk!'),
   card('Dog',      'mammal', '\u{1F436}', 'Dog%20face/3D/dog_face_3d.png',      'Woof Woof!',
     'Dogs are loyal and friendly friends!'),
+  card('Donkey',   'mammal', '\u{1FACF}', 'Donkey/3D/donkey_3d.png',            'Hee-haw!',
+    'Donkeys are strong and carry heavy loads!'),
   card('Elephant', 'mammal', '\u{1F418}', 'Elephant/3D/elephant_3d.png',        'Trumpet!',
     'Elephants are the largest land animals!'),
   card('Fox',      'mammal', '\u{1F98A}', 'Fox/3D/fox_3d.png',                  'Yip!',
     'Foxes are clever and have bushy tails!'),
   card('Giraffe',  'mammal', '\u{1F992}', 'Giraffe/3D/giraffe_3d.png',          'Hum!',
     'Giraffes have the longest necks!'),
+  card('Goat',     'mammal', '\u{1F410}', 'Goat/3D/goat_3d.png',                'Maa!',
+    'Goats love to climb and nibble on everything!'),
   card('Horse',    'mammal', '\u{1F434}', 'Horse%20face/3D/horse_face_3d.png',  'Neigh!',
     'Horses love to run and gallop!'),
   card('Koala',    'mammal', '\u{1F428}', 'Koala/3D/koala_3d.png',              'Grunt!',
@@ -232,11 +243,13 @@ export const ALL_CARDS: readonly AnimalCard[] = [
   card('Whale',     'sea', '\u{1F40B}', 'Whale/3D/whale_3d.png',                   'Whooosh!',
     'Whales are the biggest animals in the ocean!'),
 
-  // -- insect (3) --
+  // -- insect (4) --
   card('Ant',       'insect', '\u{1F41C}', 'Ant/3D/ant_3d.png',             'Busy!',
     'Ants are tiny but very strong!'),
   card('Bee',       'insect', '\u{1F41D}', 'Honeybee/3D/honeybee_3d.png',   'Buzz Buzz!',
     'Bees make sweet honey from flowers!'),
+  card('Cricket',   'insect', '\u{1F997}', 'Cricket/3D/cricket_3d.png',     'Chirp chirp!',
+    'Crickets sing by rubbing their wings together!'),
   card('Butterfly', 'insect', '\u{1F98B}', 'Butterfly/3D/butterfly_3d.png', 'Flutter!',
     'Butterflies have colorful wings!'),
 ];

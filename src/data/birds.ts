@@ -1,7 +1,7 @@
 /**
  * Data for the Birds game — sixth GridLayout port.
  *
- * Foundational-set pedagogy: 15 birds shown as a scannable grid where
+ * Foundational-set pedagogy: 18 birds shown as a scannable grid where
  * each tile combines a *big emoji* of the bird with the bird's name
  * underneath. Tap a tile and the detail card shows the same bird
  * rendered as a Fluent UI 3D PNG (~260px) plus its iconic call and a
@@ -9,14 +9,23 @@
  * with Animals — this is the second consumer of that namespace and
  * it works as a clean copy-adapt.
  *
- * Mirrors the vanilla `birds.html` deck verbatim on count and content
+ * Mirrors the vanilla `birds.html` deck on content
  * (`birdsData = { '🦚': { name: 'Peacock', img, info }, ... }` × 15).
- * The 15 birds, in the (newly group-sorted) Astro deck order:
- *   - songbird  = Sparrow, Dove, Woodpecker        (3)
+ * The 18 birds, in the (newly group-sorted) Astro deck order:
+ *   - songbird  = Sparrow, Crow, Dove, Woodpecker  (4)
  *   - raptor    = Eagle, Owl                       (2)
- *   - waterbird = Swan, Duck, Penguin, Flamingo    (4)
+ *   - waterbird = Swan, Goose, Seagull, Duck, Penguin, Flamingo (6)
  *   - tropical  = Peacock, Parrot                  (2)
  *   - ground    = Turkey, Ostrich, Chicken, Rooster (4)
+ *
+ * Crow + Goose + Seagull added 2026-08-22 (additive deviation from vanilla),
+ * the bird-side counterpart to Donkey + Goat + Cricket in `animals.ts`. All
+ * three were added for the Animal Sounds run — "Caw", "Honk" and "Kee-yah"
+ * are recognisable calls with clean public recordings — and the Birds grid
+ * gains them too. Crow is filed `songbird` because it is a true passerine,
+ * even though it is neither small nor especially musical. Seagull uses the
+ * generic bird glyph: there is no gull emoji, and the Fluent pack has no
+ * gull asset.
  *
  * Synthesized 5-group filter (vanilla had none — explicit deviation,
  * documented here per migration principle #1). Same precedent as
@@ -167,9 +176,11 @@ const card = (
 });
 
 export const ALL_CARDS: readonly BirdCard[] = [
-  // -- songbird (3) --
+  // -- songbird (4) --
   card('Sparrow',    'songbird', '\u{1F426}',                     'Bird/3D/bird_3d.png',     'Cheep!',
     'Small common bird found everywhere'),
+  card('Crow',       'songbird', '\u{1F426}\u{200D}\u{2B1B}',     'Blackbird/3D/blackbird_3d.png', 'Caw!',
+    'Clever black bird that can solve puzzles'),
   card('Dove',       'songbird', '\u{1F54A}\u{FE0F}',             'Dove/3D/dove_3d.png',     'Coo!',
     'Symbol of peace and love'),
   card('Woodpecker', 'songbird', '\u{1F426}\u{200D}\u{2B1B}',     'Bird/3D/bird_3d.png',     'Tap tap!',
@@ -181,9 +192,13 @@ export const ALL_CARDS: readonly BirdCard[] = [
   card('Owl',   'raptor', '\u{1F989}', 'Owl/3D/owl_3d.png',     'Hoot!',
     'Wise nocturnal bird that hunts at night'),
 
-  // -- waterbird (4) --
+  // -- waterbird (5) --
   card('Swan',     'waterbird', '\u{1F9A2}', 'Swan/3D/swan_3d.png',         'Honk!',
     'Graceful white water bird with long neck'),
+  card('Goose',    'waterbird', '\u{1FABF}', 'Goose/3D/goose_3d.png',       'Honk honk!',
+    'Noisy farm bird that flies in a V shape'),
+  card('Seagull',  'waterbird', '\u{1F426}', 'Bird/3D/bird_3d.png',         'Kee-yah!',
+    'Seaside bird that follows fishing boats'),
   card('Duck',     'waterbird', '\u{1F986}', 'Duck/3D/duck_3d.png',         'Quack!',
     'Water bird with webbed feet'),
   card('Penguin',  'waterbird', '\u{1F427}', 'Penguin/3D/penguin_3d.png',   'Honk!',

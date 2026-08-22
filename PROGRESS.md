@@ -417,7 +417,103 @@ before deciding.
 
 ## Changelog
 
-### 2026-08-22 (latest) — fix(ui): the shared control pills were invisible on most of the app
+### 2026-08-22 (latest) — feat(animal-sounds): 27 animals, one continuous run, no sessions
+
+Direct user request, in two parts: *"Standard animals we need more on Animal
+Sounds, not only 8. We need large number"* and *"No more sessions anymore, all in
+one go, make a note to do this for all other related games as well."*
+
+**The pool: 17 → 27 clip-backed animals.** Ten new real recordings sourced from
+Wikimedia Commons and mastered through the existing chain: `goat`, `donkey`,
+`goose`, `crow`, `bear`, `tiger`, `dove`, `peacock`, `cricket`, `seagull`.
+Licences and per-clip attribution are in
+`public/sounds/animals/CREDITS.md` — eight of the 27 now legally require
+attribution (up from four), and four are share-alike.
+
+Four candidates were searched and **rejected**, which is recorded in CREDITS so
+nobody repeats the work. The rule they share is worth restating, because it is a
+content rule rather than an audio one: *a clip only earns its place if the animal
+is what you hear first.* `eagle` fails it in the most interesting way — the real
+bald-eagle call is a thin chatter almost nobody recognises, while the screech
+everyone "knows" is a red-tailed hawk dubbed over eagle footage on television. The
+honest clip fails recognition and the familiar clip is the wrong bird, so there is
+no version of an eagle round that teaches something true. `cuckoo` and `parrot`
+were distant field ambience (raising the call raises the whole soundscape with
+it), and `mouse` vocalisation is largely ultrasonic.
+
+Six new animals also had to be added to the browsing decks, since Animal Sounds
+takes its picture + name from them: `Donkey`, `Goat`, `Cricket` in `animals.ts`
+(now 42), `Crow`, `Goose`, `Seagull` in `birds.ts` (now 18).
+
+**Sessions → runs.** `generateSession` (8 fixed rounds sampled from the pool) is
+replaced by `generateRun`, which plays **every clip-backed animal exactly once**,
+ordered by tier so it climbs from farmyard to wild. `TOTAL_ROUNDS` is now derived
+from the tier lists rather than being the literal `8`, so it can't drift when the
+pool grows again. The completion screen and the stat both re-word from "session"
+to "full run".
+
+The pedagogy this fixes: with an 8-round sample from 17 animals, a child could
+finish a session having never met most of the set, and could meet `cow` three
+sessions running while never meeting `owl`. Coverage was left to chance in a game
+whose entire purpose is breadth of recognition. A run makes completion mean
+"you've heard all of them", which is also a far more legible goal to a 3yo than an
+arbitrary eight.
+
+**Preloading had to change with it.** The page previously warmed every clip in the
+session up front, which at 8 was fine and at 27 is ~800 KB of audio fetched before
+the first question. It now warms a rolling window a few rounds ahead
+(`warmAhead`), so start-up cost is flat regardless of how large the pool gets.
+
+**Note for the rest of the games (user's explicit ask).** The no-sessions
+direction is *project-wide intent*, not an Animal Sounds detail — see CONTEXT.md
+§5 for the rule. It does not mechanically apply everywhere, and the distinction is
+whether the content is a **bounded set worth exhausting**. Animal Sounds, Letter
+Friends (26 letters), Feeling Friends (8 feelings) and Opposites Friends (10
+pairs) are; a generated-question game like Counting Friends is not — there is no
+finite set of addition facts to complete, so "one run through everything" has no
+meaning there. Games in the first group should convert as they're next touched.
+
+**Loudness levelling.** Going from 17 to 27 clips exposed a real inconsistency:
+the set spanned 7.6 LU. The original spec normalised RMS, which is the wrong
+target for a varied set — it averages the gaps in, so the crow's two caws measure
+quiet while each caw is at the ceiling, and the cricket's continuous chirp
+measures correct while sounding much louder. Re-measured with EBU R128 integrated
+loudness and attenuated everything above −17 LUFS to −18. Attenuation only, never
+boost: pushing a clip up needs a limiter to hold the −3 dBFS ceiling, and limiting
+a bark by several dB flattens the attack that makes it a bark. The four clips
+below the band (`dog`, `duck`, `dove`, `crow`) are therefore left alone and
+documented. 23 of 27 now sit inside 1.8 LU.
+
+**Dark mode + the never-painting scenes, fixed for this game.** The screenshot
+check at the end of the work showed Animal Sounds had both of the known
+StoryLayout defects (CONTEXT.md §7). Dark mode never redefined `--st-bg`, so the
+page kept its *light* gradient while every token flipped dark — tile labels were
+near-white on pale blue, i.e. the answer names were unreadable in the game's own
+dark mode. And the six `data-scene` gradients set `--st-bg` on `.as-stage` while
+the only consumer read it on `body`; custom properties inherit downwards, so the
+scenes had never painted at all. Both fixed the way Rhyme Time does it (stage both
+sets and reads the token, plus a veil layer for dark mode). The title also moved
+off `#fff`, which was leaning entirely on a drop shadow at ~1.2:1. **Ten
+StoryLayout themes still have both defects** — this ship fixes one of eleven.
+
+**Test-suite reliability, incidental but real.** `playwright.config.ts` capped
+local workers at 4. It was `undefined`, i.e. half the machine's cores — 10 here.
+Workers are not CPU-bound in this suite: every game page pulls its Fluent 3D art
+from jsDelivr and specs navigate with the default `waitUntil: 'load'`, so past
+~4 concurrent browsers the CDN throttles, `load` never fires, and tests fail on
+navigation timeout *while displaying a fully rendered page*. Animal Sounds' new
+27-round walk made it reproducible: 21 failures at 10 workers, every one of them
+in a spec this change never touched. At 4 workers the suite is both green and
+faster in wall-clock terms (1.9 min vs 5.7 min), because the extra workers were
+only ever queueing on the same throttled CDN.
+
+**Tests.** `tests/animal-sounds.spec.ts` grows two that matter: a full-run walk
+asserting every clip-backed animal appears exactly once (no duplicates, none
+missing, nothing unexpected), and a check that each of the 27 ids is actually
+served as audio — the latter is what catches the easy failure mode of adding an id
+to `CLIP_BACKED_IDS` without shipping its mp3. Suite: **201 passing**.
+
+### 2026-08-22 — fix(ui): the shared control pills were invisible on most of the app
 
 **What it was.** `.ctrl-pill` in `global.css` — the Reset / Quiz / Stats /
 Settings chips rendered on all 27 games plus `/stats` and the home hero — was

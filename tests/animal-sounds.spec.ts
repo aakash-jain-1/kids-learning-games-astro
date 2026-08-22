@@ -2,18 +2,36 @@ import { test, expect } from '@playwright/test';
 
 /**
  * Animal Sounds — preschool SCIENCE / listening smoke suite
- * (added 2026-08-17).
+ * (added 2026-08-17, converted from sessions to a full run 2026-08-22).
  *
- * Sister suite to sound-friends.spec.ts. Same session grammar, inverted
- * prompt: the round prompt is an animal CALL — a real recording, with the
+ * The round prompt is an animal CALL — a real recording, with the
  * onomatopoeia shown as text alongside it — and the three tiles are animal
- * PICTURES, so the answer is "tap the animal that makes this sound". We
- * assert:
+ * PICTURES, so the answer is "tap the animal that makes this sound".
+ *
+ * ── What changed on 2026-08-22 ─────────────────────────────────────
+ *
+ * The game no longer deals a fixed 8-round session sampled with replacement.
+ * One play is now a **run**: every clip-backed animal exactly once, ordered
+ * easiest tier first. That makes two properties testable that previously
+ * weren't even true — the run visits the whole pool, and it never repeats an
+ * animal — and both are asserted below by walking a complete run.
+ *
+ * `EXPECTED_RUN` is declared here rather than imported from
+ * `@/data/animal-sounds`, following the same convention as stats.spec.ts:
+ * importing would make the test restate whatever the source says and pass
+ * unconditionally. Declared independently, adding or dropping a clip fails
+ * here and forces the change to be deliberate.
+ *
+ * We assert:
  *
  *   - SSR renders header, scene, the sound-prompt card, three animal
  *     tiles each with a distinct animal + emoji + name, and a non-empty
  *     caption. The stage's `data-target` (the answer animal id) matches
  *     exactly one tile's `data-animal`.
+ *   - The progress pill counts out of the full pool, not 8.
+ *   - A full run visits every clip-backed animal exactly once — including
+ *     across the SSR handoff, which is where a naive `.slice(1)` would
+ *     silently duplicate the first animal and drop another.
  *   - Next is gated on an answer.
  *   - Tapping any tile eventually enables Next + bumps `rounds`.
  *   - Tapping the matching tile lights `as-tile--correct` and counts
@@ -23,7 +41,8 @@ import { test, expect } from '@playwright/test';
  *     then reveals `as-tile--reveal` on the correct tile once the guided
  *     correction finishes, without bumping `correctFirstTry`.
  *   - The prompt card itself is tappable (replays the call).
- *   - The home page links to the new game.
+ *   - Every clip in the run is served as audio from the expected path.
+ *   - The home page links to the game.
  *   - /stats lists Animal Sounds in the preschool-cognitive section.
  *
  * Same `sound: false` localStorage shim as the sibling suites — it
@@ -33,6 +52,22 @@ import { test, expect } from '@playwright/test';
  */
 
 const STATS_KEY = 'animal_sounds_stats_v1';
+
+/**
+ * Every animal with a recording, i.e. every animal a run must visit. Snake
+ * is deliberately absent — it is still a picture option, but no genuine hiss
+ * exists on Commons, so it can never be a prompt (see CREDITS.md).
+ */
+const EXPECTED_RUN: readonly string[] = [
+  // tier 1 — barnyard
+  'cow', 'dog', 'cat', 'pig', 'sheep', 'duck', 'goat',
+  // tier 2 — farm extras + yard/garden
+  'horse', 'chicken', 'rooster', 'frog', 'bee', 'turkey',
+  'donkey', 'goose', 'crow', 'cricket', 'dove',
+  // tier 3 — wild
+  'lion', 'elephant', 'monkey', 'wolf', 'owl', 'bear',
+  'tiger', 'peacock', 'seagull',
+];
 
 /** Resolve the index of the tile whose animal matches `data-target`. */
 const findCorrectIdx = async (page: import('@playwright/test').Page): Promise<number> => {
@@ -66,7 +101,9 @@ test.describe('animal sounds (preschool listening — who says moo?)', () => {
     await expect(page.locator('body[data-theme="animalsounds"]')).toHaveCount(1);
 
     await expect(page.locator('.as-title')).toContainText(/Animal Sounds/);
-    await expect(page.locator('#asProgressText')).toContainText(/^\s*1\s*\/\s*8\s*$/);
+    await expect(page.locator('#asProgressText')).toContainText(
+      new RegExp(`^\\s*1\\s*/\\s*${EXPECTED_RUN.length}\\s*$`),
+    );
 
     const stage = page.locator('#asStage');
     await expect(stage).toBeVisible();
@@ -101,6 +138,85 @@ test.describe('animal sounds (preschool listening — who says moo?)', () => {
 
   test('next button is disabled until an answer is chosen', async ({ page }) => {
     await expect(page.locator('#asNextBtn')).toBeDisabled();
+  });
+
+  /**
+   * The whole point of dropping sessions: one play covers the entire pool,
+   * and no animal comes up twice.
+   *
+   * The duplicate half of this is not hypothetical. The page keeps the
+   * SSR-rendered round 0 and appends a freshly generated run, and the
+   * obvious way to join them — `[ssrRound, ...generateRun().slice(1)]`,
+   * which is what the old session code did — drops whichever animal
+   * happened to be generated first and leaves the SSR'd one still sitting
+   * later in the list. The result is one animal twice, another never, and a
+   * run that still has exactly the right *length*. Only checking the set of
+   * targets catches it.
+   */
+  test('a full run visits every clip-backed animal exactly once', async ({ page }) => {
+    test.setTimeout(180_000);
+
+    const seen: string[] = [];
+
+    for (let round = 1; round <= EXPECTED_RUN.length; round++) {
+      await expect(page.locator('#asProgressText')).toContainText(
+        new RegExp(`^\\s*${round}\\s*/\\s*${EXPECTED_RUN.length}\\s*$`),
+      );
+
+      const target =
+        (await page.locator('#asStage').getAttribute('data-target'))?.trim() ?? '';
+      expect(target, `round ${round} has no target`).not.toBe('');
+      seen.push(target);
+
+      const correctIdx = await findCorrectIdx(page);
+      expect(correctIdx, `round ${round}: no tile matches "${target}"`).toBeGreaterThanOrEqual(0);
+      await page.locator(`#asTile${correctIdx}`).click();
+      await expect(page.locator('#asNextBtn')).toBeEnabled();
+      await page.locator('#asNextBtn').click();
+    }
+
+    const duplicates = seen.filter((a, i) => seen.indexOf(a) !== i);
+    expect(duplicates, `these animals came up more than once: ${duplicates.join(', ')}`).toEqual([]);
+
+    const missing = EXPECTED_RUN.filter((a) => !seen.includes(a));
+    expect(missing, `a full run never played: ${missing.join(', ')}`).toEqual([]);
+
+    const unexpected = seen.filter((a) => !EXPECTED_RUN.includes(a));
+    expect(unexpected, `not clip-backed, so can't be a prompt: ${unexpected.join(', ')}`).toEqual([]);
+
+    // Finishing the run is what records it; rounds counted all the way.
+    await expect(page.locator('#asDone')).toHaveClass(/as-done--show/);
+    const stats = await page.evaluate((k) => {
+      const raw = localStorage.getItem(k);
+      return raw
+        ? (JSON.parse(raw) as { sessions: number; rounds: number; correctFirstTry: number })
+        : { sessions: 0, rounds: 0, correctFirstTry: 0 };
+    }, STATS_KEY);
+    expect(stats.sessions).toBe(1);
+    expect(stats.rounds).toBe(EXPECTED_RUN.length);
+    expect(stats.correctFirstTry).toBe(EXPECTED_RUN.length);
+  });
+
+  /**
+   * Every prompt in the pool has to actually be served. The existing clip
+   * test only sees whatever the current run preloads, which after the
+   * rolling-preload change is the first few files rather than all of them —
+   * so a mastering slip on a tier-3 animal would go unnoticed until a child
+   * reached it.
+   */
+  test('every animal in the run has a real clip served as audio', async ({ page }) => {
+    for (const animal of EXPECTED_RUN) {
+      const res = await page.request.get(`sounds/animals/${animal}.mp3`);
+      expect(res.status(), `${animal}.mp3 is missing`).toBe(200);
+      expect(
+        res.headers()['content-type'] ?? '',
+        `${animal}.mp3 is not served as audio`,
+      ).toContain('audio');
+      expect(
+        (await res.body()).byteLength,
+        `${animal}.mp3 is too small to be a real recording`,
+      ).toBeGreaterThan(2000);
+    }
   });
 
   test('tapping any tile eventually enables Next and persists round count', async ({ page }) => {

@@ -47,12 +47,23 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  // The smoke suites run quickly (one chromium browser, ~13 game pages
-  // worth of light DOM assertions). One worker keeps the LocalStorage
-  // writes per-test deterministic and avoids any "preview server can
-  // only serve one page at a time"-class issues observed during
-  // initial bring-up.
-  workers: process.env.CI ? 1 : undefined,
+  // CI stays single-worker: deterministic, and the runner has little to
+  // gain from fanning out.
+  //
+  // Locally this used to be `undefined`, i.e. Playwright's default of half
+  // the machine's cores — 10 on a 20-core box. That is too many, because a
+  // worker is not CPU-bound here: every game page pulls its Fluent 3D
+  // artwork from the jsDelivr CDN, and specs navigate with the default
+  // `waitUntil: 'load'`, which waits for those images. Past roughly four
+  // concurrent browsers the CDN starts throttling, `load` never fires, and
+  // tests fail on navigation timeout while showing a fully rendered page —
+  // a confusing failure that looks like a bug in whichever game drew the
+  // short straw. Animal Sounds' full-run walk (27 rounds x 3 tiles) made it
+  // reproducible: 21 failures at 10 workers, all in specs it never touched.
+  //
+  // Four is also just faster in wall-clock terms (1.9m vs 5.7m), since the
+  // extra workers were mostly queueing on the same throttled CDN.
+  workers: process.env.CI ? 1 : 4,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
 
   use: {

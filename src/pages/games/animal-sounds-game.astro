@@ -4,7 +4,7 @@ import GameControls from '@/components/GameControls.astro';
 import '@/styles/animal-sounds.css';
 
 import {
-  generateSession,
+  generateRun,
   lookupAnimal,
   TOTAL_ROUNDS,
 } from '@/data/animal-sounds';
@@ -17,7 +17,7 @@ const description =
 // page script reads round 0 straight back out of the SSR'd DOM (the
 // Sound Friends / Number Friends kickoff-race pattern), then continues
 // with random rounds 1..N once the child taps Next.
-const SSR_FIRST_ROUND = generateSession(() => 0.42)[0]!;
+const SSR_FIRST_ROUND = generateRun(() => 0.42)[0]!;
 const ssrTarget = lookupAnimal(SSR_FIRST_ROUND.target);
 const ssrTiles = SSR_FIRST_ROUND.tiles.map((id) => lookupAnimal(id));
 const ssrCaption = `${ssrTarget.sound}! Who says ${ssrTarget.sound.toLowerCase()}?`;
@@ -114,7 +114,7 @@ const ssrCaption = `${ssrTarget.sound}! Who says ${ssrTarget.sound.toLowerCase()
         <div class="as-done-emoji" aria-hidden="true">🎧</div>
         <h2 class="as-done-title" id="asDoneTitle">Great listening!</h2>
         <p class="as-done-text" id="asDoneText">
-          You matched {TOTAL_ROUNDS} animal sounds today!
+          You listened to all {TOTAL_ROUNDS} animals today!
         </p>
         <div class="as-done-actions">
           <button type="button" class="as-action as-action--primary" id="asPlayAgainBtn">
@@ -136,7 +136,7 @@ const ssrCaption = `${ssrTarget.sound}! Who says ${ssrTarget.sound.toLowerCase()
   import { playClip, stopClip, preloadClips } from '@/lib/clip';
   import { getSettings } from '@/lib/settings';
   import {
-    generateSession,
+    generateRun,
     buildNarration,
     lookupAnimal,
     loadAnimalSoundsStats,
@@ -155,15 +155,15 @@ const ssrCaption = `${ssrTarget.sound}! Who says ${ssrTarget.sound.toLowerCase()
   const AS_COLORS = ['#0ea5e9', '#22d3ee', '#fbbf24', '#34d399', '#a78bfa'];
 
   /**
-   * Read round 0 back out of the SSR'd DOM so the JS session starts in
+   * Read round 0 back out of the SSR'd DOM so the JS run starts in
    * sync with whatever Astro rendered. Without this, a tap during the
    * first interaction could land on a tile whose animal has just been
-   * rewritten by a freshly-randomised JS session — the kickoff race that
+   * rewritten by a freshly-randomised JS run — the kickoff race that
    * bit Counting Friends on 2026-05-15. Inherited from Sound Friends.
    */
   const readSSRRound = (): AnimalSoundRound => {
     const stageEl = document.getElementById('asStage');
-    if (!stageEl) return generateSession()[0]!;
+    if (!stageEl) return generateRun()[0]!;
 
     const themeKey = (stageEl.dataset.scene ?? 'pond') as PreschoolTheme;
     const target = stageEl.dataset.target as AnimalId | undefined;
@@ -174,7 +174,7 @@ const ssrCaption = `${ssrTarget.sound}! Who says ${ssrTarget.sound.toLowerCase()
       document.getElementById('asTile2'),
     ];
     if (!target || tileEls.some((el) => !el)) {
-      return generateSession()[0]!;
+      return generateRun()[0]!;
     }
 
     const tiles = tileEls.map(
@@ -182,7 +182,7 @@ const ssrCaption = `${ssrTarget.sound}! Who says ${ssrTarget.sound.toLowerCase()
     ) as [AnimalId, AnimalId, AnimalId];
     const correctIndex = tiles.indexOf(target);
     if (correctIndex < 0 || correctIndex > 2) {
-      return generateSession()[0]!;
+      return generateRun()[0]!;
     }
 
     return {
@@ -196,8 +196,24 @@ const ssrCaption = `${ssrTarget.sound}! Who says ${ssrTarget.sound.toLowerCase()
     };
   };
 
+  /**
+   * A full run whose first round is the one Astro already painted.
+   *
+   * The old session code kept the SSR round and dropped the generated
+   * round 0 (`.slice(1)`), which was correct when rounds were sampled with
+   * replacement. It is wrong for a run: a run contains every animal exactly
+   * once, so slicing off a *different* animal leaves the SSR'd one still
+   * sitting somewhere later in the list, and the child hears it twice while
+   * another animal never appears at all. Filtering by target is what keeps
+   * "every animal exactly once" true through the SSR handoff.
+   */
+  const buildRun = (): AnimalSoundRound[] => {
+    const first = readSSRRound();
+    return [first, ...generateRun().filter((r) => r.target !== first.target)];
+  };
+
   // ── State ──────────────────────────────────────────────────────────
-  let session: AnimalSoundRound[] = [readSSRRound(), ...generateSession().slice(1)];
+  let run: AnimalSoundRound[] = buildRun();
   let roundIdx = 0;
   let answered = false;
   /**
@@ -264,7 +280,7 @@ const ssrCaption = `${ssrTarget.sound}! Who says ${ssrTarget.sound.toLowerCase()
   // ── Render helpers ─────────────────────────────────────────────────
 
   const renderRound = (): void => {
-    const round = session[roundIdx]!;
+    const round = run[roundIdx]!;
     const target = lookupAnimal(round.target);
 
     progressText.textContent = `${roundIdx + 1} / ${TOTAL_ROUNDS}`;
@@ -310,7 +326,7 @@ const ssrCaption = `${ssrTarget.sound}! Who says ${ssrTarget.sound.toLowerCase()
 
   /** The real recording for the current round's target, if we have one. */
   const currentClip = (): string | null =>
-    lookupAnimal(session[roundIdx]!.target).clip;
+    lookupAnimal(run[roundIdx]!.target).clip;
 
   /**
    * Replay the round's call, then run `done`. Used by the guided correction
@@ -360,7 +376,7 @@ const ssrCaption = `${ssrTarget.sound}! Who says ${ssrTarget.sound.toLowerCase()
 
   const onTileTap = (idx: 0 | 1 | 2): void => {
     if (answered) return;
-    const round = session[roundIdx]!;
+    const round = run[roundIdx]!;
     playTap();
 
     const tappedEl = tileEls[idx]!;
@@ -445,38 +461,42 @@ const ssrCaption = `${ssrTarget.sound}! Who says ${ssrTarget.sound.toLowerCase()
     cancelSpeech();
     stopClip();
     renderRound();
+    warmAhead(roundIdx + 1);
     requestAnimationFrame(() => speakIntro());
   };
 
   const onNext = (): void => {
     playTap();
     if (roundIdx >= TOTAL_ROUNDS - 1) {
-      showSessionComplete();
+      showRunComplete();
       return;
     }
     roundIdx++;
     startRound();
   };
 
-  const showSessionComplete = (): void => {
+  const showRunComplete = (): void => {
     cancelSpeech();
     stopClip();
     const stats = loadAnimalSoundsStats();
     saveAnimalSoundsStats({
       ...stats,
+      // Still the `sessions` field on disk — the stored schema is shared with
+      // the other preschool games and isn't worth a migration — but it now
+      // counts runs through the whole pool rather than 8-round sessions.
       sessions: stats.sessions + 1,
       lastPlayed: new Date().toISOString().slice(0, 10),
     });
     recordPlay(GAME_ID);
     doneEl.classList.add('as-done--show');
     launchConfetti(AS_COLORS);
-    narrate(`Wow! You matched ${TOTAL_ROUNDS} animal sounds today! Great listening!`);
+    narrate(`Wow! You listened to all ${TOTAL_ROUNDS} animals! Great listening!`);
   };
 
   const onPlayAgain = (): void => {
     playTap();
     doneEl.classList.remove('as-done--show');
-    session = generateSession();
+    run = generateRun();
     roundIdx = 0;
     startRound();
   };
@@ -552,7 +572,7 @@ const ssrCaption = `${ssrTarget.sound}! Who says ${ssrTarget.sound.toLowerCase()
         ? 0
         : Math.round((stats.correctFirstTry / stats.rounds) * 100);
     const lines = [
-      `🎧 Sessions completed: ${stats.sessions}`,
+      `🎧 Full runs finished: ${stats.sessions}`,
       `🌟 Rounds played: ${stats.rounds}`,
       `🎯 First-try correct: ${stats.correctFirstTry} (${ratio}%)`,
       stats.lastPlayed ? `📅 Last played: ${stats.lastPlayed}` : '📅 Last played: never',
@@ -563,20 +583,28 @@ const ssrCaption = `${ssrTarget.sound}! Who says ${ssrTarget.sound.toLowerCase()
   // ── Initial state binding ──────────────────────────────────────────
   // The SSR'd DOM is round 0; we don't re-render it. Bind JS state so
   // subsequent logic — tile clicks, replay, etc. — has the references.
-  currentNarration = buildNarration(session[0]!, { withClip: true });
-  spokenNarration = buildNarration(session[0]!, { withClip: false });
+  currentNarration = buildNarration(run[0]!, { withClip: true });
+  spokenNarration = buildNarration(run[0]!, { withClip: false });
   progressText.textContent = `1 / ${TOTAL_ROUNDS}`;
   progressFill.style.width = `${(1 / TOTAL_ROUNDS) * 100}%`;
   progressPill.setAttribute('aria-label', `Round 1 of ${TOTAL_ROUNDS}`);
 
-  // Warm only this session's calls (<=8 files) rather than the whole set, so
-  // the first prompt doesn't wait on the network. The service worker serves
-  // them from precache on later visits.
-  preloadClips(
-    session
-      .map((r) => lookupAnimal(r.target).clip)
-      .filter((c): c is string => c !== null),
-  );
+  // Warm the next few calls rather than the whole run. When a run was 8
+  // rounds, warming all of them was ~8 files; a run is now every animal we
+  // have, so the same code would fire ~22 requests (~900 KB) before the
+  // child has heard the first one. `warmAhead` is called again on each round
+  // so the clip is always already there by the time it is needed; the
+  // service worker serves them from precache on later visits.
+  const PRELOAD_AHEAD = 4;
+  const warmAhead = (from: number): void => {
+    preloadClips(
+      run
+        .slice(from, from + PRELOAD_AHEAD)
+        .map((r) => lookupAnimal(r.target).clip)
+        .filter((c): c is string => c !== null),
+    );
+  };
+  warmAhead(0);
 
   // Speech is blocked until the first gesture, so the intro waits for it.
   // Deliberately does NOT call renderRound() — that would race with a

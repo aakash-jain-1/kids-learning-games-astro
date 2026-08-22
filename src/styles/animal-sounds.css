@@ -115,11 +115,14 @@ body.story[data-theme='animalsounds'] .as-header {
   flex-wrap: wrap;
 }
 
+/* Deep sky rather than white: the page gradient behind the header is pale,
+   so white here was leaning entirely on its drop shadow to be legible
+   (~1.2:1 on its own). The dark-mode rule below flips it back to near-white,
+   where the backdrop finally justifies it. */
 body.story[data-theme='animalsounds'] .as-title {
   margin: 0;
   font-size: clamp(1.6em, 4vw, 2.2em);
-  color: #fff;
-  text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.35);
+  color: #0b4a70;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -155,9 +158,22 @@ body.story[data-theme='animalsounds'] .as-progress-fill {
 
 /* ── Stage — sound prompt on top, 3 animal tiles below ────────────── */
 
+/* The scene panel. Reads `--st-bg` on the element the per-round
+   `data-scene` rules above actually set it on — custom properties inherit
+   downwards, so the previous `background` on `body` could never see a token
+   written on this element, and the six scene gradients had simply never
+   painted. Fixed 2026-08-22 alongside dark mode.
+
+   The veil is a stacked background layer rather than a `filter`, because a
+   filter would also dim the white cards sitting inside the stage. */
 body.story[data-theme='animalsounds'] .as-stage {
   position: relative;
-  background: rgba(255, 255, 255, 0.12);
+  background:
+    linear-gradient(
+      rgba(6, 18, 32, var(--as-scene-veil, 0)),
+      rgba(6, 18, 32, var(--as-scene-veil, 0))
+    ),
+    var(--st-bg);
   border-radius: 24px;
   padding: 24px 16px;
   min-height: 420px;
@@ -515,6 +531,13 @@ body.story[data-theme='animalsounds'] .as-done-actions {
 /* ── Dark mode ────────────────────────────────────────────────────── */
 
 body.dark-mode.story[data-theme='animalsounds'] {
+  /* The page background HAS to be redefined here. Without it `body` keeps
+     resolving `--st-bg` to the *light* gradient at the top of this file
+     while every token below flips to its dark value — which is how this
+     game shipped with near-white tile labels on a pale blue page, i.e.
+     unreadable. Fixed 2026-08-22. */
+  --st-bg: linear-gradient(135deg, #0b1c2e 0%, #12293f 100%);
+  --as-scene-veil: 0.68;
   --as-tile-bg: rgba(255, 255, 255, 0.08);
   --as-tile-bg-hover: rgba(255, 255, 255, 0.16);
   --as-tile-border: rgba(180, 215, 255, 0.3);
@@ -527,6 +550,11 @@ body.dark-mode.story[data-theme='animalsounds'] {
   --as-prompt-border: rgba(180, 215, 255, 0.18);
   --as-caption-bg: rgba(12, 28, 45, 0.92);
   --as-caption-text: #eef6ff;
+}
+
+body.dark-mode.story[data-theme='animalsounds'] .as-title {
+  color: #eef6ff;
+  text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.45);
 }
 
 body.dark-mode.story[data-theme='animalsounds'] .as-prompt-hint {

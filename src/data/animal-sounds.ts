@@ -80,10 +80,12 @@ export { THEMES, THEME_BY_KEY };
 
 /** Stable ids for the curated pool. Used as DOM/test hooks. */
 export type AnimalId =
-  | 'cow' | 'dog' | 'cat' | 'pig' | 'sheep' | 'duck'
-  | 'horse' | 'chicken' | 'rooster' | 'frog' | 'bee'
-  | 'lion' | 'elephant' | 'monkey' | 'wolf' | 'owl'
-  | 'snake' | 'turkey';
+  | 'cow' | 'dog' | 'cat' | 'pig' | 'sheep' | 'duck' | 'goat'
+  | 'horse' | 'chicken' | 'rooster' | 'frog' | 'bee' | 'turkey'
+  | 'donkey' | 'goose' | 'crow' | 'cricket' | 'dove'
+  | 'lion' | 'elephant' | 'monkey' | 'wolf' | 'owl' | 'bear'
+  | 'tiger' | 'peacock' | 'seagull'
+  | 'snake';
 
 /**
  * One animal's play payload. `name` / `emoji` / `img` / `fact` are
@@ -141,18 +143,28 @@ const IDENTITY_SOURCE: Readonly<Record<AnimalId, { deck: 'animals' | 'birds'; na
   pig: { deck: 'animals', name: 'Pig' },
   sheep: { deck: 'animals', name: 'Sheep' },
   duck: { deck: 'animals', name: 'Duck' },
+  goat: { deck: 'animals', name: 'Goat' },
   horse: { deck: 'animals', name: 'Horse' },
   chicken: { deck: 'animals', name: 'Chicken' },
   rooster: { deck: 'birds', name: 'Rooster' },
   frog: { deck: 'animals', name: 'Frog' },
   bee: { deck: 'animals', name: 'Bee' },
+  turkey: { deck: 'birds', name: 'Turkey' },
+  donkey: { deck: 'animals', name: 'Donkey' },
+  goose: { deck: 'birds', name: 'Goose' },
+  crow: { deck: 'birds', name: 'Crow' },
+  cricket: { deck: 'animals', name: 'Cricket' },
+  dove: { deck: 'birds', name: 'Dove' },
   lion: { deck: 'animals', name: 'Lion' },
   elephant: { deck: 'animals', name: 'Elephant' },
   monkey: { deck: 'animals', name: 'Monkey' },
   wolf: { deck: 'animals', name: 'Wolf' },
   owl: { deck: 'animals', name: 'Owl' },
+  bear: { deck: 'animals', name: 'Bear' },
+  tiger: { deck: 'animals', name: 'Tiger' },
+  peacock: { deck: 'birds', name: 'Peacock' },
+  seagull: { deck: 'birds', name: 'Seagull' },
   snake: { deck: 'animals', name: 'Snake' },
-  turkey: { deck: 'birds', name: 'Turkey' },
 };
 
 /**
@@ -166,25 +178,37 @@ const CANONICAL_SOUND: Readonly<Record<AnimalId, string>> = {
   pig: 'Oink oink',
   sheep: 'Baa',
   duck: 'Quack quack',
+  goat: 'Maa maa',
   horse: 'Neigh',
   chicken: 'Cluck cluck',
   rooster: 'Cock-a-doodle-doo',
   frog: 'Ribbit',
   bee: 'Buzz buzz',
+  turkey: 'Gobble',
+  donkey: 'Hee-haw',
+  goose: 'Honk honk',
+  crow: 'Caw caw',
+  cricket: 'Chirp chirp',
+  dove: 'Coo coo',
   lion: 'Roar',
   elephant: 'Trumpet',
   monkey: 'Ooh ooh ah ah',
   wolf: 'Howl',
   owl: 'Hoot hoot',
+  bear: 'Growl',
+  tiger: 'Grrr',
+  peacock: 'May-yaw',
+  seagull: 'Kee-yah',
   snake: 'Hisss',
-  turkey: 'Gobble',
 };
 
 const ALL_IDS: readonly AnimalId[] = [
-  'cow', 'dog', 'cat', 'pig', 'sheep', 'duck',
-  'horse', 'chicken', 'rooster', 'frog', 'bee',
-  'lion', 'elephant', 'monkey', 'wolf', 'owl',
-  'snake', 'turkey',
+  'cow', 'dog', 'cat', 'pig', 'sheep', 'duck', 'goat',
+  'horse', 'chicken', 'rooster', 'frog', 'bee', 'turkey',
+  'donkey', 'goose', 'crow', 'cricket', 'dove',
+  'lion', 'elephant', 'monkey', 'wolf', 'owl', 'bear',
+  'tiger', 'peacock', 'seagull',
+  'snake',
 ];
 
 /**
@@ -205,10 +229,11 @@ const ALL_IDS: readonly AnimalId[] = [
  * `public/sounds/animals/CREDITS.md` for the search, and for how to add one.
  */
 const CLIP_BACKED_IDS: readonly AnimalId[] = [
-  'cow', 'dog', 'cat', 'pig', 'sheep', 'duck',
-  'horse', 'chicken', 'rooster', 'frog', 'bee',
-  'lion', 'elephant', 'monkey', 'wolf', 'owl',
-  'turkey',
+  'cow', 'dog', 'cat', 'pig', 'sheep', 'duck', 'goat',
+  'horse', 'chicken', 'rooster', 'frog', 'bee', 'turkey',
+  'donkey', 'goose', 'crow', 'cricket', 'dove',
+  'lion', 'elephant', 'monkey', 'wolf', 'owl', 'bear',
+  'tiger', 'peacock', 'seagull',
 ];
 
 const CLIP_SET: ReadonlySet<AnimalId> = new Set(CLIP_BACKED_IDS);
@@ -277,25 +302,35 @@ const promptable = (wanted: readonly AnimalId[], tier: string): readonly AnimalI
 
 /** Barnyard sounds a 3yo very likely already owns. */
 const TIER_1_TARGETS = promptable(
-  ['cow', 'dog', 'cat', 'pig', 'sheep', 'duck'],
+  ['cow', 'dog', 'cat', 'pig', 'sheep', 'duck', 'goat'],
   'tier 1',
 );
-/** Familiar-but-less-drilled: farm extras + the two classic garden calls. */
+/** Familiar-but-less-drilled: farm extras + the classic garden/yard calls. */
 const TIER_2_TARGETS = promptable(
-  ['horse', 'chicken', 'rooster', 'frog', 'bee', 'turkey'],
+  [
+    'horse', 'chicken', 'rooster', 'frog', 'bee', 'turkey',
+    'donkey', 'goose', 'crow', 'cricket', 'dove',
+  ],
   'tier 2',
 );
 /** Wild animals — still iconic, but usually learned from books not life. */
 const TIER_3_TARGETS = promptable(
-  ['lion', 'elephant', 'monkey', 'wolf', 'owl', 'snake'],
+  [
+    'lion', 'elephant', 'monkey', 'wolf', 'owl', 'bear',
+    'tiger', 'peacock', 'seagull', 'snake',
+  ],
   'tier 3',
 );
 
-/** Tier pool per round (0-indexed). 8 rounds: 3 / 3 / 2. */
-const TIER_BY_ROUND: ReadonlyArray<readonly AnimalId[]> = [
-  TIER_1_TARGETS, TIER_1_TARGETS, TIER_1_TARGETS,
-  TIER_2_TARGETS, TIER_2_TARGETS, TIER_2_TARGETS,
-  TIER_3_TARGETS, TIER_3_TARGETS,
+/**
+ * The run, in order: every clip-backed animal exactly once, easiest tier
+ * first. `generateRun` shuffles *within* each tier, so the difficulty ramp
+ * is fixed but the order inside a tier is not.
+ */
+const TIERS: ReadonlyArray<readonly AnimalId[]> = [
+  TIER_1_TARGETS,
+  TIER_2_TARGETS,
+  TIER_3_TARGETS,
 ];
 
 /**
@@ -306,14 +341,32 @@ const TIER_BY_ROUND: ReadonlyArray<readonly AnimalId[]> = [
  *
  * - dog / wolf     — both bark-ish; "woof" vs "howl" is subtle.
  * - chicken / rooster / turkey — the poultry cluster.
- * - cow / sheep    — both long lowing vowels ("moo" / "baa").
- * - bee / snake    — both sustained buzz/hiss fricatives.
+ * - cow / sheep / goat — the long lowing/bleating vowels. Goat's "maa" and
+ *   sheep's "baa" are the closest pair in the whole pool; a child tapping
+ *   either for the other is not making a mistake worth correcting.
+ * - horse / donkey — both equine, and a bray ends in a wheeze that is
+ *   audibly horse-adjacent.
+ * - duck / goose   — both waterfowl honks; "quack" vs "honk" is a distinction
+ *   the recordings themselves barely carry.
+ * - lion / bear / tiger — a roar and a growl are the same gesture at
+ *   different pitches, and no 3yo separates the two big cats by ear.
+ * - crow / rooster / seagull / peacock — the harsh, repeated, mid-pitch
+ *   shrieks. Peacock's call in particular reads as "some bird yelling",
+ *   which is also what the other three sound like.
+ * - bee / snake / cricket — the sustained buzz/hiss/trill band.
+ * - owl / dove    — two soft, low, two-note coos. This is the pair adults
+ *   mix up too.
  */
 const SOUND_COLLISIONS: ReadonlyArray<readonly AnimalId[]> = [
   ['dog', 'wolf'],
   ['chicken', 'rooster', 'turkey'],
-  ['cow', 'sheep'],
-  ['bee', 'snake'],
+  ['cow', 'sheep', 'goat'],
+  ['horse', 'donkey'],
+  ['duck', 'goose'],
+  ['lion', 'bear', 'tiger'],
+  ['crow', 'rooster', 'seagull', 'peacock'],
+  ['bee', 'snake', 'cricket'],
+  ['owl', 'dove'],
 ];
 
 /** Every animal whose call collides with `target`'s. */
@@ -386,53 +439,81 @@ const pickDistractors = (
   return [pool[0]!, pool[1]!];
 };
 
-// ── Session generation ────────────────────────────────────────────
-
-export const TOTAL_ROUNDS = TIER_BY_ROUND.length;
+// ── Run generation ────────────────────────────────────────────────
 
 /**
- * Generate a fresh 8-round session.
+ * Length of a full run — i.e. how many animals have a recording.
  *
- * - Round k draws its target uniformly from `TIER_BY_ROUND[k]`.
- * - Distractors come from the full pool minus the target minus its
+ * Derived, not declared: adding a clip to `CLIP_BACKED_IDS` lengthens the
+ * run by one with no other edit, and there is no second number to keep in
+ * sync. The page reads this for its progress display.
+ */
+export const TOTAL_ROUNDS = TIERS.reduce((n, tier) => n + tier.length, 0);
+
+/**
+ * Generate a full run: **every clip-backed animal, exactly once.**
+ *
+ * ── Why there are no sessions any more (changed 2026-08-22) ─────────
+ *
+ * This game used to deal a fixed 8 rounds sampled with replacement from the
+ * tiers, which is the session grammar the rest of the preschool games share.
+ * With 22 animals in the pool that had two bad consequences: a child met at
+ * most 8 of them per play and could meet the *same* animal twice in one
+ * sitting, and there was no point at which the content was finished. A pool
+ * that is three times the session length is a browsing deck being rationed,
+ * not a curriculum.
+ *
+ * So the session is gone. One run covers the whole pool, ordered easiest
+ * tier first, and it ends when every animal has been heard once. It is
+ * longer than 8 rounds by design — stats are written per round, so stopping
+ * early costs nothing and is expected.
+ *
+ * This is intended as the project-wide direction rather than a quirk of this
+ * game; see the note in CONTEXT.md §5.
+ *
+ * Within a run:
+ * - Order is shuffled *inside* each tier, so the easy-to-hard ramp is stable
+ *   but the sequence isn't memorised.
+ * - Distractors come from the full pool (including animals with no
+ *   recording, which can be seen but never heard) minus the target and its
  *   call-collision group.
  * - The `[target, d1, d2]` triple is shuffled so `correctIndex` rotates
  *   evenly instead of parking in one column.
  * - Themes rotate with a "no two in a row" rule.
  *
- * `rand` is injectable so tests and the SSR seed can pin a
- * deterministic sequence; defaults to `Math.random`.
+ * `rand` is injectable so tests and the SSR seed can pin a deterministic
+ * sequence; defaults to `Math.random`.
  */
-export const generateSession = (
+export const generateRun = (
   rand: () => number = Math.random,
 ): AnimalSoundRound[] => {
   const rounds: AnimalSoundRound[] = [];
   let prevTheme: PreschoolTheme | null = null;
 
-  for (let k = 0; k < TIER_BY_ROUND.length; k++) {
-    const tierPool = TIER_BY_ROUND[k]!;
-    const target = pick(tierPool, rand);
+  TIERS.forEach((tierPool, tierIndex) => {
+    const tier = tierIndex as 0 | 1 | 2;
+    const order = shuffleInPlace([...tierPool], rand);
 
-    const [d1, d2] = pickDistractors(target, rand);
+    for (const target of order) {
+      const [d1, d2] = pickDistractors(target, rand);
 
-    const triple: AnimalId[] = [target, d1, d2];
-    shuffleInPlace(triple, rand);
-    const tiles: readonly [AnimalId, AnimalId, AnimalId] = [
-      triple[0]!,
-      triple[1]!,
-      triple[2]!,
-    ];
-    const correctIndex = tiles.indexOf(target) as 0 | 1 | 2;
+      const triple: AnimalId[] = [target, d1, d2];
+      shuffleInPlace(triple, rand);
+      const tiles: readonly [AnimalId, AnimalId, AnimalId] = [
+        triple[0]!,
+        triple[1]!,
+        triple[2]!,
+      ];
+      const correctIndex = tiles.indexOf(target) as 0 | 1 | 2;
 
-    const themeChoices: readonly ThemeMeta[] =
-      prevTheme === null ? THEMES : THEMES.filter((t) => t.key !== prevTheme);
-    const theme = pick(themeChoices, rand).key;
-    prevTheme = theme;
+      const themeChoices: readonly ThemeMeta[] =
+        prevTheme === null ? THEMES : THEMES.filter((t) => t.key !== prevTheme);
+      const theme = pick(themeChoices, rand).key;
+      prevTheme = theme;
 
-    const tier = (k < 3 ? 0 : k < 6 ? 1 : 2) as 0 | 1 | 2;
-
-    rounds.push({ target, tiles, correctIndex, tier, theme });
-  }
+      rounds.push({ target, tiles, correctIndex, tier, theme });
+    }
+  });
 
   return rounds;
 };
