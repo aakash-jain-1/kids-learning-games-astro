@@ -70,20 +70,45 @@ body.dark-mode .game-nav {
   background: rgba(30, 30, 30, 0.95);
 }
 
-/* Control pills (Quiz / Stats / Settings) — shared across every game. */
+/* Control pills (Reset / Quiz / Stats / Settings) — shared across every
+   game, plus the `/stats` actions and the home hero.
+
+   The fill is a **dark** translucent wash carrying white text, rather than
+   the white-on-white wash it used to be (fixed 2026-08-22, when the pills
+   measured 1.07:1 on Rhyme Time — i.e. completely invisible — and were no
+   better on most of the other games).
+
+   It has to be self-contained, because this stylesheet cannot see the
+   backdrop it will land on, and every cheaper signal is wrong somewhere:
+
+   - Keying off `body.dark-mode` fails on the eleven StoryLayout themes that
+     still paint a *light* background while dark mode is on (see CONTEXT.md
+     §7) — the dark variant would be invisible on exactly those pages, which
+     is half of today's bug.
+   - Keying off `currentColor` fails on those same themes, which inherit
+     white text onto their light background.
+
+   A dark chip with white text can't be defeated by either: on the pale
+   preschool gradients it reads as a deliberate control, and on the near-black
+   CardMachine panel it stays the quiet chrome it already was. Worst case
+   (0.68 alpha composited over #fff) measures ~5.5:1 for the label, above the
+   4.5:1 floor at this 0.7em size. `tests/ctrl-pills.spec.ts` asserts it from
+   rendered pixels, one page per layout, in both modes. */
 .ctrl-row {
   display: flex;
   gap: 6px;
 }
 
 .ctrl-pill {
-  color: rgba(255, 255, 255, 0.75);
+  color: #fff;
   font-size: 0.7em;
   font-weight: 600;
   padding: 4px 10px;
   border-radius: 50px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(24, 22, 37, 0.68);
+  /* Light hairline so the chip still has an edge on a dark backdrop, where
+     the fill itself has nothing to contrast against. */
+  border: 1px solid rgba(255, 255, 255, 0.24);
   cursor: pointer;
   font-family: inherit;
   transition: 0.2s;
@@ -91,8 +116,8 @@ body.dark-mode .game-nav {
 }
 
 .ctrl-pill:hover {
-  background: rgba(255, 255, 255, 0.22);
-  color: #fff;
+  background: rgba(24, 22, 37, 0.85);
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
 /* Category / filter bar — shared across every game. Each layout supplies

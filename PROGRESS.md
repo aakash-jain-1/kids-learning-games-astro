@@ -417,7 +417,73 @@ before deciding.
 
 ## Changelog
 
-### 2026-08-22 (latest) — feat(games): Rhyme Time — 27th game, fourth of the six-game arc
+### 2026-08-22 (latest) — fix(ui): the shared control pills were invisible on most of the app
+
+**What it was.** `.ctrl-pill` in `global.css` — the Reset / Quiz / Stats /
+Settings chips rendered on all 27 games plus `/stats` and the home hero — was
+`color: rgba(255,255,255,0.75)` on `background: rgba(255,255,255,0.1)`. White
+text on a white wash. That works on the near-black CardMachine panel it was
+evidently designed against, and nowhere else.
+
+**How bad.** Measured as the contrast between the darkest and lightest deciles
+of each pill's own rendered box:
+
+| Surface | Light | Dark |
+|---|---|---|
+| GridLayout (Alphabets) | 2.18:1 | 5.20:1 |
+| CardMachine (Dinosaurs) | 5.30:1 | 5.73:1 |
+| Story — Daily Routines | 1.13:1 | 1.13:1 |
+| Story — Counting Friends | 1.11:1 | 1.11:1 |
+| Story — Rhyme Time | 1.07:1 | 4.99:1 |
+| Story — Sound Friends | 1.07:1 | 1.07:1 |
+| `/stats` | 1.69:1 | 4.80:1 |
+| home hero | 2.12:1 | 5.34:1 |
+
+1.07:1 is not "hard to read", it is *not rendered as far as the user is
+concerned*. Ten of the sixteen cases were below 3:1.
+
+**The dark-mode column is the interesting one.** Three Story themes fail in
+dark mode too, and that is not a coincidence: eleven `StoryLayout` themes
+never redefine `--st-bg` under `body.dark-mode` (the standing debt in
+CONTEXT.md §7), so they paint a *light* background while dark mode is on. In
+this app "dark mode" and "dark backdrop" are simply different things.
+
+**Why the obvious fixes are wrong.** Two cheap signals both fail on exactly
+those eleven themes. Keying the colours off `body.dark-mode` would apply the
+dark variant to a light page — half the original bug, reintroduced. Keying
+them off `currentColor` fails the same way, because those themes inherit
+white text onto their light background (verified: computed inherited colour
+at `.ctrl-row` is `rgb(255,255,255)` on light-mode Rhyme Time).
+
+**The fix.** Invert the chip instead of the flag: a dark translucent fill
+(`rgba(24,22,37,0.68)`) carrying solid white text, with a light hairline
+border so it still has an edge on a dark backdrop. It is self-contained, so
+nothing a theme paints behind it can defeat it. Worst case — 0.68 alpha
+composited over pure white — measures ~5.5:1, above the 4.5:1 floor for this
+0.7em text. Every surface now lands between 4.75:1 and 10.3:1.
+
+`/stats` had the same bug in its `.ctrl-danger` variant (a 0.18-alpha pink
+wash under white text) and got the same treatment, keeping the red signal for
+a destructive action while earning its own contrast.
+
+Deliberately **not** keyed to dark mode, so this stays correct when the
+eleven-theme dark-mode debt is eventually paid.
+
+**The test measures pixels, not CSS.** `tests/ctrl-pills.spec.ts` screenshots
+each pill, decodes it back to pixels in-page via a canvas, and asserts the
+intra-pill decile contrast clears 4.5:1 — one page per layout plus `/stats`
+and home, in both modes. Asserting the computed `color` instead would only
+restate the stylesheet, and would have passed happily for the entire life of
+the bug. Confirmed to have teeth by reverting `global.css` and re-running: 5
+of the 6 specs fail, and the one that passes is CardMachine, the one surface
+the original rule suited. Deciles rather than min/max so a few antialiased
+edge pixels can't fake a pass.
+
+Suite 193 → 199.
+
+---
+
+### 2026-08-22 — feat(games): Rhyme Time — 27th game, fourth of the six-game arc
 
 **What it is.** §4 of `docs/GAME-DESIGNS-2026-08.md`, built as designed, and
 the fourth of the six. A word shows with its picture ("Dog"), three picture

@@ -8,10 +8,11 @@
 >
 > **Last verified against the codebase**: 2026-08-22 (Rhyme Time shipped —
 > game count now 27, fourth of the six-game August arc, filed under the
-> existing `preschool-literacy` family. Same day: Opposites Friends shipped,
-> and a `clip.ts` playback bug fixed that made Animal Sounds narrate over its
-> own correction. Platform note corrected — the dev box is Windows, not
-> macOS).
+> existing `preschool-literacy` family. Same day: the shared `.ctrl-pill`
+> control chips were fixed after measuring 1.07:1 contrast on most surfaces,
+> which added §5 rule 10; Opposites Friends shipped; and a `clip.ts` playback
+> bug fixed that made Animal Sounds narrate over its own correction. Platform
+> note corrected — the dev box is Windows, not macOS).
 
 ---
 
@@ -132,6 +133,17 @@ data file + a layout-specific themed CSS block. A parent dashboard lives at
    see §7.
 9. **The Astro repo is the source of truth on *patterns*** (the vanilla repo
    is treated as a spec of intent, not a template to copy).
+10. **Shared chrome carries its own contrast.** A primitive in `global.css`
+    renders on backdrops it cannot see — 27 themed games plus `/stats` and
+    the home hero — so it must not depend on the surface behind it. In
+    particular, **don't key colours off `body.dark-mode`**: eleven
+    `StoryLayout` themes still paint a light background while that class is
+    set (§7), so the dark variant would land on a light page. `currentColor`
+    is no safer there, since those themes inherit white text onto that light
+    background. `.ctrl-pill` is the worked example (self-contained dark chip,
+    white label); `tests/ctrl-pills.spec.ts` enforces it from rendered pixels
+    rather than from CSS values, which is the only way the relationship is
+    actually observable.
 
 ## 6. LocalStorage keys (state shapes)
 
@@ -349,18 +361,15 @@ this family stays at one for now.)
     Friends, Opposites Friends and Rhyme Time each fix it for themselves (dark
     `--st-bg` + a scene-veil background layer, chosen over a `filter` so the
     white cards stay bright); the same 4-line pattern needs applying to the
-    other **11**.
+    other **11**. Note the consequence that bites elsewhere: on those themes
+    `body.dark-mode` is set while the page is *light*, so **no shared chrome
+    may key its colours off the dark-mode class** — see the `.ctrl-pill` note
+    in §5 rule 10.
   - **The per-round scene never paints in 11 of the preschool games.** Same
     11 stylesheets declare the six `data-scene` gradients on their `.X-stage`
     element but read `--st-bg` on `body` — a custom property set on a
     descendant can't reach an ancestor. One line each; the three games above
     read it on the stage, where it's set.
-  - **The Reset / Quiz / Stats / Settings pills are unreadable in light
-    mode** (found 2026-08-22). `.ctrl-pill` in `global.css` is white text on a
-    10%-white fill — sized for a dark page, and every light-background game
-    renders it near-invisible (verified on Sound Friends, Opposites Friends
-    and Rhyme Time). It's one shared rule, so it's one fix for all 27 games,
-    but it's a global change worth its own verification pass.
   - **Wrong-answer feedback migration** — 23 games still shake-only (§5 rule 8).
 - **Deferred design decision**: `StageLayout` carve (deferred 5x — the
   `body.story` scope already does the isolation work). Option C unified

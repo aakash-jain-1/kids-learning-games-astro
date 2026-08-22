@@ -424,13 +424,17 @@ const activityDays = getActivityByFamily(7);
         text-decoration: none;
       }
 
+      /* Darkened alongside the shared `.ctrl-pill` fix (2026-08-22): at
+         0.18 alpha this was a pale pink wash carrying white text, which is
+         unreadable on the light dashboard. Keeps the red signal for a
+         destructive action, but earns its own contrast. */
       .stats-actions .ctrl-danger {
-        background: rgba(255, 80, 80, 0.18);
-        border-color: rgba(255, 80, 80, 0.45);
+        background: rgba(150, 22, 30, 0.78);
+        border-color: rgba(255, 130, 130, 0.5);
       }
 
       .stats-actions .ctrl-danger:hover {
-        background: rgba(255, 80, 80, 0.28);
+        background: rgba(178, 26, 36, 0.92);
       }
 
       .stats-main {
