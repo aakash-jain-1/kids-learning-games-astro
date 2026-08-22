@@ -4,7 +4,7 @@ import GameControls from '@/components/GameControls.astro';
 import '@/styles/feeling-friends.css';
 
 import {
-  generateSession,
+  generateRun,
   lookupFeeling,
   buildNarration,
   FACE_IMG_BASE,
@@ -19,7 +19,7 @@ const description =
 // script reads round 0 straight back out of the SSR'd DOM (the Sound
 // Friends / Animal Sounds kickoff-race pattern), then continues with random
 // rounds 1..N once the child taps Next.
-const SSR_FIRST_ROUND = generateSession(() => 0.42)[0]!;
+const SSR_FIRST_ROUND = generateRun(() => 0.42)[0]!;
 const ssrTarget = lookupFeeling(SSR_FIRST_ROUND.target);
 const ssrTiles = SSR_FIRST_ROUND.tiles.map((id) => lookupFeeling(id));
 const ssrNarration = buildNarration(SSR_FIRST_ROUND);
@@ -131,7 +131,7 @@ const ssrPromptText = ssrTarget.name;
         <div class="ff-done-emoji" aria-hidden="true">💛</div>
         <h2 class="ff-done-title" id="ffDoneTitle">You know your feelings!</h2>
         <p class="ff-done-text" id="ffDoneText">
-          You named {TOTAL_ROUNDS} feelings today!
+          You named every feeling today!
         </p>
         <div class="ff-done-actions">
           <button type="button" class="ff-action ff-action--primary" id="ffPlayAgainBtn">
@@ -152,7 +152,7 @@ const ssrPromptText = ssrTarget.name;
   import { launchConfetti } from '@/lib/achievements';
   import { getSettings } from '@/lib/settings';
   import {
-    generateSession,
+    generateRun,
     buildNarration,
     lookupFeeling,
     loadFeelingFriendsStats,
@@ -189,15 +189,15 @@ const ssrPromptText = ssrTarget.name;
   };
 
   /**
-   * Read round 0 back out of the SSR'd DOM so the JS session starts in sync
+   * Read round 0 back out of the SSR'd DOM so the JS run starts in sync
    * with whatever Astro rendered. Without this, a tap during the first
    * interaction could land on a tile whose face has just been rewritten by
-   * a freshly-randomised JS session — the kickoff race that bit Counting
+   * a freshly-randomised JS run — the kickoff race that bit Counting
    * Friends on 2026-05-15. Inherited from Sound Friends / Animal Sounds.
    */
   const readSSRRound = (): FeelingRound => {
     const stageEl = document.getElementById('ffStage');
-    if (!stageEl) return generateSession()[0]!;
+    if (!stageEl) return generateRun()[0]!;
 
     const themeKey = (stageEl.dataset.scene ?? 'pond') as PreschoolTheme;
     const target = stageEl.dataset.target as FeelingId | undefined;
@@ -208,7 +208,7 @@ const ssrPromptText = ssrTarget.name;
       document.getElementById('ffTile2'),
     ];
     if (!target || tileEls.some((el) => !el)) {
-      return generateSession()[0]!;
+      return generateRun()[0]!;
     }
 
     const tiles = tileEls.map(
@@ -216,7 +216,7 @@ const ssrPromptText = ssrTarget.name;
     ) as [FeelingId, FeelingId, FeelingId];
     const correctIndex = tiles.indexOf(target);
     if (correctIndex < 0 || correctIndex > 2) {
-      return generateSession()[0]!;
+      return generateRun()[0]!;
     }
 
     return {
@@ -233,7 +233,27 @@ const ssrPromptText = ssrTarget.name;
   };
 
   // ── State ──────────────────────────────────────────────────────────
-  let session: FeelingRound[] = [readSSRRound(), ...generateSession().slice(1)];
+  /**
+   * The SSR'd round, followed by a fresh run with that question removed.
+   *
+   * Matched on `situation` as well as `target`, because a feeling appears
+   * once as a label and again in each of its vignettes — filtering by
+   * target alone would drop two extra questions the child should still be
+   * asked. Slicing index 0 instead would be worse again: the SSR round is
+   * pinned (`rand: () => 0.42`), so its question would usually still be
+   * sitting later in the run and get asked twice.
+   */
+  const buildRun = (): FeelingRound[] => {
+    const first = readSSRRound();
+    return [
+      first,
+      ...generateRun().filter(
+        (r) => !(r.target === first.target && r.situation === first.situation),
+      ),
+    ];
+  };
+
+  let run: FeelingRound[] = buildRun();
   let roundIdx = 0;
   let answered = false;
   let currentNarration: RoundNarration | null = null;
@@ -322,7 +342,7 @@ const ssrPromptText = ssrTarget.name;
   // ── Render helpers ─────────────────────────────────────────────────
 
   const renderRound = (): void => {
-    const round = session[roundIdx]!;
+    const round = run[roundIdx]!;
     const narration = buildNarration(round);
 
     progressText.textContent = `${roundIdx + 1} / ${TOTAL_ROUNDS}`;
@@ -392,7 +412,7 @@ const ssrPromptText = ssrTarget.name;
 
   const onTileTap = (idx: 0 | 1 | 2): void => {
     if (answered) return;
-    const round = session[roundIdx]!;
+    const round = run[roundIdx]!;
     playTap();
 
     const tappedEl = tileEls[idx]!;
@@ -474,31 +494,35 @@ const ssrPromptText = ssrTarget.name;
   const onNext = (): void => {
     playTap();
     if (roundIdx >= TOTAL_ROUNDS - 1) {
-      showSessionComplete();
+      showRunComplete();
       return;
     }
     roundIdx++;
     startRound();
   };
 
-  const showSessionComplete = (): void => {
+  const showRunComplete = (): void => {
     cancelSpeech();
     const stats = loadFeelingFriendsStats();
     saveFeelingFriendsStats({
       ...stats,
+      // Still the `sessions` field on disk — the stored schema is shared
+      // with every other preschool game — but since 2026-08-22 it counts
+      // runs through every feeling and every story rather than 8-round
+      // sessions.
       sessions: stats.sessions + 1,
       lastPlayed: new Date().toISOString().slice(0, 10),
     });
     recordPlay(GAME_ID);
     doneEl.classList.add('ff-done--show');
     launchConfetti(FF_COLORS);
-    narrate(`Wow! You named ${TOTAL_ROUNDS} feelings today! Great job!`);
+    narrate(`Wow! You named every feeling today! Great job!`);
   };
 
   const onPlayAgain = (): void => {
     playTap();
     doneEl.classList.remove('ff-done--show');
-    session = generateSession();
+    run = generateRun();
     roundIdx = 0;
     startRound();
   };
@@ -574,7 +598,7 @@ const ssrPromptText = ssrTarget.name;
         ? 0
         : Math.round((stats.correctFirstTry / stats.rounds) * 100);
     const lines = [
-      `💛 Sessions completed: ${stats.sessions}`,
+      `💛 Full runs finished: ${stats.sessions}`,
       `🌟 Rounds played: ${stats.rounds}`,
       `🎯 First-try correct: ${stats.correctFirstTry} (${ratio}%)`,
       stats.lastPlayed ? `📅 Last played: ${stats.lastPlayed}` : '📅 Last played: never',
@@ -585,7 +609,7 @@ const ssrPromptText = ssrTarget.name;
   // ── Initial state binding ──────────────────────────────────────────
   // The SSR'd DOM is round 0; we don't re-render it. Bind JS state so
   // subsequent logic — tile clicks, replay, etc. — has the references.
-  currentNarration = buildNarration(session[0]!);
+  currentNarration = buildNarration(run[0]!);
   progressText.textContent = `1 / ${TOTAL_ROUNDS}`;
   progressFill.style.width = `${(1 / TOTAL_ROUNDS) * 100}%`;
   progressPill.setAttribute('aria-label', `Round 1 of ${TOTAL_ROUNDS}`);

@@ -28,8 +28,9 @@
  *   loses the target while scanning three pictures, so the repeat is a
  *   working-memory scaffold, not padding.
  *
- * - **3-tile forced choice, 8 rounds, no score, no timer, no failure.**
- *   Identical session grammar to Sound Friends / Letter Friends.
+ * - **3-tile forced choice, no score, no timer, no failure.** A run plays
+ *   every clip-backed animal once (see `generateRun`); the per-round
+ *   grammar is identical to Sound Friends / Letter Friends.
  *
  * ── Why a curated pool instead of consuming the decks wholesale ─────
  *
@@ -590,7 +591,11 @@ export const buildNarration = (
 export const STATS_KEY = 'animal_sounds_stats_v1';
 
 export interface AnimalSoundsStats {
-  /** Total sessions completed (full 8 rounds). */
+  /**
+   * Completed runs through every clip-backed animal. Named `sessions`
+   * because the on-disk shape is shared across every preschool game; it
+   * counted 8-round sessions before 2026-08-22.
+   */
   readonly sessions: number;
   /** Total individual rounds completed (correct OR corrected). */
   readonly rounds: number;

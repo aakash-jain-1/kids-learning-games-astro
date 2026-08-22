@@ -5,7 +5,7 @@ import { test, expect } from '@playwright/test';
  * (added 2026-08-22).
  *
  * Sister suite to letterfriends.spec.ts / feeling-friends.spec.ts. Same
- * session grammar (prompt card on top, three cards below, 8 rounds), new
+ * round grammar (prompt card on top, three cards below), new
  * skill: holding two contrasting words against each other. We assert:
  *
  *   - SSR renders header, scene, the prompt card, three distinct word cards,
@@ -50,6 +50,15 @@ const PARTNER: Readonly<Record<string, string>> = {
   loud: 'quiet', quiet: 'loud',
   new: 'old', old: 'new',
 };
+
+/**
+ * Every question a full run should ask: each word once as the target, with
+ * its opposite as the answer. `PARTNER` already lists both ends of all ten
+ * pairs, so this is exactly 20 — the run length — with no second source of
+ * truth to keep in step.
+ */
+const ALL_QUESTIONS = Object.entries(PARTNER).map(([target, answer]) => `${target}->${answer}`);
+const RUN_LENGTH = ALL_QUESTIONS.length;
 
 /**
  * Words that crowd each other's meaning for a 3-year-old. Two of these may
@@ -133,7 +142,9 @@ test.describe('opposites friends (preschool cognitive — find the opposite)', (
     await expect(page.locator('body[data-theme="oppositesfriends"]')).toHaveCount(1);
 
     await expect(page.locator('.of-title')).toContainText(/Opposites Friends/);
-    await expect(page.locator('#ofProgressText')).toContainText(/^\s*1\s*\/\s*8\s*$/);
+    await expect(page.locator('#ofProgressText')).toContainText(
+      new RegExp(`^\\s*1\\s*/\\s*${RUN_LENGTH}\\s*$`),
+    );
 
     const stage = page.locator('#ofStage');
     await expect(stage).toBeVisible();
@@ -292,19 +303,31 @@ test.describe('opposites friends (preschool cognitive — find the opposite)', (
 
   /**
    * The invariants above are asserted on round 1, which is SSR'd and
-   * therefore deterministic. This walks all eight rounds of a *randomised*
-   * session so the generator itself is under test — the pairing, the
-   * collision ban and the "target isn't on offer" rule have to hold on
-   * every round, not just the seeded one.
+   * therefore deterministic. This walks a whole *randomised* run so the
+   * generator itself is under test — the pairing, the collision ban and the
+   * "target isn't on offer" rule have to hold on every round, not just the
+   * seeded one.
+   *
+   * Run mode (2026-08-22) adds the coverage claim: 20 rounds, every pair
+   * asked in **both** directions. Asking both ways was always the pedagogy —
+   * it's what stops a child learning "the small card is the answer" instead
+   * of the relation — but the old session picked one direction per pair, so
+   * within a sitting the relation was only ever demonstrated one way.
    */
-  test('every round of a full session is well formed, and finishing records a session', async ({
+  test('a full run asks every pair in both directions, well formed throughout', async ({
     page,
   }) => {
-    for (let round = 1; round <= 8; round++) {
+    test.setTimeout(180_000);
+
+    const asked: string[] = [];
+
+    for (let round = 1; round <= RUN_LENGTH; round++) {
       await expect(page.locator('#ofProgressText')).toContainText(
-        new RegExp(`^\\s*${round}\\s*/\\s*8\\s*$`),
+        new RegExp(`^\\s*${round}\\s*/\\s*${RUN_LENGTH}\\s*$`),
       );
-      expectRoundIsWellFormed(await readRound(page));
+      const shown = await readRound(page);
+      expectRoundIsWellFormed(shown);
+      asked.push(`${shown.target}->${shown.answer}`);
 
       const correctIdx = await findCorrectIdx(page);
       expect(correctIdx).toBeGreaterThanOrEqual(0);
@@ -312,6 +335,20 @@ test.describe('opposites friends (preschool cognitive — find the opposite)', (
       await expect(page.locator('#ofNextBtn')).toBeEnabled();
       await page.locator('#ofNextBtn').click();
     }
+
+    expect(asked.slice().sort(), 'a run should ask each pair both ways, once each').toEqual(
+      ALL_QUESTIONS.slice().sort(),
+    );
+
+    // The two directions of one pair must not be adjacent: "which one is
+    // small?" straight after "which one is big?" is answerable by pointing
+    // at the card you just ignored, without engaging with either word.
+    const backToBack = asked.filter((q, i) => {
+      if (i === 0) return false;
+      const pairOf = (s: string): string => s.split('->').sort().join('/');
+      return pairOf(q) === pairOf(asked[i - 1]!);
+    });
+    expect(backToBack, `these were asked twice in a row: ${backToBack.join(', ')}`).toEqual([]);
 
     await expect(page.locator('#ofDone')).toHaveClass(/of-done--show/);
 
@@ -322,8 +359,8 @@ test.describe('opposites friends (preschool cognitive — find the opposite)', (
         : { sessions: 0, rounds: 0, correctFirstTry: 0 };
     }, STATS_KEY);
     expect(stats.sessions).toBe(1);
-    expect(stats.rounds).toBe(8);
-    expect(stats.correctFirstTry).toBe(8);
+    expect(stats.rounds).toBe(RUN_LENGTH);
+    expect(stats.correctFirstTry).toBe(RUN_LENGTH);
   });
 
   test('the prompt card is a button so the question can be repeated', async ({ page }) => {

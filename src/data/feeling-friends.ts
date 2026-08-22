@@ -4,7 +4,8 @@
  * The first **social-emotional** game in the repo; every other game is
  * math, literacy or cognitive, so this domain had zero coverage.
  *
- * Two round shapes inside one 8-round session:
+ * Two round shapes, and a run plays every question of both (see
+ * `generateRun`):
  *
  *   - **Tiers 1–2, `kind: 'label'`** — "Show me happy." Three faces, tap
  *     the match. Structurally identical to Letter Friends, so it carries no
@@ -60,9 +61,6 @@ import {
 
 export { THEMES, THEME_BY_KEY } from '@/lib/preschool-themes';
 export type { PreschoolTheme, ThemeMeta } from '@/lib/preschool-themes';
-
-/** Rounds in one session. */
-export const TOTAL_ROUNDS = 8;
 
 /**
  * Where the vendored face PNGs are served from. The trailing slash on
@@ -212,13 +210,6 @@ const TIER_3_TARGETS: readonly FeelingId[] = [
   'happy', 'sad', 'angry', 'scared', 'sleepy', 'excited',
 ];
 
-/** Tier pool per round (0-indexed). 8 rounds: 3 / 3 / 2. */
-const TIER_BY_ROUND: ReadonlyArray<readonly FeelingId[]> = [
-  TIER_1_TARGETS, TIER_1_TARGETS, TIER_1_TARGETS,
-  TIER_2_TARGETS, TIER_2_TARGETS, TIER_2_TARGETS,
-  TIER_3_TARGETS, TIER_3_TARGETS,
-];
-
 /**
  * Faces a 3-year-old could reasonably mix up. Two members of one group must
  * never share a round, otherwise a "wrong" tap would be defensible and the
@@ -334,24 +325,90 @@ const pickDistractors = (
   return [pool[0]!, pool[1]!];
 };
 
-// ── Session ────────────────────────────────────────────────────────
+// ── Run ────────────────────────────────────────────────────────────
 
 /**
- * Build one 8-round session.
+ * One question in the run, before distractors and a theme are attached.
+ * A `situation` step carries the exact vignette it will ask, which is how
+ * the run guarantees each authored vignette is used once rather than
+ * sampled.
+ */
+interface RunStep {
+  readonly target: FeelingId;
+  readonly tier: 0 | 1 | 2;
+  readonly situation: string | null;
+}
+
+/**
+ * Every question this game can ask, in teaching order.
+ *
+ * Two things are being exhausted, and they're different kinds of content:
+ * the **eight feelings** as label rounds, then the **twelve vignettes** as
+ * situation rounds. Both are finite authored sets — the vignettes
+ * especially, since each one is a hand-written scenario a child would
+ * otherwise have maybe a 1-in-6 chance of ever seeing.
+ *
+ * Ordering within a tier is shuffled per run, but the tiers stay in
+ * sequence: the unmistakable faces first, the subtler ones next, and only
+ * then the jump from *recognising* a face to *inferring* a feeling from a
+ * situation, which is the actual social skill and much the harder ask.
+ */
+const buildSteps = (rand: () => number): RunStep[] => {
+  const labels = (tier: 0 | 1, pool: readonly FeelingId[]): RunStep[] =>
+    shuffleInPlace([...pool], rand).map((target) => ({
+      target,
+      tier,
+      situation: null,
+    }));
+
+  const situations: RunStep[] = shuffleInPlace(
+    TIER_3_TARGETS.flatMap((target) =>
+      VIGNETTES[target].map((situation) => ({ target, tier: 2 as const, situation })),
+    ),
+    rand,
+  );
+
+  return [
+    ...labels(0, TIER_1_TARGETS),
+    ...labels(1, TIER_2_TARGETS),
+    ...situations,
+  ];
+};
+
+/**
+ * Rounds in one full run — 8 label rounds + 12 vignettes = 20.
+ *
+ * Derived from the content, so authoring a third vignette for `sad`
+ * lengthens the run automatically instead of leaving it unreachable.
+ */
+export const TOTAL_ROUNDS =
+  TIER_1_TARGETS.length +
+  TIER_2_TARGETS.length +
+  TIER_3_TARGETS.reduce((n, id) => n + VIGNETTES[id].length, 0);
+
+/**
+ * Build one full run: **every feeling asked by name, then every vignette**
+ * (CONTEXT.md §5 rule 11, adopted here 2026-08-22).
+ *
+ * The 8-round session this replaces sampled a target per round, so a
+ * sitting reached only two of the twelve vignettes and could ask `happy`
+ * three times while never asking `scared`. For a game about naming
+ * feelings that is the wrong failure: the value is in breadth of
+ * vocabulary, and half the authored content was effectively unreachable in
+ * any given play.
  *
  * `rand` is injectable so the page can SSR a deterministic round 0
- * (`generateSession(() => 0.42)[0]`) and the specs can assert a stable
- * first paint.
+ * (`generateRun(() => 0.42)[0]`) and the specs can assert a stable first
+ * paint.
  */
-export const generateSession = (
+export const generateRun = (
   rand: () => number = Math.random,
 ): FeelingRound[] => {
   const rounds: FeelingRound[] = [];
   let prevTheme: PreschoolTheme | null = null;
 
-  for (let k = 0; k < TIER_BY_ROUND.length; k++) {
-    const tier = (k < 3 ? 0 : k < 6 ? 1 : 2) as 0 | 1 | 2;
-    const target = pick(TIER_BY_ROUND[k]!, rand);
+  for (const step of buildSteps(rand)) {
+    const { target, tier, situation } = step;
     const [d1, d2] = pickDistractors(target, rand);
 
     const triple: FeelingId[] = [target, d1, d2];
@@ -364,12 +421,6 @@ export const generateSession = (
       prevTheme === null ? THEMES : THEMES.filter((t) => t.key !== prevTheme);
     const theme = pick(themeChoices, rand).key;
     prevTheme = theme;
-
-    const kind: FeelingRoundKind = tier === 2 ? 'situation' : 'label';
-    const bank = VIGNETTES[target];
-    // Fall back to a label round if a tier-3 target somehow has no
-    // vignette, rather than shipping a round with an empty prompt.
-    const situation = kind === 'situation' && bank.length > 0 ? pick(bank, rand) : null;
 
     rounds.push({
       kind: situation ? 'situation' : 'label',

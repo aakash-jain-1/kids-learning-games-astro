@@ -3,7 +3,7 @@ import StoryLayout from '@/layouts/StoryLayout.astro';
 import GameControls from '@/components/GameControls.astro';
 import '@/styles/letterfriends.css';
 
-import { generateSession, lookupLetter } from '@/data/letterfriends';
+import { generateRun, lookupLetter, TOTAL_ROUNDS } from '@/data/letterfriends';
 
 const title = 'Letter Friends — Kids Learning Games';
 const description =
@@ -14,11 +14,9 @@ const description =
 // pattern from Number Friends + Pattern Sequences — see those pages
 // for the kickoff-race rationale that motivated this approach), and
 // continues with random rounds 1..N after the user clicks Next.
-const SSR_FIRST_ROUND = generateSession(() => 0.42)[0]!;
+const SSR_FIRST_ROUND = generateRun(() => 0.42)[0]!;
 const ssrTargetMeta = lookupLetter(SSR_FIRST_ROUND.target);
 const ssrCaption = `Find ${SSR_FIRST_ROUND.target}! Show me the letter ${SSR_FIRST_ROUND.target}.`;
-
-const TOTAL_ROUNDS = 8;
 ---
 
 <StoryLayout
@@ -118,7 +116,7 @@ const TOTAL_ROUNDS = 8;
         <div class="lf-done-emoji" aria-hidden="true">⭐</div>
         <h2 class="lf-done-title" id="lfDoneTitle">Letter champion!</h2>
         <p class="lf-done-text" id="lfDoneText">
-          You found {TOTAL_ROUNDS} letter friends today!
+          You found all {TOTAL_ROUNDS} letters today!
         </p>
         <div class="lf-done-actions">
           <button type="button" class="lf-action lf-action--primary" id="lfPlayAgainBtn">
@@ -139,11 +137,12 @@ const TOTAL_ROUNDS = 8;
   import { launchConfetti } from '@/lib/achievements';
   import { getSettings } from '@/lib/settings';
   import {
-    generateSession,
+    generateRun,
     buildNarration,
     lookupLetter,
     loadLetterFriendsStats,
     saveLetterFriendsStats,
+    TOTAL_ROUNDS,
     type LetterRound,
     type LetterId,
     type RoundNarration,
@@ -151,7 +150,6 @@ const TOTAL_ROUNDS = 8;
   } from '@/data/letterfriends';
   import { recordPlay } from '@/lib/retention';
 
-  const TOTAL_ROUNDS = 8;
   // Confetti palette — pink-leaning to match the literacy family
   // accent (--lf-target-accent #ef476f). Distinct from the
   // preschool-math triad's green palette so a parent toggling
@@ -159,18 +157,18 @@ const TOTAL_ROUNDS = 8;
   const LF_COLORS = ['#ef476f', '#ffd166', '#06d6a0', '#118ab2', '#f78fb3'];
 
   /**
-   * Read round 0 from the SSR'd DOM so the JS session starts in sync
+   * Read round 0 from the SSR'd DOM so the JS run starts in sync
    * with whatever Astro rendered. Avoids the same kickoff-race that
    * bit Counting Friends on 2026-05-15 — without this, a tap on a
    * tile during the first interaction could land on a tile whose
    * letter has just been rewritten by a freshly-randomised JS
-   * session. See counting-friends-game.astro for the empirical
+   * run. See counting-friends-game.astro for the empirical
    * proof of that race; Letter Friends inherits the prophylactic
    * fix from Number Friends + Pattern Sequences.
    */
   const readSSRRound = (): LetterRound => {
     const stageEl = document.getElementById('lfStage');
-    if (!stageEl) return generateSession()[0]!;
+    if (!stageEl) return generateRun()[0]!;
 
     const themeKey = (stageEl.dataset.scene ?? 'pond') as PreschoolTheme;
     const target = stageEl.dataset.target as LetterId | undefined;
@@ -181,7 +179,7 @@ const TOTAL_ROUNDS = 8;
       document.getElementById('lfTile2'),
     ];
     if (!target || tileEls.some((el) => !el)) {
-      return generateSession()[0]!;
+      return generateRun()[0]!;
     }
 
     const tiles = tileEls.map(
@@ -189,7 +187,7 @@ const TOTAL_ROUNDS = 8;
     ) as [LetterId, LetterId, LetterId];
     const correctIndex = tiles.indexOf(target);
     if (correctIndex < 0 || correctIndex > 2) {
-      return generateSession()[0]!;
+      return generateRun()[0]!;
     }
 
     return {
@@ -204,8 +202,23 @@ const TOTAL_ROUNDS = 8;
     };
   };
 
+  /**
+   * The SSR'd round, followed by a fresh run with that letter removed.
+   *
+   * Filtering by target rather than dropping index 0 is what keeps "every
+   * letter exactly once" true through the SSR handoff: the SSR round is
+   * pinned (`rand: () => 0.42`), so the letter it shows is almost never the
+   * one the random run happens to start with. Slicing would leave the SSR
+   * letter still sitting somewhere later in the run — the child meets it
+   * twice while another letter never gets asked at all.
+   */
+  const buildRun = (): LetterRound[] => {
+    const first = readSSRRound();
+    return [first, ...generateRun().filter((r) => r.target !== first.target)];
+  };
+
   // ── State ──────────────────────────────────────────────────────────
-  let session: LetterRound[] = [readSSRRound(), ...generateSession().slice(1)];
+  let run: LetterRound[] = buildRun();
   let roundIdx = 0;
   let answered = false;
   let currentNarration: RoundNarration | null = null;
@@ -285,7 +298,7 @@ const TOTAL_ROUNDS = 8;
   };
 
   const renderRound = (): void => {
-    const round = session[roundIdx]!;
+    const round = run[roundIdx]!;
 
     progressText.textContent = `${roundIdx + 1} / ${TOTAL_ROUNDS}`;
     progressFill.style.width = `${((roundIdx + 1) / TOTAL_ROUNDS) * 100}%`;
@@ -338,7 +351,7 @@ const TOTAL_ROUNDS = 8;
 
   const onTileTap = (idx: 0 | 1 | 2): void => {
     if (answered) return;
-    const round = session[roundIdx]!;
+    const round = run[roundIdx]!;
     playTap();
 
     const tappedEl = tileEls[idx]!;
@@ -416,31 +429,34 @@ const TOTAL_ROUNDS = 8;
   const onNext = (): void => {
     playTap();
     if (roundIdx >= TOTAL_ROUNDS - 1) {
-      showSessionComplete();
+      showRunComplete();
       return;
     }
     roundIdx++;
     startRound();
   };
 
-  const showSessionComplete = (): void => {
+  const showRunComplete = (): void => {
     cancelSpeech();
     const stats = loadLetterFriendsStats();
     saveLetterFriendsStats({
       ...stats,
+      // Still the `sessions` field on disk — the stored schema is shared
+      // with every other preschool game — but since 2026-08-22 it counts
+      // runs through the whole alphabet rather than 8-round sessions.
       sessions: stats.sessions + 1,
       lastPlayed: new Date().toISOString().slice(0, 10),
     });
     recordPlay('letter-friends');
     doneEl.classList.add('lf-done--show');
     launchConfetti(LF_COLORS);
-    narrate(`Wow! You found ${TOTAL_ROUNDS} letter friends today! Great job!`);
+    narrate(`Wow! You found all ${TOTAL_ROUNDS} letters! Great job!`);
   };
 
   const onPlayAgain = (): void => {
     playTap();
     doneEl.classList.remove('lf-done--show');
-    session = generateSession();
+    run = generateRun();
     roundIdx = 0;
     startRound();
   };
@@ -504,7 +520,7 @@ const TOTAL_ROUNDS = 8;
         ? 0
         : Math.round((stats.correctFirstTry / stats.rounds) * 100);
     const lines = [
-      `🔤 Sessions completed: ${stats.sessions}`,
+      `🔤 Full runs finished: ${stats.sessions}`,
       `🌟 Rounds played: ${stats.rounds}`,
       `🎯 First-try correct: ${stats.correctFirstTry} (${ratio}%)`,
       stats.lastPlayed ? `📅 Last played: ${stats.lastPlayed}` : '📅 Last played: never',
@@ -516,7 +532,7 @@ const TOTAL_ROUNDS = 8;
   // The SSR'd DOM is round 0; we don't re-render it. Bind JS state
   // (currentNarration, header progress) so subsequent logic — tile
   // clicks, replay button, etc. — has the expected references.
-  currentNarration = buildNarration(session[0]!);
+  currentNarration = buildNarration(run[0]!);
   progressText.textContent = `1 / ${TOTAL_ROUNDS}`;
   progressFill.style.width = `${(1 / TOTAL_ROUNDS) * 100}%`;
   progressPill.setAttribute('aria-label', `Round 1 of ${TOTAL_ROUNDS}`);

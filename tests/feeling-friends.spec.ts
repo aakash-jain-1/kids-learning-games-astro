@@ -5,7 +5,7 @@ import { test, expect } from '@playwright/test';
  * (added 2026-08-17).
  *
  * Sister suite to letterfriends.spec.ts / animal-sounds.spec.ts. Same
- * session grammar (prompt card on top, three tiles below, 8 rounds), new
+ * round grammar (prompt card on top, three tiles below), new
  * skill: read a face, and later infer a feeling from a situation. We assert:
  *
  *   - SSR renders header, scene, the prompt card, three face tiles each
@@ -46,6 +46,24 @@ const FEELINGS = [
   'caring',
 ];
 
+/**
+ * The six feelings that carry situational vignettes, and how many each has.
+ * Love and caring are deliberately absent: a 3-year-old can reason about
+ * "the ice cream fell" long before they can tell love from caring.
+ */
+const VIGNETTES_PER_FEELING = 2;
+const SITUATION_FEELINGS = ['happy', 'sad', 'angry', 'scared', 'sleepy', 'excited'];
+
+/**
+ * A full run is every feeling asked by name, then every authored vignette:
+ * 8 + (6 × 2) = 20.
+ *
+ * Spelled out rather than imported from `src/data/feeling-friends.ts`, so
+ * the spec is an independent statement of the content and a vignette
+ * deleted by accident fails here instead of quietly shortening the run.
+ */
+const RUN_LENGTH = FEELINGS.length + SITUATION_FEELINGS.length * VIGNETTES_PER_FEELING;
+
 /** Resolve the index of the tile whose feeling matches `data-target`. */
 const findCorrectIdx = async (page: import('@playwright/test').Page): Promise<number> => {
   const target =
@@ -78,7 +96,9 @@ test.describe('feeling friends (preschool social-emotional — show me happy)', 
     await expect(page.locator('body[data-theme="feelingfriends"]')).toHaveCount(1);
 
     await expect(page.locator('.ff-title')).toContainText(/Feeling Friends/);
-    await expect(page.locator('#ffProgressText')).toContainText(/^\s*1\s*\/\s*8\s*$/);
+    await expect(page.locator('#ffProgressText')).toContainText(
+      new RegExp(`^\\s*1\\s*/\\s*${RUN_LENGTH}\\s*$`),
+    );
 
     const stage = page.locator('#ffStage');
     await expect(stage).toBeVisible();
@@ -133,6 +153,75 @@ test.describe('feeling friends (preschool social-emotional — show me happy)', 
 
   test('next button is disabled until an answer is chosen', async ({ page }) => {
     await expect(page.locator('#ffNextBtn')).toBeDisabled();
+  });
+
+  /**
+   * Run mode (2026-08-22): a sitting asks every feeling by name **and**
+   * plays every authored vignette, instead of sampling 8 questions.
+   *
+   * Two distinct things get asserted because they can fail separately. The
+   * eight labels are a set of *feelings*; the twelve situations are a set of
+   * *prompts*, and two of them share a target — so checking targets alone
+   * would happily pass a run that asked "her ice cream fell" twice and never
+   * asked about the balloon.
+   */
+  test('a full run asks every feeling by name and plays every vignette once', async ({ page }) => {
+    test.setTimeout(180_000);
+
+    const labels: string[] = [];
+    const situations: string[] = [];
+    const kinds: string[] = [];
+
+    for (let round = 1; round <= RUN_LENGTH; round++) {
+      await expect(page.locator('#ffProgressText')).toContainText(
+        new RegExp(`^\\s*${round}\\s*/\\s*${RUN_LENGTH}\\s*$`),
+      );
+
+      const stage = page.locator('#ffStage');
+      const kind = (await stage.getAttribute('data-kind'))?.trim() ?? '';
+      const target = (await stage.getAttribute('data-target'))?.trim() ?? '';
+      const prompt = (await page.locator('#ffPromptText').textContent())?.trim() ?? '';
+      expect(target, `round ${round} has no target`).not.toBe('');
+
+      kinds.push(kind);
+      if (kind === 'situation') situations.push(prompt);
+      else labels.push(target);
+
+      const correctIdx = await findCorrectIdx(page);
+      expect(correctIdx, `round ${round}: no tile matches "${target}"`).toBeGreaterThanOrEqual(0);
+      await page.locator(`#ffTile${correctIdx}`).click();
+      await expect(page.locator('#ffNextBtn')).toBeEnabled();
+      await page.locator('#ffNextBtn').click();
+    }
+
+    expect(labels.slice().sort(), 'every feeling should be asked by name once').toEqual(
+      FEELINGS.slice().sort(),
+    );
+
+    expect(situations.length, 'every authored vignette should be played').toBe(
+      SITUATION_FEELINGS.length * VIGNETTES_PER_FEELING,
+    );
+    const repeatedVignettes = situations.filter((s, i) => situations.indexOf(s) !== i);
+    expect(repeatedVignettes, `these vignettes repeated: ${repeatedVignettes.join(' | ')}`).toEqual(
+      [],
+    );
+
+    // The tier ladder is the pedagogy: naming faces comes before inferring a
+    // feeling from a story, so no label may appear after a situation has.
+    expect(
+      kinds.lastIndexOf('label'),
+      'every label round should come before the first vignette',
+    ).toBeLessThan(kinds.indexOf('situation'));
+
+    await expect(page.locator('#ffDone')).toHaveClass(/ff-done--show/);
+    const stats = await page.evaluate((k) => {
+      const raw = localStorage.getItem(k);
+      return raw
+        ? (JSON.parse(raw) as { sessions: number; rounds: number })
+        : { sessions: 0, rounds: 0 };
+    }, STATS_KEY);
+    expect(stats.sessions).toBe(1);
+    expect(stats.rounds).toBe(RUN_LENGTH);
   });
 
   test('tapping any tile eventually enables Next and persists round count', async ({ page }) => {

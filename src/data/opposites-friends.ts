@@ -51,8 +51,6 @@ import {
 export { THEMES, THEME_BY_KEY } from '@/lib/preschool-themes';
 export type { PreschoolTheme, ThemeMeta } from '@/lib/preschool-themes';
 
-/** Rounds in one session. */
-export const TOTAL_ROUNDS = 8;
 
 // ── The pool ───────────────────────────────────────────────────────
 
@@ -99,6 +97,16 @@ export const PAIRS: ReadonlyArray<readonly [OppositeId, OppositeId]> = [
   ['strong', 'weak'],
   ['new', 'old'],
 ];
+
+/**
+ * Rounds in one full run — every pair asked in **both** directions, so
+ * 10 pairs × 2 = 20. Derived from `PAIRS`, so adding an eleventh pair
+ * lengthens the run instead of leaving it unreachable.
+ *
+ * Both directions count as separate questions on purpose; see
+ * `generateRun`.
+ */
+export const TOTAL_ROUNDS = PAIRS.length * 2;
 
 /**
  * Which `opposites` deck card backs each id. Looked up by `n` (the deck's
@@ -214,11 +222,11 @@ const TIER_2_PAIRS: readonly number[] = [4, 5, 6];
 /** The abstract end: force, weight and age. */
 const TIER_3_PAIRS: readonly number[] = [7, 8, 9];
 
-/** Which pool each round draws from. 8 rounds: 3 / 3 / 2. */
-const TIER_BY_ROUND: ReadonlyArray<readonly number[]> = [
-  TIER_1_PAIRS, TIER_1_PAIRS, TIER_1_PAIRS,
-  TIER_2_PAIRS, TIER_2_PAIRS, TIER_2_PAIRS,
-  TIER_3_PAIRS, TIER_3_PAIRS,
+/** The tiers in play order. Together they index every pair exactly once. */
+const TIERS: ReadonlyArray<readonly number[]> = [
+  TIER_1_PAIRS,
+  TIER_2_PAIRS,
+  TIER_3_PAIRS,
 ];
 
 /**
@@ -318,38 +326,93 @@ const pickDistractors = (
   return [first, second];
 };
 
-// ── Session ────────────────────────────────────────────────────────
+// ── Run ────────────────────────────────────────────────────────────
+
+/** One question: a pair index plus which end of it is being asked. */
+interface RunStep {
+  readonly pairIdx: number;
+  readonly forward: boolean;
+  readonly tier: 0 | 1 | 2;
+}
 
 /**
- * Build one 8-round session.
+ * Order one tier's questions so the same pair is never asked twice in a row.
  *
- * Each round picks a pair, then picks a *direction* — big→small as often
- * as small→big — so the child learns the relation rather than memorising
- * that one particular card is always the answer.
+ * This matters as much as the shuffle does. "Which one is small?"
+ * immediately after "which one is big?" is answerable by pointing at the
+ * card you just ignored — the child can score it without engaging with
+ * either word. Separating a pair's two directions is what makes the second
+ * one a real question.
+ *
+ * Greedy by remaining count: at each step take the pair with the most
+ * questions still owed that isn't the one just asked, breaking ties at
+ * random so runs still vary. Every pair owes exactly two questions and
+ * every tier holds at least three pairs, so a valid ordering always exists
+ * (the usual bound is that the most frequent item must fit in `ceil(n/2)`
+ * slots — two never exceeds three) and taking the most-owed pair first is
+ * what stops the algorithm painting itself into a corner at the end, which
+ * is exactly where a shuffle-then-repair pass fails.
+ */
+const orderTier = (
+  pairIdxs: readonly number[],
+  tier: 0 | 1 | 2,
+  rand: () => number,
+): RunStep[] => {
+  const owed = new Map<number, number>(pairIdxs.map((i) => [i, 2]));
+  // Which way round a pair is asked first; its second question flips it.
+  const firstForward = new Map<number, boolean>(pairIdxs.map((i) => [i, rand() < 0.5]));
+
+  const out: RunStep[] = [];
+  let prev = -1;
+
+  while (out.length < pairIdxs.length * 2) {
+    const candidates = [...owed].filter(([idx, n]) => n > 0 && idx !== prev);
+    const most = Math.max(...candidates.map(([, n]) => n));
+    const [pairIdx, remaining] = pick(
+      candidates.filter(([, n]) => n === most),
+      rand,
+    );
+
+    const forward =
+      remaining === 2 ? firstForward.get(pairIdx)! : !firstForward.get(pairIdx)!;
+    out.push({ pairIdx, forward, tier });
+    owed.set(pairIdx, remaining - 1);
+    prev = pairIdx;
+  }
+
+  return out;
+};
+
+/**
+ * Build one full run: **every pair asked in both directions** (CONTEXT.md
+ * §5 rule 11, adopted here 2026-08-22).
+ *
+ * The set being exhausted is the twenty *questions*, not the ten pairs.
+ * Asking both directions was always the pedagogy — it's what stops the
+ * child learning "the small card is the answer" instead of the relation —
+ * but the old 8-round session picked a direction at random per pair, so
+ * within any one sitting each pair was only ever asked one way. The
+ * relation was taught across replays and left to chance within a play.
+ *
+ * Tier order still runs concrete → abstract, and `spreadPairs` keeps a
+ * pair's two directions apart.
  *
  * `rand` is injectable so the page can SSR a deterministic round 0
- * (`generateSession(() => 0.42)[0]`) and the specs can assert a stable
- * first paint.
+ * (`generateRun(() => 0.42)[0]`) and the specs can assert a stable first
+ * paint.
  */
-export const generateSession = (
+export const generateRun = (
   rand: () => number = Math.random,
 ): OppositeRound[] => {
   const rounds: OppositeRound[] = [];
   let prevTheme: PreschoolTheme | null = null;
-  const usedPairs = new Set<number>();
 
-  for (let k = 0; k < TIER_BY_ROUND.length; k++) {
-    const tier = (k < 3 ? 0 : k < 6 ? 1 : 2) as 0 | 1 | 2;
+  const steps: RunStep[] = TIERS.flatMap((tierPool, tierIndex) =>
+    orderTier(tierPool, tierIndex as 0 | 1 | 2, rand),
+  );
 
-    // Prefer a pair this session hasn't shown yet, so eight rounds cover
-    // eight different dimensions rather than repeating one.
-    const tierPool = TIER_BY_ROUND[k]!;
-    const fresh = tierPool.filter((i) => !usedPairs.has(i));
-    const pairIdx = pick(fresh.length > 0 ? fresh : tierPool, rand);
-    usedPairs.add(pairIdx);
-
+  for (const { pairIdx, forward, tier } of steps) {
     const pair = PAIRS[pairIdx]!;
-    const forward = rand() < 0.5;
     const target = forward ? pair[0] : pair[1];
     const answer = forward ? pair[1] : pair[0];
 

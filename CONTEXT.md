@@ -6,10 +6,12 @@
 > win. Keep it short and current — see the update rule in
 > `.cursor/rules/maintain-context.mdc`.
 >
-> **Last verified against the codebase**: 2026-08-22 (Animal Sounds expanded to
-> **27 animals played as one continuous run** instead of an 8-round session,
-> which added §5 rule 11 — the no-sessions direction is project-wide intent for
-> bounded-set games. Game count unchanged at 27. Same day, earlier: Rhyme Time
+> **Last verified against the codebase**: 2026-08-22 (**§5 rule 11 — no sampled
+> sessions — now applied to four games**: Animal Sounds (27 animals), Letter
+> Friends (26 letters), Feeling Friends (8 feelings + 12 vignettes) and
+> Opposites Friends (10 pairs, both directions). Four more still qualify and
+> haven't converted — see rule 11. Game count unchanged at 27. Same day,
+> earlier: Rhyme Time
 > shipped (fourth of the six-game August arc); the shared `.ctrl-pill` chips
 > were fixed after measuring 1.07:1 contrast, adding §5 rule 10; Opposites
 > Friends shipped; and a `clip.ts` playback bug fixed that made Animal Sounds
@@ -162,17 +164,36 @@ data file + a layout-specific themed CSS block. A parent dashboard lives at
     finish without the child meeting most of them while repeating `cow` three
     plays running, in a game whose whole purpose is breadth. Finishing should
     mean "you've heard all of them" — a goal a 3yo can hold, unlike an arbitrary
-    eight. **Directed by the user 2026-08-22 as project-wide intent**; Animal
-    Sounds is the first adopter (`generateRun`, `TOTAL_ROUNDS` derived from the
-    tier lists so it can't drift when the pool grows).
+    eight. **Directed by the user 2026-08-22 as project-wide intent.**
 
-    It does **not** apply everywhere, and the test is whether a finite set
-    exists to exhaust. Letter Friends (26 letters), Feeling Friends (8 feelings)
-    and Opposites Friends (10 pairs) qualify and should convert when next
-    touched; a generated-question game like Counting Friends does not, because
-    there is no finite set of addition facts to complete. Converting also means
-    revisiting preload: warm a rolling window ahead of the current round, not the
-    whole run, or start-up cost grows with the pool.
+    **Converted so far (4):** Animal Sounds (27 animals), Letter Friends (26
+    letters), Feeling Friends (8 feelings + 12 vignettes), Opposites Friends (10
+    pairs × 2 directions = 20). Each exports `generateRun` plus a `TOTAL_ROUNDS`
+    **derived from the content**, so adding a letter, a vignette or a pair
+    lengthens the run instead of leaving it unreachable.
+
+    **Still on 8-round sessions but arguably qualifying:** Sound Friends (26
+    letters — the direct sibling of Letter Friends), Rhyme Time (9 rhyme
+    families), Week Friends (7 days), Sorting Friends (a fixed category set).
+    Convert them when next touched.
+
+    It does **not** apply everywhere, and the test is whether a finite set exists
+    to exhaust. The preschool-math games (Counting / More / Number Friends,
+    Patterns, Number Bond Pop) do not qualify: their questions are generated, so
+    there is no finite set to complete. Days Parade is an explore game with no
+    rounds at all. Note also that "the set" is not always the obvious noun — for
+    Opposites Friends it's the twenty *questions*, not the ten pairs, because
+    asking a pair both ways is the whole pedagogy.
+
+    Two things to get right when converting another game:
+
+    - **The SSR handoff.** These pages SSR a deterministic round 0 and hand it to
+      a fresh run. Appending `generateRun().slice(1)` is wrong — it drops the
+      random run's first entry rather than the one already on screen, so a
+      question is asked twice, another never, and the run still has exactly the
+      right length. Filter by identity instead (`buildRun` in each page).
+    - **Preload.** Warm a rolling window ahead of the current round, not the
+      whole run, or start-up cost grows with the content.
 
 ## 6. LocalStorage keys (state shapes)
 
@@ -180,10 +201,11 @@ data file + a layout-specific themed CSS block. A parent dashboard lives at
 - `kids_progress_v1:<gameId>` — learned-item set (sorted string array).
 - `<gameId>_quiz_v1` — `{ attempts, bestScore, lastPlayed }` quiz metrics.
 - `<game>_stats_v1` — bespoke preschool schema `{ sessions, rounds, correctFirstTry, lastPlayed }`
-  (newest: `rhyme_time_stats_v1`, 2026-08-22). In games converted to §5 rule 11
-  the `sessions` field is kept on disk (the shape is shared across every
-  preschool game) but now counts **completed runs**, and the UI labels it that
-  way — `animal_sounds_stats_v1` is the first.
+  (newest: `rhyme_time_stats_v1`, 2026-08-22). In the four games converted to
+  §5 rule 11 the `sessions` field is kept on disk (the shape is shared across
+  every preschool game) but now counts **completed runs**, and the UI labels it
+  "Full runs finished" — `animal_sounds_stats_v1`, `letter_friends_stats_v1`,
+  `feeling_friends_stats_v1`, `opposites_friends_stats_v1`.
   The staged preschool-math games (Counting / More / Number Friends + Number
   Bond Pop) also carry `{ stage, bestStage }` (1..3) for their auto-advancing
   stages (added 2026-06-03; Number Bond Pop adopted them at ship 2026-06-06).
@@ -210,8 +232,24 @@ this family stays at one for now.)
   Friends + Sorting Friends + Week Friends + Days Parade + Animal Sounds +
   Feeling Friends + Opposites Friends + Rhyme Time). Total **27 games**, all
   live.
-- **Latest ship (2026-08-22)**: **Animal Sounds — 27 animals, one run, no
-  sessions.** Direct user request ("we need a large number", "no more sessions,
+- **Latest ship (2026-08-22)**: **Letter, Feeling and Opposites Friends drop
+  sessions too**, taking §5 rule 11 to four games (four more still qualify).
+  Letter Friends goes 8 rounds → **26** (the whole alphabet; the other 18
+  letters were never absent, they were just never the thing being *asked for*).
+  Feeling Friends → **20** (8 feelings named, then all 12 authored vignettes —
+  a sitting used to reach two of the twelve, so half the hand-written content
+  was unreachable in any given play). Opposites Friends → **20** (every pair
+  both ways; asking both directions was always the pedagogy but the old session
+  picked one direction per pair, so within a sitting the relation was only ever
+  shown one way). Opposites also needed a pair's two directions kept apart —
+  "which one is small?" straight after "which one is big?" is answerable
+  without engaging with either word — which a shuffle-then-repair pass could
+  not guarantee at the end of a tier, so it builds the order greedily instead.
+  The shared bug fixed in all three: the SSR handoff appended
+  `generateX().slice(1)`, dropping the random run's first question rather than
+  the one already on screen. See §5 rule 11 for the pattern.
+- **Prior ship (2026-08-22, same day)**: **Animal Sounds — 27 animals, one run,
+  no sessions.** Direct user request ("we need a large number", "no more sessions,
   all in one go"). Ten new mastered recordings (`goat`, `donkey`, `goose`,
   `crow`, `bear`, `tiger`, `dove`, `peacock`, `cricket`, `seagull`) take the
   clip-backed pool from 17 to 27; six of them also needed adding to the browsing
@@ -257,9 +295,10 @@ this family stays at one for now.)
 - **Prior ship (2026-08-22, same day)**: **Opposites Friends** — fifth
   preschool-cognitive game and the third of the six-game August arc. A target
   word shows with its picture ("Hot"); three cards below, tap the opposite.
-  Eight rounds over **ten pairs**, asked in *both* directions (big→small as
-  often as small→big) so the child learns the relation rather than which card
-  is always the answer. Identity comes from the shipped `opposites` Flashcards
+  Shipped as eight rounds over **ten pairs**, asked in *both* directions
+  (big→small as often as small→big) so the child learns the relation rather than
+  which card is always the answer — *the round count is superseded by the run-mode
+  ship above, which asks all twenty directed questions*. Identity comes from the shipped `opposites` Flashcards
   deck — this is the payoff for the Strong/Light pair bug fixed on 2026-08-17,
   which is what made ten clean pairs exist. Two things are pinned locally: the
   **picture** where the deck's emoji can't carry the concept (Big/Small ship
@@ -288,11 +327,12 @@ this family stays at one for now.)
   bundled Chromium has no MP3 codec, so clips are asserted as *requested*,
   not played.
 - **Prior ship (2026-08-17)**: **Feeling Friends** — first social-emotional
-  game and the 7th `/stats` family. Eight feelings, eight rounds, three big
-  faces per round. Rounds 1–6 ask *label → face* ("Show me sad"); rounds 7–8
+  game and the 7th `/stats` family. Eight feelings, three big faces per round.
+  Shipped as eight rounds where 1–6 ask *label → face* ("Show me sad") and 7–8
   swap to a **vignette** ("Her ice cream fell on the ground. How do you think
   they feel?"), which moves the child from recognition to inference — the actual
-  social skill. Names + coping lines are reused from the `emotions` deck in
+  social skill. *Round count superseded by the run-mode ship above, which names
+  every feeling and then plays all twelve vignettes.* Names + coping lines are reused from the `emotions` deck in
   `flashcards.ts`; what's new is a per-face **`cue`** (one checkable detail,
   "there is a big tear on the cheek") spoken during the guided correction, so a
   miss teaches a reusable rule. `FACE_COLLISIONS` keeps happy/excited and
@@ -425,6 +465,10 @@ this family stays at one for now.)
     travel together: both were found in Animal Sounds by *screenshotting* the
     finished game, which neither the type checker nor the suite can do.
   - **Wrong-answer feedback migration** — 23 games still shake-only (§5 rule 8).
+  - **Run-mode migration** — Sound Friends, Rhyme Time, Week Friends and
+    Sorting Friends still sample 8-round sessions from a bounded set (§5
+    rule 11). Sound Friends is the most clear-cut: it's Letter Friends' sibling
+    over the same 26 letters.
 - **Deferred design decision**: `StageLayout` carve (deferred 5x — the
   `body.story` scope already does the isolation work). Option C unified
   `DeckLayout` decided NO-GO. The vanilla repo is a no-touch zone.

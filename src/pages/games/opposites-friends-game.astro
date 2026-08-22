@@ -4,7 +4,7 @@ import GameControls from '@/components/GameControls.astro';
 import '@/styles/opposites-friends.css';
 
 import {
-  generateSession,
+  generateRun,
   lookupWord,
   buildNarration,
   TOTAL_ROUNDS,
@@ -18,7 +18,7 @@ const description =
 // script reads round 0 straight back out of the SSR'd DOM (the Sound
 // Friends / Feeling Friends kickoff-race pattern), then continues with
 // random rounds 1..N once the child taps Next.
-const SSR_FIRST_ROUND = generateSession(() => 0.42)[0]!;
+const SSR_FIRST_ROUND = generateRun(() => 0.42)[0]!;
 const ssrTarget = lookupWord(SSR_FIRST_ROUND.target);
 const ssrTiles = SSR_FIRST_ROUND.tiles.map((id) => lookupWord(id));
 const ssrNarration = buildNarration(SSR_FIRST_ROUND);
@@ -120,7 +120,7 @@ const ssrNarration = buildNarration(SSR_FIRST_ROUND);
         <div class="of-done-emoji" aria-hidden="true">🔄</div>
         <h2 class="of-done-title" id="ofDoneTitle">You know your opposites!</h2>
         <p class="of-done-text" id="ofDoneText">
-          You found {TOTAL_ROUNDS} opposites today!
+          You found every opposite today!
         </p>
         <div class="of-done-actions">
           <button type="button" class="of-action of-action--primary" id="ofPlayAgainBtn">
@@ -141,7 +141,7 @@ const ssrNarration = buildNarration(SSR_FIRST_ROUND);
   import { launchConfetti } from '@/lib/achievements';
   import { getSettings } from '@/lib/settings';
   import {
-    generateSession,
+    generateRun,
     buildNarration,
     lookupWord,
     loadOppositesFriendsStats,
@@ -160,15 +160,15 @@ const ssrNarration = buildNarration(SSR_FIRST_ROUND);
   const OF_COLORS = ['#f59e0b', '#fbbf24', '#38bdf8', '#34d399', '#a855f7'];
 
   /**
-   * Read round 0 back out of the SSR'd DOM so the JS session starts in sync
+   * Read round 0 back out of the SSR'd DOM so the JS run starts in sync
    * with whatever Astro rendered. Without this, a tap during the first
    * interaction could land on a card that has just been rewritten by a
-   * freshly-randomised JS session — the kickoff race that bit Counting
+   * freshly-randomised JS run — the kickoff race that bit Counting
    * Friends on 2026-05-15. Inherited from Sound Friends / Feeling Friends.
    */
   const readSSRRound = (): OppositeRound => {
     const stageEl = document.getElementById('ofStage');
-    if (!stageEl) return generateSession()[0]!;
+    if (!stageEl) return generateRun()[0]!;
 
     const themeKey = (stageEl.dataset.scene ?? 'pond') as PreschoolTheme;
     const target = stageEl.dataset.target as OppositeId | undefined;
@@ -180,7 +180,7 @@ const ssrNarration = buildNarration(SSR_FIRST_ROUND);
       document.getElementById('ofTile2'),
     ];
     if (!target || !answer || tileEls.some((el) => !el)) {
-      return generateSession()[0]!;
+      return generateRun()[0]!;
     }
 
     const tiles = tileEls.map(
@@ -188,7 +188,7 @@ const ssrNarration = buildNarration(SSR_FIRST_ROUND);
     ) as [OppositeId, OppositeId, OppositeId];
     const correctIndex = tiles.indexOf(answer);
     if (correctIndex < 0 || correctIndex > 2) {
-      return generateSession()[0]!;
+      return generateRun()[0]!;
     }
 
     return {
@@ -204,7 +204,40 @@ const ssrNarration = buildNarration(SSR_FIRST_ROUND);
   };
 
   // ── State ──────────────────────────────────────────────────────────
-  let session: OppositeRound[] = [readSSRRound(), ...generateSession().slice(1)];
+  /**
+   * The SSR'd round, followed by a fresh run with that question removed.
+   *
+   * Matched on `target` rather than on the pair, because the pair's *other*
+   * direction is a different question the child should still be asked.
+   * Slicing index 0 instead would be wrong outright: the SSR round is
+   * pinned (`rand: () => 0.42`), so its question would usually still be
+   * sitting later in the run and get asked twice while another went
+   * missing.
+   */
+  const buildRun = (): OppositeRound[] => {
+    const first = readSSRRound();
+    const rest = generateRun().filter((r) => r.target !== first.target);
+
+    // Filtering removes the SSR round's own question but deliberately keeps
+    // the same pair's *other* direction, which is a separate question the
+    // child should still be asked. The generator may have put it first
+    // though, which lands "which one is hot?" directly after "which one is
+    // cold?" — the one adjacency `orderTier` exists to prevent, reintroduced
+    // at the seam it can't see. Slide it past the next unrelated question.
+    //
+    // Safe to do blind: exactly one question has `first.answer` as its
+    // target, and its partner question is the one already filtered out, so
+    // wherever it lands it cannot end up beside its own pair. Both are tier
+    // 1 (round 0 always is), so this can't disturb the tier order either.
+    if (rest[0]?.target === first.answer) {
+      const j = rest.findIndex((r) => r.target !== first.answer);
+      if (j > 0) [rest[0], rest[j]] = [rest[j]!, rest[0]!];
+    }
+
+    return [first, ...rest];
+  };
+
+  let run: OppositeRound[] = buildRun();
   let roundIdx = 0;
   let answered = false;
   let currentNarration: RoundNarration | null = null;
@@ -265,7 +298,7 @@ const ssrNarration = buildNarration(SSR_FIRST_ROUND);
   // ── Render helpers ─────────────────────────────────────────────────
 
   const renderRound = (): void => {
-    const round = session[roundIdx]!;
+    const round = run[roundIdx]!;
     const narration = buildNarration(round);
     const target = lookupWord(round.target);
 
@@ -316,7 +349,7 @@ const ssrNarration = buildNarration(SSR_FIRST_ROUND);
 
   const onTileTap = (idx: 0 | 1 | 2): void => {
     if (answered) return;
-    const round = session[roundIdx]!;
+    const round = run[roundIdx]!;
     playTap();
 
     const tappedEl = tileEls[idx]!;
@@ -395,31 +428,34 @@ const ssrNarration = buildNarration(SSR_FIRST_ROUND);
   const onNext = (): void => {
     playTap();
     if (roundIdx >= TOTAL_ROUNDS - 1) {
-      showSessionComplete();
+      showRunComplete();
       return;
     }
     roundIdx++;
     startRound();
   };
 
-  const showSessionComplete = (): void => {
+  const showRunComplete = (): void => {
     cancelSpeech();
     const stats = loadOppositesFriendsStats();
     saveOppositesFriendsStats({
       ...stats,
+      // Still the `sessions` field on disk — the stored schema is shared
+      // with every other preschool game — but since 2026-08-22 it counts
+      // runs through every pair, both ways, rather than 8-round sessions.
       sessions: stats.sessions + 1,
       lastPlayed: new Date().toISOString().slice(0, 10),
     });
     recordPlay(GAME_ID);
     doneEl.classList.add('of-done--show');
     launchConfetti(OF_COLORS);
-    narrate(`Wow! You found ${TOTAL_ROUNDS} opposites today! Great job!`);
+    narrate(`Wow! You found every opposite today! Great job!`);
   };
 
   const onPlayAgain = (): void => {
     playTap();
     doneEl.classList.remove('of-done--show');
-    session = generateSession();
+    run = generateRun();
     roundIdx = 0;
     startRound();
   };
@@ -494,7 +530,7 @@ const ssrNarration = buildNarration(SSR_FIRST_ROUND);
         ? 0
         : Math.round((stats.correctFirstTry / stats.rounds) * 100);
     const lines = [
-      `🔄 Sessions completed: ${stats.sessions}`,
+      `🔄 Full runs finished: ${stats.sessions}`,
       `🌟 Rounds played: ${stats.rounds}`,
       `🎯 First-try correct: ${stats.correctFirstTry} (${ratio}%)`,
       stats.lastPlayed ? `📅 Last played: ${stats.lastPlayed}` : '📅 Last played: never',
@@ -505,7 +541,7 @@ const ssrNarration = buildNarration(SSR_FIRST_ROUND);
   // ── Initial state binding ──────────────────────────────────────────
   // The SSR'd DOM is round 0; we don't re-render it. Bind JS state so
   // subsequent logic — tile clicks, replay, etc. — has the references.
-  currentNarration = buildNarration(session[0]!);
+  currentNarration = buildNarration(run[0]!);
   progressText.textContent = `1 / ${TOTAL_ROUNDS}`;
   progressFill.style.width = `${(1 / TOTAL_ROUNDS) * 100}%`;
   progressPill.setAttribute('aria-label', `Round 1 of ${TOTAL_ROUNDS}`);

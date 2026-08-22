@@ -50,24 +50,24 @@
  *   consensus (Jolly Phonics, Teach Starter, How Wee Learn,
  *   Montessori): alphabetical order makes children revert to letter
  *   names instead of attending to letter shapes/sounds. Use a
- *   tiered SATPIN-inspired progression. Across an 8-round session
- *   the child encounters ALL 26 letters spread across 4 tiers — but
- *   any single round's TARGET comes from a tier weighted by
- *   round position so easy/distinct letters appear first and rare
- *   letters (J, V, X, Y, Z, Q) appear only in rounds 7-8.
+ *   tiered SATPIN-inspired progression. The four tiers partition the
+ *   alphabet so easy/distinct letters come first and the rare ones
+ *   (J, V, X, Y, Z, Q) come last.
  *
- *   Tier 1 (rounds 1-2): {S, A, T, P, I, N} — Jolly Phonics Set 1
- *   Tier 2 (rounds 3-4): {M, D, G, O, C, K} — Jolly Phonics Set 2-3
- *   Tier 3 (rounds 5-6): {E, U, R, H, B, F, L} — Jolly Phonics Set 3-4
- *   Tier 4 (rounds 7-8): {J, V, W, X, Y, Z, Q} — Jolly Phonics Set 5-7
+ *   Tier 1: {S, A, T, P, I, N} — Jolly Phonics Set 1
+ *   Tier 2: {M, D, G, O, C, K} — Jolly Phonics Set 2-3
+ *   Tier 3: {E, U, R, H, B, F, L} — Jolly Phonics Set 3-4
+ *   Tier 4: {J, V, W, X, Y, Z, Q} — Jolly Phonics Set 5-7
  *
- *   The targets in each tier are sampled randomly from the tier's
- *   pool, so a child who replays sees different rounds; across many
- *   sessions every letter appears as a target with frequency
- *   proportional to its tier weight (Tier 1's 6 letters appear more
- *   often than Tier 4's 7, because Tier 1 has 2 round slots and
- *   only 6 candidates competing for them — proportional exposure
- *   matches the curricular emphasis on early-set letters).
+ *   **A run plays all 26, each exactly once** (changed 2026-08-22;
+ *   CONTEXT.md §5 rule 11), shuffled within each tier so replays don't
+ *   march in a fixed order. The previous 8-round session sampled two
+ *   targets per tier, which meant a sitting covered 8 of the 26 and
+ *   *which* 8 was luck — the curricular emphasis on early-set letters
+ *   was real, but it was delivered as "you might never be asked Z",
+ *   which is not the same thing. Tier order still delivers the
+ *   emphasis: the early sets are simply what the child meets first,
+ *   every time.
  *
  * - **Confusable-pair denylist.** Letter reversals at age 3-5 are
  *   developmentally normal (Phonics.org; All About Learning;
@@ -85,10 +85,15 @@
  *   below the 88px floor on small phones. 3 is the established
  *   sweet spot across the preschool family.
  *
- * - **8 rounds per session.** Matches the cardinality triad. Age-3
- *   attention span research (NAEYC; Khan Academy Kids product
- *   guidelines) suggests 5-10 minute sessions; 8 rounds × ~30s each
- *   = ~4 minutes core gameplay, fitting comfortably.
+ * - **A run is all 26 letters** (changed 2026-08-22). Age-3 attention
+ *   span research (NAEYC; Khan Academy Kids product guidelines)
+ *   suggests 5-10 minute sittings, and 26 rounds × ~30s is longer than
+ *   that — deliberately. Nothing forces a child to finish: stats are
+ *   written per round, so stopping early loses nothing, and the run
+ *   exists to make "we did all the letters" reachable rather than
+ *   compulsory. The previous fixed 8 sampled two letters per tier,
+ *   which capped a sitting at 8 of the 26 whether the child wanted to
+ *   stop or not.
  *
  * - **Errorless wrong-tap flow** matches the established preschool
  *   pattern. On a wrong tap: cancel speech, kinesthetic shake on
@@ -182,11 +187,12 @@ export const lookupLetter = (id: LetterId): LetterMeta => LETTER_META_BY_ID[id];
 
 // ── Tier progression ───────────────────────────────────────────────
 //
-// 4 tiers × 2 rounds each = 8 rounds. Each tier's pool is the set of
-// letters from which that round's TARGET is drawn. The target is
-// random within the tier so replays show different letters; across
-// many sessions every letter from every tier appears as a target
-// with frequency ≈ (tier slots / tier size).
+// The four tiers partition all 26 letters, easiest shapes/sounds first.
+// A run plays every letter in every tier exactly once, in tier order,
+// shuffled within each tier so replays don't march in a fixed sequence.
+//
+// This replaced an 8-round session that drew one random target per round
+// (2 per tier) on 2026-08-22 — see the run note on `generateRun`.
 //
 // Distractor pool stays full A–Z for variety, filtered by the
 // confusable-pair denylist below.
@@ -196,13 +202,37 @@ const TIER_2_TARGETS: readonly LetterId[] = ['M', 'D', 'G', 'O', 'C', 'K'];
 const TIER_3_TARGETS: readonly LetterId[] = ['E', 'U', 'R', 'H', 'B', 'F', 'L'];
 const TIER_4_TARGETS: readonly LetterId[] = ['J', 'V', 'W', 'X', 'Y', 'Z', 'Q'];
 
-/** Tier index per round (0-indexed). 8 rounds × 1 tier each. */
-const TIER_BY_ROUND: ReadonlyArray<readonly LetterId[]> = [
-  TIER_1_TARGETS, TIER_1_TARGETS,
-  TIER_2_TARGETS, TIER_2_TARGETS,
-  TIER_3_TARGETS, TIER_3_TARGETS,
-  TIER_4_TARGETS, TIER_4_TARGETS,
+/** The tiers in play order. Together they are exactly A–Z, no repeats. */
+const TIERS: ReadonlyArray<readonly LetterId[]> = [
+  TIER_1_TARGETS,
+  TIER_2_TARGETS,
+  TIER_3_TARGETS,
+  TIER_4_TARGETS,
 ];
+
+/**
+ * Rounds in one full run — 26, i.e. the whole alphabet.
+ *
+ * Derived rather than written down, so adding a letter to a tier can't
+ * leave the progress bar counting to a stale number.
+ */
+export const TOTAL_ROUNDS = TIERS.reduce((n, tier) => n + tier.length, 0);
+
+// Every letter appears in exactly one tier. Asserted at module load
+// because the whole promise of a run — "you met all 26" — is only true
+// if the tiers partition the alphabet, and a typo'd or duplicated letter
+// would otherwise quietly shorten or lengthen the run.
+(() => {
+  const flat = TIERS.flat();
+  const seen = new Set(flat);
+  if (seen.size !== flat.length) {
+    throw new Error('letterfriends: a letter appears in more than one tier');
+  }
+  const missing = ALL_LETTERS.filter((l) => !seen.has(l));
+  if (missing.length > 0) {
+    throw new Error(`letterfriends: letters missing from the tiers: ${missing.join(', ')}`);
+  }
+})();
 
 /**
  * Confusable-pair denylist. If `target` is X then any letter listed
@@ -316,54 +346,61 @@ const pickDistractors = (
   return [pool[0]!, pool[1]!];
 };
 
-// ── Session generation ────────────────────────────────────────────
+// ── Run generation ────────────────────────────────────────────────
 
 /**
- * Generate a fresh 8-round session.
+ * Generate a fresh run: **all 26 letters, each exactly once**, in tier
+ * order (SATPIN starters → rare letters), shuffled within each tier.
  *
- * - Round k draws its target uniformly from `TIER_BY_ROUND[k]`.
- *   Round 0+1 → Tier 1 (SATPIN starters), 2+3 → Tier 2, 4+5 →
- *   Tier 3, 6+7 → Tier 4 (rare letters).
- * - Distractors pulled from full A-Z minus target minus
- *   confusables.
- * - The `[target, d1, d2]` triple is shuffled into a random
- *   display order so `correctIndex` rotates evenly across rounds.
- * - Themes rotate with a "no two in a row" rule (matches the
- *   cardinality triad's session pattern).
+ * Replaced `generateSession` on 2026-08-22 (CONTEXT.md §5 rule 11). The
+ * old shape drew one random target per round over 8 rounds, so a sitting
+ * showed 8 of the 26 letters and which 8 was luck — a child could play
+ * repeatedly and keep meeting `S` while never being asked `Z`. The
+ * alphabet is the definitive bounded set, and "we did all the letters" is
+ * a goal a 3-year-old can actually hold, so the run plays it out.
  *
- * `rand` is injectable so tests can pin to a deterministic
- * sequence; default uses `Math.random`.
+ * Note the other 18 letters were never *absent* before — they appear as
+ * distractors constantly. What they never got was a turn as the thing
+ * being asked for, which is the only role that teaches recognition.
+ *
+ * - Distractors pulled from full A-Z minus target minus confusables.
+ * - The `[target, d1, d2]` triple is shuffled into a random display order
+ *   so `correctIndex` rotates evenly across rounds.
+ * - Themes rotate with a "no two in a row" rule (matches the cardinality
+ *   triad's pattern).
+ *
+ * `rand` is injectable so tests can pin to a deterministic sequence;
+ * default uses `Math.random`.
  */
-export const generateSession = (
+export const generateRun = (
   rand: () => number = Math.random,
 ): LetterRound[] => {
   const rounds: LetterRound[] = [];
   let prevTheme: PreschoolTheme | null = null;
 
-  for (let k = 0; k < TIER_BY_ROUND.length; k++) {
-    const tierPool = TIER_BY_ROUND[k]!;
-    const target = pick(tierPool, rand);
+  TIERS.forEach((tierPool, tierIndex) => {
+    const tier = tierIndex as 0 | 1 | 2 | 3;
 
-    const [d1, d2] = pickDistractors(target, rand);
+    for (const target of shuffleInPlace([...tierPool], rand)) {
+      const [d1, d2] = pickDistractors(target, rand);
 
-    const triple: LetterId[] = [target, d1, d2];
-    shuffleInPlace(triple, rand);
-    const tiles: readonly [LetterId, LetterId, LetterId] = [
-      triple[0]!,
-      triple[1]!,
-      triple[2]!,
-    ];
-    const correctIndex = tiles.indexOf(target) as 0 | 1 | 2;
+      const triple: LetterId[] = [target, d1, d2];
+      shuffleInPlace(triple, rand);
+      const tiles: readonly [LetterId, LetterId, LetterId] = [
+        triple[0]!,
+        triple[1]!,
+        triple[2]!,
+      ];
+      const correctIndex = tiles.indexOf(target) as 0 | 1 | 2;
 
-    const themeChoices: readonly ThemeMeta[] =
-      prevTheme === null ? THEMES : THEMES.filter((t) => t.key !== prevTheme);
-    const theme = pick(themeChoices, rand).key;
-    prevTheme = theme;
+      const themeChoices: readonly ThemeMeta[] =
+        prevTheme === null ? THEMES : THEMES.filter((t) => t.key !== prevTheme);
+      const theme = pick(themeChoices, rand).key;
+      prevTheme = theme;
 
-    const tier = (k < 2 ? 0 : k < 4 ? 1 : k < 6 ? 2 : 3) as 0 | 1 | 2 | 3;
-
-    rounds.push({ target, tiles, correctIndex, tier, theme });
-  }
+      rounds.push({ target, tiles, correctIndex, tier, theme });
+    }
+  });
 
   return rounds;
 };
@@ -418,7 +455,11 @@ export const buildNarration = (round: LetterRound): RoundNarration => {
 export const STATS_KEY = 'letter_friends_stats_v1';
 
 export interface LetterFriendsStats {
-  /** Total sessions completed (full 8 rounds). */
+  /**
+   * Completed runs through the whole alphabet. Named `sessions` because
+   * the on-disk shape is shared across every preschool game; it counted
+   * 8-round sessions before 2026-08-22.
+   */
   readonly sessions: number;
   /** Total individual rounds completed (correct OR errorless). */
   readonly rounds: number;

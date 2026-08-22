@@ -417,7 +417,83 @@ before deciding.
 
 ## Changelog
 
-### 2026-08-22 (latest) — feat(animal-sounds): 27 animals, one continuous run, no sessions
+### 2026-08-22 (latest) — feat(preschool): Letter, Feeling and Opposites Friends drop sessions too
+
+Carries the no-sessions direction (CONTEXT.md §5 rule 11, set by the user
+earlier the same day) into the other three games whose content is a bounded set
+worth exhausting. Each now plays every question it has, exactly once, in tier
+order. Animal Sounds was the first adopter; these are the rest of the qualifying
+set, so the rule is now fully applied rather than merely written down.
+
+**Letter Friends: 8 rounds → 26.** The alphabet is the definitive bounded set.
+The old session drew two random targets per tier, so a sitting asked for 8 of the
+26 letters and *which* 8 was luck — a child could play repeatedly, keep meeting
+`S`, and never once be asked for `Z`. Worth being precise about what was broken:
+the other 18 letters were never absent, they appear as distractors constantly.
+What they never got was a turn as *the thing being asked for*, which is the only
+role that teaches recognition. Tier order still delivers the curricular emphasis
+on the early Jolly Phonics sets — they are simply what the child meets first,
+every time, instead of being over-sampled.
+
+**Feeling Friends: 8 rounds → 20.** Two different finite sets are exhausted here,
+which is why the number isn't just "8 feelings": the eight feelings as label
+rounds, then all twelve authored vignettes as situation rounds. The vignettes are
+the interesting half — each is a hand-written scenario ("his balloon floated away
+up into the sky"), and under the old session a sitting reached two of the twelve.
+Half the authored content was effectively unreachable in any given play. Labels
+still all land before the first vignette, because naming a face and inferring a
+feeling from a story are different asks and the second is much the harder one.
+
+**Opposites Friends: 8 rounds → 20.** The set being exhausted is the twenty
+*questions*, not the ten pairs: every pair is asked in **both** directions.
+Asking both ways was always the stated pedagogy — it is what stops a child
+learning "the small card is the answer" instead of learning the relation — but
+the old session picked one direction per pair at random, so within any single
+sitting each pair was only ever asked one way. The relation was taught across
+replays and left to chance within a play.
+
+That game needed one thing the others didn't. "Which one is small?" immediately
+after "which one is big?" is answerable by pointing at the card you just ignored,
+with no engagement with either word, so a pair's two directions must not be
+adjacent. First attempt was shuffle-then-repair, which failed the stress run: a
+repair pass that only looks forward for a swap partner cannot fix a collision in
+the last two slots. Replaced with a construction that can't produce one — greedy
+by remaining count, taking the most-owed pair that isn't the one just asked, ties
+broken randomly. Taking the most-owed first is precisely what stops the algorithm
+painting itself into a corner at the end.
+
+**The SSR handoff bug, and its sharper form here.** Every one of these pages SSRs
+a deterministic round 0 and hands it to a freshly generated run. The old code
+appended `generateX().slice(1)`, which drops whichever question the random run
+happened to start with — not the one already on screen. The SSR round is pinned
+to `rand: () => 0.42`, so its question is usually still sitting later in the run:
+one question asked twice, another never asked, and a run of exactly the right
+*length*, which is why only comparing the set of targets catches it. All three
+now filter by identity instead. Feeling Friends has to match on target **and**
+vignette, since a feeling legitimately recurs across its label round and each of
+its stories.
+
+Opposites Friends showed a second-order version of the same seam. Filtering out
+the SSR question deliberately keeps the pair's *other* direction — it is a real
+question the child should still get — but the generator may have placed it first,
+recreating exactly the adjacency `orderTier` exists to prevent, at the one join
+`orderTier` cannot see. Handled in `buildRun`.
+
+**Tests.** Each game gains a full-run coverage walk, and each spells out the
+expected content independently of the data module — importing the tier lists
+would let a single typo satisfy both the game and its test. Letter Friends
+asserts all 26 letters plus that the run opens on SATPIN and closes on the rare
+set; Feeling Friends asserts the eight labels and twelve distinct vignettes plus
+that no label follows a situation; Opposites Friends asserts all twenty directed
+questions plus no back-to-back pair. Stress-run at `--repeat-each=12` (Opposites)
+and `--repeat-each=8` (the other two) to exercise the randomised generators
+rather than one lucky seed. Suite: **203 passing**.
+
+Also refreshed: the three home-page descriptions, and the stale "8 rounds per
+session" prose in the data-file headers — including two in Animal Sounds that the
+earlier ship missed.
+
+### 2026-08-22 — feat(animal-sounds): 27 animals, one continuous run, no sessions
 
 Direct user request, in two parts: *"Standard animals we need more on Animal
 Sounds, not only 8. We need large number"* and *"No more sessions anymore, all in

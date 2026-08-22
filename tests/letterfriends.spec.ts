@@ -39,6 +39,17 @@ import { test, expect } from '@playwright/test';
 
 const STATS_KEY = 'letter_friends_stats_v1';
 
+/**
+ * The alphabet, spelled out rather than imported from
+ * `src/data/letterfriends.ts`.
+ *
+ * Deliberate duplication: importing the tier lists would let the same typo
+ * satisfy both the game and its test. Written out here, the spec is an
+ * independent statement of what "every letter" means, so dropping `Q` from
+ * a tier fails instead of silently shortening the run.
+ */
+const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+
 test.describe('letter friends (preschool letter recognition)', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('games/letter-friends-game.html');
@@ -58,7 +69,9 @@ test.describe('letter friends (preschool letter recognition)', () => {
     await expect(page.locator('body[data-theme="letterfriends"]')).toHaveCount(1);
 
     await expect(page.locator('.lf-title')).toContainText(/Letter Friends/);
-    await expect(page.locator('#lfProgressText')).toContainText(/^\s*1\s*\/\s*8\s*$/);
+    await expect(page.locator('#lfProgressText')).toContainText(
+      new RegExp(`^\\s*1\\s*/\\s*${ALPHABET.length}\\s*$`),
+    );
 
     const stage = page.locator('#lfStage');
     await expect(stage).toBeVisible();
@@ -104,6 +117,73 @@ test.describe('letter friends (preschool letter recognition)', () => {
 
   test('next button is disabled until an answer is chosen', async ({ page }) => {
     await expect(page.locator('#lfNextBtn')).toBeDisabled();
+  });
+
+  /**
+   * The point of run mode (2026-08-22): a sitting asks for **all 26
+   * letters**, not 8 sampled ones.
+   *
+   * Length alone would not catch the bug this is really guarding. The page
+   * hands the SSR'd round 0 to a freshly generated run, and if that handoff
+   * drops the run's first entry — which the old session code did — instead
+   * of the entry matching the SSR'd *letter*, then one letter is asked twice
+   * and another never, while the run keeps exactly the right length. Only
+   * comparing the set of targets sees it.
+   */
+  test('a full run asks for every letter of the alphabet exactly once', async ({ page }) => {
+    test.setTimeout(180_000);
+
+    const seen: string[] = [];
+
+    for (let round = 1; round <= ALPHABET.length; round++) {
+      await expect(page.locator('#lfProgressText')).toContainText(
+        new RegExp(`^\\s*${round}\\s*/\\s*${ALPHABET.length}\\s*$`),
+      );
+
+      const target = (await page.locator('#lfStage').getAttribute('data-target'))?.trim() ?? '';
+      expect(target, `round ${round} has no target`).not.toBe('');
+      seen.push(target);
+
+      let correctIdx = -1;
+      for (let i = 0; i < 3; i++) {
+        if ((await page.locator(`#lfTile${i}`).getAttribute('data-letter')) === target) {
+          correctIdx = i;
+          break;
+        }
+      }
+      expect(correctIdx, `round ${round}: no tile shows "${target}"`).toBeGreaterThanOrEqual(0);
+      await page.locator(`#lfTile${correctIdx}`).click();
+      await expect(page.locator('#lfNextBtn')).toBeEnabled();
+      await page.locator('#lfNextBtn').click();
+    }
+
+    const duplicates = seen.filter((l, i) => seen.indexOf(l) !== i);
+    expect(duplicates, `asked more than once: ${duplicates.join(', ')}`).toEqual([]);
+
+    const missing = ALPHABET.filter((l) => !seen.includes(l));
+    expect(missing, `a full run never asked for: ${missing.join(', ')}`).toEqual([]);
+
+    // Tier order is the curriculum: SATPIN first, the rare letters last.
+    // Without this, a run could cover all 26 in a shuffle that opens on Z.
+    expect(
+      seen.slice(0, 6).sort(),
+      'the run should open on the tier-1 SATPIN letters',
+    ).toEqual(['A', 'I', 'N', 'P', 'S', 'T']);
+    expect(
+      seen.slice(-7).sort(),
+      'the run should close on the tier-4 rare letters',
+    ).toEqual(['J', 'Q', 'V', 'W', 'X', 'Y', 'Z']);
+
+    await expect(page.locator('#lfDone')).toHaveClass(/lf-done--show/);
+    const stats = await page.evaluate((k) => {
+      const raw = localStorage.getItem(k);
+      return raw
+        ? (JSON.parse(raw) as { sessions: number; rounds: number; correctFirstTry: number })
+        : { sessions: 0, rounds: 0, correctFirstTry: 0 };
+    }, STATS_KEY);
+    expect(stats.sessions).toBe(1);
+    expect(stats.rounds).toBe(ALPHABET.length);
+    expect(stats.correctFirstTry).toBe(ALPHABET.length);
   });
 
   test('tapping any tile eventually enables Next and persists round count', async ({ page }) => {
