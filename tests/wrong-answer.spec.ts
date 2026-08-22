@@ -46,10 +46,19 @@ const CORRECT_HZ = 880;
 
 /**
  * How much redder the option has to get, in mean channel terms: red minus
- * the average of green and blue, across the whole option. The shared tint is
- * only `rgba(226, 61, 90, 0.16)` over the tile's own surface plus a border,
- * so the shift is real but modest — a bar of 6 clears every game comfortably
- * while a tile that did not change at all scores 0.
+ * the average of green and blue, across the whole option.
+ *
+ * Measured across all 14 games the day the bar was set: 17.7 (Magnitude
+ * Comparison) to 41.6 (Pattern Sequences) in light mode, and 41.6 to 58.5 in
+ * dark, where the fill steps up to 0.3. So 6 sits well under the weakest real
+ * tint while still being far above the 0 an unchanged option scores — and
+ * comfortably above what a different emoji font on CI can move, since the
+ * glyph is identical in both screenshots and cancels out of the difference.
+ *
+ * For scale, the bug this suite was written during scored **-22.6**: the tint
+ * had replaced the tile's white background rather than layering over it, so
+ * the option became a window onto a teal page gradient and got measurably
+ * *less* red on a wrong tap.
  */
 const MIN_REDNESS_SHIFT = 6;
 
