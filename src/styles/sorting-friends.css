@@ -310,11 +310,24 @@ body.story[data-theme='sortingfriends'] .sort-tile.sort-tile--found .sort-tile-c
   transform: scale(1);
 }
 
-/* Age-safe wrong-tap kinesthetic feedback: 250ms shake, NO color shift,
-   NO desaturation, NO negative tone. Preserves errorless learning (a
-   wrong tap must NOT read as punishment for a 3yo). Runs in parallel
-   with the audio narration that follows. */
+/* Wrong-tap feedback (§5 rule 8 as revised 2026-08-17; applied here
+   2026-08-23). 250ms kinesthetic shake, a red tint, an error tone from
+   `playWrong()` in the controller, and the spoken correction that already
+   followed. Supersedes the "NO colour shift" note that stood here: that was
+   the original errorless rule, which the shake alone satisfied.
+
+   The tint is layered OVER the tile's own surface rather than replacing it,
+   so the picture stays legible while the correction is still talking about
+   it. Unlike the single-answer games, this one *clears* the tint after
+   450ms: sorting is multi-select, the tile stays on the tray, and a mark
+   that stayed put would accumulate across a round until the tray looked
+   like a page of corrections. The round still never fails and no score is
+   shown. */
 body.story[data-theme='sortingfriends'] .sort-tile.sort-tile--wrong {
+  background:
+    linear-gradient(var(--st-wrong-fill), var(--st-wrong-fill)),
+    var(--sort-tile-bg);
+  border-color: var(--st-wrong-border);
   animation: sortShake 250ms ease-in-out;
 }
 

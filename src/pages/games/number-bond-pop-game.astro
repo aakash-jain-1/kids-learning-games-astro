@@ -159,7 +159,7 @@ const TOTAL_ROUNDS = 8;
 </StoryLayout>
 
 <script>
-  import { playTap, playCorrect } from '@/lib/audio';
+  import { playTap, playCorrect, playWrong } from '@/lib/audio';
   import { speak, cancelSpeech, isSpeechSupported, onFirstGesture } from '@/lib/speech';
   import { launchConfetti } from '@/lib/achievements';
   import { getSettings } from '@/lib/settings';
@@ -462,6 +462,7 @@ const TOTAL_ROUNDS = 8;
       // the tap registered before the narration starts. NO colour shift,
       // NO desaturation, NO negative tone (errorless-learning principle).
       tappedEl.classList.add('nbp-opt--wrong');
+      playWrong();
       cancelSpeech();
       const rerunText = currentNarration?.rerun ?? "Let's count what we need.";
       setCaption(rerunText);

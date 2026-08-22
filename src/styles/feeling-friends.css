@@ -53,11 +53,7 @@ body.story[data-theme='feelingfriends'] {
   --ff-tile-border-glow: #6366f1;
   --ff-tile-fill-glow: rgba(99, 102, 241, 0.18);
 
-  /* Wrong-tap error tokens. Same muted rose as Animal Sounds — it has to
-     read as "not that one" to a 3yo, not as danger, and matching the
-     sibling game keeps the feedback language consistent across games. */
-  --ff-tile-border-wrong: #e23d5a;
-  --ff-tile-fill-wrong: rgba(226, 61, 90, 0.16);
+  /* Wrong-tap error tokens now live in story.css as `--st-wrong-*`. */
 
   /* Prompt card — solid, higher contrast than the tiles, because it is
      the question of the round. */
@@ -338,10 +334,15 @@ body.story[data-theme='feelingfriends'] .ff-tile.ff-tile--reveal {
    PLUS a red tint, paired with `playWrong()` in the controller. The tint
    persists for the rest of the round so the child can see which face they
    chose while the spoken correction plays. The round still always resolves
-   by revealing the right face, and no score is shown. */
+   by revealing the right face, and no score is shown.
+
+   Layered over the tile's own surface — see the note in animal-sounds.css
+   for what a bare `background: <translucent red>` did here instead. */
 body.story[data-theme='feelingfriends'] .ff-tile.ff-tile--wrong {
-  background: var(--ff-tile-fill-wrong);
-  border-color: var(--ff-tile-border-wrong);
+  background:
+    linear-gradient(var(--st-wrong-fill), var(--st-wrong-fill)),
+    var(--ff-tile-bg);
+  border-color: var(--st-wrong-border);
   animation: ffShake 250ms ease-in-out;
 }
 
@@ -354,7 +355,7 @@ body.story[data-theme='feelingfriends'] .ff-tile.ff-tile--wrong::after {
   right: 12px;
   font-size: 1.5em;
   font-weight: 800;
-  color: var(--ff-tile-border-wrong);
+  color: var(--st-wrong-border);
   pointer-events: none;
 }
 
@@ -568,7 +569,6 @@ body.dark-mode.story[data-theme='feelingfriends'] {
   --ff-tile-border: rgba(199, 200, 255, 0.3);
   --ff-tile-fill-correct: rgba(46, 125, 50, 0.35);
   --ff-tile-fill-glow: rgba(99, 102, 241, 0.34);
-  --ff-tile-fill-wrong: rgba(226, 61, 90, 0.3);
   --ff-tile-text: #f0f0ff;
   --ff-prompt-bg: #211f45;
   --ff-prompt-text: #f0f0ff;

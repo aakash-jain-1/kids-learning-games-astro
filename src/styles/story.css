@@ -56,6 +56,24 @@ body.story {
   /* Done / completion overlay accent */
   --st-done-accent: #ff9a56;
 
+  /**
+   * Wrong-tap tint (§5 rule 8).
+   *
+   * Extracted here 2026-08-23. The five games that adopted the revised
+   * feedback rule each defined the *same three values* under their own
+   * name — `--ff-tile-border-wrong`, `--as-tile-border-wrong`,
+   * `--of-…`, `--rt-…`, `--wt-…` — and nine more games were about to
+   * make it fourteen copies of one red.
+   *
+   * The fill is deliberately weak. It has to read as "not this one"
+   * against a tile that is usually white or pale, while leaving the
+   * picture or glyph on that tile fully legible, because the spoken
+   * correction is still talking about it. The border carries the signal;
+   * the fill only locates it.
+   */
+  --st-wrong-border: #e23d5a;
+  --st-wrong-fill: rgba(226, 61, 90, 0.16);
+
   /* Page background — starts in the warm-cream/sunrise default and
      can be morphed per scene by the page script setting `--st-bg`. */
   --st-bg: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
@@ -136,6 +154,10 @@ body.dark-mode.story {
   --st-card-text: #f0e6dc;
   --st-card-shadow: 0 15px 50px rgba(0, 0, 0, 0.5);
   --st-card-time-color: #b8a890;
+
+  /* The tint has to work harder on a dark tile: at 0.16 the red simply
+     disappears into it. Same border, since that one already carries. */
+  --st-wrong-fill: rgba(226, 61, 90, 0.3);
 
   --st-prog-bg: rgba(255, 255, 255, 0.15);
   --st-prog-text: rgba(255, 224, 192, 0.85);

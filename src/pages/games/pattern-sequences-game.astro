@@ -141,7 +141,7 @@ const TOTAL_ROUNDS = 8;
 </StoryLayout>
 
 <script>
-  import { playTap, playCorrect } from '@/lib/audio';
+  import { playTap, playCorrect, playWrong } from '@/lib/audio';
   import { speak, cancelSpeech, isSpeechSupported, onFirstGesture } from '@/lib/speech';
   import { launchConfetti } from '@/lib/achievements';
   import { getSettings } from '@/lib/settings';
@@ -417,6 +417,7 @@ const TOTAL_ROUNDS = 8;
       answered = true;
       for (const el of optEls) el.disabled = true;
       tappedEl.classList.add('ps-opt--wrong');
+      playWrong();
       cancelSpeech();
       const rerunText = currentNarration?.rerun ?? "Let's look at the pattern.";
       setCaption(rerunText);

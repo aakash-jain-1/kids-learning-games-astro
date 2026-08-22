@@ -131,7 +131,7 @@ const ssrPrompt = `Find all the friends that ${SSR_FIRST_ROUND.promptLabel}!`;
 </StoryLayout>
 
 <script>
-  import { playTap, playCorrect } from '@/lib/audio';
+  import { playTap, playCorrect, playWrong } from '@/lib/audio';
   import { speak, cancelSpeech, isSpeechSupported, onFirstGesture } from '@/lib/speech';
   import { launchConfetti } from '@/lib/achievements';
   import { getSettings } from '@/lib/settings';
@@ -357,6 +357,7 @@ const ssrPrompt = `Find all the friends that ${SSR_FIRST_ROUND.promptLabel}!`;
       el.classList.remove('sort-tile--wrong');
       void el.offsetWidth;
       el.classList.add('sort-tile--wrong');
+      playWrong();
       setTimeout(() => el.classList.remove('sort-tile--wrong'), 450);
       const text = currentNarration?.wrongItem(tile) ?? "That one belongs somewhere else.";
       setCaption(text);

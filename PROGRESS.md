@@ -417,7 +417,66 @@ before deciding.
 
 ## Changelog
 
-### 2026-08-23 (latest) — feat(games): Memory Match — working memory (29th game), and the August arc closes
+### 2026-08-23 (latest) — fix(a11y): finish the §5 rule 8 migration, and fix the tint in the five games that already had it
+
+Rule 8 — a wrong tap gets a shake, a **red tint**, an error tone and a spoken
+correction — was adopted on 2026-08-17 and then reached exactly five games.
+The other nine with a wrong answer kept shake-only. All nine now comply:
+Counting Friends, Magnitude Comparison, Number Friends, Letter Friends, Sound
+Friends, Week Friends, Pattern Sequences, Number Bond Pop, Sorting Friends.
+
+**Why it drifted for five months without anyone noticing.** Each of the nine
+stylesheets carried a comment asserting that "NO colour shift" was correct.
+That was true — under the *previous* rule, which rule 8 superseded. So the
+stale rule was documented at every single site, in the voice of a deliberate
+decision, and reading any one file made the game look compliant. Nothing
+failed either, because every per-game spec asserted only the shake class its
+own game had always added. A rule that is restated per-site does not get
+migrated; it gets nine copies that outlive it.
+
+**The bug this surfaced is the more interesting half.** Checking the five
+games that *had* adopted the rule showed they weren't rendering the tint they
+intended. All five wrote `background: var(--x-tile-fill-wrong)`, which
+**replaces** the tile's background rather than tinting it. The fill is 16%
+opaque, so a near-white tile became a 16%-red *window* onto the page gradient
+behind it — teal at the top of the board in Animal Sounds. The wrongly-tapped
+tile read blue-green while its border and ✗ read red, which is close to the
+opposite of the signal. It shipped that way for five days. Fixed by layering:
+
+```css
+background:
+  linear-gradient(var(--st-wrong-fill), var(--st-wrong-fill)),
+  var(--as-tile-bg);
+```
+
+Fourteen copies of one red also collapsed into `--st-wrong-border` /
+`--st-wrong-fill` in `story.css`, with the dark-mode fill stepped up to 0.3
+in one place instead of five (0.16 disappears into a dark tile).
+
+**`tests/wrong-answer.spec.ts` (30 cases) enforces the rule across all 14
+games**, and deliberately does not assert CSS:
+
+- **Red is measured from rendered pixels** — mean `R − (G+B)/2` over a
+  screenshot of the option, before and after. Asserting `border-color` would
+  have encoded one implementation; Where's Teddy? washes a whole scene and has
+  no tile border, and it is no less compliant for that. The pixel check is
+  also what caught the replaced-background bug, which every CSS-level
+  assertion would have passed.
+- **The tone is read from the Web Audio graph**, by hooking
+  `createOscillator().start()` and recording frequencies. `playWrong()` is
+  220Hz. This tracks the sound a child hears rather than the presence of a
+  call.
+- **A correct tap is checked too**, and must produce 880Hz and *not* 220Hz.
+  Without that, a game that played the error tone on every tap would pass.
+- **Memory Match's exemption is pinned by a test**, so it stays a decision
+  rather than something a later sweep quietly "fixes".
+
+Still outstanding: the shared `mountQuiz` panel behind the Quiz pill on 13
+Grid/Card games answers a wrong pick with a shake and a green reveal. Left
+alone on purpose — the quiz is the one surface that keeps a score, so
+"corrected, then move on" is a product decision there, not a CSS edit.
+
+### 2026-08-23 — feat(games): Memory Match — working memory (29th game), and the August arc closes
 
 Sixth and last of the 2026-08 design set (docs/GAME-DESIGNS-2026-08.md §6), and
 the first game here whose skill is **remembering** rather than recognising,

@@ -132,7 +132,7 @@ const ssrCaption = `Find ${SSR_FIRST_ROUND.target}! Show me the letter ${SSR_FIR
 </StoryLayout>
 
 <script>
-  import { playTap, playCorrect } from '@/lib/audio';
+  import { playTap, playCorrect, playWrong } from '@/lib/audio';
   import { speak, cancelSpeech, isSpeechSupported, onFirstGesture } from '@/lib/speech';
   import { launchConfetti } from '@/lib/achievements';
   import { getSettings } from '@/lib/settings';
@@ -383,6 +383,7 @@ const ssrCaption = `Find ${SSR_FIRST_ROUND.target}! Show me the letter ${SSR_FIR
       answered = true;
       for (const el of tileEls) el.disabled = true;
       tappedEl.classList.add('lf-tile--wrong');
+      playWrong();
       cancelSpeech();
       const rerunText = currentNarration?.rerun ?? "Let's look together.";
       setCaption(rerunText);

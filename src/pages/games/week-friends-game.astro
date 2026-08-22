@@ -145,7 +145,7 @@ const ssrCaption = `${ssrRunDays.map((d) => d.name).join(', ')}… what day come
 </StoryLayout>
 
 <script>
-  import { playTap, playCorrect } from '@/lib/audio';
+  import { playTap, playCorrect, playWrong } from '@/lib/audio';
   import { speak, cancelSpeech, isSpeechSupported, onFirstGesture } from '@/lib/speech';
   import { launchConfetti } from '@/lib/achievements';
   import { getSettings } from '@/lib/settings';
@@ -435,6 +435,7 @@ const ssrCaption = `${ssrRunDays.map((d) => d.name).join(', ')}… what day come
       answered = true;
       for (const el of optEls) el.disabled = true;
       tappedEl.classList.add('week-opt--wrong');
+      playWrong();
       cancelSpeech();
       const rerunText = currentNarration?.rerun ?? "Let's sing the days.";
       setCaption(rerunText);

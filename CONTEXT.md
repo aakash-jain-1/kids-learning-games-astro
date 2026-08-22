@@ -6,7 +6,16 @@
 > win. Keep it short and current — see the update rule in
 > `.cursor/rules/maintain-context.mdc`.
 >
-> **Last verified against the codebase**: 2026-08-23 (**Memory Match shipped —
+> **Last verified against the codebase**: 2026-08-23 (**§5 rule 8 migration
+> closed** — the nine remaining games with a wrong answer now give the red
+> tint, the error tone and the spoken correction, so all 14 that have one
+> agree. Fixing it surfaced a second bug in the five games that *had* adopted
+> the rule: they assigned the 16%-opaque tint to `background`, which erased the
+> tile's white surface, so a wrongly-tapped tile turned into a translucent
+> window onto the page gradient and read teal rather than red. The tint is now
+> a shared token layered over each option's own surface, and
+> `tests/wrong-answer.spec.ts` checks rendered pixels and the audio graph
+> rather than CSS values. Earlier: **Memory Match shipped —
 > the August arc is complete**, 6 of 6, **29 games**, and the first game whose
 > skill is *remembering* rather than recognising. It answers the arc's last
 > open design question (Q5) by dissolving it: the board growth the design doc
@@ -163,10 +172,29 @@ data file + a layout-specific themed CSS block. A parent dashboard lives at
    the right answer. Rounds are never failed and no score is shown to the
    child — they are corrected, then move on. **Revised 2026-08-17** at the
    user's request; this supersedes the original errorless rule ("no
-   red/buzzer/shame coding, shake only"). **Animal Sounds, Feeling Friends,
-   Opposites Friends, Rhyme Time and Where's Teddy? are the only adopters so
-   far**; the other 23 games still use shake-only feedback, so the app is
-   mid-migration — see §7.
+   red/buzzer/shame coding, shake only").
+
+    **Migration finished 2026-08-23.** All 14 games that *have* a wrong
+    answer now follow it. The nine that were still shake-only — Counting
+    Friends, Magnitude Comparison, Number Friends, Letter Friends, Sound
+    Friends, Week Friends, Pattern Sequences, Number Bond Pop, Sorting
+    Friends — each also carried a stylesheet comment asserting that "NO
+    colour shift" was correct, which is why the drift survived five months:
+    the old rule was documented at every site as if it were still the rule.
+
+    The tint is one shared pair of tokens, `--st-wrong-border` /
+    `--st-wrong-fill` in `story.css`, and it must be **layered over the
+    option's own surface**, not assigned to `background`. The five original
+    adopters assigned it, and since the fill is only 16% opaque their
+    near-white tiles became translucent windows onto the page gradient — the
+    wrongly-tapped tile read teal while its border read red. Write it as
+    `linear-gradient(var(--st-wrong-fill), var(--st-wrong-fill)), var(--x-tile-bg)`.
+
+    Enforced by `tests/wrong-answer.spec.ts`, which measures **rendered
+    pixels and the Web Audio graph**, not CSS values — the games disagree
+    about how to tint (Where's Teddy? washes a whole scene) and the previous
+    per-game specs only ever asserted the shake class their own game already
+    added, which is how the whole rule drifted unnoticed.
 
     **Memory Match is a deliberate exception (2026-08-23), not a laggard.**
     The rule governs answers that are *wrong*; turning over two cards that
@@ -625,7 +653,14 @@ this family stays at one for now.)
   - **T9** — replace Web Speech with pre-recorded MP3 narration (parked on the
     user's recording session; integration is ~30–45 min of agent work once MP3s
     land in `src/assets/narration/shared/`).
-  - **Wrong-answer feedback migration** — 23 games still shake-only (§5 rule 8).
+  - **The Quiz modal still predates §5 rule 8.** Closed 2026-08-23 for the 14
+    games that have a wrong answer in *play*, but the shared `mountQuiz` panel
+    behind the Quiz pill on 13 Grid/Card games is a separate surface, and it
+    still answers a wrong pick with a shake and a green reveal — no red, no
+    tone, no spoken correction. Left alone deliberately: the quiz is the one
+    place in the app that *does* keep a score, so "corrected, then move on"
+    needs a product decision before it can be ported, not just a stylesheet
+    edit.
   - **Grid filter pills are white-on-translucent-white** (`.cat-btn` in
     `global.css`). Fixed for the `colors` theme on 2026-08-22 via the new
     `--gl-cat-idle-*` tokens; the same override is still owed to Animals,

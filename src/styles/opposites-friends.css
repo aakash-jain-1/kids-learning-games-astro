@@ -42,11 +42,7 @@ body.story[data-theme='oppositesfriends'] {
   --of-tile-border-glow: #f59e0b;
   --of-tile-fill-glow: rgba(245, 158, 11, 0.2);
 
-  /* Wrong-tap error tokens. Same muted rose as Animal Sounds and Feeling
-     Friends — it has to read as "not that one" to a 3yo, not as danger,
-     and matching the siblings keeps the feedback language consistent. */
-  --of-tile-border-wrong: #e23d5a;
-  --of-tile-fill-wrong: rgba(226, 61, 90, 0.16);
+  /* Wrong-tap error tokens now live in story.css as `--st-wrong-*`. */
 
   /* Prompt card — solid, higher contrast than the cards below, because it
      is the question of the round. */
@@ -307,10 +303,15 @@ body.story[data-theme='oppositesfriends'] .of-tile.of-tile--reveal {
    PLUS a red tint, paired with `playWrong()` in the controller. The tint
    persists for the rest of the round so the child can see which card they
    chose while the spoken correction plays. The round still always resolves
-   by revealing the right card, and no score is shown. */
+   by revealing the right card, and no score is shown.
+
+   Layered over the tile's own surface — see the note in animal-sounds.css
+   for what a bare `background: <translucent red>` did here instead. */
 body.story[data-theme='oppositesfriends'] .of-tile.of-tile--wrong {
-  background: var(--of-tile-fill-wrong);
-  border-color: var(--of-tile-border-wrong);
+  background:
+    linear-gradient(var(--st-wrong-fill), var(--st-wrong-fill)),
+    var(--of-tile-bg);
+  border-color: var(--st-wrong-border);
   animation: ofShake 250ms ease-in-out;
 }
 
@@ -323,7 +324,7 @@ body.story[data-theme='oppositesfriends'] .of-tile.of-tile--wrong::after {
   right: 12px;
   font-size: 1.5em;
   font-weight: 800;
-  color: var(--of-tile-border-wrong);
+  color: var(--st-wrong-border);
   pointer-events: none;
 }
 
@@ -537,7 +538,6 @@ body.dark-mode.story[data-theme='oppositesfriends'] {
   --of-tile-border: rgba(255, 226, 173, 0.3);
   --of-tile-fill-correct: rgba(46, 125, 50, 0.35);
   --of-tile-fill-glow: rgba(245, 158, 11, 0.34);
-  --of-tile-fill-wrong: rgba(226, 61, 90, 0.3);
   --of-tile-text: #fff4e0;
   --of-prompt-bg: #3d2d0c;
   --of-prompt-text: #fff4e0;

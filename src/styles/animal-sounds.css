@@ -50,11 +50,7 @@ body.story[data-theme='animalsounds'] {
   --as-tile-border-glow: #0ea5e9;
   --as-tile-fill-glow: rgba(14, 165, 233, 0.18);
 
-  /* Wrong-tap error tokens (feedback rule revised 2026-08-17). Kept as
-     a muted rose rather than a saturated alarm red — it must read as
-     "not that one" to a 3yo, not as danger. */
-  --as-tile-border-wrong: #e23d5a;
-  --as-tile-fill-wrong: rgba(226, 61, 90, 0.16);
+  /* Wrong-tap error tokens now live in story.css as `--st-wrong-*`. */
 
   /* Prompt card — solid white with a hairline. Higher contrast than the
      answer tiles because it's the "question" of the round. */
@@ -316,10 +312,20 @@ body.story[data-theme='animalsounds'] .as-tile.as-tile--reveal {
    controller. The tint persists for the rest of the round so the child
    can see which one they chose while the spoken correction plays; the
    round still always resolves by revealing the right answer, and no
-   score is shown. */
+   score is shown.
+
+   The tint is layered OVER the tile's own surface. Until 2026-08-23 this
+   was a bare `background: <translucent red>`, which *replaced* the tile
+   instead: the fill is only 16% opaque, so the near-white tile turned
+   into a 16%-red window onto the page gradient behind it — teal at the
+   top of the board. The tile read blue-green while the border and the ✗
+   read red. Four games shared that bug, and the tint tokens they each
+   kept a copy of are now the shared `--st-wrong-*` in story.css. */
 body.story[data-theme='animalsounds'] .as-tile.as-tile--wrong {
-  background: var(--as-tile-fill-wrong);
-  border-color: var(--as-tile-border-wrong);
+  background:
+    linear-gradient(var(--st-wrong-fill), var(--st-wrong-fill)),
+    var(--as-tile-bg);
+  border-color: var(--st-wrong-border);
   animation: asShake 250ms ease-in-out;
 }
 
@@ -332,7 +338,7 @@ body.story[data-theme='animalsounds'] .as-tile.as-tile--wrong::after {
   right: 12px;
   font-size: 1.5em;
   font-weight: 800;
-  color: var(--as-tile-border-wrong);
+  color: var(--st-wrong-border);
   pointer-events: none;
 }
 
@@ -548,7 +554,6 @@ body.dark-mode.story[data-theme='animalsounds'] {
   --as-tile-border: rgba(180, 215, 255, 0.3);
   --as-tile-fill-correct: rgba(46, 125, 50, 0.35);
   --as-tile-fill-glow: rgba(14, 165, 233, 0.32);
-  --as-tile-fill-wrong: rgba(226, 61, 90, 0.3);
   --as-tile-text: #eef6ff;
   --as-prompt-bg: #10283a;
   --as-prompt-text: #eef6ff;

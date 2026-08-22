@@ -417,16 +417,22 @@ body.story[data-theme='addition'] .cf-opt.cf-opt--reveal {
   animation: cfPulseRing 1.4s ease-in-out infinite;
 }
 
-/* Age-safe wrong-tap kinesthetic feedback (2026-05-20, T-extra
-   triad-extension). Mirrors the global `quiz-shake` keyframe used
-   by the `mountQuiz`-driven games, but namespaced as `cfShake` to
-   match the per-game keyframe convention (`cfBounce` / `cfPulseRing`
-   etc) the rest of this file uses. NO background / border-color
-   override — a wrong tap must NOT read as a punishment for a 3yo;
-   the shake purely confirms "tap registered, but not this one"
-   kinesthetically. Removed automatically on next `renderRound` via
-   the innerHTML rewrite of `optionsEl`. */
+/* Wrong-tap feedback (§5 rule 8 as revised 2026-08-17; applied here
+   2026-08-23). 250ms kinesthetic shake, a red tint, an error tone from
+   `playWrong()` in the controller, and the spoken correction that already
+   followed. Supersedes the "NO colour shift" note that stood here: that was
+   the original errorless rule, which the shake alone satisfied.
+
+   The tint is layered OVER the tile's own surface rather than replacing it,
+   so the numeral stays legible while the correction is still talking about
+   it, and it persists for the rest of the round — the child should be able
+   to see which one they picked. The round still resolves by revealing the
+   right answer, and no score is shown. */
 body.story[data-theme='addition'] .cf-opt.cf-opt--wrong {
+  background:
+    linear-gradient(var(--st-wrong-fill), var(--st-wrong-fill)),
+    var(--cf-btn-bg);
+  border-color: var(--st-wrong-border);
   animation: cfShake 250ms ease-in-out;
 }
 

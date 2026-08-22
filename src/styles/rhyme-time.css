@@ -49,12 +49,10 @@ body.story[data-theme='rhymetime'] {
   --rt-tile-border-glow: #ef476f;
   --rt-tile-fill-glow: rgba(239, 71, 111, 0.18);
 
-  /* Wrong-tap error tokens. Same muted rose as the sibling games so the
-     feedback language stays consistent — note it sits close to the pink
-     accent here, which is why the wrong state also carries the ✗ badge and
-     the shake rather than relying on colour alone. */
-  --rt-tile-border-wrong: #e23d5a;
-  --rt-tile-fill-wrong: rgba(226, 61, 90, 0.16);
+  /* Wrong-tap error tokens now live in story.css as `--st-wrong-*`. The
+     shared rose sits close to this theme's pink accent, which is why the
+     wrong state here also carries the ✗ badge and the shake rather than
+     relying on colour alone. */
 
   --rt-prompt-bg: #ffffff;
   --rt-prompt-text: #3d1220;
@@ -311,10 +309,15 @@ body.story[data-theme='rhymetime'] .rt-tile.rt-tile--reveal {
 /* Wrong-tap feedback (rule revised 2026-08-17): 250ms kinesthetic shake
    PLUS a red tint, paired with `playWrong()` in the controller. The tint
    persists for the rest of the round so the child can see which card they
-   chose while the spoken correction plays. */
+   chose while the spoken correction plays.
+
+   Layered over the tile's own surface — see the note in animal-sounds.css
+   for what a bare `background: <translucent red>` did here instead. */
 body.story[data-theme='rhymetime'] .rt-tile.rt-tile--wrong {
-  background: var(--rt-tile-fill-wrong);
-  border-color: var(--rt-tile-border-wrong);
+  background:
+    linear-gradient(var(--st-wrong-fill), var(--st-wrong-fill)),
+    var(--rt-tile-bg);
+  border-color: var(--st-wrong-border);
   animation: rtShake 250ms ease-in-out;
 }
 
@@ -325,7 +328,7 @@ body.story[data-theme='rhymetime'] .rt-tile.rt-tile--wrong::after {
   right: 12px;
   font-size: 1.5em;
   font-weight: 800;
-  color: var(--rt-tile-border-wrong);
+  color: var(--st-wrong-border);
   pointer-events: none;
 }
 
@@ -585,7 +588,6 @@ body.dark-mode.story[data-theme='rhymetime'] {
   --rt-tile-border: rgba(255, 205, 220, 0.3);
   --rt-tile-fill-correct: rgba(46, 125, 50, 0.35);
   --rt-tile-fill-glow: rgba(239, 71, 111, 0.34);
-  --rt-tile-fill-wrong: rgba(226, 61, 90, 0.34);
   --rt-tile-text: #ffe6ee;
   --rt-prompt-bg: #45142a;
   --rt-prompt-text: #ffe6ee;

@@ -159,7 +159,7 @@ const TOTAL_ROUNDS = 8;
 </StoryLayout>
 
 <script>
-  import { playTap, playCorrect } from '@/lib/audio';
+  import { playTap, playCorrect, playWrong } from '@/lib/audio';
   import { speak, cancelSpeech, isSpeechSupported, onFirstGesture } from '@/lib/speech';
   import { launchConfetti } from '@/lib/achievements';
   import { getSettings } from '@/lib/settings';
@@ -430,6 +430,7 @@ const TOTAL_ROUNDS = 8;
       // (visual + audio channels don't compete). Removed on next
       // `renderRound` via the innerHTML / class reset.
       tappedEl.classList.add('mf-group--wrong');
+      playWrong();
       cancelSpeech();
       setCaption(currentNarration?.rerun ?? "Let's count them together!");
       narrate(currentNarration?.rerun ?? "Let's count them together!", {
