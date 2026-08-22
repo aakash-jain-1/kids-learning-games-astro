@@ -124,6 +124,10 @@ import {
   STATS_KEY as OPPOSITES_FRIENDS_KEY,
   loadOppositesFriendsStats,
 } from '@/data/opposites-friends';
+import {
+  STATS_KEY as RHYME_TIME_KEY,
+  loadRhymeTimeStats,
+} from '@/data/rhyme-time';
 
 import { loadQuizState } from '@/lib/quiz';
 import { loadLearned } from '@/lib/progress';
@@ -530,6 +534,15 @@ export const STATS_REGISTRY: readonly StatsRegistryEntry[] = [
     family: 'preschool-literacy',
     load: loadSoundFriendsStats,
   }),
+  preschoolStatsEntry({
+    id: 'rhyme-time',
+    title: 'Rhyme Time',
+    emoji: '🎵',
+    hrefPath: 'games/rhyme-time-game',
+    storageKey: RHYME_TIME_KEY,
+    family: 'preschool-literacy',
+    load: loadRhymeTimeStats,
+  }),
 
   // Family A3 — preschool-cognitive
   preschoolStatsEntry({
@@ -700,7 +713,7 @@ export const STATS_REGISTRY: readonly StatsRegistryEntry[] = [
 /** Human-readable family headers shown above each section on `/stats`. */
 export const FAMILY_LABELS: Readonly<Record<StatsFamily, string>> = {
   'preschool-math': 'Preschool math (cardinality + pattern)',
-  'preschool-literacy': 'Preschool literacy (letter recognition)',
+  'preschool-literacy': 'Preschool literacy (letters + sounds + rhyme)',
   'preschool-cognitive': 'Preschool thinking (sorting + sequencing)',
   'preschool-social': 'Preschool feelings (naming + coping)',
   story: 'Story games',

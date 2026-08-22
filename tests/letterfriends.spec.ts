@@ -211,15 +211,17 @@ test.describe('letter friends (preschool letter recognition)', () => {
   test('stats page lists Letter Friends in the preschool-literacy family section', async ({ page }) => {
     await page.goto('stats.html');
 
-    // The family section exists; it now holds two cards — Letter
-    // Friends and Sound Friends (added 2026-06-06). The
-    // `data-game-id="letter-friends"` lookup below still pins this
-    // suite to Letter Friends specifically.
+    // The family section exists and holds Letter Friends. It deliberately
+    // does NOT assert how many siblings share the section: that count grew
+    // 1 → 2 → 3 (Sound Friends 2026-06-06, Rhyme Time 2026-08-22) and
+    // failed this Letter Friends suite each time for a reason that had
+    // nothing to do with Letter Friends. `stats.spec.ts` asserts the exact
+    // registry contents and order via `EXPECTED_GAME_IDS`, which is where a
+    // miscounted family actually belongs.
     const literacySection = page.locator(
       '.stats-section[data-family="preschool-literacy"]',
     );
     await expect(literacySection).toHaveCount(1);
-    await expect(literacySection.locator('.stats-card')).toHaveCount(2);
 
     const card = literacySection.locator(
       '.stats-card[data-game-id="letter-friends"]',

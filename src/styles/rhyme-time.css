@@ -1,0 +1,651 @@
+/* Rhyme Time — second preschool LITERACY game (added 2026-08-22).
+   "Cat — what rhymes with cat?" One prompt card on top, three picture
+   cards below, tap the one that rhymes.
+
+   Partner to Sound Friends: that game teaches the sound a word *starts*
+   with, this one the sound it *ends* with, so they share the literacy pink
+   accent (`#ef476f`) deliberately rather than carving a new colour.
+
+   Uses `StoryLayout` with `theme='rhymetime'`, so the body selector is
+   `body.story[data-theme='rhymetime']`. Every `rt-*` class scopes under it
+   and therefore cannot collide with the sibling games.
+
+   Two things unique to this game:
+
+   - **The rime chip.** After the round settles, a small chip spells out the
+     shared ending ("-at"). It is written and never spoken — speech
+     synthesis has no way to know the "ow" in bow/snow isn't the "ow" in
+     cow, and mispronouncing the rime would teach the wrong sound at exactly
+     the wrong moment. `aria-hidden`, because the spoken script already
+     demonstrates the rhyme with the two words back to back.
+   - **It is audio-first.** The prompt card pulses to invite a re-tap,
+     because a child who missed one of the three spoken options cannot
+     recover it by looking — the label under each picture is unreadable to
+     them.
+
+   Copies the two things only Feeling Friends and Opposites Friends get
+   right: dark mode redefines `--st-bg`, and the per-round scene tokens are
+   read on `.rt-stage`, where they are set (the older preschool stylesheets
+   set them on the stage but read them on `body`, so their scenes have never
+   painted).
+
+   Reduced motion: every animation has a
+   `@media (prefers-reduced-motion: reduce)` fallback.
+*/
+
+/* ── Scene-theme background tokens ─────────────────────────────────── */
+
+body.story[data-theme='rhymetime'] {
+  --st-bg: linear-gradient(135deg, #fff0f4 0%, #ffe3ea 100%);
+
+  --rt-tile-bg: rgba(255, 255, 255, 0.94);
+  --rt-tile-border: rgba(255, 255, 255, 0.45);
+  --rt-tile-bg-hover: rgba(255, 255, 255, 1);
+  --rt-tile-text: #3d1220;
+
+  --rt-tile-border-correct: #2e7d32;
+  --rt-tile-fill-correct: rgba(76, 175, 80, 0.22);
+
+  --rt-tile-border-glow: #ef476f;
+  --rt-tile-fill-glow: rgba(239, 71, 111, 0.18);
+
+  /* Wrong-tap error tokens. Same muted rose as the sibling games so the
+     feedback language stays consistent — note it sits close to the pink
+     accent here, which is why the wrong state also carries the ✗ badge and
+     the shake rather than relying on colour alone. */
+  --rt-tile-border-wrong: #e23d5a;
+  --rt-tile-fill-wrong: rgba(226, 61, 90, 0.16);
+
+  --rt-prompt-bg: #ffffff;
+  --rt-prompt-text: #3d1220;
+  --rt-accent: #ef476f; /* literacy pink, shared with Sound Friends. */
+  --rt-prompt-border: rgba(90, 20, 40, 0.12);
+  --rt-prompt-shadow: 0 8px 24px rgba(90, 20, 40, 0.18);
+
+  --rt-caption-bg: rgba(255, 255, 255, 0.94);
+  --rt-caption-text: #3d1220;
+  --rt-caption-shadow: 0 8px 24px rgba(90, 20, 40, 0.18);
+
+  --rt-chip-bg: rgba(255, 255, 255, 0.96);
+  --rt-chip-text: #3d1220;
+}
+
+/* Six per-theme backgrounds shared with the rest of the preschool family
+   (pond / orchard / sea / garden / meadow / jungle). Theme drives the
+   background ambience only; the rhyme pool is theme-independent. */
+body.story[data-theme='rhymetime'] .rt-stage[data-scene='pond'] {
+  --st-bg: linear-gradient(180deg, #b8e0ff 0%, #6fb6e6 60%, #4a8c4a 100%);
+}
+body.story[data-theme='rhymetime'] .rt-stage[data-scene='orchard'] {
+  --st-bg: linear-gradient(180deg, #ffe6c8 0%, #ffb88c 50%, #88b94a 100%);
+}
+body.story[data-theme='rhymetime'] .rt-stage[data-scene='sea'] {
+  --st-bg: linear-gradient(180deg, #b3e8ec 0%, #4dc4cf 60%, #f4d97a 100%);
+}
+body.story[data-theme='rhymetime'] .rt-stage[data-scene='garden'] {
+  --st-bg: linear-gradient(180deg, #fff4b8 0%, #ffd666 60%, #6fbf3a 100%);
+}
+body.story[data-theme='rhymetime'] .rt-stage[data-scene='meadow'] {
+  --st-bg: linear-gradient(180deg, #d6f5c8 0%, #9bd96f 55%, #5aa83a 100%);
+}
+body.story[data-theme='rhymetime'] .rt-stage[data-scene='jungle'] {
+  --st-bg: linear-gradient(180deg, #c2f0d8 0%, #5cbf8a 55%, #2f7d52 100%);
+}
+
+body.story[data-theme='rhymetime'] {
+  background: var(--st-bg);
+}
+
+/* ── Layout shell ─────────────────────────────────────────────────── */
+
+body.story[data-theme='rhymetime'] .rt-shell {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 16px 20px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: calc(100vh - 36px);
+}
+
+body.story[data-theme='rhymetime'] .rt-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+body.story[data-theme='rhymetime'] .rt-title {
+  margin: 0;
+  font-size: clamp(1.6em, 4vw, 2.2em);
+  color: #8a1538;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+body.dark-mode.story[data-theme='rhymetime'] .rt-title {
+  color: #ffe6ee;
+  text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+body.story[data-theme='rhymetime'] .rt-progress-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.85);
+  color: #3d1220;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.95em;
+}
+
+body.story[data-theme='rhymetime'] .rt-progress-bar {
+  width: 80px;
+  height: 8px;
+  background: rgba(90, 20, 40, 0.15);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+body.story[data-theme='rhymetime'] .rt-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--rt-accent);
+  border-radius: 999px;
+  transition: width 0.4s ease-out;
+}
+
+/* ── Stage — prompt on top, 3 picture cards below ─────────────────── */
+
+/* The scene panel. Paints the round's `data-scene` gradient under a veil
+   that is transparent in light mode and dims the scene in dark mode. The
+   veil is a stacked background layer rather than a `filter`, because a
+   filter would also dim the white cards inside. */
+body.story[data-theme='rhymetime'] .rt-stage {
+  position: relative;
+  background:
+    linear-gradient(
+      rgba(36, 6, 16, var(--rt-scene-veil, 0)),
+      rgba(36, 6, 16, var(--rt-scene-veil, 0))
+    ),
+    var(--st-bg);
+  border-radius: 24px;
+  padding: 24px 16px;
+  min-height: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.32);
+}
+
+body.story[data-theme='rhymetime'] .rt-prompt {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 16px 40px;
+  border-radius: 24px;
+  background: var(--rt-prompt-bg);
+  color: var(--rt-prompt-text);
+  border: 2px solid var(--rt-prompt-border);
+  box-shadow: var(--rt-prompt-shadow);
+  cursor: pointer;
+  font-family: inherit;
+  max-width: 720px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body.story[data-theme='rhymetime'] .rt-prompt:active {
+  transform: scale(0.98);
+}
+
+/* The "tap me" invitation pulses on the picture, never on the card itself:
+   a 3yo aiming at a large tap target should not have that target moving
+   under their finger. It matters more here than in the sibling games —
+   this is the control that repeats the three spoken options. */
+body.story[data-theme='rhymetime'] .rt-prompt-emoji {
+  font-size: 68px;
+  line-height: 1.1;
+  animation: rtPromptPulse 2.4s ease-in-out infinite;
+}
+
+body.story[data-theme='rhymetime'] .rt-prompt-text {
+  font-size: clamp(1.5em, 5vw, 2.4em);
+  font-weight: 800;
+  color: var(--rt-accent);
+  line-height: 1.15;
+  text-align: center;
+}
+
+body.story[data-theme='rhymetime'] .rt-prompt-hint {
+  font-size: 0.95em;
+  font-weight: 600;
+  color: rgba(90, 20, 40, 0.7);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+@keyframes rtPromptPulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.06); }
+}
+
+body.story[data-theme='rhymetime'] .rt-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  align-items: stretch;
+  width: 100%;
+  max-width: 720px;
+  gap: 12px;
+}
+
+body.story[data-theme='rhymetime'] .rt-tile {
+  position: relative; /* anchors the wrong-tap ✗ badge */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 190px;
+  padding: 18px 12px;
+  background: var(--rt-tile-bg);
+  border: 3px solid var(--rt-tile-border);
+  border-radius: 20px;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--rt-tile-text);
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s ease;
+  animation: rtFlyIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation-delay: var(--rt-i, 0s);
+}
+
+body.story[data-theme='rhymetime'] .rt-tile:hover {
+  background: var(--rt-tile-bg-hover);
+  transform: translateY(-2px);
+}
+
+body.story[data-theme='rhymetime'] .rt-tile:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+body.story[data-theme='rhymetime'] .rt-tile:disabled {
+  cursor: default;
+  opacity: 0.85;
+}
+
+body.story[data-theme='rhymetime'] .rt-tile-emoji {
+  font-size: 84px;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+}
+
+body.story[data-theme='rhymetime'] .rt-tile-name {
+  font-size: 1.05em;
+  font-weight: 700;
+  color: var(--rt-tile-text);
+  pointer-events: none;
+}
+
+body.story[data-theme='rhymetime'] .rt-tile.rt-tile--correct {
+  background: var(--rt-tile-fill-correct);
+  border-color: var(--rt-tile-border-correct);
+  animation: rtBounce 0.5s ease-out;
+}
+
+body.story[data-theme='rhymetime'] .rt-tile.rt-tile--reveal {
+  background: var(--rt-tile-fill-glow);
+  border-color: var(--rt-tile-border-glow);
+  animation: rtPulseRing 1.4s ease-in-out infinite;
+}
+
+/* Wrong-tap feedback (rule revised 2026-08-17): 250ms kinesthetic shake
+   PLUS a red tint, paired with `playWrong()` in the controller. The tint
+   persists for the rest of the round so the child can see which card they
+   chose while the spoken correction plays. */
+body.story[data-theme='rhymetime'] .rt-tile.rt-tile--wrong {
+  background: var(--rt-tile-fill-wrong);
+  border-color: var(--rt-tile-border-wrong);
+  animation: rtShake 250ms ease-in-out;
+}
+
+body.story[data-theme='rhymetime'] .rt-tile.rt-tile--wrong::after {
+  content: '✗';
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  font-size: 1.5em;
+  font-weight: 800;
+  color: var(--rt-tile-border-wrong);
+  pointer-events: none;
+}
+
+@keyframes rtFlyIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-30px) scale(0.4);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(6px) scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes rtBounce {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.06); }
+  60%  { transform: scale(0.98); }
+  100% { transform: scale(1); }
+}
+
+@keyframes rtPulseRing {
+  0%, 100% {
+    box-shadow:
+      0 4px 12px rgba(90, 20, 40, 0.15),
+      0 0 0 0 rgba(239, 71, 111, 0.55);
+  }
+  50% {
+    box-shadow:
+      0 4px 12px rgba(90, 20, 40, 0.15),
+      0 0 0 12px rgba(239, 71, 111, 0);
+  }
+}
+
+@keyframes rtShake {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-7px); }
+  40%      { transform: translateX( 7px); }
+  60%      { transform: translateX(-5px); }
+  80%      { transform: translateX( 4px); }
+}
+
+/* ── The rime chip — written, never spoken ────────────────────────── */
+
+body.story[data-theme='rhymetime'] .rt-rime-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 18px;
+  border-radius: 999px;
+  background: var(--rt-chip-bg);
+  color: var(--rt-chip-text);
+  box-shadow: 0 4px 14px rgba(90, 20, 40, 0.18);
+  /* Hidden until the round settles, but the box is reserved so revealing
+     it doesn't shift the cards above. */
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease;
+}
+
+body.story[data-theme='rhymetime'] .rt-rime-chip.rt-rime-chip--show {
+  opacity: 1;
+  visibility: visible;
+  animation: rtChipIn 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+body.story[data-theme='rhymetime'] .rt-rime-label {
+  font-size: 0.85em;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+body.story[data-theme='rhymetime'] .rt-rime-value {
+  font-size: 1.5em;
+  font-weight: 800;
+  color: var(--rt-accent);
+  letter-spacing: 0.02em;
+}
+
+@keyframes rtChipIn {
+  from { opacity: 0; transform: scale(0.8) translateY(6px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ── Caption — accessibility/parent-readable mirror of TTS narration ─── */
+
+body.story[data-theme='rhymetime'] .rt-caption {
+  background: var(--rt-caption-bg);
+  color: var(--rt-caption-text);
+  border-radius: 16px;
+  padding: 12px 18px;
+  font-size: clamp(1em, 2.4vw, 1.2em);
+  font-weight: 600;
+  text-align: center;
+  box-shadow: var(--rt-caption-shadow);
+  max-width: 720px;
+  margin: 0 auto;
+  min-height: 1.4em;
+  animation: rtCaptionIn 0.4s ease-out;
+}
+
+@keyframes rtCaptionIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Footer row — Replay + Next ────────────────────────────────────── */
+
+body.story[data-theme='rhymetime'] .rt-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+body.story[data-theme='rhymetime'] .rt-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 22px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(255, 255, 255, 0.92);
+  color: #3d1220;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 1em;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(90, 20, 40, 0.15);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+body.story[data-theme='rhymetime'] .rt-action:hover {
+  transform: translateY(-1px);
+  background: #ffffff;
+}
+
+body.story[data-theme='rhymetime'] .rt-action:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+body.story[data-theme='rhymetime'] .rt-action--primary {
+  background: var(--rt-accent);
+  color: #ffffff;
+}
+
+body.story[data-theme='rhymetime'] .rt-action--primary:hover {
+  background: #d81e56;
+}
+
+/* ── Session-complete overlay — appears after the 8th round ───────── */
+
+body.story[data-theme='rhymetime'] .rt-done {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(70, 12, 30, 0.55);
+  z-index: 50;
+  padding: 20px;
+}
+
+body.story[data-theme='rhymetime'] .rt-done.rt-done--show {
+  display: flex;
+}
+
+body.story[data-theme='rhymetime'] .rt-done-card {
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 32px 28px;
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+  color: #3d1220;
+  box-shadow: 0 24px 80px rgba(70, 12, 30, 0.4);
+  animation: rtDoneIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes rtDoneIn {
+  from { opacity: 0; transform: scale(0.7) translateY(20px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+body.story[data-theme='rhymetime'] .rt-done-emoji {
+  font-size: 72px;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+body.story[data-theme='rhymetime'] .rt-done-title {
+  margin: 0 0 8px;
+  font-size: 1.6em;
+  color: var(--rt-accent);
+}
+
+body.story[data-theme='rhymetime'] .rt-done-text {
+  margin: 0 0 24px;
+  font-size: 1.1em;
+  color: #555;
+}
+
+body.story[data-theme='rhymetime'] .rt-done-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ── Reduced motion fallback ──────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  body.story[data-theme='rhymetime'] .rt-prompt,
+  body.story[data-theme='rhymetime'] .rt-prompt-emoji,
+  body.story[data-theme='rhymetime'] .rt-tile,
+  body.story[data-theme='rhymetime'] .rt-caption,
+  body.story[data-theme='rhymetime'] .rt-rime-chip,
+  body.story[data-theme='rhymetime'] .rt-rime-chip.rt-rime-chip--show,
+  body.story[data-theme='rhymetime'] .rt-tile.rt-tile--correct,
+  body.story[data-theme='rhymetime'] .rt-tile.rt-tile--reveal,
+  body.story[data-theme='rhymetime'] .rt-tile.rt-tile--wrong,
+  body.story[data-theme='rhymetime'] .rt-done-card {
+    animation: none;
+  }
+  body.story[data-theme='rhymetime'] .rt-tile:hover {
+    transform: none;
+  }
+  body.story[data-theme='rhymetime'] {
+    transition: none;
+  }
+}
+
+/* ── Dark mode ────────────────────────────────────────────────────── */
+
+body.dark-mode.story[data-theme='rhymetime'] {
+  /* The page background HAS to be redefined here — see the header note.
+     Skipping it is what leaves the older sibling games on their light
+     gradient with near-white text on translucent-white cards. */
+  --st-bg: linear-gradient(135deg, #2a0a16 0%, #3d1020 100%);
+  --rt-scene-veil: 0.68;
+  --rt-tile-bg: rgba(255, 255, 255, 0.08);
+  --rt-tile-bg-hover: rgba(255, 255, 255, 0.16);
+  --rt-tile-border: rgba(255, 205, 220, 0.3);
+  --rt-tile-fill-correct: rgba(46, 125, 50, 0.35);
+  --rt-tile-fill-glow: rgba(239, 71, 111, 0.34);
+  --rt-tile-fill-wrong: rgba(226, 61, 90, 0.34);
+  --rt-tile-text: #ffe6ee;
+  --rt-prompt-bg: #45142a;
+  --rt-prompt-text: #ffe6ee;
+  --rt-prompt-border: rgba(255, 205, 220, 0.18);
+  --rt-caption-bg: rgba(52, 15, 30, 0.92);
+  --rt-caption-text: #ffe6ee;
+  --rt-chip-bg: rgba(69, 20, 42, 0.95);
+  --rt-chip-text: #ffe6ee;
+}
+
+body.dark-mode.story[data-theme='rhymetime'] .rt-prompt-text,
+body.dark-mode.story[data-theme='rhymetime'] .rt-rime-value {
+  /* The pink-500 accent is too dim on the dark card; lift to pink-300. */
+  color: #ff8fab;
+}
+
+body.dark-mode.story[data-theme='rhymetime'] .rt-prompt-hint {
+  color: rgba(255, 205, 220, 0.7);
+}
+
+body.dark-mode.story[data-theme='rhymetime'] .rt-done-card {
+  background: #45142a;
+  color: #ffe6ee;
+}
+
+body.dark-mode.story[data-theme='rhymetime'] .rt-done-title {
+  color: #ff8fab;
+}
+
+body.dark-mode.story[data-theme='rhymetime'] .rt-done-text {
+  color: #e8c4d2;
+}
+
+body.dark-mode.story[data-theme='rhymetime'] .rt-action {
+  background: #561c34;
+  color: #ffe6ee;
+}
+
+body.dark-mode.story[data-theme='rhymetime'] .rt-action--primary {
+  background: var(--rt-accent);
+  color: #ffffff;
+}
+
+/* ── Responsive — stack cards on small phones ─────────────────────── */
+
+@media (max-width: 600px) {
+  body.story[data-theme='rhymetime'] .rt-tiles {
+    grid-template-columns: 1fr;
+  }
+  body.story[data-theme='rhymetime'] .rt-tile {
+    min-height: 120px;
+    flex-direction: row;
+    gap: 16px;
+  }
+  body.story[data-theme='rhymetime'] .rt-tile-emoji {
+    font-size: 60px;
+  }
+  body.story[data-theme='rhymetime'] .rt-prompt-emoji {
+    font-size: 52px;
+  }
+  body.story[data-theme='rhymetime'] .rt-shell {
+    padding: 12px 12px 60px;
+    gap: 14px;
+  }
+  body.story[data-theme='rhymetime'] .rt-stage {
+    min-height: auto;
+  }
+}

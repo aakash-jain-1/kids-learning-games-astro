@@ -1,6 +1,6 @@
-# Game designs — August 2026 arc (six games: 3 shipped, 3 queued)
+# Game designs — August 2026 arc (six games: 4 shipped, 2 queued)
 
-> **Status: APPROVED. Build in progress — 3 of 6 shipped.** Keep the count in
+> **Status: APPROVED. Build in progress — 4 of 6 shipped.** Keep the count in
 > the title and in this line in step; they are the two places a reader checks
 > first. A shipped game's section below is **frozen as the pre-build spec** —
 > its [PROGRESS.md](../PROGRESS.md) entry is authoritative on what landed.
@@ -24,6 +24,17 @@
 >   the concept; and distractors obey declared **meaning-collision groups**
 >   (`big/heavy/strong`, `small/light/weak`) so no wrong tap is defensible,
 >   with tier 3 drawing its two distractors *as a pair* for difficulty.
+> - §4 **Rhyme Time** — **shipped 2026-08-22**, built as designed except that
+>   the pool is **nine pairs, not ten**. Three things in its
+>   [PROGRESS.md](../PROGRESS.md) entry are authoritative: **bow–snow was
+>   dropped** on top of the four un-picturable pairs, because `bow` is a
+>   homograph the child only ever *hears* and a voice reading /baʊ/ would
+>   present a false rhyme aloud; the shared rime is **shown but never spoken**
+>   (synthesis can't be trusted to pick the right vowel for a bare rime), so
+>   the script demonstrates with both whole words and a chip carries the
+>   letters; and tier 3 **picks its direction** as well as its distractor, so
+>   the target always has an onset twin available to trap with (`ring` is
+>   never the tier-3 target — it has none).
 > - **Q1–Q4 all resolved** by the user on 2026-08-17: new `preschool-social`
 >   family only for Feeling Friends with Animal Sounds under
 >   `preschool-cognitive` (Q1); Feeling Friends scoped as tiers 1–2 recognition
@@ -366,13 +377,15 @@ Ordered by ascending risk, so early wins de-risk the later ones.
 | 1 | **Animal Sounds** | Curate 16 from existing | None — pure reuse | Shipped 2026-08-17. The "pure reuse" call was wrong: the raw `sound` fields collide, and spoken onomatopoeia isn't a listening game, so it needed a curated pool *and* 17 vendored recordings. |
 | 2 | **Feeling Friends** | ~12 vignettes | New stats family plumbing | Shipped 2026-08-17. Family plumbing was the easy half; the real cost was the face assets. |
 | 3 | **Opposites Friends** | 2 cards (bug fix) | Touches shipped Flashcards content | Shipped 2026-08-22. The Flashcards risk never materialised — it reads the deck rather than editing it, and pins the two unusable emoji locally instead. |
-| 4 | **Rhyme Time** | Restructure 10 pairs | Distractors must not accidentally rhyme | Next. |
-| 5 | **Where's Teddy?** | 5 prepositions × 5 pairs | "Behind" may not read visually | |
+| 4 | **Rhyme Time** | Restructure 10 pairs | Distractors must not accidentally rhyme | Shipped 2026-08-22. The named risk was cheap to retire — unique rimes per family plus a load-time assertion make a rhyming distractor unrepresentable. The unforeseen one was **pronunciation**: a bare rime, and the homograph `bow`, both mislead by ear, which cost one pair. |
+| 5 | **Where's Teddy?** | 5 prepositions × 5 pairs | "Behind" may not read visually | Next. |
 | 6 | **Memory Match** | Curate 8 | Errorless tension; new mechanic | Blocked on **Q5**. |
 
 Each game ships as its own commit with its own Playwright spec, keeping the suite
 green (baseline was 148 tests in 17 files on 2026-08-17; 170 in 19 after the
-first two games; **181 in 20** after Opposites Friends).
+first two games; 181 in 20 after Opposites Friends; **193 in 21** after Rhyme
+Time — 12 added, plus a stale card-count assertion removed from the Letter
+Friends suite).
 
 ---
 

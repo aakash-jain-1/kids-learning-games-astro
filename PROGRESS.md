@@ -417,7 +417,122 @@ before deciding.
 
 ## Changelog
 
-### 2026-08-22 (latest) — feat(games): Opposites Friends — 26th game, third of the six-game arc; plus a clip-playback bug that made Animal Sounds narrate over itself
+### 2026-08-22 (latest) — feat(games): Rhyme Time — 27th game, fourth of the six-game arc
+
+**What it is.** §4 of `docs/GAME-DESIGNS-2026-08.md`, built as designed, and
+the fourth of the six. A word shows with its picture ("Dog"), three picture
+cards sit below it, and the child taps the one that rhymes. Eight rounds over
+nine pairs, `StoryLayout` with the new `rhymetime` theme, storage
+`rhyme_time_stats_v1`. **Game count 26 → 27.** Filed under
+`preschool-literacy` — same four-field shape as Letter Friends and Sound
+Friends, so no new stats family and the dashboard stays at seven.
+
+It is deliberately the **partner to Sound Friends**, not a new direction:
+that game teaches the sound a word *starts* with, this one the sound it
+*ends* with, which together are the two halves of the phonological awareness
+a preschooler is expected to build. That's also why it takes the literacy
+pink (`#ef476f`) instead of carving a new accent — a parent seeing the same
+pink on `/stats` should read "more of the same skill area". Rhyme
+*recognition* is the age-3 skill; rhyme *production* ("tell me a word that
+rhymes with cat") is a four-year-old skill and is deliberately out of scope.
+
+**The deck had to be restructured.** The `rhyming` deck in `flashcards.ts`
+has 14 cards, and each one encodes a whole pair as a single display string —
+`n: 'Cat – Hat'` — with **one** emoji for the pair. That shape is right for a
+browse deck and unusable for a forced choice, which needs every word to be an
+independently pictured, independently tappable item. So `src/data/rhyme-time.ts`
+re-declares the pairs with an emoji and an onset per *word*. What it still
+takes from the deck is the **fact** — the rhyming sentence spoken after a
+correct tap — sourced by card name, so a rename over there fails this build
+loudly instead of silently dropping the payoff line.
+
+**Five of the 14 pairs are dropped**, for the two reasons a pair can be
+unusable here. Four can't be **pictured**, and an un-picturable card is an
+unanswerable round: sheep–sleep, song–long, sun–fun, frog–bog. The fifth,
+**bow–snow**, can't be reliably **said**. `bow` is a homograph — /boʊ/ the
+ribbon, /baʊ/ the bend — and the child never sees the word, only hears it. A
+voice that reads the option list as /baʊ/ presents *bow* as rhyming with
+*snow* when the two words the child actually heard don't rhyme at all. That
+is worse than a missing round: it teaches a false rhyme, out loud, in a game
+whose entire subject is listening. 🎀 next to it doesn't help, because the
+whole judgement is made by ear. Nine pairs remain, one more than a session
+needs.
+
+**The distractor rule is the pedagogy.** Two guarantees. First, no distractor
+may rhyme with the target — every family has a distinct rime, so drawing
+distractors from *other* families gives this for free, and a module-load
+assertion keeps it true if someone adds a tenth pair (two families sharing a
+rime would mean a round with two right answers). Second, **tier 3 sets the
+alliteration trap**: the classic preschool rhyme error is matching on the
+*first* sound instead of the last — asked what rhymes with *cat*, a child
+reaches for *car* — so on the last two rounds one distractor deliberately
+shares the target's onset, and the round can only be won by attending to the
+end of the word. That's why every word carries an `onset` keyed by *sound*
+rather than letter (`king` and `cat` are both `k`).
+
+Because the trap needs the target to have an onset twin somewhere outside its
+family, tier 3 also picks its **direction** rather than flipping a coin: for
+king/ring it will ask about *king* (twins: cat, car, cake, cook), never
+*ring*, which is the one word in the pool with no twin at all. `trapWordsFor`
+is shared between that choice and the distractor picker so the two can't
+drift apart.
+
+**The shared ending is written and never spoken.** The obvious script is
+"they both end with *at*", and for `at` that happens to be fine. But speech
+synthesis has no way to know the "ow" in *snow* is /oʊ/ and not the /aʊ/ of
+*cow*, and mispronouncing the rime teaches the wrong sound in the exact
+moment the game is trying to teach the right one. So the spoken script always
+demonstrates with the two whole words back to back — "Listen — cat, hat. They
+end the same way!" — and the rime appears as **text**, on a chip that reveals
+once the round settles, where it can't be mispronounced. The phrasing is load
+bearing, not incidental: the earlier draft read "they sound the same at the
+end", which contains a bare "at" and would have spoken the `at` family's rime
+aloud by accident. `tests/rhyme-time.spec.ts` asserts the whole rule with a
+word-boundary match over the captions, so a future rewording that reintroduces
+a bare rime fails.
+
+**Audio-first, more than its siblings.** The three options exist only as
+speech — a 3yo can't read the labels under the pictures — so a child who
+loses one of the words has no way to recover it from the screen. The intro
+therefore reads all three aloud, the prompt card repeats the *whole* question
+including the options, and the emoji pulses to invite that re-tap (the
+picture pulses, not the card, so a small finger isn't aiming at a moving
+target). A spec asserts the repeat still contains all three options.
+
+**Wiring.** `StoryLayout` theme union + `pre-dark` block, home card,
+`stats-registry` entry, and `EXPECTED_GAME_IDS` in `tests/stats.spec.ts`. The
+`preschool-literacy` family label was "Preschool literacy (letter
+recognition)", which Sound Friends had already made half-stale; it now reads
+"letters + sounds + rhyme".
+
+**Verification.** `astro check` clean (79 files, 0 errors), build clean (30
+pages), full suite green at **193 tests in 21 files** (was 181 in 20).
+`tests/rhyme-time.spec.ts` adds 12 specs. The
+full-session walk was additionally run at `--repeat-each=25` — 200 randomised
+rounds — because the pairing, the no-rhyming-distractor rule and the tier-3
+trap are all generator properties that a single seeded pass wouldn't
+exercise. Light and dark mode verified by screenshot in real Chrome.
+
+**One existing spec changed.** `tests/letterfriends.spec.ts` asserted that the
+preschool-literacy section holds exactly two cards. That count went 1 → 2 → 3
+over three ships and failed the Letter Friends suite each time for a reason
+that had nothing to do with Letter Friends, while `stats.spec.ts` already
+asserts the exact registry contents *and order* via `EXPECTED_GAME_IDS`. The
+count assertion was removed rather than bumped a third time; the
+`data-game-id="letter-friends"` lookup that actually pins the suite stays.
+
+**Found, not fixed.** `.ctrl-pill` in `global.css` is white text on a
+10%-white fill, which was sized for a dark page. On every light-background
+game the Reset / Quiz / Stats / Settings pills are effectively invisible —
+verified on Sound Friends and Opposites Friends as well as this game, so it's
+pre-existing and shared, not something Rhyme Time introduced. It's one shared
+rule and therefore one fix for all 27 games, which is exactly why it wants
+its own change and verification pass rather than a patch to one theme.
+Logged in `CONTEXT.md` §7.
+
+---
+
+### 2026-08-22 — feat(games): Opposites Friends — 26th game, third of the six-game arc; plus a clip-playback bug that made Animal Sounds narrate over itself
 
 Two things shipped together: the next game in the August arc, and a fix for a
 real audio bug the user reported in the game that shipped before it.

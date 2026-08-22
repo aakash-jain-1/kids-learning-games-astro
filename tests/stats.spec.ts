@@ -45,6 +45,9 @@ const EXPECTED_GAME_IDS = [
   // Family A2 — preschool-literacy (added 2026-05-25 with T-letters)
   'letter-friends',
   'sound-friends',
+  // Rhyme Time (2026-08-22) — rhyme recognition, the end-of-word partner to
+  // Sound Friends' start-of-word skill. Same four-field shape, no new family.
+  'rhyme-time',
   // Family A3 — preschool-cognitive (added 2026-06-06 with Sorting Friends;
   // Days Parade + Week Friends added 2026-06-17 — Days Parade is the
   // learn-the-days prequel, ordered before the Week Friends sequencer)

@@ -6,11 +6,12 @@
 > win. Keep it short and current — see the update rule in
 > `.cursor/rules/maintain-context.mdc`.
 >
-> **Last verified against the codebase**: 2026-08-22 (Opposites Friends
-> shipped — game count now 26, third of the six-game August arc, no new
-> `/stats` family. Same day: a `clip.ts` playback bug fixed that made Animal
-> Sounds narrate over its own correction. Platform note corrected — the dev
-> box is Windows, not macOS).
+> **Last verified against the codebase**: 2026-08-22 (Rhyme Time shipped —
+> game count now 27, fourth of the six-game August arc, filed under the
+> existing `preschool-literacy` family. Same day: Opposites Friends shipped,
+> and a `clip.ts` playback bug fixed that made Animal Sounds narrate over its
+> own correction. Platform note corrected — the dev box is Windows, not
+> macOS).
 
 ---
 
@@ -19,7 +20,7 @@
 An **Astro + TypeScript + `@vite-pwa/astro` (Workbox)** static PWA of
 educational mini-games for young children. It began as a proof-of-concept
 migration of the vanilla HTML/CSS/JS `kids-learning-games` repo and is now a
-feature-driven project in its own right. **26 games** ship across **three
+feature-driven project in its own right. **27 games** ship across **three
 shared layouts**, deployed to GitHub Pages at
 `https://aakash-jain-1.github.io/kids-learning-games-astro/`. Zero-JS-by-default
 static output; only interactive islands ship JavaScript.
@@ -35,7 +36,7 @@ static output; only interactive islands ship JavaScript.
 | `docs/T9-PHRASE-SCRIPT.md` | The literal phrases to record for T9. |
 
 > Note: `README.md` describes "sixteen games" — that text is **stale**; the
-> code ships 26 (the preschool families grew well past that prose).
+> code ships 27 (the preschool families grew well past that prose).
 > `SESSION-HANDOFF.md` is stale too: it predates the August 2026 games and
 > mentions neither Animal Sounds nor Feeling Friends. **`PROGRESS.md` and
 > `src/data/stats-registry.ts` are the authoritative pair** — the changelog for
@@ -77,7 +78,7 @@ static output; only interactive islands ship JavaScript.
   *extraction* has stalled hard on this machine before, which is why the
   hatch exists.) CI never sets it — Linux runners use bundled Chromium.
 
-## 4. The 26 games & three layouts
+## 4. The 27 games & three layouts
 
 - **`GridLayout.astro`** — foundational-set games (scan a fixed chart, tap to
   hear): Alphabets, Numbers, Colors, Shapes, Animals, Birds, Hindi (7).
@@ -87,9 +88,9 @@ static output; only interactive islands ship JavaScript.
   (the preschool games reuse this shell via a `theme` prop): Daily Routines,
   Woodcutter (2 story) + Counting Friends, More Friends, Number Friends,
   Pattern Sequences, Number Bond Pop (5 preschool-math) + Letter Friends,
-  Sound Friends (2 preschool-literacy) + Sorting Friends, Days Parade,
-  Week Friends, Animal Sounds, Opposites Friends (5 preschool-cognitive) +
-  Feeling Friends (1 preschool-social).
+  Sound Friends, Rhyme Time (3 preschool-literacy) + Sorting Friends,
+  Days Parade, Week Friends, Animal Sounds, Opposites Friends
+  (5 preschool-cognitive) + Feeling Friends (1 preschool-social).
 
 Each game = one `src/pages/games/<slug>.astro` + a typed `src/data/<game>.ts`
 data file + a layout-specific themed CSS block. A parent dashboard lives at
@@ -125,9 +126,10 @@ data file + a layout-specific themed CSS block. A parent dashboard lives at
    the right answer. Rounds are never failed and no score is shown to the
    child — they are corrected, then move on. **Revised 2026-08-17** at the
    user's request; this supersedes the original errorless rule ("no
-   red/buzzer/shame coding, shake only"). **Animal Sounds, Feeling Friends
-   and Opposites Friends are the only adopters so far**; the other 23 games
-   still use shake-only feedback, so the app is mid-migration — see §7.
+   red/buzzer/shame coding, shake only"). **Animal Sounds, Feeling Friends,
+   Opposites Friends and Rhyme Time are the only adopters so far**; the other
+   23 games still use shake-only feedback, so the app is mid-migration —
+   see §7.
 9. **The Astro repo is the source of truth on *patterns*** (the vanilla repo
    is treated as a spec of intent, not a template to copy).
 
@@ -137,7 +139,7 @@ data file + a layout-specific themed CSS block. A parent dashboard lives at
 - `kids_progress_v1:<gameId>` — learned-item set (sorted string array).
 - `<gameId>_quiz_v1` — `{ attempts, bestScore, lastPlayed }` quiz metrics.
 - `<game>_stats_v1` — bespoke preschool schema `{ sessions, rounds, correctFirstTry, lastPlayed }`
-  (newest: `opposites_friends_stats_v1`, 2026-08-22).
+  (newest: `rhyme_time_stats_v1`, 2026-08-22).
   The staged preschool-math games (Counting / More / Number Friends + Number
   Bond Pop) also carry `{ stage, bestStage }` (1..3) for their auto-advancing
   stages (added 2026-06-03; Number Bond Pop adopted them at ship 2026-06-06).
@@ -159,11 +161,37 @@ this family stays at one for now.)
 ## 7. Current state & what's next
 
 - **Migration complete** (all 13 vanilla games ported, since 2026-05-08).
-- **Feature-driven phase active**: 13 preschool games added since (cardinality
+- **Feature-driven phase active**: 14 preschool games added since (cardinality
   triad + Pattern Sequences + Letter Friends + Number Bond Pop + Sound
   Friends + Sorting Friends + Week Friends + Days Parade + Animal Sounds +
-  Feeling Friends + Opposites Friends). Total **26 games**, all live.
-- **Latest ship (2026-08-22)**: **Opposites Friends** — fifth
+  Feeling Friends + Opposites Friends + Rhyme Time). Total **27 games**, all
+  live.
+- **Latest ship (2026-08-22)**: **Rhyme Time** — third preschool-literacy
+  game and the fourth of the six-game August arc. A word shows with its
+  picture ("Dog"); three picture cards below, tap the one that rhymes. It is
+  the end-of-word partner to Sound Friends' start-of-word skill, which is why
+  it shares the literacy pink rather than taking a new accent. Content is
+  restructured from the `rhyming` deck: that deck stores a whole pair as one
+  display string with one emoji (`Cat – Hat`), which is fine to browse and
+  useless for a forced choice, so the pairs are re-declared with an emoji and
+  an **onset** per *word* — only the rhyming sentence is still read from the
+  deck by card name, so a rename there fails the build loudly. Five of the 14
+  deck pairs are dropped: four can't be pictured, and **bow–snow** can't be
+  reliably *said* — `bow` is a homograph and the child only ever hears it, so
+  a voice reading /baʊ/ would present a false rhyme out loud in a game about
+  listening. The difficulty curve is the distractor rule: rimes are unique
+  across families (asserted at module load), so any distractor from another
+  family is guaranteed not to rhyme, and at tier 3 one distractor deliberately
+  **starts with the target's sound** — cook against cat/car/cake — so the last
+  rounds can only be won by attending to the end of the word. The shared
+  ending is **written and never spoken**: speech synthesis can't know the "ow"
+  in *snow* isn't the one in *cow*, so the script demonstrates with the two
+  whole words ("Listen — cat, hat. They end the same way!") and a chip carries
+  the letters. Bespoke `rhyme_time_stats_v1`; theme key `rhymetime`;
+  `preschool-literacy`, so no new family. Fourth adopter of the red
+  wrong-answer rule (§5 rule 8), and third to get dark mode and the per-round
+  scene tokens right rather than inheriting the sibling bugs below.
+- **Prior ship (2026-08-22, same day)**: **Opposites Friends** — fifth
   preschool-cognitive game and the third of the six-game August arc. A target
   word shows with its picture ("Hot"); three cards below, tap the opposite.
   Eight rounds over **ten pairs**, asked in *both* directions (big→small as
@@ -307,9 +335,9 @@ this family stays at one for now.)
   the full six-game design set approved 2026-08-17. **Sound Friends**
   (candidate A) + **Sorting Friends** (candidate B) shipped 2026-06-06;
   **Week Friends** + **Days Parade** shipped 2026-06-17; **Animal Sounds** and
-  **Feeling Friends** shipped 2026-08-17; **Opposites Friends** shipped
-  2026-08-22 (**3 of the 6 designs done**). Remaining in the set, in build
-  order: **Rhyme Time → Where's Teddy? → Memory Match**. Only Memory Match is
+  **Feeling Friends** shipped 2026-08-17; **Opposites Friends** and **Rhyme
+  Time** shipped 2026-08-22 (**4 of the 6 designs done**). Remaining in the
+  set, in build order: **Where's Teddy? → Memory Match**. Only Memory Match is
   still blocked on an open question (Q5, board progression).
 - **Open queued work**:
   - **T9** — replace Web Speech with pre-recorded MP3 narration (parked on the
@@ -318,14 +346,21 @@ this family stays at one for now.)
   - **Dark mode is broken across the `StoryLayout` preschool family.** None of
     the sibling themes redefine `--st-bg` under `body.dark-mode`, so they keep
     their pale light-mode gradient and paint near-white text on it. Feeling
-    Friends and Opposites Friends each fix it for themselves (dark `--st-bg` +
-    a scene-veil background layer, chosen over a `filter` so the white cards
-    stay bright); the same 4-line pattern needs applying to the other **11**.
+    Friends, Opposites Friends and Rhyme Time each fix it for themselves (dark
+    `--st-bg` + a scene-veil background layer, chosen over a `filter` so the
+    white cards stay bright); the same 4-line pattern needs applying to the
+    other **11**.
   - **The per-round scene never paints in 11 of the preschool games.** Same
     11 stylesheets declare the six `data-scene` gradients on their `.X-stage`
     element but read `--st-bg` on `body` — a custom property set on a
-    descendant can't reach an ancestor. One line each; the two games above
+    descendant can't reach an ancestor. One line each; the three games above
     read it on the stage, where it's set.
+  - **The Reset / Quiz / Stats / Settings pills are unreadable in light
+    mode** (found 2026-08-22). `.ctrl-pill` in `global.css` is white text on a
+    10%-white fill — sized for a dark page, and every light-background game
+    renders it near-invisible (verified on Sound Friends, Opposites Friends
+    and Rhyme Time). It's one shared rule, so it's one fix for all 27 games,
+    but it's a global change worth its own verification pass.
   - **Wrong-answer feedback migration** — 23 games still shake-only (§5 rule 8).
 - **Deferred design decision**: `StageLayout` carve (deferred 5x — the
   `body.story` scope already does the isolation work). Option C unified
