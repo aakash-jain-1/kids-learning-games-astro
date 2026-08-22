@@ -3,7 +3,7 @@ import StoryLayout from '@/layouts/StoryLayout.astro';
 import GameControls from '@/components/GameControls.astro';
 import '@/styles/week-friends.css';
 
-import { generateSession, lookupDay, TOTAL_ROUNDS } from '@/data/week-friends';
+import { generateRun, lookupDay, TOTAL_ROUNDS } from '@/data/week-friends';
 
 const title = 'Week Friends — Kids Learning Games';
 const description =
@@ -13,7 +13,7 @@ const description =
 // page script reads round 0 directly from the SSR'd DOM (matching the
 // Pattern Sequences / Sound Friends kickoff-race pattern), then
 // continues with random rounds 1..N after the user clicks Next.
-const SSR_FIRST_ROUND = generateSession(() => 0.42)[0]!;
+const SSR_FIRST_ROUND = generateRun(() => 0.42)[0]!;
 const ssrRunDays = SSR_FIRST_ROUND.run.map((i) => lookupDay(i));
 const ssrOptionDays = SSR_FIRST_ROUND.options.map((i) => lookupDay(i));
 const ssrLastShown = lookupDay(SSR_FIRST_ROUND.run[SSR_FIRST_ROUND.run.length - 1]!);
@@ -129,7 +129,7 @@ const ssrCaption = `${ssrRunDays.map((d) => d.name).join(', ')}… what day come
         <div class="week-done-emoji" aria-hidden="true">📅</div>
         <h2 class="week-done-title" id="weekDoneTitle">Week champion!</h2>
         <p class="week-done-text" id="weekDoneText">
-          You found the next day {TOTAL_ROUNDS} times today!
+          You found every day of the week today!
         </p>
         <div class="week-done-actions">
           <button type="button" class="week-action week-action--primary" id="weekPlayAgainBtn">
@@ -150,7 +150,7 @@ const ssrCaption = `${ssrRunDays.map((d) => d.name).join(', ')}… what day come
   import { launchConfetti } from '@/lib/achievements';
   import { getSettings } from '@/lib/settings';
   import {
-    generateSession,
+    generateRun,
     buildNarration,
     lookupDay,
     loadWeekFriendsStats,
@@ -168,27 +168,27 @@ const ssrCaption = `${ssrRunDays.map((d) => d.name).join(', ')}… what day come
   const WEEK_COLORS = ['#5c6bc0', '#ffd166', '#26a69a', '#ef476f', '#42a5f5'];
 
   /**
-   * Read round 0 from the SSR'd DOM so the JS session starts in sync
+   * Read round 0 from the SSR'd DOM so the JS run starts in sync
    * with whatever Astro rendered. Avoids the kickoff-race that bit
    * Counting Friends on 2026-05-15 — without this, a tap during the
    * first interaction could land on an option whose day has just been
-   * rewritten by a freshly-randomised JS session. The target day-index
+   * rewritten by a freshly-randomised JS run. The target day-index
    * is stamped on the stage as `data-target`, so we can reconstruct the
    * round (incl. correctIndex) directly from the DOM.
    */
   const readSSRRound = (): DayRound => {
     const stageEl = document.getElementById('weekStage');
     const seqEl = document.getElementById('weekSequence');
-    if (!stageEl || !seqEl) return generateSession()[0]!;
+    if (!stageEl || !seqEl) return generateRun()[0]!;
 
     const themeKey = (stageEl.dataset.scene ?? 'pond') as PreschoolTheme;
     const target = Number(stageEl.dataset.target);
-    if (!Number.isInteger(target)) return generateSession()[0]!;
+    if (!Number.isInteger(target)) return generateRun()[0]!;
 
     const runEls = Array.from(seqEl.querySelectorAll<HTMLElement>('.week-card'));
     const run = runEls.map((el) => Number(el.dataset.day));
     if (run.length === 0 || run.some((n) => !Number.isInteger(n))) {
-      return generateSession()[0]!;
+      return generateRun()[0]!;
     }
 
     const optEls = [
@@ -196,10 +196,10 @@ const ssrCaption = `${ssrRunDays.map((d) => d.name).join(', ')}… what day come
       document.getElementById('weekOpt1'),
       document.getElementById('weekOpt2'),
     ];
-    if (optEls.some((el) => !el)) return generateSession()[0]!;
+    if (optEls.some((el) => !el)) return generateRun()[0]!;
     const options = optEls.map((el) => Number(el!.dataset.day));
     const correctIndex = options.indexOf(target);
-    if (correctIndex < 0 || correctIndex > 2) return generateSession()[0]!;
+    if (correctIndex < 0 || correctIndex > 2) return generateRun()[0]!;
 
     return {
       run,
@@ -213,7 +213,23 @@ const ssrCaption = `${ssrRunDays.map((d) => d.name).join(', ')}… what day come
   };
 
   // ── State ──────────────────────────────────────────────────────────
-  let session: DayRound[] = [readSSRRound(), ...generateSession().slice(1)];
+  /**
+   * The SSR round plus a fresh run with that day removed.
+   *
+   * Matched on the target day rather than dropping the run's first entry:
+   * the SSR round comes from a pinned seed, so the day already on screen is
+   * usually still somewhere in the new run, and `slice(1)` would leave it
+   * asked twice while silently dropping a different day.
+   *
+   * Named `rounds`, not `run` — `DayRound.run` is already the strip of days
+   * shown before the "?".
+   */
+  const buildRounds = (): DayRound[] => {
+    const first = readSSRRound();
+    return [first, ...generateRun().filter((r) => r.target !== first.target)];
+  };
+
+  let rounds: DayRound[] = buildRounds();
   let roundIdx = 0;
   let answered = false;
   let currentNarration: RoundNarration | null = null;
@@ -327,7 +343,7 @@ const ssrCaption = `${ssrRunDays.map((d) => d.name).join(', ')}… what day come
   };
 
   const renderRound = (): void => {
-    const round = session[roundIdx]!;
+    const round = rounds[roundIdx]!;
 
     progressText.textContent = `${roundIdx + 1} / ${TOTAL_ROUNDS}`;
     progressFill.style.width = `${((roundIdx + 1) / TOTAL_ROUNDS) * 100}%`;
@@ -386,7 +402,7 @@ const ssrCaption = `${ssrRunDays.map((d) => d.name).join(', ')}… what day come
 
   const onOptionTap = (idx: 0 | 1 | 2): void => {
     if (answered) return;
-    const round = session[roundIdx]!;
+    const round = rounds[roundIdx]!;
     playTap();
 
     const tappedEl = optEls[idx]!;
@@ -453,14 +469,14 @@ const ssrCaption = `${ssrRunDays.map((d) => d.name).join(', ')}… what day come
   const onNext = (): void => {
     playTap();
     if (roundIdx >= TOTAL_ROUNDS - 1) {
-      showSessionComplete();
+      showRunComplete();
       return;
     }
     roundIdx++;
     startRound();
   };
 
-  const showSessionComplete = (): void => {
+  const showRunComplete = (): void => {
     cancelSpeech();
     const stats = loadWeekFriendsStats();
     saveWeekFriendsStats({
@@ -471,13 +487,13 @@ const ssrCaption = `${ssrRunDays.map((d) => d.name).join(', ')}… what day come
     recordPlay('week-friends');
     doneEl.classList.add('week-done--show');
     launchConfetti(WEEK_COLORS);
-    narrate(`Wow! You found the next day ${TOTAL_ROUNDS} times today! Great job!`);
+    narrate('Wow! You found every day of the week today! Great job!');
   };
 
   const onPlayAgain = (): void => {
     playTap();
     doneEl.classList.remove('week-done--show');
-    session = generateSession();
+    rounds = generateRun();
     roundIdx = 0;
     startRound();
   };
@@ -541,7 +557,7 @@ const ssrCaption = `${ssrRunDays.map((d) => d.name).join(', ')}… what day come
         ? 0
         : Math.round((stats.correctFirstTry / stats.rounds) * 100);
     const lines = [
-      `📅 Sessions completed: ${stats.sessions}`,
+      `📅 Full runs finished: ${stats.sessions}`,
       `🌟 Rounds played: ${stats.rounds}`,
       `🎯 First-try correct: ${stats.correctFirstTry} (${ratio}%)`,
       stats.lastPlayed ? `📅 Last played: ${stats.lastPlayed}` : '📅 Last played: never',
@@ -552,7 +568,7 @@ const ssrCaption = `${ssrRunDays.map((d) => d.name).join(', ')}… what day come
   // ── Initial state binding ──────────────────────────────────────────
   // The SSR'd DOM is round 0; we don't re-render it. Bind JS state so
   // subsequent logic — option clicks, replay, etc. — has the references.
-  currentNarration = buildNarration(session[0]!);
+  currentNarration = buildNarration(rounds[0]!);
   progressText.textContent = `1 / ${TOTAL_ROUNDS}`;
   progressFill.style.width = `${(1 / TOTAL_ROUNDS) * 100}%`;
   progressPill.setAttribute('aria-label', `Round 1 of ${TOTAL_ROUNDS}`);

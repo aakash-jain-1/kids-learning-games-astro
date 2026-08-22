@@ -4,7 +4,7 @@ import GameControls from '@/components/GameControls.astro';
 import '@/styles/rhyme-time.css';
 
 import {
-  generateSession,
+  generateRun,
   lookupWord,
   lookupFamily,
   buildNarration,
@@ -19,7 +19,7 @@ const description =
 // script reads round 0 straight back out of the SSR'd DOM (the Sound
 // Friends / Opposites Friends kickoff-race pattern), then continues with
 // random rounds 1..N once the child taps Next.
-const SSR_FIRST_ROUND = generateSession(() => 0.42)[0]!;
+const SSR_FIRST_ROUND = generateRun(() => 0.42)[0]!;
 const ssrTarget = lookupWord(SSR_FIRST_ROUND.target);
 const ssrTiles = SSR_FIRST_ROUND.tiles.map((id) => lookupWord(id));
 const ssrNarration = buildNarration(SSR_FIRST_ROUND);
@@ -130,7 +130,7 @@ const ssrRime = lookupFamily(ssrTarget.family).rime;
         <div class="rt-done-emoji" aria-hidden="true">🎵</div>
         <h2 class="rt-done-title" id="rtDoneTitle">You're a rhyming star!</h2>
         <p class="rt-done-text" id="rtDoneText">
-          You found {TOTAL_ROUNDS} rhymes today!
+          You found every rhyme today!
         </p>
         <div class="rt-done-actions">
           <button type="button" class="rt-action rt-action--primary" id="rtPlayAgainBtn">
@@ -151,7 +151,7 @@ const ssrRime = lookupFamily(ssrTarget.family).rime;
   import { launchConfetti } from '@/lib/achievements';
   import { getSettings } from '@/lib/settings';
   import {
-    generateSession,
+    generateRun,
     buildNarration,
     lookupWord,
     lookupFamily,
@@ -171,15 +171,15 @@ const ssrRime = lookupFamily(ssrTarget.family).rime;
   const RT_COLORS = ['#ef476f', '#f78ca0', '#ffd166', '#06d6a0', '#a78bfa'];
 
   /**
-   * Read round 0 back out of the SSR'd DOM so the JS session starts in sync
+   * Read round 0 back out of the SSR'd DOM so the JS run starts in sync
    * with whatever Astro rendered. Without this, a tap during the first
    * interaction could land on a card that has just been rewritten by a
-   * freshly-randomised JS session — the kickoff race that bit Counting
+   * freshly-randomised JS run — the kickoff race that bit Counting
    * Friends on 2026-05-15.
    */
   const readSSRRound = (): RhymeRound => {
     const stageEl = document.getElementById('rtStage');
-    if (!stageEl) return generateSession()[0]!;
+    if (!stageEl) return generateRun()[0]!;
 
     const themeKey = (stageEl.dataset.scene ?? 'pond') as PreschoolTheme;
     const target = stageEl.dataset.target as RhymeWordId | undefined;
@@ -191,7 +191,7 @@ const ssrRime = lookupFamily(ssrTarget.family).rime;
       document.getElementById('rtTile2'),
     ];
     if (!target || !answer || tileEls.some((el) => !el)) {
-      return generateSession()[0]!;
+      return generateRun()[0]!;
     }
 
     const tiles = tileEls.map(
@@ -199,7 +199,7 @@ const ssrRime = lookupFamily(ssrTarget.family).rime;
     ) as [RhymeWordId, RhymeWordId, RhymeWordId];
     const correctIndex = tiles.indexOf(answer);
     if (correctIndex < 0 || correctIndex > 2) {
-      return generateSession()[0]!;
+      return generateRun()[0]!;
     }
 
     return {
@@ -215,7 +215,31 @@ const ssrRime = lookupFamily(ssrTarget.family).rime;
   };
 
   // ── State ──────────────────────────────────────────────────────────
-  let session: RhymeRound[] = [readSSRRound(), ...generateSession().slice(1)];
+  /**
+   * The SSR'd round 0, continued by a fresh random run.
+   *
+   * The generator is asked to *open* on the word already on screen rather
+   * than generating freely and cutting that question out afterwards.
+   * Removing a round from the middle of a run leaves its two former
+   * neighbours adjacent, and they can be the same family — which is the
+   * collision the run ordering exists to prevent. Pinning leaves no gap.
+   *
+   * The fallback covers the case where the pin didn't take, which shouldn't
+   * happen (the SSR round is a run's round 0, so its family is in the first
+   * tier). Filtering there is still correct on coverage; it just gives up
+   * the adjacency guarantee, which beats re-rendering round 0 and racing a
+   * first tap against the DOM.
+   */
+  const buildRun = (): RhymeRound[] => {
+    const first = readSSRRound();
+    const run = generateRun(Math.random, first.target);
+
+    return run[0]?.target === first.target
+      ? [first, ...run.slice(1)]
+      : [first, ...run.filter((r) => r.target !== first.target)];
+  };
+
+  let run: RhymeRound[] = buildRun();
   let roundIdx = 0;
   let answered = false;
   let currentNarration: RoundNarration | null = null;
@@ -283,7 +307,7 @@ const ssrRime = lookupFamily(ssrTarget.family).rime;
   // ── Render helpers ─────────────────────────────────────────────────
 
   const renderRound = (): void => {
-    const round = session[roundIdx]!;
+    const round = run[roundIdx]!;
     const narration = buildNarration(round);
     const target = lookupWord(round.target);
     const family = lookupFamily(target.family);
@@ -339,7 +363,7 @@ const ssrRime = lookupFamily(ssrTarget.family).rime;
 
   const onTileTap = (idx: 0 | 1 | 2): void => {
     if (answered) return;
-    const round = session[roundIdx]!;
+    const round = run[roundIdx]!;
     playTap();
 
     const tappedEl = tileEls[idx]!;
@@ -420,14 +444,14 @@ const ssrRime = lookupFamily(ssrTarget.family).rime;
   const onNext = (): void => {
     playTap();
     if (roundIdx >= TOTAL_ROUNDS - 1) {
-      showSessionComplete();
+      showRunComplete();
       return;
     }
     roundIdx++;
     startRound();
   };
 
-  const showSessionComplete = (): void => {
+  const showRunComplete = (): void => {
     cancelSpeech();
     const stats = loadRhymeTimeStats();
     saveRhymeTimeStats({
@@ -438,13 +462,13 @@ const ssrRime = lookupFamily(ssrTarget.family).rime;
     recordPlay(GAME_ID);
     doneEl.classList.add('rt-done--show');
     launchConfetti(RT_COLORS);
-    narrate(`Wow! You found ${TOTAL_ROUNDS} rhymes today! Great listening!`);
+    narrate('Wow! You found every rhyme today! Great listening!');
   };
 
   const onPlayAgain = (): void => {
     playTap();
     doneEl.classList.remove('rt-done--show');
-    session = generateSession();
+    run = generateRun();
     roundIdx = 0;
     startRound();
   };
@@ -519,7 +543,7 @@ const ssrRime = lookupFamily(ssrTarget.family).rime;
         ? 0
         : Math.round((stats.correctFirstTry / stats.rounds) * 100);
     const lines = [
-      `🎵 Sessions completed: ${stats.sessions}`,
+      `🎵 Full runs finished: ${stats.sessions}`,
       `🌟 Rounds played: ${stats.rounds}`,
       `🎯 First-try correct: ${stats.correctFirstTry} (${ratio}%)`,
       stats.lastPlayed ? `📅 Last played: ${stats.lastPlayed}` : '📅 Last played: never',
@@ -530,7 +554,7 @@ const ssrRime = lookupFamily(ssrTarget.family).rime;
   // ── Initial state binding ──────────────────────────────────────────
   // The SSR'd DOM is round 0; we don't re-render it. Bind JS state so
   // subsequent logic — tile clicks, replay, etc. — has the references.
-  currentNarration = buildNarration(session[0]!);
+  currentNarration = buildNarration(run[0]!);
   progressText.textContent = `1 / ${TOTAL_ROUNDS}`;
   progressFill.style.width = `${(1 / TOTAL_ROUNDS) * 100}%`;
   progressPill.setAttribute('aria-label', `Round 1 of ${TOTAL_ROUNDS}`);

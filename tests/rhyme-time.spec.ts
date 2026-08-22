@@ -5,8 +5,8 @@ import { test, expect } from '@playwright/test';
  * (added 2026-08-22).
  *
  * Sister suite to sound-friends.spec.ts / opposites-friends.spec.ts. Same
- * session grammar (prompt card on top, three cards below, 8 rounds), new
- * skill: hearing that two words end with the same sound. We assert:
+ * round grammar (prompt card on top, three cards below), new skill:
+ * hearing that two words end with the same sound. We assert:
  *
  *   - SSR renders header, scene, the prompt card, three distinct word cards,
  *     and a non-empty caption. `data-answer` matches exactly one card.
@@ -25,9 +25,12 @@ import { test, expect } from '@playwright/test';
  *     `correctFirstTry`; tapping another card applies `rt-tile--wrong` (the
  *     250ms shake + red tint from the 2026-08-17 feedback rule) and then
  *     reveals `rt-tile--reveal`, without bumping `correctFirstTry`.
- *   - The last two rounds set the alliteration trap — a distractor that
+ *   - The closing rounds set the alliteration trap — a distractor that
  *     starts with the target's sound. That's the game's actual difficulty
  *     curve, so it's asserted rather than assumed.
+ *   - A full run asks about all eighteen words, once each, with no family
+ *     asked twice in a row (added 2026-08-22 with the switch from 8-round
+ *     sessions).
  *   - The home page links to the game, and /stats files it under
  *     preschool-literacy.
  *
@@ -84,6 +87,22 @@ const ONSET: Readonly<Record<string, string>> = {
   book: 'b', cook: 'k',
 };
 
+/** Every word gets a turn as the prompt, so a run is exactly this long. */
+const ALL_WORDS = Object.keys(PARTNER);
+const RUN_LENGTH = ALL_WORDS.length;
+
+/** The two families the run closes on — where the alliteration trap lives. */
+const TIER_3_WORDS = ['king', 'ring', 'book', 'cook'];
+
+/**
+ * Whether a trap is even constructible for `word`: it needs another word
+ * that starts with the same sound but can't rhyme with it. `ring` is the
+ * one word in the pool with no onset twin anywhere, so its round is the
+ * documented exception.
+ */
+const canTrap = (word: string): boolean =>
+  ALL_WORDS.some((w) => RIME[w] !== RIME[word] && ONSET[w] === ONSET[word]);
+
 interface RoundShape {
   target: string;
   answer: string;
@@ -101,7 +120,7 @@ const readRound = async (page: import('@playwright/test').Page): Promise<RoundSh
   return { target, answer, tiles };
 };
 
-/** Assert everything that must be true of any round, in any session. */
+/** Assert everything that must be true of any round, in any run. */
 const expectRoundIsWellFormed = (round: RoundShape): void => {
   const { target, answer, tiles } = round;
 
@@ -179,7 +198,9 @@ test.describe('rhyme time (preschool literacy — find the rhyme)', () => {
     await expect(page.locator('body[data-theme="rhymetime"]')).toHaveCount(1);
 
     await expect(page.locator('.rt-title')).toContainText(/Rhyme Time/);
-    await expect(page.locator('#rtProgressText')).toContainText(/^\s*1\s*\/\s*8\s*$/);
+    await expect(page.locator('#rtProgressText')).toContainText(
+      new RegExp(`^\\s*1\\s*/\\s*${RUN_LENGTH}\\s*$`),
+    );
 
     const stage = page.locator('#rtStage');
     await expect(stage).toBeVisible();
@@ -350,29 +371,38 @@ test.describe('rhyme time (preschool literacy — find the rhyme)', () => {
 
   /**
    * The invariants above are asserted on round 1, which is SSR'd and
-   * therefore deterministic. This walks all eight rounds of a *randomised*
-   * session so the generator itself is under test — the pairing and the
-   * "no distractor rhymes" rule have to hold on every round, not just the
-   * seeded one.
+   * therefore deterministic. This walks a whole *randomised* run so the
+   * generator itself is under test — the pairing and the "no distractor
+   * rhymes" rule have to hold on every round, not just the seeded one.
    *
-   * Rounds 7 and 8 additionally carry the alliteration trap: a distractor
-   * starting with the target's sound, so the round can only be won by
-   * listening to the *end* of the word. That is the game's difficulty
-   * curve, and a generator change that quietly dropped it would otherwise
-   * leave every test passing.
+   * It also pins the three things run mode is for. Every word gets a turn
+   * as the prompt: under the old 8-round session a sitting reached eight of
+   * the nine families and one direction of each, so a word could go a whole
+   * play without being named on its own. No family is asked twice in a row,
+   * because "what rhymes with hat?" straight after "what rhymes with cat?"
+   * is answerable from memory of the previous screen. And the run still
+   * closes on the alliteration trap — a distractor starting with the
+   * target's sound, so the round can only be won by listening to the *end*
+   * of the word. That's the difficulty curve, and a generator change that
+   * quietly dropped it would otherwise leave every test passing.
    */
-  test('every round of a full session is well formed, and finishing records a session', async ({
+  test('a full run asks about every word once, never twice from the same family in a row', async ({
     page,
   }) => {
-    for (let round = 1; round <= 8; round++) {
+    test.setTimeout(180_000);
+
+    const asked: string[] = [];
+
+    for (let round = 1; round <= RUN_LENGTH; round++) {
       await expect(page.locator('#rtProgressText')).toContainText(
-        new RegExp(`^\\s*${round}\\s*/\\s*8\\s*$`),
+        new RegExp(`^\\s*${round}\\s*/\\s*${RUN_LENGTH}\\s*$`),
       );
 
       const shape = await readRound(page);
       expectRoundIsWellFormed(shape);
+      asked.push(shape.target);
 
-      if (round >= 7) {
+      if (TIER_3_WORDS.includes(shape.target) && canTrap(shape.target)) {
         const trap = shape.tiles.filter(
           (w) => w !== shape.answer && ONSET[w] === ONSET[shape.target],
         );
@@ -390,6 +420,24 @@ test.describe('rhyme time (preschool literacy — find the rhyme)', () => {
       await page.locator('#rtNextBtn').click();
     }
 
+    expect(asked.slice().sort(), 'every word should get a turn as the prompt').toEqual(
+      ALL_WORDS.slice().sort(),
+    );
+
+    const backToBack = asked.filter(
+      (w, i) => i > 0 && RIME[w] === RIME[asked[i - 1]!],
+    );
+    expect(
+      backToBack,
+      `these followed their own rhyming partner: ${backToBack.join(', ')}`,
+    ).toEqual([]);
+
+    // The run closes on the two trap families, so the last four rounds are
+    // exactly those four words in some order.
+    expect(asked.slice(-4).slice().sort(), 'a run should close on the trap families').toEqual(
+      TIER_3_WORDS.slice().sort(),
+    );
+
     await expect(page.locator('#rtDone')).toHaveClass(/rt-done--show/);
 
     const stats = await page.evaluate((k) => {
@@ -399,8 +447,8 @@ test.describe('rhyme time (preschool literacy — find the rhyme)', () => {
         : { sessions: 0, rounds: 0, correctFirstTry: 0 };
     }, STATS_KEY);
     expect(stats.sessions).toBe(1);
-    expect(stats.rounds).toBe(8);
-    expect(stats.correctFirstTry).toBe(8);
+    expect(stats.rounds).toBe(RUN_LENGTH);
+    expect(stats.correctFirstTry).toBe(RUN_LENGTH);
   });
 
   /**

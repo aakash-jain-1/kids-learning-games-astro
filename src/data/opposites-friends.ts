@@ -357,6 +357,7 @@ const orderTier = (
   pairIdxs: readonly number[],
   tier: 0 | 1 | 2,
   rand: () => number,
+  startWith: Omit<RunStep, 'tier'> | null = null,
 ): RunStep[] => {
   const owed = new Map<number, number>(pairIdxs.map((i) => [i, 2]));
   // Which way round a pair is asked first; its second question flips it.
@@ -364,6 +365,16 @@ const orderTier = (
 
   const out: RunStep[] = [];
   let prev = -1;
+
+  // A pinned opening question just becomes the first greedy choice, so the
+  // rest of the tier is built around it and the no-repeat rule holds
+  // through the join like anywhere else.
+  if (startWith && owed.has(startWith.pairIdx)) {
+    firstForward.set(startWith.pairIdx, startWith.forward);
+    out.push({ ...startWith, tier });
+    owed.set(startWith.pairIdx, 1);
+    prev = startWith.pairIdx;
+  }
 
   while (out.length < pairIdxs.length * 2) {
     const candidates = [...owed].filter(([idx, n]) => n > 0 && idx !== prev);
@@ -394,21 +405,38 @@ const orderTier = (
  * within any one sitting each pair was only ever asked one way. The
  * relation was taught across replays and left to chance within a play.
  *
- * Tier order still runs concrete → abstract, and `spreadPairs` keeps a
+ * Tier order still runs concrete → abstract, and `orderTier` keeps a
  * pair's two directions apart.
  *
  * `rand` is injectable so the page can SSR a deterministic round 0
  * (`generateRun(() => 0.42)[0]`) and the specs can assert a stable first
  * paint.
+ *
+ * `startWith` pins the word the run opens on, which is how the page hands
+ * the SSR'd round 0 over to a fresh random run. It exists so the page
+ * doesn't have to generate freely and then cut that question out: removing
+ * a round from the middle of a run leaves its two former neighbours
+ * adjacent, and those can be the same pair — the exact collision
+ * `orderTier` is here to prevent. Pinning has no such gap. Ignored if the
+ * word isn't in the first tier (it always is: the SSR round is a run's
+ * round 0), and the caller should check `run[0]` before relying on it.
  */
 export const generateRun = (
   rand: () => number = Math.random,
+  startWith?: OppositeId,
 ): OppositeRound[] => {
   const rounds: OppositeRound[] = [];
   let prevTheme: PreschoolTheme | null = null;
 
+  const startPairIdx =
+    startWith === undefined ? -1 : PAIRS.findIndex((p) => p.includes(startWith));
+  const pinned: Omit<RunStep, 'tier'> | null =
+    startPairIdx < 0
+      ? null
+      : { pairIdx: startPairIdx, forward: PAIRS[startPairIdx]![0] === startWith };
+
   const steps: RunStep[] = TIERS.flatMap((tierPool, tierIndex) =>
-    orderTier(tierPool, tierIndex as 0 | 1 | 2, rand),
+    orderTier(tierPool, tierIndex as 0 | 1 | 2, rand, tierIndex === 0 ? pinned : null),
   );
 
   for (const { pairIdx, forward, tier } of steps) {

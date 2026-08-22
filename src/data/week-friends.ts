@@ -28,16 +28,35 @@
  *   later concept; keeping runs in-week keeps the answer unambiguous for
  *   a 3yo (which is what makes the errorless flow honest).
  *
+ *   This is also what bounds the game's content, and it's worth being
+ *   precise about the consequence: the askable questions are "what comes
+ *   after X" for X = Sunday..Friday, i.e. **six**, with Sunday itself
+ *   unaskable because nothing in-week precedes it. Sunday is still on
+ *   screen constantly — it opens most runs and appears as an option — it
+ *   simply can't be the answer until the game teaches the wrap.
+ *
  * - **Errorless wrong tap.** A wrong option gets a 250ms kinesthetic
  *   shake (no colour shift, no buzzer), then a gentle "let's sing the
  *   days" walk over the shown run, then the correct day is revealed and
  *   the slot fills. No penalty, no red X — same age-safe principle as
  *   the rest of the preschool family.
  *
- * - **Tiered, 8 rounds.** Difficulty rises across the session: short
- *   runs from the start of the week first, then longer runs starting
- *   mid-week, then the longest runs with adjacent-day distractors (the
- *   day right before/after the target) for a closer discrimination.
+ * - **A run is every day it can ask for** (changed 2026-08-22 under
+ *   CONTEXT.md §5 rule 11). Six rounds: Monday through Saturday, each the
+ *   answer exactly once, tiered so difficulty climbs. This one *shortens*
+ *   the game — the old plan was eight rounds — and it's still the right
+ *   trade, because those eight rounds picked a random start each time, so
+ *   a sitting could ask "what comes after Sunday" three times and never
+ *   once ask about Friday. Coverage of a seven-item list was left to
+ *   chance in a game whose entire subject is that list.
+ *
+ * - **Run length is decided by the target, not drawn.** The days shown
+ *   before the "?" are simply as much of the week as fits, up to the
+ *   tier's ceiling (2 / 3 / 4). Early days therefore get short runs and
+ *   late days get long ones, which is the difficulty gradient the old plan
+ *   was approximating with random starts. Monday gets a one-card run —
+ *   "Sunday… what comes next?" — which is the first line of the song and
+ *   the easiest question in the game, so it opens the run.
  *
  * Stats schema is bespoke (`week_friends_stats_v1`) but identical in
  * shape to Sorting / Letter / Sound Friends — `{ sessions, rounds,
@@ -100,7 +119,7 @@ export const lookupDay = (index: number): DayMeta =>
  * day that comes after the last day in the run).
  */
 export interface DayRound {
-  /** Consecutive day indices shown before the "?" slot (length 2..4). */
+  /** Consecutive day indices shown before the "?" slot (length 1..4). */
   readonly run: readonly number[];
   /** The correct next-day index for the "?" slot. */
   readonly target: number;
@@ -114,30 +133,54 @@ export interface DayRound {
   readonly theme: PreschoolTheme;
 }
 
-interface RoundPlan {
-  readonly runLength: 2 | 3 | 4;
-  readonly tier: 0 | 1 | 2;
-  /** Tier 2: bias distractors toward the target's neighbours (closer call). */
-  readonly adjacentDistractors: boolean;
-}
+// ── Tier progression ───────────────────────────────────────────────
 
 /**
- * 8-round plan. Tier 1 (rounds 1-3): short runs, easy distractors.
- * Tier 2 (rounds 4-6): longer runs starting anywhere in the week.
- * Tier 3 (rounds 7-8): longest runs + adjacent-day distractors.
+ * The askable days, grouped into tiers and played in this order. Every
+ * day the game *can* ask for is here exactly once; Sunday is absent
+ * because nothing in-week precedes it (see the header note on wrap).
+ *
+ * The tiers double as the difficulty gradient, because how much week a
+ * round can show is fixed by which day it asks for — Monday can only ever
+ * show Sunday, Saturday can show four days.
  */
-const PLAN: readonly RoundPlan[] = [
-  { runLength: 2, tier: 0, adjacentDistractors: false },
-  { runLength: 2, tier: 0, adjacentDistractors: false },
-  { runLength: 3, tier: 0, adjacentDistractors: false },
-  { runLength: 2, tier: 1, adjacentDistractors: false },
-  { runLength: 3, tier: 1, adjacentDistractors: false },
-  { runLength: 3, tier: 1, adjacentDistractors: true },
-  { runLength: 3, tier: 2, adjacentDistractors: true },
-  { runLength: 4, tier: 2, adjacentDistractors: true },
+const TIER_1_TARGETS: readonly number[] = [1, 2]; // Monday, Tuesday
+const TIER_2_TARGETS: readonly number[] = [3, 4]; // Wednesday, Thursday
+const TIER_3_TARGETS: readonly number[] = [5, 6]; // Friday, Saturday
+
+const TIERS: ReadonlyArray<readonly number[]> = [
+  TIER_1_TARGETS,
+  TIER_2_TARGETS,
+  TIER_3_TARGETS,
 ];
 
-export const TOTAL_ROUNDS = PLAN.length;
+/** How much of the week a round may show before the "?", per tier. */
+const RUN_LENGTH_CAP: readonly number[] = [2, 3, 4];
+
+/**
+ * Rounds in one full run — 6, one per askable day.
+ *
+ * Derived from the tiers so teaching the Saturday→Sunday wrap later (which
+ * would add Sunday as a seventh target) lengthens the run on its own.
+ */
+export const TOTAL_ROUNDS = TIERS.reduce((n, tier) => n + tier.length, 0);
+
+// Every askable day appears in exactly one tier. Asserted at module load:
+// "you found every day" is only true if the tiers partition Mon..Sat, and
+// a typo would otherwise quietly drop a day or ask for one twice.
+(() => {
+  const flat = TIERS.flat();
+  if (new Set(flat).size !== flat.length) {
+    throw new Error('week-friends: a day appears in more than one tier');
+  }
+  const askable = DAYS.map((d) => d.index).filter((i) => i >= 1);
+  const missing = askable.filter((i) => !flat.includes(i));
+  if (missing.length > 0) {
+    throw new Error(
+      `week-friends: days missing from the tiers: ${missing.map((i) => lookupDay(i).name).join(', ')}`,
+    );
+  }
+})();
 
 // ── Helpers ────────────────────────────────────────────────────────
 
@@ -188,14 +231,17 @@ const pickDistractors = (
   return [ordered[0]!, ordered[1]!];
 };
 
-// ── Session generation ────────────────────────────────────────────
+// ── Run generation ─────────────────────────────────────────────────
 
 /**
- * Generate a fresh 8-round session.
+ * Generate a fresh run — every askable day, once each.
  *
- * - Round k draws its plan from `PLAN[k]`: a run length + tier.
- * - A random in-week start `s` is chosen so the run [s .. s+L-1] and
- *   the target `s+L` all stay within Sun(0)..Sat(6) — no week wrap.
+ * - Tiers play in order; the two days within a tier are shuffled, so the
+ *   gradient is fixed but the answers never march Mon, Tue, Wed…, which a
+ *   child could recite straight off the song without looking at the cards.
+ * - The shown run is the days immediately before the target, as many as
+ *   the tier allows and the week can supply: `[target - L .. target - 1]`.
+ *   No wrap, by construction.
  * - Options = the target + two distractors (adjacency-biased on the
  *   hardest tier), shuffled into display order.
  * - Themes rotate with a "no two in a row" rule, like the rest of the
@@ -204,35 +250,38 @@ const pickDistractors = (
  * `rand` is injectable so tests + the SSR seed can pin a deterministic
  * sequence; default uses `Math.random`.
  */
-export const generateSession = (rand: () => number = Math.random): DayRound[] => {
+export const generateRun = (rand: () => number = Math.random): DayRound[] => {
   const rounds: DayRound[] = [];
   let prevTheme: PreschoolTheme | null = null;
 
-  for (const plan of PLAN) {
-    const L = plan.runLength;
-    // Valid starts keep the target (s + L) inside the week.
-    const maxStart = TOTAL_DAYS - 1 - L; // target index <= 6
-    const start = Math.floor(rand() * (maxStart + 1));
-    const run: number[] = [];
-    for (let i = 0; i < L; i++) run.push(start + i);
-    const target = start + L;
+  TIERS.forEach((tierPool, tierIndex) => {
+    const tier = tierIndex as 0 | 1 | 2;
+    const adjacent = tier === 2;
 
-    const [d1, d2] = pickDistractors(target, plan.adjacentDistractors, rand);
-    const optionsArr = shuffleInPlace([target, d1, d2], rand);
-    const options: readonly [number, number, number] = [
-      optionsArr[0]!,
-      optionsArr[1]!,
-      optionsArr[2]!,
-    ];
-    const correctIndex = options.indexOf(target) as 0 | 1 | 2;
+    for (const target of shuffleInPlace([...tierPool], rand)) {
+      // As much week as the tier allows, bounded by what precedes the
+      // target — Monday can only ever show Sunday.
+      const L = Math.min(RUN_LENGTH_CAP[tier]!, target);
+      const run: number[] = [];
+      for (let i = target - L; i < target; i++) run.push(i);
 
-    const themeChoices: readonly ThemeMeta[] =
-      prevTheme === null ? THEMES : THEMES.filter((t) => t.key !== prevTheme);
-    const theme = pick(themeChoices, rand).key;
-    prevTheme = theme;
+      const [d1, d2] = pickDistractors(target, adjacent, rand);
+      const optionsArr = shuffleInPlace([target, d1, d2], rand);
+      const options: readonly [number, number, number] = [
+        optionsArr[0]!,
+        optionsArr[1]!,
+        optionsArr[2]!,
+      ];
+      const correctIndex = options.indexOf(target) as 0 | 1 | 2;
 
-    rounds.push({ run, target, options, correctIndex, tier: plan.tier, theme });
-  }
+      const themeChoices: readonly ThemeMeta[] =
+        prevTheme === null ? THEMES : THEMES.filter((t) => t.key !== prevTheme);
+      const theme = pick(themeChoices, rand).key;
+      prevTheme = theme;
+
+      rounds.push({ run, target, options, correctIndex, tier, theme });
+    }
+  });
 
   return rounds;
 };
@@ -275,7 +324,11 @@ export const buildNarration = (round: DayRound): RoundNarration => {
 export const STATS_KEY = 'week_friends_stats_v1';
 
 export interface WeekFriendsStats {
-  /** Total sessions completed (full 8 rounds). */
+  /**
+   * Completed runs through every askable day. Named `sessions` because
+   * the on-disk shape is shared across every preschool game; it counted
+   * 8-round sessions before 2026-08-22.
+   */
   readonly sessions: number;
   /** Total individual rounds completed (correct OR errorless). */
   readonly rounds: number;

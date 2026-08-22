@@ -37,6 +37,16 @@
  *   Sound Friends (no stage fields). See `src/data/stats-registry.ts`
  *   for the registry plumbing (the new preschool-cognitive family).
  *
+ *   Those 8 rounds are a fixed list, not a sample, which is why this game
+ *   was **left alone** when the rest of the preschool family dropped
+ *   sessions for runs (CONTEXT.md §5 rule 11, 2026-08-22). Every one of
+ *   the seven categories is already asked in every sitting — `sea` twice,
+ *   the second time with a bigger tray — so there is no coverage to fix.
+ *   What varies between plays is which *items* fill the tray, and those
+ *   are a variety pool rather than content to exhaust: the skill being
+ *   taught is the sort, not the roster, and a child who never meets the
+ *   crab has missed nothing the way a child never asked for `Z` has.
+ *
  * - **First-try = a clean round.** With a multi-select mechanic there's
  *   no single "first tap" to score, so `correctFirstTry` counts rounds
  *   completed with ZERO wrong taps (the child found every target without

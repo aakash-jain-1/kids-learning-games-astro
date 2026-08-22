@@ -21,6 +21,8 @@ import { test, expect } from '@playwright/test';
  *     shake AND eventually reveals `week-opt--reveal` on the correct
  *     option after the guided "sing the days" walk (no `correctFirstTry`
  *     bump).
+ *   - A full run asks for every day it can — Monday through Saturday, once
+ *     each (added 2026-08-22 with the switch from 8-round sessions).
  *   - Home page links to the new game.
  *
  * The correct day is discoverable directly from the DOM: the page stamps
@@ -36,6 +38,18 @@ import { test, expect } from '@playwright/test';
 
 const STATS_KEY = 'week_friends_stats_v1';
 
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+/**
+ * The days a round can ask for, Sunday-first indices. Sunday is absent
+ * because nothing *in-week* precedes it and the game deliberately doesn't
+ * wrap Saturday→Sunday yet — so it can appear on a card or an option, but
+ * never be the answer. Spelled out here rather than imported so a data
+ * edit that drops a day fails this suite instead of being ratified by it.
+ */
+const ASKABLE_DAYS = [1, 2, 3, 4, 5, 6];
+const RUN_LENGTH = ASKABLE_DAYS.length;
+
 const readTargetAndOptions = async (page: import('@playwright/test').Page) => {
   const target = Number(await page.locator('#weekStage').getAttribute('data-target'));
   const optDays = await page.evaluate(() =>
@@ -43,6 +57,11 @@ const readTargetAndOptions = async (page: import('@playwright/test').Page) => {
   );
   return { target, optDays, correctIdx: optDays.indexOf(target) };
 };
+
+const readShownRun = async (page: import('@playwright/test').Page): Promise<number[]> =>
+  page
+    .locator('#weekSequence .week-card')
+    .evaluateAll((els) => els.map((e) => Number((e as HTMLElement).dataset.day)));
 
 test.describe('week friends (preschool days-of-the-week sequencing)', () => {
   test.beforeEach(async ({ page }) => {
@@ -63,7 +82,9 @@ test.describe('week friends (preschool days-of-the-week sequencing)', () => {
     await expect(page.locator('body[data-theme="weekfriends"]')).toHaveCount(1);
 
     await expect(page.locator('.week-title')).toContainText(/Week Friends/);
-    await expect(page.locator('#weekProgressText')).toContainText(/^\s*1\s*\/\s*8\s*$/);
+    await expect(page.locator('#weekProgressText')).toContainText(
+      new RegExp(`^\\s*1\\s*/\\s*${RUN_LENGTH}\\s*$`),
+    );
 
     const stage = page.locator('#weekStage');
     await expect(stage).toBeVisible();
@@ -71,15 +92,15 @@ test.describe('week friends (preschool days-of-the-week sequencing)', () => {
     expect(['pond', 'orchard', 'sea', 'garden', 'meadow', 'jungle']).toContain(scene);
     await expect(page.locator('#weekCaption')).not.toBeEmpty();
 
-    // Sequence row: at least 2 day-cards + exactly 1 "?" slot.
+    // Sequence row: at least one day-card + exactly 1 "?" slot. One is the
+    // floor rather than two because a Monday round shows only Sunday —
+    // there is no more week in front of it.
     const cardCount = await page.locator('#weekSequence .week-card').count();
-    expect(cardCount).toBeGreaterThanOrEqual(2);
+    expect(cardCount).toBeGreaterThanOrEqual(1);
     await expect(page.locator('#weekSlot')).toHaveCount(1);
 
     // Each shown card carries a valid Sunday-first day-index 0..6.
-    const cardDays = await page
-      .locator('#weekSequence .week-card')
-      .evaluateAll((els) => els.map((e) => Number((e as HTMLElement).dataset.day)));
+    const cardDays = await readShownRun(page);
     for (const d of cardDays) {
       expect(d).toBeGreaterThanOrEqual(0);
       expect(d).toBeLessThanOrEqual(6);
@@ -171,6 +192,69 @@ test.describe('week friends (preschool days-of-the-week sequencing)', () => {
       return raw ? (JSON.parse(raw) as { correctFirstTry: number }) : { correctFirstTry: 0 };
     }, STATS_KEY);
     expect(stats.correctFirstTry).toBe(0);
+  });
+
+  /**
+   * A full run asks for every day the game can ask for, once each.
+   *
+   * This one *shortened* the game — the old session was eight rounds — and
+   * is still the fix, because those eight picked a random start each time:
+   * a sitting could ask "what comes after Sunday" three times and never
+   * mention Friday, in a game whose whole subject is a seven-item list.
+   *
+   * Also pinned here is the shape of the shown run, since it's no longer
+   * drawn at random. It's the days immediately before the target, so it
+   * must be consecutive, must end on target − 1, and must not wrap — which
+   * is the property that keeps the answer unambiguous for a 3yo and, in
+   * turn, keeps the errorless flow honest.
+   */
+  test('a full run asks for every day from Monday to Saturday exactly once', async ({ page }) => {
+    test.setTimeout(120_000);
+
+    const asked: number[] = [];
+
+    for (let round = 1; round <= RUN_LENGTH; round++) {
+      await expect(page.locator('#weekProgressText')).toContainText(
+        new RegExp(`^\\s*${round}\\s*/\\s*${RUN_LENGTH}\\s*$`),
+      );
+
+      const { target, correctIdx } = await readTargetAndOptions(page);
+      const shown = await readShownRun(page);
+
+      expect(shown.length, `round ${round} shows no days at all`).toBeGreaterThanOrEqual(1);
+      expect(
+        shown[shown.length - 1],
+        `round ${round} asks for ${DAY_NAMES[target]} but the run doesn't end on the day before it`,
+      ).toBe(target - 1);
+      for (let i = 1; i < shown.length; i++) {
+        expect(shown[i], `round ${round} shows a non-consecutive run`).toBe(shown[i - 1]! + 1);
+      }
+      expect(shown[0], `round ${round} wraps past Sunday`).toBeGreaterThanOrEqual(0);
+
+      asked.push(target);
+
+      expect(correctIdx).toBeGreaterThanOrEqual(0);
+      await page.locator(`#weekOpt${correctIdx}`).click();
+      await expect(page.locator('#weekNextBtn')).toBeEnabled();
+      await page.locator('#weekNextBtn').click();
+    }
+
+    expect(
+      asked.slice().sort(),
+      'a run should ask for every day it can, once each',
+    ).toEqual(ASKABLE_DAYS.slice().sort());
+
+    await expect(page.locator('#weekDone')).toHaveClass(/week-done--show/);
+
+    const stats = await page.evaluate((k) => {
+      const raw = localStorage.getItem(k);
+      return raw
+        ? (JSON.parse(raw) as { sessions: number; rounds: number; correctFirstTry: number })
+        : { sessions: 0, rounds: 0, correctFirstTry: 0 };
+    }, STATS_KEY);
+    expect(stats.sessions).toBe(1);
+    expect(stats.rounds).toBe(RUN_LENGTH);
+    expect(stats.correctFirstTry).toBe(RUN_LENGTH);
   });
 
   test('home page links to the new game', async ({ page }) => {

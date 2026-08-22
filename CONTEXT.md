@@ -7,10 +7,10 @@
 > `.cursor/rules/maintain-context.mdc`.
 >
 > **Last verified against the codebase**: 2026-08-22 (**§5 rule 11 — no sampled
-> sessions — now applied to four games**: Animal Sounds (27 animals), Letter
-> Friends (26 letters), Feeling Friends (8 feelings + 12 vignettes) and
-> Opposites Friends (10 pairs, both directions). Four more still qualify and
-> haven't converted — see rule 11. Game count unchanged at 27. Same day,
+> sessions — is now applied everywhere it applies**: Animal Sounds (27),
+> Letter Friends (26), Sound Friends (26), Rhyme Time (18), Feeling Friends
+> (20), Opposites Friends (20) and Week Friends (6). Sorting Friends was
+> examined and needs no change. Game count unchanged at 27. Same day,
 > earlier: Rhyme Time
 > shipped (fourth of the six-game August arc); the shared `.ctrl-pill` chips
 > were fixed after measuring 1.07:1 contrast, adding §5 rule 10; Opposites
@@ -166,32 +166,38 @@ data file + a layout-specific themed CSS block. A parent dashboard lives at
     mean "you've heard all of them" — a goal a 3yo can hold, unlike an arbitrary
     eight. **Directed by the user 2026-08-22 as project-wide intent.**
 
-    **Converted so far (4):** Animal Sounds (27 animals), Letter Friends (26
-    letters), Feeling Friends (8 feelings + 12 vignettes), Opposites Friends (10
-    pairs × 2 directions = 20). Each exports `generateRun` plus a `TOTAL_ROUNDS`
-    **derived from the content**, so adding a letter, a vignette or a pair
-    lengthens the run instead of leaving it unreachable.
-
-    **Still on 8-round sessions but arguably qualifying:** Sound Friends (26
-    letters — the direct sibling of Letter Friends), Rhyme Time (9 rhyme
-    families), Week Friends (7 days), Sorting Friends (a fixed category set).
-    Convert them when next touched.
+    **Converted (7):** Animal Sounds 27, Letter Friends 26, Sound Friends 26,
+    Feeling Friends 20 (8 feelings + 12 vignettes), Opposites Friends 20 (10
+    pairs × 2 directions), Rhyme Time 18 (9 pairs × 2 directions), Week Friends
+    6. Each exports `generateRun` plus a `TOTAL_ROUNDS` **derived from the
+    content**, so adding a letter, a vignette or a pair lengthens the run
+    instead of leaving it unreachable.
 
     It does **not** apply everywhere, and the test is whether a finite set exists
-    to exhaust. The preschool-math games (Counting / More / Number Friends,
-    Patterns, Number Bond Pop) do not qualify: their questions are generated, so
-    there is no finite set to complete. Days Parade is an explore game with no
-    rounds at all. Note also that "the set" is not always the obvious noun — for
-    Opposites Friends it's the twenty *questions*, not the ten pairs, because
-    asking a pair both ways is the whole pedagogy.
+    to exhaust. **Sorting Friends** looks like a candidate and isn't: its 8
+    rounds are a fixed list that already asks all seven categories every sitting,
+    and the items filling each tray are a variety pool, not content to exhaust
+    (the skill is the sort, not the roster). The preschool-math games (Counting /
+    More / Number Friends, Patterns, Number Bond Pop) don't qualify either —
+    their questions are generated, so there is no finite set to complete. Days
+    Parade is an explore game with no rounds at all.
 
-    Two things to get right when converting another game:
+    Three things to get right when converting another game:
 
+    - **"The set" is often not the obvious noun.** For Opposites Friends and
+      Rhyme Time it's the *questions*, not the pairs, because asking a pair both
+      ways is the pedagogy. For Week Friends it's smaller than the seven days —
+      no-week-wrap means Sunday can't be an answer — and converting it made the
+      game *shorter*, which was still right.
     - **The SSR handoff.** These pages SSR a deterministic round 0 and hand it to
-      a fresh run. Appending `generateRun().slice(1)` is wrong — it drops the
-      random run's first entry rather than the one already on screen, so a
-      question is asked twice, another never, and the run still has exactly the
-      right length. Filter by identity instead (`buildRun` in each page).
+      a fresh run. Both obvious approaches are wrong. `generateRun().slice(1)`
+      drops the random run's first entry rather than the one on screen, so a
+      question is asked twice and another never, at exactly the right run
+      *length*. Filtering that question out instead fixes the coverage but
+      **leaves its two former neighbours adjacent**, which in a game with an
+      adjacency rule can put a pair back-to-back — the thing the ordering exists
+      to prevent. Use `generateRun(rand, startWith)`: the pinned question becomes
+      the ordering's first choice, nothing is removed, so no gap exists.
     - **Preload.** Warm a rolling window ahead of the current round, not the
       whole run, or start-up cost grows with the content.
 
@@ -201,11 +207,10 @@ data file + a layout-specific themed CSS block. A parent dashboard lives at
 - `kids_progress_v1:<gameId>` — learned-item set (sorted string array).
 - `<gameId>_quiz_v1` — `{ attempts, bestScore, lastPlayed }` quiz metrics.
 - `<game>_stats_v1` — bespoke preschool schema `{ sessions, rounds, correctFirstTry, lastPlayed }`
-  (newest: `rhyme_time_stats_v1`, 2026-08-22). In the four games converted to
+  (newest: `rhyme_time_stats_v1`, 2026-08-22). In the seven games converted to
   §5 rule 11 the `sessions` field is kept on disk (the shape is shared across
   every preschool game) but now counts **completed runs**, and the UI labels it
-  "Full runs finished" — `animal_sounds_stats_v1`, `letter_friends_stats_v1`,
-  `feeling_friends_stats_v1`, `opposites_friends_stats_v1`.
+  "Full runs finished".
   The staged preschool-math games (Counting / More / Number Friends + Number
   Bond Pop) also carry `{ stage, bestStage }` (1..3) for their auto-advancing
   stages (added 2026-06-03; Number Bond Pop adopted them at ship 2026-06-06).
@@ -232,8 +237,25 @@ this family stays at one for now.)
   Friends + Sorting Friends + Week Friends + Days Parade + Animal Sounds +
   Feeling Friends + Opposites Friends + Rhyme Time). Total **27 games**, all
   live.
-- **Latest ship (2026-08-22)**: **Letter, Feeling and Opposites Friends drop
-  sessions too**, taking §5 rule 11 to four games (four more still qualify).
+- **Latest ship (2026-08-22)**: **Sound, Rhyme and Week Friends drop sessions**,
+  completing §5 rule 11 across every game it applies to. Sound Friends 8 → **26**
+  (bare letter tiles mean an unasked letter is a silent distractor — being the
+  target is the only way it earns its "A says ah" narration). Rhyme Time 8 →
+  **18** (every word gets a turn as the prompt, so each pair is asked both ways;
+  needed the same adjacency guard as Opposites). Week Friends 8 → **6**, the one
+  conversion that *shortens* a game: no-week-wrap means it can only ask "what
+  comes after X" for six days, and six rounds that cover the list beat eight
+  random draws that might ask about Sunday three times and never mention Friday.
+  Sorting Friends was examined and left alone — see rule 11.
+
+  Also **fixed the SSR handoff properly**. The previous ship's filter-by-identity
+  fixed the duplicate-question bug but introduced a subtler one: removing a round
+  from the middle of a run leaves its two former neighbours adjacent, which in
+  Opposites and Rhyme Time can be the same pair. Now pinned by construction via
+  `generateRun(rand, startWith)`. Caught by `--repeat-each=10`, not by a single
+  pass — see rule 11.
+- **Prior ship (2026-08-22, same day)**: **Letter, Feeling and Opposites Friends
+  drop sessions**, taking §5 rule 11 to four games.
   Letter Friends goes 8 rounds → **26** (the whole alphabet; the other 18
   letters were never absent, they were just never the thing being *asked for*).
   Feeling Friends → **20** (8 feelings named, then all 12 authored vignettes —
@@ -465,10 +487,14 @@ this family stays at one for now.)
     travel together: both were found in Animal Sounds by *screenshotting* the
     finished game, which neither the type checker nor the suite can do.
   - **Wrong-answer feedback migration** — 23 games still shake-only (§5 rule 8).
-  - **Run-mode migration** — Sound Friends, Rhyme Time, Week Friends and
-    Sorting Friends still sample 8-round sessions from a bounded set (§5
-    rule 11). Sound Friends is the most clear-cut: it's Letter Friends' sibling
-    over the same 26 letters.
+  - **A disabled "Next round" looks tappable** in Sound Friends, Rhyme Time and
+    Letter Friends: the primary action keeps its full accent fill at
+    `opacity: 1` while `disabled`. Week Friends dims it to 0.5 and is the
+    pattern to copy. Seen while screenshotting the run-mode ship; not fixed
+    there to keep that change reviewable.
+  - **White page titles on a pale tint** in Sound Friends and Letter Friends —
+    the same low-contrast bug fixed in Animal Sounds (2026-08-22) and Rhyme
+    Time, which use a dark accent instead.
 - **Deferred design decision**: `StageLayout` carve (deferred 5x — the
   `body.story` scope already does the isolation work). Option C unified
   `DeckLayout` decided NO-GO. The vanilla repo is a no-touch zone.

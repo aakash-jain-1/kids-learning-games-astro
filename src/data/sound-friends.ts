@@ -34,21 +34,29 @@
  *   by the always-visible caption.
  *
  * - **SATPIN-tiered targets, reused verbatim from Letter Friends.** The
- *   target letter for each round is drawn from the same 4-tier
- *   progression so the early rounds use the high-utility Jolly Phonics
- *   Set-1 letters (S, A, T, P, I, N) and the rare letters (J, V, X, Y,
- *   Z, Q) only appear in rounds 7-8. Letter -> word -> emoji content is
- *   reused from `@/data/alphabets` so the project keeps a single
- *   letter->word map.
+ *   4-tier progression puts the high-utility Jolly Phonics Set-1 letters
+ *   (S, A, T, P, I, N) first and the rare ones (J, V, X, Y, Z, Q) last.
+ *   Letter -> word -> emoji content is reused from `@/data/alphabets` so
+ *   the project keeps a single letter->word map.
+ *
+ * - **A run is all 26 sounds** (changed 2026-08-22, matching the same
+ *   change in Letter Friends the same day). The previous fixed 8 drew two
+ *   random targets per tier, so a sitting asked for the starting sound of
+ *   8 of the 26 pictures and *which* 8 was luck. The gap matters more here
+ *   than in Letter Friends: the tiles are bare glyphs, so an unasked
+ *   letter appears as a distractor with nothing spoken about it, whereas
+ *   being the target is what earns it the "A says ah" narration. Tier
+ *   order still front-loads the high-utility sounds — they are simply what
+ *   the child meets first, every time, rather than being over-sampled.
  *
  * - **Confusable-pair denylist.** Because the tiles are letter glyphs,
  *   the same shape-reversal confusables that matter in Letter Friends
  *   matter here (b/d, p/q, M/W, ...). A confusable shouldn't appear as
  *   target + distractor in the same round.
  *
- * - **3-tile forced choice, 8 rounds, errorless wrong-tap flow** — all
- *   identical to Letter Friends (and the cardinality triad). No score,
- *   no timer, no failure state.
+ * - **3-tile forced choice, errorless wrong-tap flow** — all identical to
+ *   Letter Friends (and the cardinality triad). No score, no timer, no
+ *   failure state.
  *
  * Stats schema is bespoke (`sound_friends_stats_v1`) and identical in
  * shape to Letter Friends (`{ sessions, rounds, correctFirstTry,
@@ -137,19 +145,47 @@ export const LETTER_META: readonly LetterMeta[] =
 export const lookupLetter = (id: LetterId): LetterMeta => LETTER_META_BY_ID[id];
 
 // ── Tier progression (reused from Letter Friends) ──────────────────
+//
+// The four tiers partition all 26 letters, highest-utility sounds first.
+// A run plays every letter in every tier exactly once, in tier order,
+// shuffled within each tier so replays don't march in a fixed sequence.
 
 const TIER_1_TARGETS: readonly LetterId[] = ['S', 'A', 'T', 'P', 'I', 'N'];
 const TIER_2_TARGETS: readonly LetterId[] = ['M', 'D', 'G', 'O', 'C', 'K'];
 const TIER_3_TARGETS: readonly LetterId[] = ['E', 'U', 'R', 'H', 'B', 'F', 'L'];
 const TIER_4_TARGETS: readonly LetterId[] = ['J', 'V', 'W', 'X', 'Y', 'Z', 'Q'];
 
-/** Tier pool per round (0-indexed). 8 rounds, 2 per tier. */
-const TIER_BY_ROUND: ReadonlyArray<readonly LetterId[]> = [
-  TIER_1_TARGETS, TIER_1_TARGETS,
-  TIER_2_TARGETS, TIER_2_TARGETS,
-  TIER_3_TARGETS, TIER_3_TARGETS,
-  TIER_4_TARGETS, TIER_4_TARGETS,
+/** The tiers in play order. Together they are exactly A-Z, no repeats. */
+const TIERS: ReadonlyArray<readonly LetterId[]> = [
+  TIER_1_TARGETS,
+  TIER_2_TARGETS,
+  TIER_3_TARGETS,
+  TIER_4_TARGETS,
 ];
+
+/**
+ * Rounds in one full run — 26, i.e. every letter's starting sound.
+ *
+ * Derived rather than written down, so adding a letter to a tier can't
+ * leave the progress bar counting to a stale number.
+ */
+export const TOTAL_ROUNDS = TIERS.reduce((n, tier) => n + tier.length, 0);
+
+// Every letter appears in exactly one tier. Asserted at module load
+// because the promise of a run — "you sounded out all 26" — is only true
+// if the tiers partition the alphabet, and a typo'd or duplicated letter
+// would otherwise quietly shorten or lengthen the run.
+(() => {
+  const flat = TIERS.flat();
+  const seen = new Set(flat);
+  if (seen.size !== flat.length) {
+    throw new Error('sound-friends: a letter appears in more than one tier');
+  }
+  const missing = ALL_LETTERS.filter((l) => !seen.has(l));
+  if (missing.length > 0) {
+    throw new Error(`sound-friends: letters missing from the tiers: ${missing.join(', ')}`);
+  }
+})();
 
 /**
  * Confusable-pair denylist (shape reversals). Tiles are bare letter
@@ -193,7 +229,7 @@ export interface SoundRound {
   readonly tiles: readonly [LetterId, LetterId, LetterId];
   /** Position (0/1/2) of the matching tile in `tiles`. */
   readonly correctIndex: 0 | 1 | 2;
-  /** Which tier this round was drawn from (0-3). Used by parent stats / debug. */
+  /** Which tier this round came from (0-3). Used by parent stats / debug. */
   readonly tier: 0 | 1 | 2 | 3;
   /** Theme rotated per round — drives the scene background ambience. */
   readonly theme: PreschoolTheme;
@@ -239,13 +275,14 @@ const pickDistractors = (
   return [pool[0]!, pool[1]!];
 };
 
-// ── Session generation ────────────────────────────────────────────
+// ── Run generation ─────────────────────────────────────────────────
 
 /**
- * Generate a fresh 8-round session.
+ * Generate a fresh run — every letter's starting sound, once each.
  *
- * - Round k draws its target letter uniformly from `TIER_BY_ROUND[k]`;
- *   the pictured prompt is that letter's mnemonic (word + emoji).
+ * - Tiers play in order; the letters within a tier are shuffled, so the
+ *   curricular progression is fixed but the sequence isn't memorisable.
+ * - The pictured prompt is the target letter's mnemonic (word + emoji).
  * - Distractors pulled from full A-Z minus target minus confusables.
  * - The `[target, d1, d2]` triple is shuffled into a random display
  *   order so `correctIndex` rotates evenly across rounds.
@@ -254,37 +291,37 @@ const pickDistractors = (
  * `rand` is injectable so tests + the SSR seed can pin a deterministic
  * sequence; default uses `Math.random`.
  */
-export const generateSession = (
+export const generateRun = (
   rand: () => number = Math.random,
 ): SoundRound[] => {
   const rounds: SoundRound[] = [];
   let prevTheme: PreschoolTheme | null = null;
 
-  for (let k = 0; k < TIER_BY_ROUND.length; k++) {
-    const tierPool = TIER_BY_ROUND[k]!;
-    const target = pick(tierPool, rand);
-    const item = lookupLetter(target);
+  TIERS.forEach((tierPool, tierIndex) => {
+    const tier = tierIndex as 0 | 1 | 2 | 3;
 
-    const [d1, d2] = pickDistractors(target, rand);
+    for (const target of shuffleInPlace([...tierPool], rand)) {
+      const item = lookupLetter(target);
 
-    const triple: LetterId[] = [target, d1, d2];
-    shuffleInPlace(triple, rand);
-    const tiles: readonly [LetterId, LetterId, LetterId] = [
-      triple[0]!,
-      triple[1]!,
-      triple[2]!,
-    ];
-    const correctIndex = tiles.indexOf(target) as 0 | 1 | 2;
+      const [d1, d2] = pickDistractors(target, rand);
 
-    const themeChoices: readonly ThemeMeta[] =
-      prevTheme === null ? THEMES : THEMES.filter((t) => t.key !== prevTheme);
-    const theme = pick(themeChoices, rand).key;
-    prevTheme = theme;
+      const triple: LetterId[] = [target, d1, d2];
+      shuffleInPlace(triple, rand);
+      const tiles: readonly [LetterId, LetterId, LetterId] = [
+        triple[0]!,
+        triple[1]!,
+        triple[2]!,
+      ];
+      const correctIndex = tiles.indexOf(target) as 0 | 1 | 2;
 
-    const tier = (k < 2 ? 0 : k < 4 ? 1 : k < 6 ? 2 : 3) as 0 | 1 | 2 | 3;
+      const themeChoices: readonly ThemeMeta[] =
+        prevTheme === null ? THEMES : THEMES.filter((t) => t.key !== prevTheme);
+      const theme = pick(themeChoices, rand).key;
+      prevTheme = theme;
 
-    rounds.push({ item, tiles, correctIndex, tier, theme });
-  }
+      rounds.push({ item, tiles, correctIndex, tier, theme });
+    }
+  });
 
   return rounds;
 };
@@ -333,7 +370,11 @@ export const buildNarration = (round: SoundRound): RoundNarration => {
 export const STATS_KEY = 'sound_friends_stats_v1';
 
 export interface SoundFriendsStats {
-  /** Total sessions completed (full 8 rounds). */
+  /**
+   * Completed runs through all 26 sounds. Named `sessions` because the
+   * on-disk shape is shared across every preschool game; it counted
+   * 8-round sessions before 2026-08-22.
+   */
   readonly sessions: number;
   /** Total individual rounds completed (correct OR errorless). */
   readonly rounds: number;

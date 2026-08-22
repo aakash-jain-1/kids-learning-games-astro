@@ -3,21 +3,19 @@ import StoryLayout from '@/layouts/StoryLayout.astro';
 import GameControls from '@/components/GameControls.astro';
 import '@/styles/soundfriends.css';
 
-import { generateSession } from '@/data/sound-friends';
+import { generateRun, TOTAL_ROUNDS } from '@/data/sound-friends';
 
 const title = 'Sound Friends — Kids Learning Games';
 const description =
-  'A gentle beginning-sounds game for ages 3–4. A picture appears at the top; tap the letter its name starts with. "Apple starts with A!" Audio narration, no scoring, no failures. Second preschool-literacy game, sister to Letter Friends.';
+  'A gentle beginning-sounds game for ages 3–4. A picture appears at the top; tap the letter its name starts with. "Apple starts with A!" One run asks for all 26 starting sounds. Audio narration, no scoring, no failures. Second preschool-literacy game, sister to Letter Friends.';
 
 // SSR a deterministic first round so the page never paints blank. The
 // page script reads round 0 directly from the SSR'd DOM (matching the
 // Letter Friends / Number Friends kickoff-race pattern), then continues
 // with random rounds 1..N after the user clicks Next.
-const SSR_FIRST_ROUND = generateSession(() => 0.42)[0]!;
+const SSR_FIRST_ROUND = generateRun(() => 0.42)[0]!;
 const ssrItem = SSR_FIRST_ROUND.item;
 const ssrCaption = `${ssrItem.word}! What does ${ssrItem.word} start with?`;
-
-const TOTAL_ROUNDS = 8;
 ---
 
 <StoryLayout
@@ -111,7 +109,7 @@ const TOTAL_ROUNDS = 8;
         <div class="sf-done-emoji" aria-hidden="true">⭐</div>
         <h2 class="sf-done-title" id="sfDoneTitle">Sound champion!</h2>
         <p class="sf-done-text" id="sfDoneText">
-          You found {TOTAL_ROUNDS} sound friends today!
+          You found all {TOTAL_ROUNDS} sound friends today!
         </p>
         <div class="sf-done-actions">
           <button type="button" class="sf-action sf-action--primary" id="sfPlayAgainBtn">
@@ -132,11 +130,12 @@ const TOTAL_ROUNDS = 8;
   import { launchConfetti } from '@/lib/achievements';
   import { getSettings } from '@/lib/settings';
   import {
-    generateSession,
+    generateRun,
     buildNarration,
     lookupLetter,
     loadSoundFriendsStats,
     saveSoundFriendsStats,
+    TOTAL_ROUNDS,
     type SoundRound,
     type LetterId,
     type RoundNarration,
@@ -144,22 +143,21 @@ const TOTAL_ROUNDS = 8;
   } from '@/data/sound-friends';
   import { recordPlay } from '@/lib/retention';
 
-  const TOTAL_ROUNDS = 8;
   // Pink-leaning palette to match the literacy family accent (shared
   // with Letter Friends), distinct from the math triad's green.
   const SF_COLORS = ['#ef476f', '#ffd166', '#06d6a0', '#118ab2', '#f78fb3'];
 
   /**
-   * Read round 0 from the SSR'd DOM so the JS session starts in sync
+   * Read round 0 from the SSR'd DOM so the JS run starts in sync
    * with whatever Astro rendered. Avoids the kickoff-race that bit
    * Counting Friends on 2026-05-15 — without this, a tap during the
    * first interaction could land on a tile whose letter has just been
-   * rewritten by a freshly-randomised JS session. Inherited from
+   * rewritten by a freshly-randomised JS run. Inherited from
    * Letter Friends / Number Friends.
    */
   const readSSRRound = (): SoundRound => {
     const stageEl = document.getElementById('sfStage');
-    if (!stageEl) return generateSession()[0]!;
+    if (!stageEl) return generateRun()[0]!;
 
     const themeKey = (stageEl.dataset.scene ?? 'pond') as PreschoolTheme;
     const target = stageEl.dataset.target as LetterId | undefined;
@@ -170,7 +168,7 @@ const TOTAL_ROUNDS = 8;
       document.getElementById('sfTile2'),
     ];
     if (!target || tileEls.some((el) => !el)) {
-      return generateSession()[0]!;
+      return generateRun()[0]!;
     }
 
     const tiles = tileEls.map(
@@ -178,7 +176,7 @@ const TOTAL_ROUNDS = 8;
     ) as [LetterId, LetterId, LetterId];
     const correctIndex = tiles.indexOf(target);
     if (correctIndex < 0 || correctIndex > 2) {
-      return generateSession()[0]!;
+      return generateRun()[0]!;
     }
 
     return {
@@ -193,7 +191,24 @@ const TOTAL_ROUNDS = 8;
   };
 
   // ── State ──────────────────────────────────────────────────────────
-  let session: SoundRound[] = [readSSRRound(), ...generateSession().slice(1)];
+
+  /**
+   * The SSR round plus a fresh run with that letter removed.
+   *
+   * Filtering by letter rather than dropping the run's first entry: the
+   * SSR round is generated from a pinned seed, so the letter already on
+   * screen is usually still somewhere in the middle of the new run.
+   * `slice(1)` would leave it asked twice and drop an unrelated letter.
+   */
+  const buildRun = (): SoundRound[] => {
+    const first = readSSRRound();
+    return [
+      first,
+      ...generateRun().filter((r) => r.item.letter !== first.item.letter),
+    ];
+  };
+
+  let run: SoundRound[] = buildRun();
   let roundIdx = 0;
   let answered = false;
   let currentNarration: RoundNarration | null = null;
@@ -262,7 +277,7 @@ const TOTAL_ROUNDS = 8;
   };
 
   const renderRound = (): void => {
-    const round = session[roundIdx]!;
+    const round = run[roundIdx]!;
 
     progressText.textContent = `${roundIdx + 1} / ${TOTAL_ROUNDS}`;
     progressFill.style.width = `${((roundIdx + 1) / TOTAL_ROUNDS) * 100}%`;
@@ -309,7 +324,7 @@ const TOTAL_ROUNDS = 8;
 
   const onTileTap = (idx: 0 | 1 | 2): void => {
     if (answered) return;
-    const round = session[roundIdx]!;
+    const round = run[roundIdx]!;
     playTap();
 
     const tappedEl = tileEls[idx]!;
@@ -387,14 +402,14 @@ const TOTAL_ROUNDS = 8;
   const onNext = (): void => {
     playTap();
     if (roundIdx >= TOTAL_ROUNDS - 1) {
-      showSessionComplete();
+      showRunComplete();
       return;
     }
     roundIdx++;
     startRound();
   };
 
-  const showSessionComplete = (): void => {
+  const showRunComplete = (): void => {
     cancelSpeech();
     const stats = loadSoundFriendsStats();
     saveSoundFriendsStats({
@@ -405,13 +420,13 @@ const TOTAL_ROUNDS = 8;
     recordPlay('sound-friends');
     doneEl.classList.add('sf-done--show');
     launchConfetti(SF_COLORS);
-    narrate(`Wow! You found ${TOTAL_ROUNDS} sound friends today! Great job!`);
+    narrate(`Wow! You found all ${TOTAL_ROUNDS} sound friends today! Great job!`);
   };
 
   const onPlayAgain = (): void => {
     playTap();
     doneEl.classList.remove('sf-done--show');
-    session = generateSession();
+    run = generateRun();
     roundIdx = 0;
     startRound();
   };
@@ -475,7 +490,7 @@ const TOTAL_ROUNDS = 8;
         ? 0
         : Math.round((stats.correctFirstTry / stats.rounds) * 100);
     const lines = [
-      `🔊 Sessions completed: ${stats.sessions}`,
+      `🔊 Full runs finished: ${stats.sessions}`,
       `🌟 Rounds played: ${stats.rounds}`,
       `🎯 First-try correct: ${stats.correctFirstTry} (${ratio}%)`,
       stats.lastPlayed ? `📅 Last played: ${stats.lastPlayed}` : '📅 Last played: never',
@@ -486,7 +501,7 @@ const TOTAL_ROUNDS = 8;
   // ── Initial state binding ──────────────────────────────────────────
   // The SSR'd DOM is round 0; we don't re-render it. Bind JS state so
   // subsequent logic — tile clicks, replay, etc. — has the references.
-  currentNarration = buildNarration(session[0]!);
+  currentNarration = buildNarration(run[0]!);
   progressText.textContent = `1 / ${TOTAL_ROUNDS}`;
   progressFill.style.width = `${(1 / TOTAL_ROUNDS) * 100}%`;
   progressPill.setAttribute('aria-label', `Round 1 of ${TOTAL_ROUNDS}`);

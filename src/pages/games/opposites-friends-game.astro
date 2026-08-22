@@ -205,36 +205,30 @@ const ssrNarration = buildNarration(SSR_FIRST_ROUND);
 
   // ── State ──────────────────────────────────────────────────────────
   /**
-   * The SSR'd round, followed by a fresh run with that question removed.
+   * The SSR'd round 0, continued by a fresh random run.
    *
-   * Matched on `target` rather than on the pair, because the pair's *other*
-   * direction is a different question the child should still be asked.
-   * Slicing index 0 instead would be wrong outright: the SSR round is
-   * pinned (`rand: () => 0.42`), so its question would usually still be
-   * sitting later in the run and get asked twice while another went
-   * missing.
+   * The generator is asked to *open* on the question already on screen
+   * rather than generating freely and cutting that question out afterwards.
+   * Filtering looks like it works — it keeps the pair's other direction,
+   * which is a question the child should still get — but removing a round
+   * from the middle of a run leaves its two former neighbours adjacent, and
+   * they can be the same pair. That's the collision `orderTier` exists to
+   * prevent, reintroduced at the one seam it can't see. Pinning leaves no
+   * gap to reintroduce it through.
+   *
+   * The fallback covers the case where the pin didn't take, which shouldn't
+   * happen (the SSR round is a run's round 0, so its pair is in the first
+   * tier). Filtering there is still correct on coverage; it just gives up
+   * the adjacency guarantee, which beats re-rendering round 0 and racing a
+   * first tap against the DOM.
    */
   const buildRun = (): OppositeRound[] => {
     const first = readSSRRound();
-    const rest = generateRun().filter((r) => r.target !== first.target);
+    const run = generateRun(Math.random, first.target);
 
-    // Filtering removes the SSR round's own question but deliberately keeps
-    // the same pair's *other* direction, which is a separate question the
-    // child should still be asked. The generator may have put it first
-    // though, which lands "which one is hot?" directly after "which one is
-    // cold?" — the one adjacency `orderTier` exists to prevent, reintroduced
-    // at the seam it can't see. Slide it past the next unrelated question.
-    //
-    // Safe to do blind: exactly one question has `first.answer` as its
-    // target, and its partner question is the one already filtered out, so
-    // wherever it lands it cannot end up beside its own pair. Both are tier
-    // 1 (round 0 always is), so this can't disturb the tier order either.
-    if (rest[0]?.target === first.answer) {
-      const j = rest.findIndex((r) => r.target !== first.answer);
-      if (j > 0) [rest[0], rest[j]] = [rest[j]!, rest[0]!];
-    }
-
-    return [first, ...rest];
+    return run[0]?.target === first.target
+      ? [first, ...run.slice(1)]
+      : [first, ...run.filter((r) => r.target !== first.target)];
   };
 
   let run: OppositeRound[] = buildRun();

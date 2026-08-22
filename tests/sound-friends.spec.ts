@@ -22,6 +22,8 @@ import { test, expect } from '@playwright/test';
  *   - Tapping a non-matching tile triggers the 250ms shake immediately,
  *     then reveals `sf-tile--reveal` on the correct tile after the
  *     errorless rerun completes (no `correctFirstTry` bump).
+ *   - A full run asks for all 26 starting sounds, once each, in tier
+ *     order (added 2026-08-22 with the switch from 8-round sessions).
  *   - The home page links to the new game.
  *   - The /stats page picks up Sound Friends in the preschool-literacy
  *     family section.
@@ -32,6 +34,15 @@ import { test, expect } from '@playwright/test';
  */
 
 const STATS_KEY = 'sound_friends_stats_v1';
+
+const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+
+/**
+ * The SATPIN tiers, spelled out rather than imported from the data
+ * module: a typo there should fail this suite, not be ratified by it.
+ */
+const TIER_1 = ['S', 'A', 'T', 'P', 'I', 'N'];
+const TIER_4 = ['J', 'V', 'W', 'X', 'Y', 'Z', 'Q'];
 
 test.describe('sound friends (preschool beginning sounds)', () => {
   test.beforeEach(async ({ page }) => {
@@ -52,7 +63,9 @@ test.describe('sound friends (preschool beginning sounds)', () => {
     await expect(page.locator('body[data-theme="soundfriends"]')).toHaveCount(1);
 
     await expect(page.locator('.sf-title')).toContainText(/Sound Friends/);
-    await expect(page.locator('#sfProgressText')).toContainText(/^\s*1\s*\/\s*8\s*$/);
+    await expect(page.locator('#sfProgressText')).toContainText(
+      new RegExp(`^\\s*1\\s*/\\s*${ALPHABET.length}\\s*$`),
+    );
 
     const stage = page.locator('#sfStage');
     await expect(stage).toBeVisible();
@@ -186,6 +199,66 @@ test.describe('sound friends (preschool beginning sounds)', () => {
         : { correctFirstTry: 0 };
     }, STATS_KEY);
     expect(stats.correctFirstTry).toBe(0);
+  });
+
+  test('a full run asks for every letter of the alphabet exactly once', async ({ page }) => {
+    test.setTimeout(180_000);
+
+    const asked: string[] = [];
+
+    for (let round = 1; round <= ALPHABET.length; round++) {
+      await expect(page.locator('#sfProgressText')).toContainText(
+        new RegExp(`^\\s*${round}\\s*/\\s*${ALPHABET.length}\\s*$`),
+      );
+
+      const target =
+        (await page.locator('#sfStage').getAttribute('data-target'))?.trim() ?? '';
+      expect(target, `round ${round} has no target letter`).toMatch(/^[A-Z]$/);
+      asked.push(target);
+
+      let correctIdx = -1;
+      for (let i = 0; i < 3; i++) {
+        if ((await page.locator(`#sfTile${i}`).getAttribute('data-letter')) === target) {
+          correctIdx = i;
+          break;
+        }
+      }
+      expect(correctIdx, `round ${round} (${target}) has no matching tile`).toBeGreaterThanOrEqual(0);
+
+      await page.locator(`#sfTile${correctIdx}`).click();
+      await expect(page.locator('#sfNextBtn')).toBeEnabled();
+      await page.locator('#sfNextBtn').click();
+    }
+
+    const duplicates = asked.filter((l, i) => asked.indexOf(l) !== i);
+    expect(duplicates, `asked twice: ${duplicates.join(', ')}`).toEqual([]);
+
+    const missing = ALPHABET.filter((l) => !asked.includes(l));
+    expect(missing, `never asked for: ${missing.join(', ')}`).toEqual([]);
+
+    // Tier order: the run opens on the high-utility Jolly Phonics set and
+    // closes on the rare letters. Checked at the boundaries rather than
+    // per-round, since letters shuffle within a tier.
+    const opening = asked.slice(0, TIER_1.length);
+    expect(opening.slice().sort(), 'a run should open on the SATPIN letters').toEqual(
+      TIER_1.slice().sort(),
+    );
+    const closing = asked.slice(-TIER_4.length);
+    expect(closing.slice().sort(), 'a run should close on the rare letters').toEqual(
+      TIER_4.slice().sort(),
+    );
+
+    await expect(page.locator('#sfDone')).toHaveClass(/sf-done--show/);
+
+    const stats = await page.evaluate((k) => {
+      const raw = localStorage.getItem(k);
+      return raw
+        ? (JSON.parse(raw) as { sessions: number; rounds: number; correctFirstTry: number })
+        : { sessions: 0, rounds: 0, correctFirstTry: 0 };
+    }, STATS_KEY);
+    expect(stats.sessions).toBe(1);
+    expect(stats.rounds).toBe(ALPHABET.length);
+    expect(stats.correctFirstTry).toBe(ALPHABET.length);
   });
 
   test('home page links to the new game', async ({ page }) => {

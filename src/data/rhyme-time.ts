@@ -39,7 +39,8 @@
  *     teaches a false rhyme, out loud, in a game about listening. 🎀 next to
  *     it doesn't help, because the whole judgement is made by ear.
  *
- * Nine pairs remain, one more than the eight rounds a session needs.
+ * Nine pairs remain — eighteen words, and a run asks about every one of
+ * them (see `generateRun`).
  *
  * ── The distractor rule is the pedagogy ────────────────────────────
  *
@@ -80,9 +81,6 @@ import {
 
 export { THEMES, THEME_BY_KEY } from '@/lib/preschool-themes';
 export type { PreschoolTheme, ThemeMeta } from '@/lib/preschool-themes';
-
-/** Rounds in one session. */
-export const TOTAL_ROUNDS = 8;
 
 // ── The pool ───────────────────────────────────────────────────────
 
@@ -252,18 +250,41 @@ const TIER_2_FAMILIES: readonly RhymeFamilyId[] = ['ar', 'oon', 'ake'];
 /**
  * Tier 3 is where the alliteration trap is set, so both families here have
  * at least one word that shares an onset with a word outside the family —
- * `cook`/`king` against cat, car, cake; `book` against bee. `generateSession`
- * picks the direction that makes the trap possible, which is why `ring`
- * (the one word with no onset twin anywhere) is never the tier-3 target.
+ * `cook`/`king` against cat, car, cake; `book` against bee. Three of the
+ * four tier-3 rounds therefore carry a trap; `ring` is the one word in the
+ * whole pool with no onset twin anywhere, so its round falls back to
+ * ordinary distractors.
  */
 const TIER_3_FAMILIES: readonly RhymeFamilyId[] = ['ing', 'ook'];
 
-/** Which pool each round draws from. 8 rounds over 9 families: 3 / 3 / 2. */
-const TIER_BY_ROUND: ReadonlyArray<readonly RhymeFamilyId[]> = [
-  TIER_1_FAMILIES, TIER_1_FAMILIES, TIER_1_FAMILIES,
-  TIER_2_FAMILIES, TIER_2_FAMILIES, TIER_2_FAMILIES,
-  TIER_3_FAMILIES, TIER_3_FAMILIES,
+/** The tiers in play order. Together they list every family exactly once. */
+const TIERS: ReadonlyArray<readonly RhymeFamilyId[]> = [
+  TIER_1_FAMILIES,
+  TIER_2_FAMILIES,
+  TIER_3_FAMILIES,
 ];
+
+/**
+ * Rounds in one full run — 18, i.e. every word gets a turn as the prompt.
+ *
+ * Derived from the families so adding a tenth pair lengthens the run
+ * instead of leaving it unreachable.
+ */
+export const TOTAL_ROUNDS = TIERS.reduce((n, tier) => n + tier.length * 2, 0);
+
+// Every family is in exactly one tier. Asserted at module load: the
+// promise of a run is "you heard all of them", which is only true if the
+// tiers partition FAMILIES.
+(() => {
+  const flat = TIERS.flat();
+  if (new Set(flat).size !== flat.length) {
+    throw new Error('rhyme-time: a family appears in more than one tier');
+  }
+  const missing = FAMILIES.filter((f) => !flat.includes(f.id)).map((f) => f.id);
+  if (missing.length > 0) {
+    throw new Error(`rhyme-time: families missing from the tiers: ${missing.join(', ')}`);
+  }
+})();
 
 // ── Round shape ────────────────────────────────────────────────────
 
@@ -340,46 +361,133 @@ const pickDistractors = (
   return [first, second];
 };
 
-// ── Session ────────────────────────────────────────────────────────
+// ── Run ────────────────────────────────────────────────────────────
+
+/** One question: a family plus which of its two words is the prompt. */
+interface RunStep {
+  readonly familyId: RhymeFamilyId;
+  readonly forward: boolean;
+  readonly tier: 0 | 1 | 2;
+}
 
 /**
- * Build one 8-round session.
+ * Order one tier's questions so the same family is never asked twice in a
+ * row.
  *
- * Each round picks a family, then picks which of its two words is the
- * prompt — so *cat → hat* and *hat → cat* are equally likely and the child
- * can't learn a fixed answer card. A session also prefers families it
- * hasn't used yet, so eight rounds cover eight different rimes.
+ * "What rhymes with hat?" straight after "what rhymes with cat?" is
+ * answerable by pointing at the card you were just shown, from memory,
+ * without listening to either word — which is the one thing this game is
+ * for. Separating a family's two questions is what keeps the second one
+ * real.
+ *
+ * Greedy by remaining count: take the family with the most questions still
+ * owed that isn't the one just asked, ties broken at random. Every family
+ * owes two and the smallest tier holds two families, so a valid ordering
+ * always exists, and taking the most-owed first is what stops the
+ * algorithm stranding a family's last question next to its first — exactly
+ * where a shuffle-then-repair pass fails. Lifted from Opposites Friends,
+ * which has the same shape of problem.
+ */
+const orderTier = (
+  familyIds: readonly RhymeFamilyId[],
+  tier: 0 | 1 | 2,
+  rand: () => number,
+  startWith: Omit<RunStep, 'tier'> | null = null,
+): RunStep[] => {
+  const owed = new Map<RhymeFamilyId, number>(familyIds.map((id) => [id, 2]));
+  // Which word prompts first; the family's second question flips it.
+  const firstForward = new Map<RhymeFamilyId, boolean>(
+    familyIds.map((id) => [id, rand() < 0.5]),
+  );
+
+  const out: RunStep[] = [];
+  let prev: RhymeFamilyId | null = null;
+
+  // A pinned opening question just becomes the first greedy choice, so the
+  // rest of the tier is built around it and the no-repeat rule holds
+  // through the join like anywhere else.
+  if (startWith && owed.has(startWith.familyId)) {
+    firstForward.set(startWith.familyId, startWith.forward);
+    out.push({ ...startWith, tier });
+    owed.set(startWith.familyId, 1);
+    prev = startWith.familyId;
+  }
+
+  while (out.length < familyIds.length * 2) {
+    const candidates = [...owed].filter(([id, n]) => n > 0 && id !== prev);
+    const most = Math.max(...candidates.map(([, n]) => n));
+    const [familyId, remaining] = pick(
+      candidates.filter(([, n]) => n === most),
+      rand,
+    );
+
+    out.push({
+      familyId,
+      forward: remaining === 2 ? firstForward.get(familyId)! : !firstForward.get(familyId)!,
+      tier,
+    });
+    owed.set(familyId, remaining - 1);
+    prev = familyId;
+  }
+
+  return out;
+};
+
+/**
+ * Build one full run: **every word gets a turn as the prompt** (CONTEXT.md
+ * §5 rule 11, adopted here 2026-08-22).
+ *
+ * Asking a family both ways was always the design — *cat → hat* and
+ * *hat → cat* were equally likely — because a child who only ever sees one
+ * direction can learn "the hat card is the answer" rather than the rhyme.
+ * But the old 8-round session picked one direction per family, so within a
+ * sitting each pair was only ever heard one way round, and eight of the
+ * nine families was the most a play could reach.
+ *
+ * Doing both directions also means every one of the eighteen words is
+ * spoken as the prompt, which is the position where it's named clearly and
+ * on its own; as a distractor it's only ever read out in a list of three.
+ *
+ * Tier order still runs familiar → less familiar, ending on the two
+ * families that can set the alliteration trap.
  *
  * `rand` is injectable so the page can SSR a deterministic round 0
- * (`generateSession(() => 0.42)[0]`) and the specs can assert a stable
- * first paint.
+ * (`generateRun(() => 0.42)[0]`) and the specs can assert a stable first
+ * paint.
+ *
+ * `startWith` pins the word the run opens on, which is how the page hands
+ * the SSR'd round 0 over to a fresh random run. It exists so the page
+ * doesn't have to generate freely and then cut that question out: removing
+ * a round from the middle of a run leaves its two former neighbours
+ * adjacent, and those can be the same family — the exact collision
+ * `orderTier` is here to prevent. Pinning has no such gap. Ignored if the
+ * word isn't in the first tier (it always is: the SSR round is a run's
+ * round 0), and the caller should check `run[0]` before relying on it.
  */
-export const generateSession = (
+export const generateRun = (
   rand: () => number = Math.random,
+  startWith?: RhymeWordId,
 ): RhymeRound[] => {
   const rounds: RhymeRound[] = [];
   let prevTheme: PreschoolTheme | null = null;
-  const used = new Set<RhymeFamilyId>();
 
-  for (let k = 0; k < TIER_BY_ROUND.length; k++) {
-    const tier = (k < 3 ? 0 : k < 6 ? 1 : 2) as 0 | 1 | 2;
+  const pinned: Omit<RunStep, 'tier'> | null =
+    startWith === undefined
+      ? null
+      : {
+          familyId: lookupWord(startWith).family,
+          forward: lookupFamily(lookupWord(startWith).family).words[0] === startWith,
+        };
 
-    const tierPool = TIER_BY_ROUND[k]!;
-    const fresh = tierPool.filter((f) => !used.has(f));
-    const familyId = pick(fresh.length > 0 ? fresh : tierPool, rand);
-    used.add(familyId);
+  const steps: RunStep[] = TIERS.flatMap((tierPool, tierIndex) =>
+    orderTier(tierPool, tierIndex as 0 | 1 | 2, rand, tierIndex === 0 ? pinned : null),
+  );
 
-    // Either word can be the prompt, so the child can't learn a fixed answer
-    // card. The exception is tier 3, whose whole point is the alliteration
-    // trap: there we prefer the direction whose target actually has an onset
-    // twin to trap with, rather than spending a scarce late round on a
-    // target like `ring` that has none.
+  for (const { familyId, forward, tier } of steps) {
     const family = lookupFamily(familyId);
     const [first, second] = family.words;
-    const canTrap: readonly RhymeWordId[] =
-      tier === 2 ? [first, second].filter((w) => trapWordsFor(w).length > 0) : [];
-    const target = canTrap.length > 0 ? pick(canTrap, rand) : rand() < 0.5 ? first : second;
-    const answer = target === first ? second : first;
+    const target = forward ? first : second;
+    const answer = forward ? second : first;
 
     const [d1, d2] = pickDistractors(target, tier, rand);
     const triple: RhymeWordId[] = [answer, d1, d2];
@@ -459,6 +567,11 @@ export const buildNarration = (round: RhymeRound): RoundNarration => {
 export const STATS_KEY = 'rhyme_time_stats_v1';
 
 export interface RhymeTimeStats {
+  /**
+   * Completed runs through every word. Named `sessions` because the
+   * on-disk shape is shared across every preschool game; it counted
+   * 8-round sessions before 2026-08-22.
+   */
   readonly sessions: number;
   readonly rounds: number;
   readonly correctFirstTry: number;

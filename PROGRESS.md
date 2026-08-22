@@ -417,7 +417,97 @@ before deciding.
 
 ## Changelog
 
-### 2026-08-22 (latest) — feat(preschool): Letter, Feeling and Opposites Friends drop sessions too
+### 2026-08-22 (latest) — feat(preschool): Sound, Rhyme and Week Friends drop sessions; the SSR handoff gets a real fix
+
+Finishes the no-sessions arc (CONTEXT.md §5 rule 11). Four games converted
+earlier the same day; this is the remaining three, plus a proper fix for a bug
+the earlier ship shipped.
+
+**Sound Friends: 8 rounds → 26.** Letter Friends' sibling over the same
+alphabet, and the same argument, except the gap bites harder here. Letter
+Friends' tiles are rich letter+word+emoji cards, so an unasked letter is at
+least *shown*. Sound Friends' tiles are deliberately bare glyphs — the whole
+no-shortcut design — so a letter that never gets asked for appears only as a
+silent distractor. Being the target is the only way it earns its "A says ah"
+narration, which is the thing the game exists to teach.
+
+**Rhyme Time: 8 rounds → 18.** The set is the eighteen *words*, not the nine
+pairs: every word gets a turn as the prompt, so each pair is asked both ways.
+Asking both ways was already the design — the old code picked a direction per
+family at random, explicitly so the child couldn't learn "the hat card is the
+answer" — but a sitting only ever got one direction per pair, and only eight of
+the nine families. Both directions also means every word is *named on its own*
+in the prompt; as a distractor it's only ever read out in a list of three.
+
+Needed the same adjacency guard as Opposites Friends: "what rhymes with hat?"
+straight after "what rhymes with cat?" is answerable from memory of the previous
+screen without listening to either word, which is the one skill in the game. The
+greedy `orderTier` construction was lifted across wholesale.
+
+**Week Friends: 8 rounds → 6.** The only conversion that *shortens* a game, and
+worth being explicit about why it's still right. Because runs never wrap
+Saturday→Sunday, the questions this game can ask are "what comes after X" for
+X = Sunday..Friday — six, with Sunday unaskable since nothing in-week precedes
+it. The old eight rounds drew a random start each time, so a sitting could ask
+"what comes after Sunday" three times and never mention Friday, in a game whose
+entire subject is a seven-item list. Six rounds that cover the list beat eight
+that might not.
+
+Run length stopped being drawn, too: the days shown before the "?" are now
+simply as much week as fits under the tier's ceiling, so Monday shows one card
+("Sunday… what comes next?", the first line of the song and the easiest question
+in the game) and Saturday shows four. The difficulty gradient is what the old
+random-start plan was approximating.
+
+**Sorting Friends was examined and deliberately left alone.** Its 8 rounds are a
+fixed list, not a sample — all seven categories are asked every sitting already,
+so there is no coverage to fix. What varies is which items fill the tray, and
+those are a variety pool rather than content to exhaust: the skill is the sort,
+not the roster. Recorded in the data file so nobody redoes the analysis.
+
+**The SSR handoff fix, properly this time.** Every one of these pages SSRs a
+deterministic round 0 and hands it to a fresh random run. The earlier ship
+replaced `generateX().slice(1)` with a filter on identity, which fixed the
+duplicate-question bug it was aimed at. It also introduced a subtler one, caught
+here by a `--repeat-each=10` stress run rather than by a single pass: **removing
+a round from the middle of a run leaves its two former neighbours adjacent**, and
+in the two games with an adjacency rule those neighbours can be the same pair.
+`… dog→log, cat→hat, log→dog …` minus the middle is exactly the collision
+`orderTier` exists to prevent.
+
+The Opposites Friends ship had a patch for the *join* — slide the kept reverse
+direction past the next question — which is why its stress run passed. That patch
+addressed the wrong seam and could not have addressed this one.
+
+Replaced in both games with a fix by construction: `generateRun` takes an
+optional `startWith`, and the pinned question simply becomes `orderTier`'s first
+greedy choice. Nothing is removed, so there is no gap, and the no-repeat rule
+holds through the join like anywhere else. `slice(1)` becomes correct again. The
+page keeps the filter as a fallback for the impossible case where the pin doesn't
+take, because being wrong about adjacency beats re-rendering round 0 and racing a
+first tap against the DOM.
+
+**Tests.** A full-run coverage walk per game, each spelling out its expected
+content independently of the data module. Sound Friends asserts all 26 letters
+plus SATPIN-first / rare-last; Rhyme Time asserts all 18 words, no family twice
+in a row, and that the run still closes on the two families that can set the
+alliteration trap (`ring` is exempt — it's the one word in the pool with no onset
+twin anywhere, so no trap is constructible); Week Friends asserts Monday–Saturday
+plus that the shown strip is consecutive, ends on the day before the target, and
+never wraps. Stress-run at `--repeat-each=14` across all seven converted games —
+98 passing — which is what caught the removal bug in the first place. Suite:
+**205 passing**.
+
+Also fixed: the Rhyme Time home-page blurb said "ten pairs"; there are nine.
+
+Two pre-existing defects were *seen* while screenshotting and deliberately not
+touched, so they don't get lost: the disabled "Next round" button renders at full
+accent colour in Sound Friends, Rhyme Time and Letter Friends (Week Friends
+correctly dims it to 0.5 opacity), so a dead control looks tappable; and the
+Sound Friends / Letter Friends page titles are pure white on a pale tint, the
+same low-contrast bug fixed in Animal Sounds on 2026-08-22.
+
+### 2026-08-22 — feat(preschool): Letter, Feeling and Opposites Friends drop sessions too
 
 Carries the no-sessions direction (CONTEXT.md §5 rule 11, set by the user
 earlier the same day) into the other three games whose content is a bounded set
