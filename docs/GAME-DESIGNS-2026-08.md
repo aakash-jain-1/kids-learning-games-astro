@@ -1,6 +1,6 @@
 # Game designs — August 2026 arc (six games: 4 shipped, 2 queued)
 
-> **Status: APPROVED. Build in progress — 4 of 6 shipped.** Keep the count in
+> **Status: APPROVED. Build in progress — 5 of 6 shipped.** Keep the count in
 > the title and in this line in step; they are the two places a reader checks
 > first. A shipped game's section below is **frozen as the pre-build spec** —
 > its [PROGRESS.md](../PROGRESS.md) entry is authoritative on what landed.
@@ -318,6 +318,30 @@ use only **in / on / under** (visually unambiguous), and **behind / next to**
 appear only at tier 3, with scale-down plus overlap to imply depth. If it still
 reads badly in review, drop to three prepositions and keep the game.
 
+> **Shipped 2026-08-22 — how the risk actually landed.** All five prepositions
+> shipped; the three-preposition fallback was not needed. The risk was
+> mispredicted in an instructive way: `behind` does not collide with **next
+> to** (they are easy to tell apart — one is beside the landmark, the other is
+> cut by it). It collides with **in**, because a teddy inside a box and a teddy
+> behind a box are both "an emoji whose bottom is hidden". The fix is cheaper
+> than dropping a preposition: those two are simply never offered as options in
+> the same round, which costs one distractor and nothing else.
+>
+> Two other corrections to the plan above. The **tiering** is `in / on / under`
+> → `next to` → `behind`, i.e. `next to` moved *earlier* than tier 3 once it
+> turned out to be the easiest of the five to draw. And the **pairs** changed:
+> a landmark has to be an open container with a visible interior or `in` isn't
+> drawable, which cut chair, table and tree — the set is teddy+box, cat+basket,
+> ball+bucket, mouse+hat, puppy+bathtub. The duck+pond pair became puppy+bathtub
+> because a white duck on a white tub vanished in the `in` scene.
+>
+> The real difficulty was not conceptual but **metric**: `on` and `behind` are
+> positioned as a share of tile height, and the five landmarks top out anywhere
+> from 48% (a sun hat is nearly all brim) to 59% (a box, a basket, a tub). A
+> single offset left the mouse floating above its hat and left `behind` barely
+> occluding it. The offsets are per-pair, measured from the rendered pixels
+> rather than guessed, and `tests/wheres-teddy.spec.ts` re-measures them.
+
 ### Session, storage, theme
 
 - 8 rounds, 3 tiers as above.
@@ -378,7 +402,7 @@ Ordered by ascending risk, so early wins de-risk the later ones.
 | 2 | **Feeling Friends** | ~12 vignettes | New stats family plumbing | Shipped 2026-08-17. Family plumbing was the easy half; the real cost was the face assets. |
 | 3 | **Opposites Friends** | 2 cards (bug fix) | Touches shipped Flashcards content | Shipped 2026-08-22. The Flashcards risk never materialised — it reads the deck rather than editing it, and pins the two unusable emoji locally instead. |
 | 4 | **Rhyme Time** | Restructure 10 pairs | Distractors must not accidentally rhyme | Shipped 2026-08-22. The named risk was cheap to retire — unique rimes per family plus a load-time assertion make a rhyming distractor unrepresentable. The unforeseen one was **pronunciation**: a bare rime, and the homograph `bow`, both mislead by ear, which cost one pair. |
-| 5 | **Where's Teddy?** | 5 prepositions × 5 pairs | "Behind" may not read visually | Next. |
+| 5 | **Where's Teddy?** | 5 prepositions × 5 pairs | "Behind" may not read visually | **Shipped 2026-08-22.** The risk was real but the fallback wasn't needed — see §5. |
 | 6 | **Memory Match** | Curate 8 | Errorless tension; new mechanic | Blocked on **Q5**. |
 
 Each game ships as its own commit with its own Playwright spec, keeping the suite

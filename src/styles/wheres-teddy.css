@@ -1,0 +1,596 @@
+/**
+ * Where's Teddy? — spatial / positional words.
+ *
+ * The interesting part of this file is the mini-scene: three of them sit
+ * side by side showing the *same two emoji* in different spatial relations,
+ * and the relation is the only thing the child can read to answer. Each
+ * relation is one rule under "Relations" below.
+ *
+ * Geometry is expressed as a percentage of the scene box rather than in
+ * `em`, deliberately. `bottom: 2.75em` on an element that also sets its own
+ * `font-size` resolves against *that* font size, so the `in` and `behind`
+ * scenes — the two that resize the object — would drift out of position as
+ * the scene scaled. Percentages resolve against the containing block, so
+ * one `font-size` on `.wt-scene` scales the artwork and the layout stays
+ * put.
+ */
+
+/* ── Theme tokens ──────────────────────────────────────────────────── */
+
+body.story[data-theme='wheresteddy'] {
+  --st-bg: linear-gradient(135deg, #f0e9ff 0%, #e8e6fb 100%);
+  /* Pale page tint: the shared white title would be invisible on it.
+     See --st-title-color in story.css. */
+  --st-title-color: #4c1d95;
+  --st-title-shadow: none;
+
+  --wt-accent: #7c3aed;
+  --wt-accent-soft: rgba(124, 58, 237, 0.16);
+
+  /* The mini-scene backdrop. Held constant across the six stage themes on
+     purpose: the stage rotates scenery for ambience, but the three scenes
+     have to be read against each other, and a shifting backdrop would add
+     a difference the child might mistake for the answer. */
+  --wt-scene-bg: linear-gradient(180deg, #dceeff 0%, #ecf8e2 68%, #d2e9b4 100%);
+  --wt-scene-border: rgba(255, 255, 255, 0.7);
+  --wt-scene-floor: rgba(90, 120, 90, 0.26);
+  --wt-scene-shadow: 0 6px 16px rgba(76, 29, 149, 0.16);
+
+  --wt-prompt-bg: #ffffff;
+  --wt-prompt-text: #3b1878;
+  --wt-prompt-border: rgba(124, 58, 237, 0.18);
+
+  --wt-caption-bg: rgba(255, 255, 255, 0.94);
+  --wt-caption-text: #34215c;
+
+  --wt-fill-correct: rgba(46, 125, 50, 0.34);
+  --wt-fill-wrong: rgba(226, 61, 90, 0.3);
+  --wt-fill-reveal: rgba(124, 58, 237, 0.3);
+
+  --wt-obj-dim: brightness(0.86) saturate(0.85);
+}
+
+/* Per-round scenery, set on the stage by the page script. */
+body.story[data-theme='wheresteddy'] .wt-stage[data-scene='pond'] {
+  --st-bg: linear-gradient(180deg, #b8e0ff 0%, #6fb6e6 60%, #4a8c4a 100%);
+}
+body.story[data-theme='wheresteddy'] .wt-stage[data-scene='orchard'] {
+  --st-bg: linear-gradient(180deg, #ffe6c8 0%, #ffb88c 50%, #88b94a 100%);
+}
+body.story[data-theme='wheresteddy'] .wt-stage[data-scene='sea'] {
+  --st-bg: linear-gradient(180deg, #b3e8ec 0%, #4dc4cf 60%, #f4d97a 100%);
+}
+body.story[data-theme='wheresteddy'] .wt-stage[data-scene='garden'] {
+  --st-bg: linear-gradient(180deg, #fff4b8 0%, #ffd666 60%, #6fbf3a 100%);
+}
+body.story[data-theme='wheresteddy'] .wt-stage[data-scene='meadow'] {
+  --st-bg: linear-gradient(180deg, #d6f5c8 0%, #9bd96f 55%, #5aa83a 100%);
+}
+body.story[data-theme='wheresteddy'] .wt-stage[data-scene='jungle'] {
+  --st-bg: linear-gradient(180deg, #c2f0d8 0%, #5cbf8a 55%, #2f7d52 100%);
+}
+
+body.story[data-theme='wheresteddy'] {
+  background: var(--st-bg);
+}
+
+/* ── Layout shell ──────────────────────────────────────────────────── */
+
+body.story[data-theme='wheresteddy'] .wt-shell {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 16px 20px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: calc(100vh - 36px);
+}
+
+body.story[data-theme='wheresteddy'] .wt-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+body.story[data-theme='wheresteddy'] .wt-title {
+  margin: 0;
+  font-size: clamp(1.6em, 4vw, 2.2em);
+  color: var(--st-title-color);
+  text-shadow: var(--st-title-shadow);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+body.story[data-theme='wheresteddy'] .wt-progress-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #3b1878;
+  font-weight: 700;
+  font-size: 0.9em;
+  box-shadow: 0 2px 8px rgba(76, 29, 149, 0.12);
+}
+
+body.story[data-theme='wheresteddy'] .wt-progress-bar {
+  display: block;
+  width: 84px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--wt-accent-soft);
+  overflow: hidden;
+}
+
+body.story[data-theme='wheresteddy'] .wt-progress-fill {
+  display: block;
+  height: 100%;
+  width: 4%;
+  border-radius: 999px;
+  background: var(--wt-accent);
+  transition: width 0.3s ease;
+}
+
+/* ── Stage ─────────────────────────────────────────────────────────── */
+
+body.story[data-theme='wheresteddy'] .wt-stage {
+  position: relative;
+  /* Reads `--st-bg` from the `data-scene` rules above, which set it on
+     this element — a `background` on `body` can never see a custom
+     property written on a descendant. The veil is a stacked background
+     layer rather than a `filter`, so the white cards inside the stage stay
+     bright in dark mode. Matches Animal Sounds. */
+  background:
+    linear-gradient(
+      rgba(28, 14, 52, var(--wt-scene-veil, 0)),
+      rgba(28, 14, 52, var(--wt-scene-veil, 0))
+    ),
+    var(--st-bg);
+  border-radius: 24px;
+  padding: 24px 16px;
+  min-height: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.32);
+}
+
+/* ── Prompt ────────────────────────────────────────────────────────── */
+
+body.story[data-theme='wheresteddy'] .wt-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 14px 28px;
+  border-radius: 22px;
+  border: 2px solid var(--wt-prompt-border);
+  background: var(--wt-prompt-bg);
+  color: var(--wt-prompt-text);
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: 0 8px 22px rgba(76, 29, 149, 0.18);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s ease;
+}
+
+body.story[data-theme='wheresteddy'] .wt-prompt:active {
+  transform: scale(0.97);
+}
+
+body.story[data-theme='wheresteddy'] .wt-prompt-pair {
+  font-size: 1.9em;
+  line-height: 1;
+  letter-spacing: 2px;
+}
+
+body.story[data-theme='wheresteddy'] .wt-prompt-word {
+  font-size: 1.5em;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--wt-accent);
+}
+
+body.story[data-theme='wheresteddy'] .wt-prompt-hint {
+  font-size: 0.72em;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  opacity: 0.62;
+}
+
+body.story[data-theme='wheresteddy'] .wt-caption {
+  max-width: 30ch;
+  text-align: center;
+  padding: 10px 18px;
+  border-radius: 18px;
+  background: var(--wt-caption-bg);
+  color: var(--wt-caption-text);
+  font-weight: 600;
+  line-height: 1.35;
+  box-shadow: 0 4px 14px rgba(76, 29, 149, 0.14);
+  animation: wt-caption-in 0.3s ease;
+}
+
+@keyframes wt-caption-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ── The three answer scenes ───────────────────────────────────────── */
+
+body.story[data-theme='wheresteddy'] .wt-scenes {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+body.story[data-theme='wheresteddy'] .wt-scene {
+  /* One font-size drives the whole scene: the emoji scale with it and the
+     positions are percentages of this box, so nothing drifts. Three of
+     these plus their gaps have to fit the 920px shell, which is what caps
+     the upper end. */
+  font-size: clamp(11px, 4.4vw, 21px);
+  position: relative;
+  width: 8em;
+  height: 8.5em;
+  padding: 0;
+  border: none;
+  border-radius: 18px;
+  overflow: hidden;
+  cursor: pointer;
+  background: var(--wt-scene-bg);
+  box-shadow: var(--wt-scene-shadow), inset 0 0 0 2px var(--wt-scene-border);
+  -webkit-tap-highlight-color: transparent;
+  animation: wt-scene-in 0.32s ease both;
+  animation-delay: var(--wt-i, 0s);
+  transition: transform 0.15s ease;
+}
+
+@keyframes wt-scene-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.94); }
+  to   { opacity: 1; transform: none; }
+}
+
+body.story[data-theme='wheresteddy'] .wt-scene:hover:not(:disabled) {
+  transform: translateY(-3px);
+}
+
+body.story[data-theme='wheresteddy'] .wt-scene:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* A dashed floor gives all three scenes one shared ground line, which is
+   what makes "under" and "next to" readable as positions rather than as
+   two differently-arranged pictures. */
+body.story[data-theme='wheresteddy'] .wt-scene::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 19%;
+  border-bottom: 2px dashed var(--wt-scene-floor);
+}
+
+body.story[data-theme='wheresteddy'] .wt-land,
+body.story[data-theme='wheresteddy'] .wt-obj {
+  position: absolute;
+  left: 50%;
+  line-height: 1;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+body.story[data-theme='wheresteddy'] .wt-land {
+  bottom: 20.5%;
+  font-size: 3.25em;
+  z-index: 2;
+}
+
+body.story[data-theme='wheresteddy'] .wt-obj {
+  bottom: 20.5%;
+  font-size: 1.7em;
+  z-index: 3;
+}
+
+/* ── Relations ─────────────────────────────────────────────────────── */
+
+/* Small, sitting down inside the container's mouth.
+ *
+ * The height is per-pair because the five landmarks keep their opening at
+ * different heights: a basket is a mouth with a rim near its top, while a
+ * sun hat is mostly brim and a cardboard box is mostly body. A single
+ * offset put the object over the *belly* of the box, the hat and the tub,
+ * where it read as "in front of" rather than "in" — visible immediately in
+ * a render of the 5 x 5 grid and invisible in the markup. */
+body.story[data-theme='wheresteddy'] .wt-scene[data-rel='in'] .wt-obj {
+  bottom: var(--wt-in-y, 34%);
+  font-size: 1.3em;
+}
+
+/* `--wt-on-y` is per-pair for the same reason, and measured the same way: it
+ * is each landmark's own silhouette top, minus ~1.5% so the object overlaps
+ * the lid by a hair and reads as *resting* rather than hovering. The five
+ * landmarks top out anywhere from 48% (a sun hat is nearly all brim) to 59%
+ * (a box, a basket and a tub are all tall), so the single 58% this started
+ * with left the mouse floating a clear 10% of the tile above its hat — which
+ * reads as "above the hat", a different preposition than the one being
+ * taught, and one the game never offers as an answer. */
+/* `--wt-behind-y` is per-pair for a third reason, and it is the one that
+ * actually decides whether the relation is legible at all: occlusion is the
+ * *only* cue that says "behind", so each pair has to hide a comparable share
+ * of the object. A single offset hid roughly 60% of the teddy, the cat and
+ * the puppy — and 16% of the mouse, whose hat is too short to cover anything
+ * — leaving `behind` and `on` as near-identical pictures for that pair. Each
+ * value below sits ~55% of the object's height under its own landmark's top,
+ * which equalises the read across all five. */
+body.story[data-theme='wheresteddy'] .wt-scene[data-pair='teddy-box'] {
+  --wt-in-y: 41%;
+  --wt-on-y: 57%;
+  --wt-behind-y: 45%;
+}
+body.story[data-theme='wheresteddy'] .wt-scene[data-pair='cat-basket'] {
+  --wt-in-y: 33%;
+  --wt-on-y: 57%;
+  --wt-behind-y: 45%;
+}
+body.story[data-theme='wheresteddy'] .wt-scene[data-pair='ball-bucket'] {
+  --wt-in-y: 34%;
+  --wt-on-y: 52%;
+  --wt-behind-y: 40%;
+}
+body.story[data-theme='wheresteddy'] .wt-scene[data-pair='mouse-hat'] {
+  --wt-in-y: 40%;
+  --wt-on-y: 46%;
+  --wt-behind-y: 34%;
+}
+body.story[data-theme='wheresteddy'] .wt-scene[data-pair='puppy-tub'] {
+  --wt-in-y: 36%;
+  --wt-on-y: 57%;
+  --wt-behind-y: 45%;
+}
+
+/* Resting on the lid, clear of the silhouette. */
+body.story[data-theme='wheresteddy'] .wt-scene[data-rel='on'] .wt-obj {
+  bottom: var(--wt-on-y, 58%);
+}
+
+/* Below the floor line the container stands on. */
+body.story[data-theme='wheresteddy'] .wt-scene[data-rel='under'] .wt-obj {
+  bottom: 0.7%;
+}
+
+/* Full height and standing on the same floor, so the container hides its
+   bottom two-thirds. Dropping it behind the landmark in the stacking order
+   is what does the work; the dim is a depth cue, not the signal.
+   Never shown alongside `in` — see the data module's header. */
+body.story[data-theme='wheresteddy'] .wt-scene[data-rel='behind'] .wt-obj {
+  bottom: var(--wt-behind-y, 44%);
+  font-size: 2.1em;
+  z-index: 1;
+  filter: var(--wt-obj-dim);
+}
+
+/* Both shift off-centre so the two stand side by side on the floor,
+   rather than the object hanging off the edge of the scene. */
+body.story[data-theme='wheresteddy'] .wt-scene[data-rel='nextTo'] .wt-land {
+  left: 34%;
+}
+body.story[data-theme='wheresteddy'] .wt-scene[data-rel='nextTo'] .wt-obj {
+  left: 72%;
+  bottom: 22%;
+}
+
+/* ── Answer feedback ───────────────────────────────────────────────── */
+
+body.story[data-theme='wheresteddy'] .wt-scene--correct {
+  background:
+    linear-gradient(var(--wt-fill-correct), var(--wt-fill-correct)),
+    var(--wt-scene-bg);
+  animation: wt-pop 0.4s ease;
+}
+
+body.story[data-theme='wheresteddy'] .wt-scene--reveal {
+  background:
+    linear-gradient(var(--wt-fill-reveal), var(--wt-fill-reveal)),
+    var(--wt-scene-bg);
+  box-shadow: 0 0 0 4px var(--wt-accent), var(--wt-scene-shadow);
+}
+
+body.story[data-theme='wheresteddy'] .wt-scene--wrong {
+  background:
+    linear-gradient(var(--wt-fill-wrong), var(--wt-fill-wrong)),
+    var(--wt-scene-bg);
+  animation: wt-shake 0.25s ease;
+}
+
+@keyframes wt-pop {
+  0%   { transform: scale(1); }
+  45%  { transform: scale(1.07); }
+  100% { transform: scale(1); }
+}
+
+@keyframes wt-shake {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-7px); }
+  50%      { transform: translateX(7px); }
+  80%      { transform: translateX(-4px); }
+}
+
+/* ── Footer actions ────────────────────────────────────────────────── */
+
+body.story[data-theme='wheresteddy'] .wt-footer {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+body.story[data-theme='wheresteddy'] .wt-action {
+  padding: 12px 22px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(255, 255, 255, 0.92);
+  color: #3b1878;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 1em;
+  cursor: pointer;
+  text-decoration: none;
+  box-shadow: 0 4px 12px rgba(76, 29, 149, 0.15);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+body.story[data-theme='wheresteddy'] .wt-action:hover {
+  transform: translateY(-1px);
+  background: #ffffff;
+}
+
+body.story[data-theme='wheresteddy'] .wt-action:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+body.story[data-theme='wheresteddy'] .wt-action[disabled] {
+  opacity: 0.5;
+  cursor: default;
+}
+
+body.story[data-theme='wheresteddy'] .wt-action--primary {
+  background: var(--wt-accent);
+  color: #ffffff;
+}
+
+body.story[data-theme='wheresteddy'] .wt-action--primary:hover {
+  background: #8b5cf6;
+}
+
+/* ── Run-complete overlay ──────────────────────────────────────────── */
+
+body.story[data-theme='wheresteddy'] .wt-done {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(28, 14, 52, 0.55);
+  z-index: 60;
+  padding: 20px;
+}
+
+body.story[data-theme='wheresteddy'] .wt-done--show {
+  display: flex;
+}
+
+body.story[data-theme='wheresteddy'] .wt-done-card {
+  background: #ffffff;
+  border-radius: 28px;
+  padding: 32px 28px;
+  text-align: center;
+  max-width: 420px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  animation: wt-pop 0.45s ease;
+}
+
+body.story[data-theme='wheresteddy'] .wt-done-emoji {
+  font-size: 3.2em;
+  line-height: 1;
+}
+
+body.story[data-theme='wheresteddy'] .wt-done-title {
+  margin: 10px 0 6px;
+  color: var(--wt-accent);
+}
+
+body.story[data-theme='wheresteddy'] .wt-done-text {
+  margin: 0 0 18px;
+  color: #4a3b6b;
+}
+
+body.story[data-theme='wheresteddy'] .wt-done-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ── Dark mode ─────────────────────────────────────────────────────── */
+
+body.dark-mode.story[data-theme='wheresteddy'] {
+  /* The page background HAS to be redefined here. Without it `body` keeps
+     resolving `--st-bg` to the *light* gradient at the top of this file
+     while every token below flips to its dark value — the bug that shipped
+     in ten sibling themes and was fixed across all of them 2026-08-22. */
+  --st-bg: linear-gradient(135deg, #1b1030 0%, #251643 100%);
+  --st-title-color: #ece4ff;
+  --st-title-shadow: 2px 2px 8px rgba(0, 0, 0, 0.45);
+  --wt-scene-veil: 0.68;
+
+  /* The mini-scenes keep their own daylight backdrop rather than going
+     dark: they are the thing being compared, and the emoji need a light
+     ground behind them to read as standing on something. They sit on a
+     veiled stage, so they stay comfortable rather than glaring. */
+  --wt-scene-bg: linear-gradient(180deg, #b9d4ef 0%, #cfe3c4 68%, #b3cf9a 100%);
+  --wt-scene-border: rgba(255, 255, 255, 0.45);
+  --wt-scene-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+
+  --wt-prompt-bg: #241640;
+  --wt-prompt-text: #ece4ff;
+  --wt-prompt-border: rgba(196, 181, 253, 0.28);
+
+  --wt-caption-bg: rgba(30, 18, 54, 0.94);
+  --wt-caption-text: #ece4ff;
+}
+
+body.dark-mode.story[data-theme='wheresteddy'] .wt-progress-pill {
+  background: rgba(36, 22, 64, 0.92);
+  color: #ece4ff;
+}
+
+body.dark-mode.story[data-theme='wheresteddy'] .wt-done-card {
+  background: #241640;
+}
+
+body.dark-mode.story[data-theme='wheresteddy'] .wt-done-text {
+  color: #cfc4e8;
+}
+
+body.dark-mode.story[data-theme='wheresteddy'] .wt-action {
+  background: #2e1d52;
+  color: #ece4ff;
+}
+
+body.dark-mode.story[data-theme='wheresteddy'] .wt-action:hover {
+  background: #3a2666;
+}
+
+body.dark-mode.story[data-theme='wheresteddy'] .wt-action--primary {
+  background: var(--wt-accent);
+  color: #ffffff;
+}
+
+/* ── Small screens ─────────────────────────────────────────────────── */
+
+@media (max-width: 560px) {
+  body.story[data-theme='wheresteddy'] .wt-stage {
+    padding: 18px 10px;
+    min-height: 380px;
+  }
+  body.story[data-theme='wheresteddy'] .wt-scenes {
+    gap: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.story[data-theme='wheresteddy'] .wt-scene,
+  body.story[data-theme='wheresteddy'] .wt-caption,
+  body.story[data-theme='wheresteddy'] .wt-done-card {
+    animation: none;
+  }
+}

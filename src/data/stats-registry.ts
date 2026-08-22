@@ -128,6 +128,10 @@ import {
   STATS_KEY as RHYME_TIME_KEY,
   loadRhymeTimeStats,
 } from '@/data/rhyme-time';
+import {
+  STATS_KEY as WHERES_TEDDY_KEY,
+  loadWheresTeddyStats,
+} from '@/data/wheres-teddy';
 
 import { loadQuizState } from '@/lib/quiz';
 import { loadLearned } from '@/lib/progress';
@@ -589,6 +593,15 @@ export const STATS_REGISTRY: readonly StatsRegistryEntry[] = [
     storageKey: OPPOSITES_FRIENDS_KEY,
     family: 'preschool-cognitive',
     load: loadOppositesFriendsStats,
+  }),
+  preschoolStatsEntry({
+    id: 'wheres-teddy',
+    title: "Where's Teddy?",
+    emoji: '🧸',
+    hrefPath: 'games/wheres-teddy-game',
+    storageKey: WHERES_TEDDY_KEY,
+    family: 'preschool-cognitive',
+    load: loadWheresTeddyStats,
   }),
 
   // Family A4 — preschool-social

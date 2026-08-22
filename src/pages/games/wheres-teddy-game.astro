@@ -1,0 +1,547 @@
+---
+import StoryLayout from '@/layouts/StoryLayout.astro';
+import GameControls from '@/components/GameControls.astro';
+import '@/styles/wheres-teddy.css';
+
+import {
+  generateRun,
+  lookupPair,
+  lookupRelation,
+  buildNarration,
+  TOTAL_ROUNDS,
+} from '@/data/wheres-teddy';
+
+const title = "Where's Teddy? — Kids Learning Games";
+const description =
+  'A spatial words game for ages 3–4. "Which teddy is under the box?" Three little scenes show the same two things in different places — tap the one the question describes. Teaches in, on, under, next to and behind. Audio narration, guided correction, no scoring.';
+
+// SSR a deterministic first round so the page never paints blank. The page
+// script reads round 0 straight back out of the SSR'd DOM (the Sound
+// Friends / Feeling Friends kickoff-race pattern), then continues with
+// random rounds 1..N once the child taps Next.
+const SSR_FIRST_ROUND = generateRun(() => 0.42)[0]!;
+const ssrPair = lookupPair(SSR_FIRST_ROUND.pair);
+const ssrRelation = lookupRelation(SSR_FIRST_ROUND.target);
+const ssrNarration = buildNarration(SSR_FIRST_ROUND);
+---
+
+<StoryLayout
+  title={title}
+  description={description}
+  themeColor="#7c3aed"
+  theme="wheresteddy"
+>
+  <main class="wt-shell" aria-label="Where's Teddy game">
+    <header class="wt-header">
+      <h1 class="wt-title">
+        <span aria-hidden="true">🧸</span>
+        <span>Where's Teddy?</span>
+      </h1>
+
+      <div class="wt-header-right" style="display: flex; gap: 10px; align-items: center;">
+        <span
+          class="wt-progress-pill"
+          id="wtProgressPill"
+          aria-label={`Round 1 of ${TOTAL_ROUNDS}`}
+        >
+          <span id="wtProgressText">1 / {TOTAL_ROUNDS}</span>
+          <span class="wt-progress-bar" aria-hidden="true">
+            <span class="wt-progress-fill" id="wtProgressFill"></span>
+          </span>
+        </span>
+        <GameControls />
+      </div>
+    </header>
+
+    <section
+      class="wt-stage"
+      id="wtStage"
+      data-scene={SSR_FIRST_ROUND.theme}
+      data-pair={SSR_FIRST_ROUND.pair}
+      data-target={SSR_FIRST_ROUND.target}
+      aria-label="Where's Teddy scene"
+    >
+      <button
+        type="button"
+        class="wt-prompt"
+        id="wtPrompt"
+        aria-label={`${ssrNarration.intro} Tap to hear it again.`}
+      >
+        <span class="wt-prompt-pair" id="wtPromptPair" aria-hidden="true">
+          {ssrPair.objectEmoji}{ssrPair.landmarkEmoji}
+        </span>
+        <span class="wt-prompt-word" id="wtPromptWord" aria-hidden="true">
+          {ssrRelation.label}
+        </span>
+        <span class="wt-prompt-hint" aria-hidden="true">
+          find this one
+        </span>
+      </button>
+
+      <div class="wt-caption" id="wtCaption" role="status" aria-live="polite">
+        {ssrNarration.intro}
+      </div>
+
+      <div class="wt-scenes" aria-label="Three little scenes — tap the one the question describes">
+        {
+          SSR_FIRST_ROUND.scenes.map((rel, idx) => (
+            <button
+              type="button"
+              class="wt-scene"
+              id={`wtScene${idx}`}
+              data-i={idx}
+              data-rel={rel}
+              data-pair={SSR_FIRST_ROUND.pair}
+              style={`--wt-i: ${idx * 0.1}s`}
+              aria-label={`Scene ${idx + 1} — the ${ssrPair.objectName} is ${lookupRelation(rel).phrase} the ${ssrPair.landmarkName}`}
+            >
+              <span class="wt-land" aria-hidden="true">{ssrPair.landmarkEmoji}</span>
+              <span class="wt-obj" aria-hidden="true">{ssrPair.objectEmoji}</span>
+            </button>
+          ))
+        }
+      </div>
+    </section>
+
+    <footer class="wt-footer">
+      <button type="button" class="wt-action" id="wtReplayBtn" aria-label="Hear the question again">
+        🔊 Say it again
+      </button>
+      <button type="button" class="wt-action wt-action--primary" id="wtNextBtn" aria-label="Next round" disabled>
+        Next round →
+      </button>
+    </footer>
+
+    <div class="wt-done" id="wtDone" role="dialog" aria-live="polite" aria-labelledby="wtDoneTitle">
+      <div class="wt-done-card">
+        <div class="wt-done-emoji" aria-hidden="true">🧸</div>
+        <h2 class="wt-done-title" id="wtDoneTitle">You found them all!</h2>
+        <p class="wt-done-text" id="wtDoneText">
+          You know in, on, under, next to and behind!
+        </p>
+        <div class="wt-done-actions">
+          <button type="button" class="wt-action wt-action--primary" id="wtPlayAgainBtn">
+            ▶ Play again
+          </button>
+          <a class="wt-action" href={import.meta.env.BASE_URL}>
+            🏠 Home
+          </a>
+        </div>
+      </div>
+    </div>
+  </main>
+</StoryLayout>
+
+<script>
+  import { playTap, playCorrect, playWrong } from '@/lib/audio';
+  import { speak, cancelSpeech, isSpeechSupported, onFirstGesture } from '@/lib/speech';
+  import { launchConfetti } from '@/lib/achievements';
+  import { getSettings } from '@/lib/settings';
+  import {
+    generateRun,
+    buildNarration,
+    lookupPair,
+    lookupRelation,
+    loadWheresTeddyStats,
+    saveWheresTeddyStats,
+    TOTAL_ROUNDS,
+    type TeddyRound,
+    type Relation,
+    type PairId,
+    type RoundNarration,
+    type PreschoolTheme,
+  } from '@/data/wheres-teddy';
+  import { recordPlay } from '@/lib/retention';
+
+  const GAME_ID = 'wheres-teddy';
+  // Violet: the one hue not already spoken for by the literacy pink, the
+  // math green, the listening sky, the social indigo, the opposites amber
+  // or the sorting teal.
+  const WT_COLORS = ['#7c3aed', '#a855f7', '#c4b5fd', '#38bdf8', '#fbbf24'];
+
+  /**
+   * Read round 0 back out of the SSR'd DOM so the JS run starts in sync
+   * with whatever Astro rendered. Without this, a tap during the first
+   * interaction could land on a scene that has just been rewritten by a
+   * freshly-randomised JS run — the kickoff race that bit Counting
+   * Friends on 2026-05-15. Inherited from Sound Friends / Feeling Friends.
+   */
+  const readSSRRound = (): TeddyRound => {
+    const stageEl = document.getElementById('wtStage');
+    if (!stageEl) return generateRun()[0]!;
+
+    const themeKey = (stageEl.dataset.scene ?? 'pond') as PreschoolTheme;
+    const pair = stageEl.dataset.pair as PairId | undefined;
+    const target = stageEl.dataset.target as Relation | undefined;
+
+    const sceneEls = [
+      document.getElementById('wtScene0'),
+      document.getElementById('wtScene1'),
+      document.getElementById('wtScene2'),
+    ];
+    if (!pair || !target || sceneEls.some((el) => !el)) {
+      return generateRun()[0]!;
+    }
+
+    const scenes = sceneEls.map(
+      (el) => el!.dataset.rel as Relation,
+    ) as [Relation, Relation, Relation];
+    const correctIndex = scenes.indexOf(target);
+    if (correctIndex < 0 || correctIndex > 2) {
+      return generateRun()[0]!;
+    }
+
+    return {
+      pair,
+      target,
+      scenes,
+      correctIndex: correctIndex as 0 | 1 | 2,
+      // `tier` isn't used by the controller; 0 is a safe placeholder for
+      // the SSR-derived round.
+      tier: 0,
+      theme: themeKey,
+    };
+  };
+
+  // ── State ──────────────────────────────────────────────────────────
+  /**
+   * The SSR'd round 0, continued by a fresh random run.
+   *
+   * The generator is asked to *open* on the question already on screen
+   * rather than generating freely and cutting that question out afterwards.
+   * Removing a round from the middle of a run leaves its two former
+   * neighbours adjacent, and they can be the same pair — the collision
+   * `orderTier` exists to prevent, reintroduced at the one seam it can't
+   * see. Pinning leaves no gap to reintroduce it through.
+   */
+  const buildRun = (): TeddyRound[] => {
+    const first = readSSRRound();
+    const run = generateRun(Math.random, { pair: first.pair, target: first.target });
+
+    return run[0]?.pair === first.pair && run[0]?.target === first.target
+      ? [first, ...run.slice(1)]
+      : [
+          first,
+          ...run.filter((r) => !(r.pair === first.pair && r.target === first.target)),
+        ];
+  };
+
+  let run: TeddyRound[] = buildRun();
+  let roundIdx = 0;
+  let answered = false;
+  let currentNarration: RoundNarration | null = null;
+  /** Most recent post-answer phrase, cached so Replay re-narrates it. */
+  let lastPostAnswerText = '';
+
+  // ── DOM refs ───────────────────────────────────────────────────────
+  const stage = document.getElementById('wtStage') as HTMLElement;
+  const promptEl = document.getElementById('wtPrompt') as HTMLButtonElement;
+  const promptPair = document.getElementById('wtPromptPair') as HTMLElement;
+  const promptWord = document.getElementById('wtPromptWord') as HTMLElement;
+  const captionEl = document.getElementById('wtCaption') as HTMLElement;
+  const sceneEls = [
+    document.getElementById('wtScene0') as HTMLButtonElement,
+    document.getElementById('wtScene1') as HTMLButtonElement,
+    document.getElementById('wtScene2') as HTMLButtonElement,
+  ];
+  const progressText = document.getElementById('wtProgressText') as HTMLElement;
+  const progressFill = document.getElementById('wtProgressFill') as HTMLElement;
+  const progressPill = document.getElementById('wtProgressPill') as HTMLElement;
+  const replayBtn = document.getElementById('wtReplayBtn') as HTMLButtonElement;
+  const nextBtn = document.getElementById('wtNextBtn') as HTMLButtonElement;
+  const doneEl = document.getElementById('wtDone') as HTMLElement;
+  const playAgainBtn = document.getElementById('wtPlayAgainBtn') as HTMLButtonElement;
+
+  // ── Audio helpers ──────────────────────────────────────────────────
+
+  /**
+   * Speak `text` if the user has sound enabled. Same shape as the rest of
+   * the preschool family: silent-mode setTimeout fallback + watchdog
+   * alongside speechSynthesis.onend, so headless CI runners without a TTS
+   * engine don't deadlock the round-progression chain.
+   */
+  const narrate = (text: string, opts?: { onEnd?: () => void }): void => {
+    const onEnd = opts?.onEnd;
+    if (!isSpeechSupported() || !getSettings().sound) {
+      if (onEnd) setTimeout(onEnd, 600);
+      return;
+    }
+    let fired = false;
+    const wrap = (): void => {
+      if (fired) return;
+      fired = true;
+      onEnd?.();
+    };
+    const watchdogMs = Math.max(800, text.length * 100 + 600);
+    if (onEnd) setTimeout(wrap, watchdogMs);
+    speak(text, { rate: 0.85, pitch: 1.15, onEnd: onEnd ? wrap : undefined });
+  };
+
+  const setCaption = (text: string): void => {
+    captionEl.textContent = text;
+    captionEl.style.animation = 'none';
+    void captionEl.offsetWidth;
+    captionEl.style.removeProperty('animation');
+  };
+
+  // ── Render helpers ─────────────────────────────────────────────────
+
+  const renderRound = (): void => {
+    const round = run[roundIdx]!;
+    const narration = buildNarration(round);
+    const pair = lookupPair(round.pair);
+    const relation = lookupRelation(round.target);
+
+    progressText.textContent = `${roundIdx + 1} / ${TOTAL_ROUNDS}`;
+    progressFill.style.width = `${((roundIdx + 1) / TOTAL_ROUNDS) * 100}%`;
+    progressPill.setAttribute('aria-label', `Round ${roundIdx + 1} of ${TOTAL_ROUNDS}`);
+
+    stage.dataset.scene = round.theme;
+    stage.dataset.pair = round.pair;
+    stage.dataset.target = round.target;
+
+    promptPair.textContent = `${pair.objectEmoji}${pair.landmarkEmoji}`;
+    promptWord.textContent = relation.label;
+    promptEl.setAttribute('aria-label', `${narration.intro} Tap to hear it again.`);
+
+    for (let g = 0; g < 3; g++) {
+      const rel = round.scenes[g]!;
+      const el = sceneEls[g]!;
+      el.dataset.rel = rel;
+      // Drives the per-pair `in` height — see wheres-teddy.css.
+      el.dataset.pair = round.pair;
+      el.style.setProperty('--wt-i', `${g * 0.1}s`);
+      el.setAttribute(
+        'aria-label',
+        `Scene ${g + 1} — the ${pair.objectName} is ${lookupRelation(rel).phrase} the ${pair.landmarkName}`,
+      );
+      el.innerHTML =
+        `<span class="wt-land" aria-hidden="true">${pair.landmarkEmoji}</span>` +
+        `<span class="wt-obj" aria-hidden="true">${pair.objectEmoji}</span>`;
+      el.disabled = false;
+      el.classList.remove('wt-scene--correct', 'wt-scene--reveal', 'wt-scene--wrong');
+      // Force re-trigger of the fly-in animation on each render.
+      el.style.animation = 'none';
+      void el.offsetWidth;
+      el.style.removeProperty('animation');
+    }
+
+    answered = false;
+    currentNarration = narration;
+    lastPostAnswerText = '';
+    nextBtn.disabled = true;
+    replayBtn.disabled = false;
+  };
+
+  const speakIntro = (): void => {
+    const intro = currentNarration?.intro;
+    if (!intro) return;
+    setCaption(intro);
+    narrate(intro);
+  };
+
+  // ── Answer handler ─────────────────────────────────────────────────
+
+  const onSceneTap = (idx: 0 | 1 | 2): void => {
+    if (answered) return;
+    const round = run[roundIdx]!;
+    playTap();
+
+    const tappedEl = sceneEls[idx]!;
+    const correctEl = sceneEls[round.correctIndex]!;
+    const tappedRel = round.scenes[idx]!;
+
+    if (idx === round.correctIndex) {
+      answered = true;
+      tappedEl.classList.add('wt-scene--correct');
+      for (const el of sceneEls) el.disabled = true;
+      playCorrect();
+      cancelSpeech();
+      const correctText = currentNarration?.correct ?? 'Yes!';
+      lastPostAnswerText = correctText;
+      setCaption(correctText);
+      narrate(correctText);
+      launchConfetti(WT_COLORS);
+      bumpStats(true);
+      nextBtn.disabled = false;
+    } else {
+      // Wrong — guided correction. Sequence:
+      //   1) error tone + 250ms shake + red tint on the tapped scene
+      //      (feedback rule revised 2026-08-17).
+      //   2) "Hmm! Let's look at them again."                 (rerun)
+      //   3) "That teddy is on the box. We're looking for…"   (wrongIs)
+      //   4) "This teddy is under the box — under means…"     (reveal)
+      //   5) Enable Next. Still no score, still no failed round.
+      answered = true;
+      for (const el of sceneEls) el.disabled = true;
+      tappedEl.classList.add('wt-scene--wrong');
+      playWrong();
+      cancelSpeech();
+      const rerunText = currentNarration?.rerun ?? "Let's look again.";
+      setCaption(rerunText);
+      narrate(rerunText, {
+        onEnd: () => {
+          const wrongText =
+            currentNarration?.wrongIs(tappedRel) ??
+            `That one is ${lookupRelation(tappedRel).phrase}.`;
+          setCaption(wrongText);
+          lastPostAnswerText = wrongText;
+          narrate(wrongText, {
+            onEnd: () => {
+              // Brief pause so the child registers the shift from "that
+              // one" to "this one".
+              setTimeout(() => {
+                const revealText =
+                  currentNarration?.reveal ??
+                  `This one is ${lookupRelation(round.target).phrase}.`;
+                setCaption(revealText);
+                lastPostAnswerText = revealText;
+                correctEl.classList.add('wt-scene--reveal');
+                narrate(revealText, {
+                  onEnd: () => {
+                    bumpStats(false);
+                    nextBtn.disabled = false;
+                  },
+                });
+              }, 350);
+            },
+          });
+        },
+      });
+    }
+  };
+
+  // ── Round progression ──────────────────────────────────────────────
+
+  const startRound = (): void => {
+    cancelSpeech();
+    renderRound();
+    requestAnimationFrame(() => speakIntro());
+  };
+
+  const onNext = (): void => {
+    playTap();
+    if (roundIdx >= TOTAL_ROUNDS - 1) {
+      showRunComplete();
+      return;
+    }
+    roundIdx++;
+    startRound();
+  };
+
+  const showRunComplete = (): void => {
+    cancelSpeech();
+    const stats = loadWheresTeddyStats();
+    saveWheresTeddyStats({
+      ...stats,
+      // Still the `sessions` field on disk — the stored schema is shared
+      // with every other preschool game — but it counts full runs through
+      // every relation on every pair (CONTEXT.md §5 rule 11).
+      sessions: stats.sessions + 1,
+      lastPlayed: new Date().toISOString().slice(0, 10),
+    });
+    recordPlay(GAME_ID);
+    doneEl.classList.add('wt-done--show');
+    launchConfetti(WT_COLORS);
+    narrate('Wow! You found teddy every single time! Great looking!');
+  };
+
+  const onPlayAgain = (): void => {
+    playTap();
+    doneEl.classList.remove('wt-done--show');
+    run = generateRun();
+    roundIdx = 0;
+    startRound();
+  };
+
+  // ── Stats persistence ──────────────────────────────────────────────
+
+  const bumpStats = (correctFirstTry: boolean): void => {
+    const stats = loadWheresTeddyStats();
+    saveWheresTeddyStats({
+      ...stats,
+      rounds: stats.rounds + 1,
+      correctFirstTry: stats.correctFirstTry + (correctFirstTry ? 1 : 0),
+      lastPlayed: new Date().toISOString().slice(0, 10),
+    });
+    recordPlay(GAME_ID);
+  };
+
+  // ── Event wiring ───────────────────────────────────────────────────
+
+  for (const el of sceneEls) {
+    el.addEventListener('click', () => {
+      if (el.disabled) return;
+      const idx = Number(el.dataset.i);
+      if (idx === 0 || idx === 1 || idx === 2) {
+        onSceneTap(idx as 0 | 1 | 2);
+      }
+    });
+  }
+
+  /**
+   * Replay handler shared by the prompt card and the Replay button.
+   *
+   * Before an answer this repeats the question — the most likely request
+   * from a child who lost the preposition while scanning three scenes.
+   * After an answer it re-narrates the last phrase instead, so the
+   * correction can be heard again without restarting the round.
+   */
+  const onReplay = (): void => {
+    playTap();
+    cancelSpeech();
+    if (!answered) {
+      speakIntro();
+      return;
+    }
+    const text = lastPostAnswerText || (currentNarration?.intro ?? '');
+    setCaption(text);
+    narrate(text);
+  };
+
+  promptEl.addEventListener('click', onReplay);
+  replayBtn.addEventListener('click', onReplay);
+
+  nextBtn.addEventListener('click', onNext);
+  playAgainBtn.addEventListener('click', onPlayAgain);
+
+  document.getElementById('btnSettings')?.addEventListener('click', () => {
+    playTap();
+    (window as unknown as { openSettings?: () => void }).openSettings?.();
+  });
+
+  document.getElementById('btnQuiz')?.addEventListener('click', () => {
+    playTap();
+    cancelSpeech();
+    speakIntro();
+  });
+
+  document.getElementById('btnStats')?.addEventListener('click', () => {
+    playTap();
+    const stats = loadWheresTeddyStats();
+    const ratio =
+      stats.rounds === 0
+        ? 0
+        : Math.round((stats.correctFirstTry / stats.rounds) * 100);
+    const lines = [
+      `🧸 Full runs finished: ${stats.sessions}`,
+      `🌟 Rounds played: ${stats.rounds}`,
+      `🎯 First-try correct: ${stats.correctFirstTry} (${ratio}%)`,
+      stats.lastPlayed ? `📅 Last played: ${stats.lastPlayed}` : '📅 Last played: never',
+    ];
+    alert(lines.join('\n'));
+  });
+
+  // ── Initial state binding ──────────────────────────────────────────
+  // The SSR'd DOM is round 0; we don't re-render it. Bind JS state so
+  // subsequent logic — scene clicks, replay, etc. — has the references.
+  currentNarration = buildNarration(run[0]!);
+  progressText.textContent = `1 / ${TOTAL_ROUNDS}`;
+  progressFill.style.width = `${(1 / TOTAL_ROUNDS) * 100}%`;
+  progressPill.setAttribute('aria-label', `Round 1 of ${TOTAL_ROUNDS}`);
+
+  // Speech is blocked until the first gesture, so the intro waits for it.
+  // Deliberately does NOT call renderRound() — that would race with a
+  // first-interaction tap on a scene.
+  onFirstGesture(() => speakIntro());
+</script>

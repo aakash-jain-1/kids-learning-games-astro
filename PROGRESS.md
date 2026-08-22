@@ -417,7 +417,75 @@ before deciding.
 
 ## Changelog
 
-### 2026-08-22 (latest) — fix(story): dark mode actually goes dark, and the scene artwork paints for the first time
+### 2026-08-22 (latest) — feat(games): Where's Teddy? — spatial / positional words (28th game)
+
+Fifth of the six-game August design set (docs/GAME-DESIGNS-2026-08.md §5), and
+the first game in the repo teaching **spatial language**: `in`, `on`, `under`,
+`next to`, `behind`. Three mini-scenes side by side, a prompt naming one
+relation, tap the scene that shows it.
+
+**The mechanic is that all three scenes show the same two objects.** If they
+held different objects the child could win by recognising a picture, which is a
+skill they already have. Holding the pair fixed means the only thing that
+differs between the three answers is the relation, so reading the relation is
+the only way through — the same move Opposites Friends makes by asking each
+pair in both directions.
+
+A run is the **full 5 × 5 grid**: every relation asked about every pair, 25
+rounds, per §5 rule 11. The grid is exhausted rather than the relation list
+because asking "under" about a box, a basket, a bucket, a hat and a bathtub is
+what teaches that *under* is a relation rather than a fact about boxes. Tiers
+go `in / on / under` → `next to` → `behind`.
+
+**`in` and `behind` are never offered in the same round.** The design doc
+flagged `behind` as the visual risk and was ready to drop to three
+prepositions. The risk was real but aimed at the wrong pair: `behind` is easy
+to tell from `next to` (one is beside the landmark, the other is cut by it),
+and impossible to tell from `in` — a teddy inside a box and a teddy behind a
+box are both "an emoji whose bottom is hidden". Never drawing that collision
+costs one distractor and keeps all five prepositions.
+
+Pairs are teddy+box, cat+basket, ball+bucket, mouse+hat, puppy+bathtub. Two
+constraints, both learned by rendering the grid and looking at it: the landmark
+must be an **open container with a visible interior** or `in` isn't drawable
+(which cut the chair, table and tree the design doc suggested), and **the two
+emoji must not be the same colour** — a white duck against a white tub
+disappeared almost entirely in the `in` scene, so the duck became a brown
+puppy.
+
+**The part worth remembering.** Three of the five relations are drawn purely by
+*where an emoji sits*, and the entire behavioural suite — 11 tests covering
+round shape, the correction script, stats, and a full 25-round walk stressed
+with `--repeat-each=12` — passed while two of them were **visually wrong**. The
+mouse floated a clear tenth of a tile above its hat, which is a picture of
+"above", a preposition the game never offers; and `behind` left 84% of that
+same mouse showing, which is a picture of "on".
+
+One cause: `on` and `behind` were positioned as a fixed share of tile height,
+but the five landmarks top out anywhere from **48%** (a sun hat is nearly all
+brim) to **59%** (a box, a basket, a tub), so no single offset can rest an
+object on all five or hide it behind all five. `in` already had per-pair
+offsets for exactly this reason; `on` and `behind` now do too
+(`--wt-on-y`, `--wt-behind-y`). The values were **measured, not guessed** — a
+scan of the rendered tile finds where each landmark's ink starts, `on` sits
+1.5% under that, and `behind` sits ~55% of the object's height under it, which
+equalises occlusion at 43–47% across all five pairs (it was 41–84%).
+
+`tests/wheres-teddy.spec.ts` re-does that measurement, so a sixth pair can't be
+added without tuning it. Per the lesson from the dark-mode ship, it was
+verified against the reintroduced bug rather than trusted: with the old global
+offsets it fails with *"mouse-hat: "on" leaves the object floating 9.9% of the
+tile above the landmark"*. Bands are deliberately loose and centred between the
+tuned and broken values, since emoji metrics differ between Segoe UI Emoji
+locally and Noto Color Emoji on the CI runner.
+
+Also carries the current wrong-answer rule (§5 rule 8): red tint, error tone,
+shake, then a spoken correction that names the relation the child actually
+chose — *"That teddy is ON the box. Under means below."* — and never scolds.
+Stats are `wheres_teddy_stats_v1` (standard four-field preschool shape),
+filed under `preschool-cognitive`. 222 tests pass.
+
+### 2026-08-22 — fix(story): dark mode actually goes dark, and the scene artwork paints for the first time
 
 Closes the two oldest items in CONTEXT.md §7. They were tracked separately for
 months and are really one bug wearing two hats: **a custom property read

@@ -61,6 +61,9 @@ const EXPECTED_GAME_IDS = [
   // Opposites Friends (2026-08-22) — contrast vocabulary, same round-and-
   // first-try shape as its cognitive siblings, so no new family.
   'opposites-friends',
+  // Where's Teddy? (2026-08-22) — spatial/positional words. Cognitive too;
+  // the domain is new to the app but the stats shape is not.
+  'wheres-teddy',
   // Family A4 — preschool-social (added 2026-08-17 with Feeling Friends;
   // this IS a new family, which is why the section count and activity-dot
   // arithmetic below moved from 6 to 7)

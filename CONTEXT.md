@@ -6,13 +6,19 @@
 > win. Keep it short and current — see the update rule in
 > `.cursor/rules/maintain-context.mdc`.
 >
-> **Last verified against the codebase**: 2026-08-22 (**dark mode now actually
+> **Last verified against the codebase**: 2026-08-22 (**Where's Teddy? shipped**
+> — fifth of the six-game August arc, **28 games**, and the first to teach
+> spatial/positional language. It carries a lesson worth reusing: three of its
+> five prepositions are drawn purely by *where an emoji sits*, and every
+> behavioural test passed while two of them were visually wrong, so
+> `tests/wheres-teddy.spec.ts` measures the rendered pixels. Same day, earlier:
+> **dark mode now actually
 > darkens the page in all 14 StoryLayout themes and the per-round scene artwork
 > paints for the first time** — the two oldest §7 debt items, both closed;
 > `tests/dark-mode.spec.ts` added. Same day, earlier: **a contrast + affordance
 > sweep** fixed 16 unreadable page titles and 11 full-opacity `disabled`
 > buttons, adding the §5 rule 10 corollary and
-> `tests/headings.spec.ts`. Game count unchanged at 27. Same day, earlier:
+> `tests/headings.spec.ts`. Same day, earlier:
 > **§5 rule 11 — no sampled
 > sessions — was applied everywhere it applies**: Animal Sounds (27),
 > Letter Friends (26), Sound Friends (26), Rhyme Time (18), Feeling Friends
@@ -31,7 +37,7 @@
 An **Astro + TypeScript + `@vite-pwa/astro` (Workbox)** static PWA of
 educational mini-games for young children. It began as a proof-of-concept
 migration of the vanilla HTML/CSS/JS `kids-learning-games` repo and is now a
-feature-driven project in its own right. **27 games** ship across **three
+feature-driven project in its own right. **28 games** ship across **three
 shared layouts**, deployed to GitHub Pages at
 `https://aakash-jain-1.github.io/kids-learning-games-astro/`. Zero-JS-by-default
 static output; only interactive islands ship JavaScript.
@@ -98,7 +104,7 @@ static output; only interactive islands ship JavaScript.
   *extraction* has stalled hard on this machine before, which is why the
   hatch exists.) CI never sets it — Linux runners use bundled Chromium.
 
-## 4. The 27 games & three layouts
+## 4. The 28 games & three layouts
 
 - **`GridLayout.astro`** — foundational-set games (scan a fixed chart, tap to
   hear): Alphabets, Numbers, Colors, Shapes, Animals, Birds, Hindi (7).
@@ -109,8 +115,8 @@ static output; only interactive islands ship JavaScript.
   Woodcutter (2 story) + Counting Friends, More Friends, Number Friends,
   Pattern Sequences, Number Bond Pop (5 preschool-math) + Letter Friends,
   Sound Friends, Rhyme Time (3 preschool-literacy) + Sorting Friends,
-  Days Parade, Week Friends, Animal Sounds, Opposites Friends
-  (5 preschool-cognitive) + Feeling Friends (1 preschool-social).
+  Days Parade, Week Friends, Animal Sounds, Opposites Friends, Where's Teddy?
+  (6 preschool-cognitive) + Feeling Friends (1 preschool-social).
 
 Each game = one `src/pages/games/<slug>.astro` + a typed `src/data/<game>.ts`
 data file + a layout-specific themed CSS block. A parent dashboard lives at
@@ -147,18 +153,18 @@ data file + a layout-specific themed CSS block. A parent dashboard lives at
    child — they are corrected, then move on. **Revised 2026-08-17** at the
    user's request; this supersedes the original errorless rule ("no
    red/buzzer/shame coding, shake only"). **Animal Sounds, Feeling Friends,
-   Opposites Friends and Rhyme Time are the only adopters so far**; the other
-   23 games still use shake-only feedback, so the app is mid-migration —
-   see §7.
+   Opposites Friends, Rhyme Time and Where's Teddy? are the only adopters so
+   far**; the other 23 games still use shake-only feedback, so the app is
+   mid-migration — see §7.
 9. **The Astro repo is the source of truth on *patterns*** (the vanilla repo
    is treated as a spec of intent, not a template to copy).
 10. **Shared chrome carries its own contrast.** A primitive in `global.css`
-    renders on backdrops it cannot see — 27 themed games plus `/stats` and
+    renders on backdrops it cannot see — 28 themed games plus `/stats` and
     the home hero — so it must not depend on the surface behind it. In
-    particular, **don't key colours off `body.dark-mode`**: eleven
-    `StoryLayout` themes still paint a light background while that class is
-    set (§7), so the dark variant would land on a light page. `currentColor`
-    is no safer there, since those themes inherit white text onto that light
+    particular, **don't key colours off `body.dark-mode`**: for months eleven
+    `StoryLayout` themes painted a *light* background while that class was
+    set, so the dark variant landed on a light page, and `currentColor` was no
+    safer there because those themes inherited white text onto that light
     background. `.ctrl-pill` is the worked example (self-contained dark chip,
    white label); `tests/ctrl-pills.spec.ts` enforces it from rendered pixels
    rather than from CSS values, which is the only way the relationship is
@@ -223,7 +229,7 @@ data file + a layout-specific themed CSS block. A parent dashboard lives at
 - `kids_progress_v1:<gameId>` — learned-item set (sorted string array).
 - `<gameId>_quiz_v1` — `{ attempts, bestScore, lastPlayed }` quiz metrics.
 - `<game>_stats_v1` — bespoke preschool schema `{ sessions, rounds, correctFirstTry, lastPlayed }`
-  (newest: `rhyme_time_stats_v1`, 2026-08-22). In the seven games converted to
+  (newest: `wheres_teddy_stats_v1`, 2026-08-22). In the seven games converted to
   §5 rule 11 the `sessions` field is kept on disk (the shape is shared across
   every preschool game) but now counts **completed runs**, and the UI labels it
   "Full runs finished".
@@ -251,9 +257,34 @@ this family stays at one for now.)
 - **Feature-driven phase active**: 14 preschool games added since (cardinality
   triad + Pattern Sequences + Letter Friends + Number Bond Pop + Sound
   Friends + Sorting Friends + Week Friends + Days Parade + Animal Sounds +
-  Feeling Friends + Opposites Friends + Rhyme Time). Total **27 games**, all
-  live.
-- **Latest ship (2026-08-22)**: **Dark mode actually goes dark, and the scene
+  Feeling Friends + Opposites Friends + Rhyme Time + Where's Teddy?). Total
+  **28 games**, all live.
+- **Latest ship (2026-08-22)**: **Where's Teddy?** — fifth of the six-game
+  August arc, and the first game teaching spatial/positional language
+  (`in / on / under / next to / behind`). A run is the full 5 × 5 grid: every
+  preposition asked about every object/landmark pair, because "under" is only
+  a *relation* if it survives changing the objects.
+
+  Two decisions carry the game. **All three scenes show the same pair**, so
+  the only thing that differs between the answers is the relation and
+  picture-recognition can't win the round. And **`in` and `behind` are never
+  offered together** — a teddy inside a box and a teddy behind a box are both
+  "an emoji whose bottom is hidden", so rather than drop to the three
+  prepositions the design doc was ready to fall back to, the collision is
+  simply never drawn.
+
+  The lesson worth carrying: three of the five relations are drawn purely by
+  *where an emoji sits*, and **every behavioural test passed while two of them
+  were visually wrong** — the mouse floated a clear tenth of a tile above its
+  hat (reading as "above"), and `behind` left 84% of that mouse showing, which
+  is a picture of "on". One cause: `on` and `behind` were positioned as a
+  fixed share of tile height, but the five landmarks top out anywhere from 48%
+  (a sun hat is nearly all brim) to 59% (a box, a basket, a tub). They are now
+  per-pair (`--wt-on-y`, `--wt-behind-y`, joining the `--wt-in-y` that already
+  existed for the same reason), measured by scanning the rendered tile for
+  each landmark's silhouette. `tests/wheres-teddy.spec.ts` re-does that
+  measurement, so a sixth pair can't be added without tuning it. 222 tests pass.
+- **Prior ship (2026-08-22, same day)**: **Dark mode actually goes dark, and the scene
   artwork paints for the first time.** Closes the two oldest §7 debt items,
   which turned out to be one bug wearing two hats: **a custom property read
   where it wasn't set**. Ten themes never redefined `--st-bg` under
@@ -270,7 +301,7 @@ this family stays at one for now.)
   swapping `data-scene` and requiring the background to change. Both tests were
   verified against a deliberately reintroduced bug — the first version of the
   scene check passed on antialiasing noise. 210 tests pass.
-- **Prior ship (2026-08-22, same day)**: **Titles you can read and disabled buttons that
+- **Earlier ship (2026-08-22, same day)**: **Titles you can read and disabled buttons that
   look disabled.** Both defects were spotted on two games and turned out to be
   systemic: **16 of 22 page titles** failed a contrast check and **11 of 15
   disabled controls** rendered at full accent opacity. One cause each — shared
@@ -512,10 +543,10 @@ this family stays at one for now.)
   the full six-game design set approved 2026-08-17. **Sound Friends**
   (candidate A) + **Sorting Friends** (candidate B) shipped 2026-06-06;
   **Week Friends** + **Days Parade** shipped 2026-06-17; **Animal Sounds** and
-  **Feeling Friends** shipped 2026-08-17; **Opposites Friends** and **Rhyme
-  Time** shipped 2026-08-22 (**4 of the 6 designs done**). Remaining in the
-  set, in build order: **Where's Teddy? → Memory Match**. Only Memory Match is
-  still blocked on an open question (Q5, board progression).
+  **Feeling Friends** shipped 2026-08-17; **Opposites Friends**, **Rhyme
+  Time** and **Where's Teddy?** shipped 2026-08-22 (**5 of the 6 designs
+  done**). Remaining in the set: **Memory Match**, which is still blocked on an
+  open question (Q5, board progression).
 - **Open queued work**:
   - **T9** — replace Web Speech with pre-recorded MP3 narration (parked on the
     user's recording session; integration is ~30–45 min of agent work once MP3s
