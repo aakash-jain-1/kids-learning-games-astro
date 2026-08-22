@@ -161,7 +161,18 @@ body.story[data-theme='letterfriends'] .lf-progress-fill {
 
 body.story[data-theme='letterfriends'] .lf-stage {
   position: relative;
-  background: rgba(255, 255, 255, 0.12);
+  /* Reads `--st-bg` from the `data-scene` rules above, which set it on
+     this element — a `background` on `body` can never see a custom
+     property written on a descendant, which is why the six scene
+     gradients had never painted. The veil is a stacked background layer
+     rather than a `filter`, so the white cards inside the stage stay
+     bright in dark mode. Matches Animal Sounds. */
+  background:
+    linear-gradient(
+      rgba(32, 12, 22, var(--lf-scene-veil, 0)),
+      rgba(32, 12, 22, var(--lf-scene-veil, 0))
+    ),
+    var(--st-bg);
   border-radius: 24px;
   padding: 24px 16px;
   min-height: 420px;
@@ -525,11 +536,18 @@ body.story[data-theme='letterfriends'] .lf-done-actions {
 /* ── Dark mode ────────────────────────────────────────────────────── */
 
 body.dark-mode.story[data-theme='letterfriends'] {
-  /* No --st-bg override below, so the page keeps its pale light-mode
-     gradient even here — dark mode only re-tints the cards. The light
-     theme's dark title ink is therefore correct in both modes and is
-     deliberately not reset. Restore the white default if this block
-     ever gains a dark --st-bg. */
+  /* The page background HAS to be redefined here. Without it `body`
+     keeps resolving `--st-bg` to the *light* gradient at the top of
+     this file while every token below flips to its dark value — which
+     is how this game shipped with near-white labels on a pale page,
+     i.e. unreadable. Fixed 2026-08-22.
+
+     The page is genuinely dark now, so the title goes back to a
+     near-white ink; the light theme's dark ink would vanish here. */
+  --st-bg: linear-gradient(135deg, #2a0f1c 0%, #35142a 100%);
+  --st-title-color: #f7e9f0;
+  --st-title-shadow: 2px 2px 8px rgba(0, 0, 0, 0.45);
+  --lf-scene-veil: 0.68;
   --lf-tile-bg: rgba(255, 255, 255, 0.08);
   --lf-tile-bg-hover: rgba(255, 255, 255, 0.16);
   --lf-tile-border: rgba(180, 200, 255, 0.3);

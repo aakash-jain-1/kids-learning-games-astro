@@ -417,7 +417,58 @@ before deciding.
 
 ## Changelog
 
-### 2026-08-22 (latest) — fix(a11y): page titles you can read, and disabled buttons that look disabled
+### 2026-08-22 (latest) — fix(story): dark mode actually goes dark, and the scene artwork paints for the first time
+
+Closes the two oldest items in CONTEXT.md §7. They were tracked separately for
+months and are really one bug wearing two hats: **a custom property read
+somewhere it was never set.**
+
+**Dark mode never darkened the page.** Ten `StoryLayout` themes re-tinted their
+cards under `body.dark-mode` but never redefined `--st-bg`, so `body` kept
+resolving it to the *light* gradient while every token around it flipped to
+near-white. The result was white-on-pale on every one of them: titles measured
+1.03–1.16:1, and tile labels like "Apple" / "Ice Cream" / "Xylophone" were
+simply not there. Four games — Animal Sounds, Feeling Friends, Opposites
+Friends, Rhyme Time — had each fixed it for themselves, which is why the bug
+never looked systemic.
+
+**The per-round scenes had never painted.** Nine of those ten declare six
+`data-scene` gradients on their `.X-stage` element, then read `--st-bg` from a
+`background` on `body`. Custom properties inherit downwards, so an ancestor can
+never see a property written on a descendant: every stage rendered a flat
+`rgba(255,255,255,0.12)` panel and the artwork was unreachable. The pages were
+already setting `data-scene` correctly, both server-side and on every round —
+only the CSS read was wrong, so this is one declaration each.
+
+Each theme now gets a dark page in **its own hue** rather than a shared navy,
+matching what the four working games do (Animal Sounds navy, Rhyme Time maroon,
+Opposites amber, Feeling Friends indigo). The veil over the scene is a stacked
+background layer rather than a `filter`, because a filter would also dim the
+white cards sitting inside the stage. Days Parade has no scenes and needed only
+the page background; its dark-mode title goes back to the pale mint it always
+wanted, now that there is something dark behind it.
+
+This is also what unblocks the title inks from the previous ship. Those ten
+themes were deliberately carrying their light-mode dark ink into dark mode,
+which was correct only while the page stayed pale. Now that it doesn't, they
+carry a near-white ink again and each dark block says why.
+
+**On the tests.** `tests/dark-mode.spec.ts` checks page luminance in both modes
+(a strip down the left margin, where the centred shell doesn't reach), and
+proves the scene reaches the stage by swapping `data-scene` between two values
+and requiring the rendered background to change — an assertion that the
+gradients exist in the stylesheet would have passed happily for the entire life
+of the bug.
+
+Worth recording that **the first version of the scene check was useless**. It
+compared whole-stage screenshots, so a single pixel of antialiasing counted as
+"changed", and it passed against a deliberately reintroduced bug. Both tests
+were then re-verified the same way — revert the fix in one game, confirm the
+test names that game — before being kept. The working version samples a 12px
+patch inside the stage's own padding, above any card, so it compares background
+and not content. 210 tests pass.
+
+### 2026-08-22 — fix(a11y): page titles you can read, and disabled buttons that look disabled
 
 Two defects noticed while screenshotting the previous ship, both of which turned
 out to be far bigger than the games they were spotted on. Auditing every page

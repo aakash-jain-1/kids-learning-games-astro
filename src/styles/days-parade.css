@@ -493,6 +493,11 @@ body.story[data-theme='daysparade'] .dp-action--primary:hover {
 /* ── Dark mode ────────────────────────────────────────────────────── */
 
 body.dark-mode.story[data-theme='daysparade'] {
+  /* Without this the page keeps its pale mint light-mode gradient while
+     every token below flips to its dark value, which is how this game
+     shipped with a 1.03:1 title. This theme has no per-round scenes, so
+     it needs the page background and nothing else. Fixed 2026-08-22. */
+  --st-bg: linear-gradient(135deg, #07231f 0%, #0c2f2a 60%, #103a34 100%);
   --dp-panel-bg: rgba(8, 30, 28, 0.94);
   --dp-panel-text: #d4f0ea;
   --dp-caption-bg: rgba(8, 30, 28, 0.92);
@@ -501,11 +506,8 @@ body.dark-mode.story[data-theme='daysparade'] {
   --dp-pill-text: #9be8de;
 }
 
-/* Dark mode re-tints the panels but leaves `--st-bg` at the pale
-   light-mode gradient, so a pale-mint title would vanish. Keep the
-   light-mode ink until this theme gains a dark page background. */
 body.dark-mode.story[data-theme='daysparade'] .dp-title {
-  color: #0f2e2a;
+  color: #d4f0ea;
   text-shadow: none;
 }
 

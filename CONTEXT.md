@@ -6,9 +6,12 @@
 > win. Keep it short and current — see the update rule in
 > `.cursor/rules/maintain-context.mdc`.
 >
-> **Last verified against the codebase**: 2026-08-22 (**a contrast + affordance
-> sweep**: 16 unreadable page titles and 11 full-opacity `disabled` buttons
-> fixed across the app, adding the §5 rule 10 corollary and
+> **Last verified against the codebase**: 2026-08-22 (**dark mode now actually
+> darkens the page in all 14 StoryLayout themes and the per-round scene artwork
+> paints for the first time** — the two oldest §7 debt items, both closed;
+> `tests/dark-mode.spec.ts` added. Same day, earlier: **a contrast + affordance
+> sweep** fixed 16 unreadable page titles and 11 full-opacity `disabled`
+> buttons, adding the §5 rule 10 corollary and
 > `tests/headings.spec.ts`. Game count unchanged at 27. Same day, earlier:
 > **§5 rule 11 — no sampled
 > sessions — was applied everywhere it applies**: Animal Sounds (27),
@@ -159,7 +162,9 @@ data file + a layout-specific themed CSS block. A parent dashboard lives at
     background. `.ctrl-pill` is the worked example (self-contained dark chip,
    white label); `tests/ctrl-pills.spec.ts` enforces it from rendered pixels
    rather than from CSS values, which is the only way the relationship is
-   actually observable.
+   actually observable. *(The "light page under `body.dark-mode`" hazard was
+   itself fixed on 2026-08-22 — see §7 — but the rule stands: shared chrome
+   still shouldn't assume what a theme paints behind it.)*
 
     **Corollary for *themed* chrome (added 2026-08-22):** a shared token whose
     default suits a dark page — `--st-title-color`, `--gl-title-color` — is a
@@ -248,7 +253,24 @@ this family stays at one for now.)
   Friends + Sorting Friends + Week Friends + Days Parade + Animal Sounds +
   Feeling Friends + Opposites Friends + Rhyme Time). Total **27 games**, all
   live.
-- **Latest ship (2026-08-22)**: **Titles you can read and disabled buttons that
+- **Latest ship (2026-08-22)**: **Dark mode actually goes dark, and the scene
+  artwork paints for the first time.** Closes the two oldest §7 debt items,
+  which turned out to be one bug wearing two hats: **a custom property read
+  where it wasn't set**. Ten themes never redefined `--st-bg` under
+  `body.dark-mode`, so the page stayed pale while every token around it went
+  near-white; and nine declared their six `data-scene` gradients on `.X-stage`
+  but read `--st-bg` on `body`, where a property written on a descendant can
+  never reach. So the scene panels had been flat translucent white since they
+  shipped, and dark mode had been white-on-pale.
+
+  Each theme now gets a dark page in its own hue (matching the four games that
+  already did this) plus a veil *background layer* rather than a `filter`, so
+  the white cards inside the stage stay bright. `tests/dark-mode.spec.ts`
+  checks page luminance in both modes and proves the scene reaches the stage by
+  swapping `data-scene` and requiring the background to change. Both tests were
+  verified against a deliberately reintroduced bug — the first version of the
+  scene check passed on antialiasing noise. 210 tests pass.
+- **Prior ship (2026-08-22, same day)**: **Titles you can read and disabled buttons that
   look disabled.** Both defects were spotted on two games and turned out to be
   systemic: **16 of 22 page titles** failed a contrast check and **11 of 15
   disabled controls** rendered at full accent opacity. One cause each — shared
@@ -262,11 +284,11 @@ this family stays at one for now.)
   `--gl-cat-idle-*` so the `colors` filter pills stop being white-on-white.
 
   The find that mattered most came from checking **dark mode**: the ten themes
-  that never darken their page were failing identically there, so the fix is
-  *not* to reset the ink under `body.dark-mode` — see §7. `tests/headings.spec.ts`
-  now measures both modes from rendered pixels, like `ctrl-pills.spec.ts`.
-  207 tests pass.
-- **Prior ship (2026-08-22, same day)**: **Sound, Rhyme and Week Friends drop sessions**,
+  that never darken their page were failing identically there. That deferred
+  the title ink under `body.dark-mode` until the ship above fixed the page
+  itself. `tests/headings.spec.ts` measures both modes from rendered pixels,
+  like `ctrl-pills.spec.ts`.
+- **Earlier the same day**: **Sound, Rhyme and Week Friends drop sessions**,
   completing §5 rule 11 across every game it applies to. Sound Friends 8 → **26**
   (bare letter tiles mean an unasked letter is a silent distractor — being the
   target is the only way it earns its "A says ah" narration). Rhyme Time 8 →
@@ -498,27 +520,6 @@ this family stays at one for now.)
   - **T9** — replace Web Speech with pre-recorded MP3 narration (parked on the
     user's recording session; integration is ~30–45 min of agent work once MP3s
     land in `src/assets/narration/shared/`).
-  - **Dark mode is broken across the `StoryLayout` preschool family.** None of
-    the sibling themes redefine `--st-bg` under `body.dark-mode`, so they keep
-    their pale light-mode gradient and paint near-white text on it. Feeling
-    Friends, Opposites Friends, Rhyme Time and now Animal Sounds each fix it for
-    themselves (dark `--st-bg` + a scene-veil background layer, chosen over a
-    `filter` so the white cards stay bright); the same 4-line pattern needs
-    applying to the other **10**. Note the consequence that bites elsewhere: on
-    those themes `body.dark-mode` is set while the page is *light*, so **no
-    shared chrome may key its colours off the dark-mode class** — see the
-    `.ctrl-pill` note in §5 rule 10. Since 2026-08-22 those ten themes also
-    carry their **light-mode dark title ink into dark mode on purpose**, which
-    is correct exactly while the page stays pale: whoever adds the dark
-    `--st-bg` must restore the white title in the same change. Each dark block
-    says so, and `tests/headings.spec.ts` fails if they don't.
-  - **The per-round scene never paints in 10 of the preschool games.** Same
-    10 stylesheets declare the six `data-scene` gradients on their `.X-stage`
-    element but read `--st-bg` on `body` — a custom property set on a
-    descendant can't reach an ancestor. One line each; the four games above
-    read it on the stage, where it's set. Worth knowing that these two bugs
-    travel together: both were found in Animal Sounds by *screenshotting* the
-    finished game, which neither the type checker nor the suite can do.
   - **Wrong-answer feedback migration** — 23 games still shake-only (§5 rule 8).
   - **Grid filter pills are white-on-translucent-white** (`.cat-btn` in
     `global.css`). Fixed for the `colors` theme on 2026-08-22 via the new
