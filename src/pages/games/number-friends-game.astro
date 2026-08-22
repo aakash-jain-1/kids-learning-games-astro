@@ -174,7 +174,7 @@ const TOTAL_ROUNDS = 8;
     shouldAdvance,
     nextStage,
   } from '@/lib/preschool-stages';
-  import { recordPlay } from '@/lib/retention';
+  import { recordPlay, todayLocal } from '@/lib/retention';
 
   // Current stage (read from saved stats) + this session's round count
   // and target dot-frame size. Named `currentStage` to avoid colliding
@@ -534,7 +534,7 @@ const TOTAL_ROUNDS = 8;
       sessions: stats.sessions + 1,
       stage: newStage,
       bestStage: Math.max(stats.bestStage, newStage) as StageId,
-      lastPlayed: new Date().toISOString().slice(0, 10),
+      lastPlayed: todayLocal(),
     });
     recordPlay('number-friends');
 
@@ -578,7 +578,7 @@ const TOTAL_ROUNDS = 8;
       ...stats,
       rounds: stats.rounds + 1,
       correctFirstTry: stats.correctFirstTry + (correctFirstTry ? 1 : 0),
-      lastPlayed: new Date().toISOString().slice(0, 10),
+      lastPlayed: todayLocal(),
     });
     recordPlay('number-friends');
   };

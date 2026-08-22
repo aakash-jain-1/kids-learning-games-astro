@@ -147,7 +147,7 @@ const ssrCaption = `${ssrTarget.sound}! Who says ${ssrTarget.sound.toLowerCase()
     type RoundNarration,
     type PreschoolTheme,
   } from '@/data/animal-sounds';
-  import { recordPlay } from '@/lib/retention';
+  import { recordPlay, todayLocal } from '@/lib/retention';
 
   const GAME_ID = 'animal-sounds';
   // Sky-leaning palette matching the science/listening accent, distinct
@@ -485,7 +485,7 @@ const ssrCaption = `${ssrTarget.sound}! Who says ${ssrTarget.sound.toLowerCase()
       // the other preschool games and isn't worth a migration — but it now
       // counts runs through the whole pool rather than 8-round sessions.
       sessions: stats.sessions + 1,
-      lastPlayed: new Date().toISOString().slice(0, 10),
+      lastPlayed: todayLocal(),
     });
     recordPlay(GAME_ID);
     doneEl.classList.add('as-done--show');
@@ -509,7 +509,7 @@ const ssrCaption = `${ssrTarget.sound}! Who says ${ssrTarget.sound.toLowerCase()
       ...stats,
       rounds: stats.rounds + 1,
       correctFirstTry: stats.correctFirstTry + (correctFirstTry ? 1 : 0),
-      lastPlayed: new Date().toISOString().slice(0, 10),
+      lastPlayed: todayLocal(),
     });
     recordPlay(GAME_ID);
   };

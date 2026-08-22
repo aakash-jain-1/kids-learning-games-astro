@@ -147,7 +147,7 @@ const ssrPrompt = `Find all the friends that ${SSR_FIRST_ROUND.promptLabel}!`;
     type RoundNarration,
     type PreschoolTheme,
   } from '@/data/sorting-friends';
-  import { recordPlay } from '@/lib/retention';
+  import { recordPlay, todayLocal } from '@/lib/retention';
 
   // Teal-leaning palette to match the cognitive family accent
   // (--sort-accent #14b8a6), distinct from the math (green) and
@@ -398,7 +398,7 @@ const ssrPrompt = `Find all the friends that ${SSR_FIRST_ROUND.promptLabel}!`;
     saveSortingFriendsStats({
       ...stats,
       sessions: stats.sessions + 1,
-      lastPlayed: new Date().toISOString().slice(0, 10),
+      lastPlayed: todayLocal(),
     });
     recordPlay('sorting-friends');
     doneEl.classList.add('sort-done--show');
@@ -422,7 +422,7 @@ const ssrPrompt = `Find all the friends that ${SSR_FIRST_ROUND.promptLabel}!`;
       ...stats,
       rounds: stats.rounds + 1,
       correctFirstTry: stats.correctFirstTry + (cleanRound ? 1 : 0),
-      lastPlayed: new Date().toISOString().slice(0, 10),
+      lastPlayed: todayLocal(),
     });
     recordPlay('sorting-friends');
   };

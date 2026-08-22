@@ -141,7 +141,7 @@ const ssrCaption = `${ssrItem.word}! What does ${ssrItem.word} start with?`;
     type RoundNarration,
     type PreschoolTheme,
   } from '@/data/sound-friends';
-  import { recordPlay } from '@/lib/retention';
+  import { recordPlay, todayLocal } from '@/lib/retention';
 
   // Pink-leaning palette to match the literacy family accent (shared
   // with Letter Friends), distinct from the math triad's green.
@@ -415,7 +415,7 @@ const ssrCaption = `${ssrItem.word}! What does ${ssrItem.word} start with?`;
     saveSoundFriendsStats({
       ...stats,
       sessions: stats.sessions + 1,
-      lastPlayed: new Date().toISOString().slice(0, 10),
+      lastPlayed: todayLocal(),
     });
     recordPlay('sound-friends');
     doneEl.classList.add('sf-done--show');
@@ -439,7 +439,7 @@ const ssrCaption = `${ssrItem.word}! What does ${ssrItem.word} start with?`;
       ...stats,
       rounds: stats.rounds + 1,
       correctFirstTry: stats.correctFirstTry + (correctFirstTry ? 1 : 0),
-      lastPlayed: new Date().toISOString().slice(0, 10),
+      lastPlayed: todayLocal(),
     });
     recordPlay('sound-friends');
   };

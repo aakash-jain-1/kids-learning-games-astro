@@ -155,7 +155,7 @@ const TOTAL_ROUNDS = 8;
     type PatternColor,
     type RoundNarration,
   } from '@/data/patterns';
-  import { recordPlay } from '@/lib/retention';
+  import { recordPlay, todayLocal } from '@/lib/retention';
 
   const TOTAL_ROUNDS = 8;
   // Confetti palette — same primaries as the cardinality triad so
@@ -470,7 +470,7 @@ const TOTAL_ROUNDS = 8;
     savePatternStats({
       ...stats,
       sessions: stats.sessions + 1,
-      lastPlayed: new Date().toISOString().slice(0, 10),
+      lastPlayed: todayLocal(),
     });
     recordPlay('pattern-sequences');
     doneEl.classList.add('ps-done--show');
@@ -494,7 +494,7 @@ const TOTAL_ROUNDS = 8;
       ...stats,
       rounds: stats.rounds + 1,
       correctFirstTry: stats.correctFirstTry + (correctFirstTry ? 1 : 0),
-      lastPlayed: new Date().toISOString().slice(0, 10),
+      lastPlayed: todayLocal(),
     });
     recordPlay('pattern-sequences');
   };

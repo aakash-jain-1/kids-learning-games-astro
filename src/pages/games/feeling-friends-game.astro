@@ -165,7 +165,7 @@ const ssrPromptText = ssrTarget.name;
     type RoundNarration,
     type PreschoolTheme,
   } from '@/data/feeling-friends';
-  import { recordPlay } from '@/lib/retention';
+  import { recordPlay, todayLocal } from '@/lib/retention';
 
   const GAME_ID = 'feeling-friends';
   // Indigo-leaning palette matching the social-emotional accent, distinct
@@ -511,7 +511,7 @@ const ssrPromptText = ssrTarget.name;
       // runs through every feeling and every story rather than 8-round
       // sessions.
       sessions: stats.sessions + 1,
-      lastPlayed: new Date().toISOString().slice(0, 10),
+      lastPlayed: todayLocal(),
     });
     recordPlay(GAME_ID);
     doneEl.classList.add('ff-done--show');
@@ -535,7 +535,7 @@ const ssrPromptText = ssrTarget.name;
       ...stats,
       rounds: stats.rounds + 1,
       correctFirstTry: stats.correctFirstTry + (correctFirstTry ? 1 : 0),
-      lastPlayed: new Date().toISOString().slice(0, 10),
+      lastPlayed: todayLocal(),
     });
     recordPlay(GAME_ID);
   };

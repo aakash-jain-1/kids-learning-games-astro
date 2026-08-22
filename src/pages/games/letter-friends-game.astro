@@ -148,7 +148,7 @@ const ssrCaption = `Find ${SSR_FIRST_ROUND.target}! Show me the letter ${SSR_FIR
     type RoundNarration,
     type PreschoolTheme,
   } from '@/data/letterfriends';
-  import { recordPlay } from '@/lib/retention';
+  import { recordPlay, todayLocal } from '@/lib/retention';
 
   // Confetti palette — pink-leaning to match the literacy family
   // accent (--lf-target-accent #ef476f). Distinct from the
@@ -445,7 +445,7 @@ const ssrCaption = `Find ${SSR_FIRST_ROUND.target}! Show me the letter ${SSR_FIR
       // with every other preschool game — but since 2026-08-22 it counts
       // runs through the whole alphabet rather than 8-round sessions.
       sessions: stats.sessions + 1,
-      lastPlayed: new Date().toISOString().slice(0, 10),
+      lastPlayed: todayLocal(),
     });
     recordPlay('letter-friends');
     doneEl.classList.add('lf-done--show');
@@ -469,7 +469,7 @@ const ssrCaption = `Find ${SSR_FIRST_ROUND.target}! Show me the letter ${SSR_FIR
       ...stats,
       rounds: stats.rounds + 1,
       correctFirstTry: stats.correctFirstTry + (correctFirstTry ? 1 : 0),
-      lastPlayed: new Date().toISOString().slice(0, 10),
+      lastPlayed: todayLocal(),
     });
     recordPlay('letter-friends');
   };

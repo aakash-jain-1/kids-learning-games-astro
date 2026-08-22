@@ -108,6 +108,7 @@ const description =
   import { launchConfetti } from '@/lib/achievements';
   import { getSettings } from '@/lib/settings';
   import { loadLearned, saveLearned } from '@/lib/progress';
+  import { todayLocal } from '@/lib/retention';
   import {
     ALL_DAYS,
     TOTAL_TO_MEET,
@@ -266,7 +267,7 @@ const description =
         const s = loadDaysParadeStats();
         saveDaysParadeStats({
           sings: s.sings + 1,
-          lastPlayed: new Date().toISOString().slice(0, 10),
+          lastPlayed: todayLocal(),
         });
         maybeCelebrate();
         return;

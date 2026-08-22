@@ -76,8 +76,14 @@ export type PlayHistory = Readonly<Record<string, readonly string[]>>;
  * parent's wall clock — a midnight-UTC boundary feels wrong if the
  * child plays at 11pm on what the parent considers Monday but UTC
  * already calls Tuesday.
+ *
+ * Exported 2026-08-23 so the per-game `lastPlayed` writes can use it too.
+ * They were stamping `new Date().toISOString().slice(0, 10)`, i.e. UTC,
+ * while `formatLastPlayed` below compares against *this* function — so east
+ * of UTC every session before the UTC rollover (00:00–05:30 local in
+ * UTC+5:30) rendered as "yesterday" the moment it was played.
  */
-const todayLocal = (): string => {
+export const todayLocal = (): string => {
   const d = new Date();
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, '0');

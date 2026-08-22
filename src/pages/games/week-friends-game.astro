@@ -160,7 +160,7 @@ const ssrCaption = `${ssrRunDays.map((d) => d.name).join(', ')}… what day come
     type RoundNarration,
     type PreschoolTheme,
   } from '@/data/week-friends';
-  import { recordPlay } from '@/lib/retention';
+  import { recordPlay, todayLocal } from '@/lib/retention';
 
   // Indigo-leaning palette to match the Week Friends theme accent
   // (--week-accent #5c6bc0). The cognitive family dot on /stats stays
@@ -482,7 +482,7 @@ const ssrCaption = `${ssrRunDays.map((d) => d.name).join(', ')}… what day come
     saveWeekFriendsStats({
       ...stats,
       sessions: stats.sessions + 1,
-      lastPlayed: new Date().toISOString().slice(0, 10),
+      lastPlayed: todayLocal(),
     });
     recordPlay('week-friends');
     doneEl.classList.add('week-done--show');
@@ -506,7 +506,7 @@ const ssrCaption = `${ssrRunDays.map((d) => d.name).join(', ')}… what day come
       ...stats,
       rounds: stats.rounds + 1,
       correctFirstTry: stats.correctFirstTry + (correctFirstTry ? 1 : 0),
-      lastPlayed: new Date().toISOString().slice(0, 10),
+      lastPlayed: todayLocal(),
     });
     recordPlay('week-friends');
   };

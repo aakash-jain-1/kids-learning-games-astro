@@ -32,7 +32,7 @@
  * different pages without sharing state at any point.
  */
 
-import { recordPlay } from '@/lib/retention';
+import { recordPlay, todayLocal } from '@/lib/retention';
 
 /** Multiple-choice question shape. Shared by every story game's quiz. */
 export interface QuizQuestion {
@@ -267,7 +267,7 @@ export const mountQuiz = (cfg: QuizControllerConfig): QuizController => {
     state = {
       attempts: state.attempts + 1,
       bestScore: Math.max(state.bestScore, pct),
-      lastPlayed: new Date().toISOString().slice(0, 10),
+      lastPlayed: todayLocal(),
     };
     saveQuizState(cfg.gameId, state);
 

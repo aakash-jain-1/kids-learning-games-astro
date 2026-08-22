@@ -152,7 +152,7 @@ const ssrNarration = buildNarration(SSR_FIRST_ROUND);
     type RoundNarration,
     type PreschoolTheme,
   } from '@/data/opposites-friends';
-  import { recordPlay } from '@/lib/retention';
+  import { recordPlay, todayLocal } from '@/lib/retention';
 
   const GAME_ID = 'opposites-friends';
   // Amber-leaning palette, distinct from the literacy pink, the math green,
@@ -438,7 +438,7 @@ const ssrNarration = buildNarration(SSR_FIRST_ROUND);
       // with every other preschool game — but since 2026-08-22 it counts
       // runs through every pair, both ways, rather than 8-round sessions.
       sessions: stats.sessions + 1,
-      lastPlayed: new Date().toISOString().slice(0, 10),
+      lastPlayed: todayLocal(),
     });
     recordPlay(GAME_ID);
     doneEl.classList.add('of-done--show');
@@ -462,7 +462,7 @@ const ssrNarration = buildNarration(SSR_FIRST_ROUND);
       ...stats,
       rounds: stats.rounds + 1,
       correctFirstTry: stats.correctFirstTry + (correctFirstTry ? 1 : 0),
-      lastPlayed: new Date().toISOString().slice(0, 10),
+      lastPlayed: todayLocal(),
     });
     recordPlay(GAME_ID);
   };

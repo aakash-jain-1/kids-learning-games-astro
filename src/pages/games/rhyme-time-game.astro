@@ -163,7 +163,7 @@ const ssrRime = lookupFamily(ssrTarget.family).rime;
     type RoundNarration,
     type PreschoolTheme,
   } from '@/data/rhyme-time';
-  import { recordPlay } from '@/lib/retention';
+  import { recordPlay, todayLocal } from '@/lib/retention';
 
   const GAME_ID = 'rhyme-time';
   // Pink-leaning palette shared with the literacy family (Sound Friends,
@@ -457,7 +457,7 @@ const ssrRime = lookupFamily(ssrTarget.family).rime;
     saveRhymeTimeStats({
       ...stats,
       sessions: stats.sessions + 1,
-      lastPlayed: new Date().toISOString().slice(0, 10),
+      lastPlayed: todayLocal(),
     });
     recordPlay(GAME_ID);
     doneEl.classList.add('rt-done--show');
@@ -481,7 +481,7 @@ const ssrRime = lookupFamily(ssrTarget.family).rime;
       ...stats,
       rounds: stats.rounds + 1,
       correctFirstTry: stats.correctFirstTry + (correctFirstTry ? 1 : 0),
-      lastPlayed: new Date().toISOString().slice(0, 10),
+      lastPlayed: todayLocal(),
     });
     recordPlay(GAME_ID);
   };
