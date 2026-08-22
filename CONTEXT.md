@@ -283,7 +283,18 @@ this family stays at one for now.)
   per-pair (`--wt-on-y`, `--wt-behind-y`, joining the `--wt-in-y` that already
   existed for the same reason), measured by scanning the rendered tile for
   each landmark's silhouette. `tests/wheres-teddy.spec.ts` re-does that
-  measurement, so a sixth pair can't be added without tuning it. 222 tests pass.
+  measurement, so a sixth pair can't be added without tuning it.
+
+  **Then CI went red, and was right to.** Those offsets were measured against
+  Segoe UI Emoji, the font on the Windows dev box; the Linux runner and
+  **Android** use Noto Color Emoji, whose glyphs fill the em square and stand
+  up to 7% of a tile taller. `behind` was hiding all but 15% of the ball and
+  18% of the mouse *on the font a tablet would use* — a real defect that only
+  the pixel test could see. Offsets are now the **midpoint of both fonts**
+  (verified locally by injecting Noto over the real page, not by pushing
+  again). Generalisable: **a hardcoded offset against an emoji glyph is a
+  measurement of one font**, and this repo renders on at least three.
+  222 tests pass.
 - **Prior ship (2026-08-22, same day)**: **Dark mode actually goes dark, and the scene
   artwork paints for the first time.** Closes the two oldest §7 debt items,
   which turned out to be one bug wearing two hats: **a custom property read

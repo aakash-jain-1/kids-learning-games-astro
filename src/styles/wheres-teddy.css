@@ -329,31 +329,54 @@ body.story[data-theme='wheresteddy'] .wt-scene[data-rel='in'] .wt-obj {
  * the puppy — and 16% of the mouse, whose hat is too short to cover anything
  * — leaving `behind` and `on` as near-identical pictures for that pair. Each
  * value below sits ~55% of the object's height under its own landmark's top,
- * which equalises the read across all five. */
+ * which equalises the read across all five.
+ *
+ * ── These are tuned to *two* emoji fonts, not one ──────────────────
+ *
+ * There is no font-independent way to ask where a glyph's ink starts, and the
+ * two fonts that actually ship disagree, because Noto draws every emoji to
+ * fill its em square while Segoe varies per glyph. Measured as a % of tile
+ * height, the landmark tops are:
+ *
+ *     pair          Segoe (Windows)   Noto (Linux CI, Android)
+ *     teddy-box          58.7                 60.3
+ *     cat-basket         58.1                 57.0
+ *     ball-bucket        53.6                 60.9
+ *     mouse-hat          48.0                 54.2
+ *     puppy-tub          58.7                 60.9
+ *
+ * Tuned to Windows alone, the bucket and the hat are ~7 points off under
+ * Noto, which hid all but 15% of the ball and 18% of the mouse — CI failed on
+ * it, and so would an Android tablet. Every value below is therefore the
+ * **midpoint of the two**, which keeps all five legible in both (the object
+ * stays 30–60% visible behind its landmark either way) at the cost of a
+ * ~2% hover on the Windows `on` scenes, which is a pixel or two.
+ *
+ * So: re-measure both fonts before adding a sixth pair. */
 body.story[data-theme='wheresteddy'] .wt-scene[data-pair='teddy-box'] {
   --wt-in-y: 41%;
-  --wt-on-y: 57%;
-  --wt-behind-y: 45%;
+  --wt-on-y: 58%;
+  --wt-behind-y: 46%;
 }
 body.story[data-theme='wheresteddy'] .wt-scene[data-pair='cat-basket'] {
   --wt-in-y: 33%;
-  --wt-on-y: 57%;
-  --wt-behind-y: 45%;
+  --wt-on-y: 56%;
+  --wt-behind-y: 44%;
 }
 body.story[data-theme='wheresteddy'] .wt-scene[data-pair='ball-bucket'] {
   --wt-in-y: 34%;
-  --wt-on-y: 52%;
-  --wt-behind-y: 40%;
+  --wt-on-y: 56%;
+  --wt-behind-y: 44%;
 }
 body.story[data-theme='wheresteddy'] .wt-scene[data-pair='mouse-hat'] {
   --wt-in-y: 40%;
-  --wt-on-y: 46%;
-  --wt-behind-y: 34%;
+  --wt-on-y: 50%;
+  --wt-behind-y: 37%;
 }
 body.story[data-theme='wheresteddy'] .wt-scene[data-pair='puppy-tub'] {
   --wt-in-y: 36%;
-  --wt-on-y: 57%;
-  --wt-behind-y: 45%;
+  --wt-on-y: 58%;
+  --wt-behind-y: 46%;
 }
 
 /* Resting on the lid, clear of the silhouette. */

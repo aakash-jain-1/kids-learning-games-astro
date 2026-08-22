@@ -417,7 +417,46 @@ before deciding.
 
 ## Changelog
 
-### 2026-08-22 (latest) — feat(games): Where's Teddy? — spatial / positional words (28th game)
+### 2026-08-22 (latest) — fix(wheres-teddy): tune the scene offsets to both emoji fonts, not just Windows'
+
+CI went red on the ship below, and it was right to. The per-pair `on` /
+`behind` offsets were measured against **Segoe UI Emoji**, the font on the
+Windows dev box. The Linux runner — and Android Chrome — use **Noto Color
+Emoji**, which draws every glyph to fill its em square rather than varying per
+glyph, so its landmarks stand up to 7% of a tile taller. Landmark tops, as a
+share of tile height:
+
+| pair | Segoe (Windows) | Noto (Linux CI, Android) |
+|---|---|---|
+| teddy-box | 58.7 | 60.3 |
+| cat-basket | 58.1 | 57.0 |
+| ball-bucket | 53.6 | **60.9** |
+| mouse-hat | 48.0 | **54.2** |
+| puppy-tub | 58.7 | 60.9 |
+
+Under Noto the taller bucket and hat swallowed their objects: `behind` left
+just **15%** of the ball and **18%** of the mouse showing. The new pixel test
+caught it at its lower bound, which is the outcome it was added for — but note
+what the failure actually meant. This was never only a test problem. The same
+font ships on Android, so the game had a real legibility defect on the device
+most likely to be handed to a 3-year-old, and nothing but CI would have said
+so.
+
+There is no font-independent way to ask where a glyph's ink begins, and no
+single offset is right for both fonts, so each value is now the **midpoint of
+the two measurements**. That keeps every pair legible either way — `behind`
+shows 30–61% of the object depending on the font, against bands of 15–70% —
+and costs a ~2% hover on the Windows `on` scenes, which is a pixel or two.
+Both fonts were verified locally before pushing, by injecting Noto over the
+real page via `@font-face` and re-running the measurement, rather than by
+pushing again to find out.
+
+The reusable lesson, recorded in the stylesheet next to the numbers: **a
+hardcoded offset against an emoji glyph is a measurement of one font**, and
+this repo renders on at least three. Re-measure both before adding a sixth
+pair. 222 tests pass.
+
+### 2026-08-22 — feat(games): Where's Teddy? — spatial / positional words (28th game)
 
 Fifth of the six-game August design set (docs/GAME-DESIGNS-2026-08.md §5), and
 the first game in the repo teaching **spatial language**: `in`, `on`, `under`,
