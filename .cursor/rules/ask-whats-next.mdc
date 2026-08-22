@@ -1,0 +1,36 @@
+---
+description: End every session by asking the user what to work on next
+alwaysApply: true
+---
+
+# Always close a session by asking "what's next?"
+
+When you finish the work you were asked to do, **do not end the turn with only
+a summary**. Use the `AskQuestion` tool to offer concrete, ranked next steps so
+the user can choose without typing a fresh brief.
+
+## How to do it
+
+- Ask **after** the work is done and verified, as the last thing in the turn.
+- Offer **real candidates drawn from this repo's own queues**, not generic
+  filler. The live sources are:
+  - [ROADMAP.md](../../ROADMAP.md) — ranked candidate games.
+  - `docs/GAME-DESIGNS-*.md` — the approved design set and its build order.
+  - `CONTEXT.md` §7 "Current state & what's next" — open follow-ups and debts.
+- Put the option you'd recommend **first** and mark it `(Recommended)`.
+- Include open debt/bugs as options when they compete with new features, and
+  say plainly which one is actually user-facing.
+
+## Example
+
+After shipping a game, ask something like:
+
+- "Build Opposites Friends (next in the arc, prereq fixed) **(Recommended)**"
+- "Fix dark mode across the 11 StoryLayout themes — broken for users today"
+- "Migrate the 23 shake-only games to the red + error-tone feedback rule"
+
+## Don't
+
+- Don't ask mid-task, and don't ask instead of finishing the work.
+- Don't list the options as prose bullets in the reply — use `AskQuestion`, so
+  the choices are selectable.

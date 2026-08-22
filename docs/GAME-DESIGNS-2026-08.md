@@ -1,6 +1,6 @@
-# Game designs — August 2026 arc (six games: 2 shipped, 4 queued)
+# Game designs — August 2026 arc (six games: 3 shipped, 3 queued)
 
-> **Status: APPROVED. Build in progress — 2 of 6 shipped.** Keep the count in
+> **Status: APPROVED. Build in progress — 3 of 6 shipped.** Keep the count in
 > the title and in this line in step; they are the two places a reader checks
 > first. A shipped game's section below is **frozen as the pre-build spec** —
 > its [PROGRESS.md](../PROGRESS.md) entry is authoritative on what landed.
@@ -15,8 +15,15 @@
 >   in its `PROGRESS.md` entry: the faces are **vendored** to
 >   `public/images/feelings/` instead of streaming from jsDelivr, and the theme
 >   defines a real dark-mode background, which the sibling themes do not.
-> - §3 **Opposites Friends** — the `flashcards.ts` Strong/Light pair bug it
->   depends on (**Q3**) is **fixed**: Weak + Heavy authored, 10 clean pairs.
+> - §3 **Opposites Friends** — **shipped 2026-08-22**, built as designed on the
+>   10 clean pairs the **Q3** fix unlocked. Three things it added beyond the
+>   spec below, all in its `PROGRESS.md` entry: rounds ask **both directions**
+>   (big→small and small→big) so the child learns the relation rather than a
+>   fixed answer card; the deck's Big/Small emoji (🔆/🔅, brightness symbols)
+>   are **overridden locally** to 🐘/🐜 because here the picture has to carry
+>   the concept; and distractors obey declared **meaning-collision groups**
+>   (`big/heavy/strong`, `small/light/weak`) so no wrong tap is defensible,
+>   with tier 3 drawing its two distractors *as a pair* for difficulty.
 > - **Q1–Q4 all resolved** by the user on 2026-08-17: new `preschool-social`
 >   family only for Feeling Friends with Animal Sounds under
 >   `preschool-cognitive` (Q1); Feeling Friends scoped as tiers 1–2 recognition
@@ -65,7 +72,7 @@ Shared behaviour every game must honour:
 - Reuse `@/lib/audio`, `@/lib/speech`, `@/lib/settings`, `@/lib/achievements`,
   `@/lib/preschool-themes`, `@/lib/progress`, `@/lib/retention`.
 
-Game count goes **23 → 29**.
+Game count goes **23 → 29** across the arc (at **26** as of 2026-08-22).
 
 ---
 
@@ -358,14 +365,14 @@ Ordered by ascending risk, so early wins de-risk the later ones.
 |---|---|---|---|---|
 | 1 | **Animal Sounds** | Curate 16 from existing | None — pure reuse | Shipped 2026-08-17. The "pure reuse" call was wrong: the raw `sound` fields collide, and spoken onomatopoeia isn't a listening game, so it needed a curated pool *and* 17 vendored recordings. |
 | 2 | **Feeling Friends** | ~12 vignettes | New stats family plumbing | Shipped 2026-08-17. Family plumbing was the easy half; the real cost was the face assets. |
-| 3 | **Opposites Friends** | 2 cards (bug fix) | Touches shipped Flashcards content | Next. The content bug is already fixed. |
-| 4 | **Rhyme Time** | Restructure 10 pairs | Distractors must not accidentally rhyme | |
+| 3 | **Opposites Friends** | 2 cards (bug fix) | Touches shipped Flashcards content | Shipped 2026-08-22. The Flashcards risk never materialised — it reads the deck rather than editing it, and pins the two unusable emoji locally instead. |
+| 4 | **Rhyme Time** | Restructure 10 pairs | Distractors must not accidentally rhyme | Next. |
 | 5 | **Where's Teddy?** | 5 prepositions × 5 pairs | "Behind" may not read visually | |
-| 6 | **Memory Match** | Curate 8 | Errorless tension; new mechanic | |
+| 6 | **Memory Match** | Curate 8 | Errorless tension; new mechanic | Blocked on **Q5**. |
 
 Each game ships as its own commit with its own Playwright spec, keeping the suite
-green (baseline was 148 tests in 17 files on 2026-08-17; **170 in 19** after the
-first two games).
+green (baseline was 148 tests in 17 files on 2026-08-17; 170 in 19 after the
+first two games; **181 in 20** after Opposites Friends).
 
 ---
 

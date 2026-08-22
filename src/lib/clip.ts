@@ -32,6 +32,20 @@ const cache = new Map<string, HTMLAudioElement>();
 /** The clip currently playing, so a new prompt can cut off the old one. */
 let current: HTMLAudioElement | null = null;
 
+/**
+ * Detaches the in-flight `playClip` call's listeners without running its
+ * callbacks.
+ *
+ * Elements are cached and reused, so listeners left on an interrupted clip
+ * are not inert — they fire the next time that same clip reaches `ended`,
+ * running an abandoned round's `onEnd` alongside the current one. In Animal
+ * Sounds that surfaced as the previous prompt's narration speaking over the
+ * guided correction (each `speak()` cancelling the last), which reads as the
+ * audio playing wrongly. Interrupting is deliberate, so neither `onEnd` nor
+ * `onError` should fire — the caller has already moved on.
+ */
+let abortCurrent: (() => void) | null = null;
+
 /** Resolve a clip path (e.g. `animals/cow.mp3`) to a full URL. */
 export function clipUrl(path: string): string {
   return CLIP_BASE + path;
@@ -65,6 +79,7 @@ export function preloadClips(paths: readonly string[]): void {
 
 /** Stop whatever clip is playing and rewind it for next time. */
 export function stopClip(): void {
+  abortCurrent?.();
   if (!current) return;
   try {
     current.pause();
@@ -101,11 +116,15 @@ export function playClip(path: string, opts: PlayClipOptions = {}): void {
 
   const el = element(clipUrl(path));
   let settled = false;
-  const finish = (ok: boolean): void => {
-    if (settled) return;
+  const detach = (): void => {
     settled = true;
     el.removeEventListener('ended', onEnded);
     el.removeEventListener('error', onFailed);
+    if (abortCurrent === detach) abortCurrent = null;
+  };
+  const finish = (ok: boolean): void => {
+    if (settled) return;
+    detach();
     if (current === el) current = null;
     if (ok) onEnd?.();
     else onError?.();
@@ -115,6 +134,7 @@ export function playClip(path: string, opts: PlayClipOptions = {}): void {
 
   el.addEventListener('ended', onEnded);
   el.addEventListener('error', onFailed);
+  abortCurrent = detach;
 
   try {
     el.currentTime = 0;

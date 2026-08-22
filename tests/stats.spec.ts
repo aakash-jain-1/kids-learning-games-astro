@@ -55,6 +55,9 @@ const EXPECTED_GAME_IDS = [
   // cognitive family rather than carving a `preschool-science` family for
   // one game.
   'animal-sounds',
+  // Opposites Friends (2026-08-22) — contrast vocabulary, same round-and-
+  // first-try shape as its cognitive siblings, so no new family.
+  'opposites-friends',
   // Family A4 — preschool-social (added 2026-08-17 with Feeling Friends;
   // this IS a new family, which is why the section count and activity-dot
   // arithmetic below moved from 6 to 7)

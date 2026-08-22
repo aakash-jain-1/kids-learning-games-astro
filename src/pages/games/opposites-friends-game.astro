@@ -1,0 +1,517 @@
+---
+import StoryLayout from '@/layouts/StoryLayout.astro';
+import GameControls from '@/components/GameControls.astro';
+import '@/styles/opposites-friends.css';
+
+import {
+  generateSession,
+  lookupWord,
+  buildNarration,
+  TOTAL_ROUNDS,
+} from '@/data/opposites-friends';
+
+const title = 'Opposites Friends — Kids Learning Games';
+const description =
+  'An opposites game for ages 3–4. "This one is big — which one is small?" Tap the card that means the opposite, from three big picture cards. Ten pairs: big/small, hot/cold, up/down, day/night and more. Audio narration, guided correction, no scoring.';
+
+// SSR a deterministic first round so the page never paints blank. The page
+// script reads round 0 straight back out of the SSR'd DOM (the Sound
+// Friends / Feeling Friends kickoff-race pattern), then continues with
+// random rounds 1..N once the child taps Next.
+const SSR_FIRST_ROUND = generateSession(() => 0.42)[0]!;
+const ssrTarget = lookupWord(SSR_FIRST_ROUND.target);
+const ssrTiles = SSR_FIRST_ROUND.tiles.map((id) => lookupWord(id));
+const ssrNarration = buildNarration(SSR_FIRST_ROUND);
+---
+
+<StoryLayout
+  title={title}
+  description={description}
+  themeColor="#f59e0b"
+  theme="oppositesfriends"
+>
+  <main class="of-shell" aria-label="Opposites Friends game">
+    <header class="of-header">
+      <h1 class="of-title">
+        <span aria-hidden="true">🔄</span>
+        <span>Opposites Friends</span>
+      </h1>
+
+      <div class="of-header-right" style="display: flex; gap: 10px; align-items: center;">
+        <span
+          class="of-progress-pill"
+          id="ofProgressPill"
+          aria-label={`Round 1 of ${TOTAL_ROUNDS}`}
+        >
+          <span id="ofProgressText">1 / {TOTAL_ROUNDS}</span>
+          <span class="of-progress-bar" aria-hidden="true">
+            <span class="of-progress-fill" id="ofProgressFill"></span>
+          </span>
+        </span>
+        <GameControls />
+      </div>
+    </header>
+
+    <section
+      class="of-stage"
+      id="ofStage"
+      data-scene={SSR_FIRST_ROUND.theme}
+      data-target={SSR_FIRST_ROUND.target}
+      data-answer={SSR_FIRST_ROUND.answer}
+      aria-label="Opposites Friends scene"
+    >
+      <button
+        type="button"
+        class="of-prompt"
+        id="ofPrompt"
+        aria-label={`${ssrNarration.intro} Tap to hear it again.`}
+      >
+        <span class="of-prompt-emoji" id="ofPromptEmoji" aria-hidden="true">
+          {ssrTarget.emoji}
+        </span>
+        <span class="of-prompt-text" id="ofPromptText" aria-hidden="true">
+          {ssrTarget.name}
+        </span>
+        <span class="of-prompt-hint" aria-hidden="true">
+          find the opposite
+        </span>
+      </button>
+
+      <div
+        class="of-caption"
+        id="ofCaption"
+        role="status"
+        aria-live="polite"
+      >
+        {ssrNarration.intro}
+      </div>
+
+      <div class="of-tiles" aria-label="Three cards — tap the one that means the opposite">
+        {
+          ssrTiles.map((word, idx) => (
+            <button
+              type="button"
+              class="of-tile"
+              id={`ofTile${idx}`}
+              data-i={idx}
+              data-word={word.id}
+              style={`--of-i: ${idx * 0.1}s`}
+              aria-label={`Card ${idx + 1} — ${word.name}`}
+            >
+              <span class="of-tile-emoji" aria-hidden="true">{word.emoji}</span>
+              <span class="of-tile-name" aria-hidden="true">{word.name}</span>
+            </button>
+          ))
+        }
+      </div>
+    </section>
+
+    <footer class="of-footer">
+      <button type="button" class="of-action" id="ofReplayBtn" aria-label="Hear the question again">
+        🔊 Say it again
+      </button>
+      <button type="button" class="of-action of-action--primary" id="ofNextBtn" aria-label="Next round" disabled>
+        Next round →
+      </button>
+    </footer>
+
+    <div class="of-done" id="ofDone" role="dialog" aria-live="polite" aria-labelledby="ofDoneTitle">
+      <div class="of-done-card">
+        <div class="of-done-emoji" aria-hidden="true">🔄</div>
+        <h2 class="of-done-title" id="ofDoneTitle">You know your opposites!</h2>
+        <p class="of-done-text" id="ofDoneText">
+          You found {TOTAL_ROUNDS} opposites today!
+        </p>
+        <div class="of-done-actions">
+          <button type="button" class="of-action of-action--primary" id="ofPlayAgainBtn">
+            ▶ Play again
+          </button>
+          <a class="of-action" href={import.meta.env.BASE_URL}>
+            🏠 Home
+          </a>
+        </div>
+      </div>
+    </div>
+  </main>
+</StoryLayout>
+
+<script>
+  import { playTap, playCorrect, playWrong } from '@/lib/audio';
+  import { speak, cancelSpeech, isSpeechSupported, onFirstGesture } from '@/lib/speech';
+  import { launchConfetti } from '@/lib/achievements';
+  import { getSettings } from '@/lib/settings';
+  import {
+    generateSession,
+    buildNarration,
+    lookupWord,
+    loadOppositesFriendsStats,
+    saveOppositesFriendsStats,
+    TOTAL_ROUNDS,
+    type OppositeRound,
+    type OppositeId,
+    type RoundNarration,
+    type PreschoolTheme,
+  } from '@/data/opposites-friends';
+  import { recordPlay } from '@/lib/retention';
+
+  const GAME_ID = 'opposites-friends';
+  // Amber-leaning palette, distinct from the literacy pink, the math green,
+  // the listening sky and the social indigo.
+  const OF_COLORS = ['#f59e0b', '#fbbf24', '#38bdf8', '#34d399', '#a855f7'];
+
+  /**
+   * Read round 0 back out of the SSR'd DOM so the JS session starts in sync
+   * with whatever Astro rendered. Without this, a tap during the first
+   * interaction could land on a card that has just been rewritten by a
+   * freshly-randomised JS session — the kickoff race that bit Counting
+   * Friends on 2026-05-15. Inherited from Sound Friends / Feeling Friends.
+   */
+  const readSSRRound = (): OppositeRound => {
+    const stageEl = document.getElementById('ofStage');
+    if (!stageEl) return generateSession()[0]!;
+
+    const themeKey = (stageEl.dataset.scene ?? 'pond') as PreschoolTheme;
+    const target = stageEl.dataset.target as OppositeId | undefined;
+    const answer = stageEl.dataset.answer as OppositeId | undefined;
+
+    const tileEls = [
+      document.getElementById('ofTile0'),
+      document.getElementById('ofTile1'),
+      document.getElementById('ofTile2'),
+    ];
+    if (!target || !answer || tileEls.some((el) => !el)) {
+      return generateSession()[0]!;
+    }
+
+    const tiles = tileEls.map(
+      (el) => el!.dataset.word as OppositeId,
+    ) as [OppositeId, OppositeId, OppositeId];
+    const correctIndex = tiles.indexOf(answer);
+    if (correctIndex < 0 || correctIndex > 2) {
+      return generateSession()[0]!;
+    }
+
+    return {
+      target,
+      answer,
+      tiles,
+      correctIndex: correctIndex as 0 | 1 | 2,
+      // `tier` isn't used by the controller; 0 is a safe placeholder for
+      // the SSR-derived round.
+      tier: 0,
+      theme: themeKey,
+    };
+  };
+
+  // ── State ──────────────────────────────────────────────────────────
+  let session: OppositeRound[] = [readSSRRound(), ...generateSession().slice(1)];
+  let roundIdx = 0;
+  let answered = false;
+  let currentNarration: RoundNarration | null = null;
+  /** Most recent post-answer phrase, cached so Replay re-narrates it. */
+  let lastPostAnswerText = '';
+
+  // ── DOM refs ───────────────────────────────────────────────────────
+  const stage = document.getElementById('ofStage') as HTMLElement;
+  const promptEl = document.getElementById('ofPrompt') as HTMLButtonElement;
+  const promptEmoji = document.getElementById('ofPromptEmoji') as HTMLElement;
+  const promptText = document.getElementById('ofPromptText') as HTMLElement;
+  const captionEl = document.getElementById('ofCaption') as HTMLElement;
+  const tileEls = [
+    document.getElementById('ofTile0') as HTMLButtonElement,
+    document.getElementById('ofTile1') as HTMLButtonElement,
+    document.getElementById('ofTile2') as HTMLButtonElement,
+  ];
+  const progressText = document.getElementById('ofProgressText') as HTMLElement;
+  const progressFill = document.getElementById('ofProgressFill') as HTMLElement;
+  const progressPill = document.getElementById('ofProgressPill') as HTMLElement;
+  const replayBtn = document.getElementById('ofReplayBtn') as HTMLButtonElement;
+  const nextBtn = document.getElementById('ofNextBtn') as HTMLButtonElement;
+  const doneEl = document.getElementById('ofDone') as HTMLElement;
+  const playAgainBtn = document.getElementById('ofPlayAgainBtn') as HTMLButtonElement;
+
+  // ── Audio helpers ──────────────────────────────────────────────────
+
+  /**
+   * Speak `text` if the user has sound enabled. Same shape as the rest of
+   * the preschool family: silent-mode setTimeout fallback + watchdog
+   * alongside speechSynthesis.onend, so headless CI runners without a TTS
+   * engine don't deadlock the round-progression chain.
+   */
+  const narrate = (text: string, opts?: { onEnd?: () => void }): void => {
+    const onEnd = opts?.onEnd;
+    if (!isSpeechSupported() || !getSettings().sound) {
+      if (onEnd) setTimeout(onEnd, 600);
+      return;
+    }
+    let fired = false;
+    const wrap = (): void => {
+      if (fired) return;
+      fired = true;
+      onEnd?.();
+    };
+    const watchdogMs = Math.max(800, text.length * 100 + 600);
+    if (onEnd) setTimeout(wrap, watchdogMs);
+    speak(text, { rate: 0.85, pitch: 1.15, onEnd: onEnd ? wrap : undefined });
+  };
+
+  const setCaption = (text: string): void => {
+    captionEl.textContent = text;
+    captionEl.style.animation = 'none';
+    void captionEl.offsetWidth;
+    captionEl.style.removeProperty('animation');
+  };
+
+  // ── Render helpers ─────────────────────────────────────────────────
+
+  const renderRound = (): void => {
+    const round = session[roundIdx]!;
+    const narration = buildNarration(round);
+    const target = lookupWord(round.target);
+
+    progressText.textContent = `${roundIdx + 1} / ${TOTAL_ROUNDS}`;
+    progressFill.style.width = `${((roundIdx + 1) / TOTAL_ROUNDS) * 100}%`;
+    progressPill.setAttribute('aria-label', `Round ${roundIdx + 1} of ${TOTAL_ROUNDS}`);
+
+    stage.dataset.scene = round.theme;
+    stage.dataset.target = round.target;
+    stage.dataset.answer = round.answer;
+
+    promptEmoji.textContent = target.emoji;
+    promptText.textContent = target.name;
+    promptEl.setAttribute('aria-label', `${narration.intro} Tap to hear it again.`);
+
+    for (let g = 0; g < 3; g++) {
+      const word = lookupWord(round.tiles[g]!);
+      const el = tileEls[g]!;
+      el.dataset.word = word.id;
+      el.style.setProperty('--of-i', `${g * 0.1}s`);
+      el.setAttribute('aria-label', `Card ${g + 1} — ${word.name}`);
+      el.innerHTML =
+        `<span class="of-tile-emoji" aria-hidden="true">${word.emoji}</span>` +
+        `<span class="of-tile-name" aria-hidden="true">${word.name}</span>`;
+      el.disabled = false;
+      el.classList.remove('of-tile--correct', 'of-tile--reveal', 'of-tile--wrong');
+      // Force re-trigger of the fly-in animation on each render.
+      el.style.animation = 'none';
+      void el.offsetWidth;
+      el.style.removeProperty('animation');
+    }
+
+    answered = false;
+    currentNarration = narration;
+    lastPostAnswerText = '';
+    nextBtn.disabled = true;
+    replayBtn.disabled = false;
+  };
+
+  const speakIntro = (): void => {
+    const intro = currentNarration?.intro;
+    if (!intro) return;
+    setCaption(intro);
+    narrate(intro);
+  };
+
+  // ── Answer handler ─────────────────────────────────────────────────
+
+  const onTileTap = (idx: 0 | 1 | 2): void => {
+    if (answered) return;
+    const round = session[roundIdx]!;
+    playTap();
+
+    const tappedEl = tileEls[idx]!;
+    const correctEl = tileEls[round.correctIndex]!;
+    const tappedWord = round.tiles[idx]!;
+
+    if (idx === round.correctIndex) {
+      // Correct — celebrate, name the pair, then speak the answer's fact.
+      answered = true;
+      tappedEl.classList.add('of-tile--correct');
+      for (const el of tileEls) el.disabled = true;
+      playCorrect();
+      cancelSpeech();
+      const correctText = currentNarration?.correct ?? 'Yes!';
+      lastPostAnswerText = correctText;
+      setCaption(correctText);
+      narrate(correctText);
+      launchConfetti(OF_COLORS);
+      bumpStats(true);
+      nextBtn.disabled = false;
+    } else {
+      // Wrong — guided correction. Sequence:
+      //   1) error tone + 250ms shake + red tint on the tapped card
+      //      (feedback rule revised 2026-08-17).
+      //   2) "Hmm! Let's look at them together."           (rerun)
+      //   3) "That one is heavy. We're looking for small." (wrongIs)
+      //   4) "This one is small — small means little…"     (reveal)
+      //   5) Enable Next. Still no score, still no failed round.
+      answered = true;
+      for (const el of tileEls) el.disabled = true;
+      tappedEl.classList.add('of-tile--wrong');
+      playWrong();
+      cancelSpeech();
+      const rerunText = currentNarration?.rerun ?? "Let's look together.";
+      setCaption(rerunText);
+      narrate(rerunText, {
+        onEnd: () => {
+          const wrongText =
+            currentNarration?.wrongIs(tappedWord) ??
+            `That one is ${lookupWord(tappedWord).name.toLowerCase()}.`;
+          setCaption(wrongText);
+          lastPostAnswerText = wrongText;
+          narrate(wrongText, {
+            onEnd: () => {
+              // Brief pause so the child registers the shift from "that
+              // one" to "this one".
+              setTimeout(() => {
+                const revealText =
+                  currentNarration?.reveal ??
+                  `This one is ${lookupWord(round.answer).name.toLowerCase()}.`;
+                setCaption(revealText);
+                lastPostAnswerText = revealText;
+                correctEl.classList.add('of-tile--reveal');
+                narrate(revealText, {
+                  onEnd: () => {
+                    bumpStats(false);
+                    nextBtn.disabled = false;
+                  },
+                });
+              }, 350);
+            },
+          });
+        },
+      });
+    }
+  };
+
+  // ── Round progression ──────────────────────────────────────────────
+
+  const startRound = (): void => {
+    cancelSpeech();
+    renderRound();
+    requestAnimationFrame(() => speakIntro());
+  };
+
+  const onNext = (): void => {
+    playTap();
+    if (roundIdx >= TOTAL_ROUNDS - 1) {
+      showSessionComplete();
+      return;
+    }
+    roundIdx++;
+    startRound();
+  };
+
+  const showSessionComplete = (): void => {
+    cancelSpeech();
+    const stats = loadOppositesFriendsStats();
+    saveOppositesFriendsStats({
+      ...stats,
+      sessions: stats.sessions + 1,
+      lastPlayed: new Date().toISOString().slice(0, 10),
+    });
+    recordPlay(GAME_ID);
+    doneEl.classList.add('of-done--show');
+    launchConfetti(OF_COLORS);
+    narrate(`Wow! You found ${TOTAL_ROUNDS} opposites today! Great job!`);
+  };
+
+  const onPlayAgain = (): void => {
+    playTap();
+    doneEl.classList.remove('of-done--show');
+    session = generateSession();
+    roundIdx = 0;
+    startRound();
+  };
+
+  // ── Stats persistence ──────────────────────────────────────────────
+
+  const bumpStats = (correctFirstTry: boolean): void => {
+    const stats = loadOppositesFriendsStats();
+    saveOppositesFriendsStats({
+      ...stats,
+      rounds: stats.rounds + 1,
+      correctFirstTry: stats.correctFirstTry + (correctFirstTry ? 1 : 0),
+      lastPlayed: new Date().toISOString().slice(0, 10),
+    });
+    recordPlay(GAME_ID);
+  };
+
+  // ── Event wiring ───────────────────────────────────────────────────
+
+  for (const el of tileEls) {
+    el.addEventListener('click', () => {
+      if (el.disabled) return;
+      const idx = Number(el.dataset.i);
+      if (idx === 0 || idx === 1 || idx === 2) {
+        onTileTap(idx as 0 | 1 | 2);
+      }
+    });
+  }
+
+  /**
+   * Replay handler shared by the prompt card and the Replay button.
+   *
+   * Before an answer this repeats the question — the most likely request
+   * from a child who lost the target word while scanning three cards. After
+   * an answer it re-narrates the last phrase instead, so the correction can
+   * be heard again without restarting the round.
+   */
+  const onReplay = (): void => {
+    playTap();
+    cancelSpeech();
+    if (!answered) {
+      speakIntro();
+      return;
+    }
+    const text = lastPostAnswerText || (currentNarration?.intro ?? '');
+    setCaption(text);
+    narrate(text);
+  };
+
+  promptEl.addEventListener('click', onReplay);
+  replayBtn.addEventListener('click', onReplay);
+
+  nextBtn.addEventListener('click', onNext);
+  playAgainBtn.addEventListener('click', onPlayAgain);
+
+  document.getElementById('btnSettings')?.addEventListener('click', () => {
+    playTap();
+    (window as unknown as { openSettings?: () => void }).openSettings?.();
+  });
+
+  document.getElementById('btnQuiz')?.addEventListener('click', () => {
+    playTap();
+    cancelSpeech();
+    speakIntro();
+  });
+
+  document.getElementById('btnStats')?.addEventListener('click', () => {
+    playTap();
+    const stats = loadOppositesFriendsStats();
+    const ratio =
+      stats.rounds === 0
+        ? 0
+        : Math.round((stats.correctFirstTry / stats.rounds) * 100);
+    const lines = [
+      `🔄 Sessions completed: ${stats.sessions}`,
+      `🌟 Rounds played: ${stats.rounds}`,
+      `🎯 First-try correct: ${stats.correctFirstTry} (${ratio}%)`,
+      stats.lastPlayed ? `📅 Last played: ${stats.lastPlayed}` : '📅 Last played: never',
+    ];
+    alert(lines.join('\n'));
+  });
+
+  // ── Initial state binding ──────────────────────────────────────────
+  // The SSR'd DOM is round 0; we don't re-render it. Bind JS state so
+  // subsequent logic — tile clicks, replay, etc. — has the references.
+  currentNarration = buildNarration(session[0]!);
+  progressText.textContent = `1 / ${TOTAL_ROUNDS}`;
+  progressFill.style.width = `${(1 / TOTAL_ROUNDS) * 100}%`;
+  progressPill.setAttribute('aria-label', `Round 1 of ${TOTAL_ROUNDS}`);
+
+  // Speech is blocked until the first gesture, so the intro waits for it.
+  // Deliberately does NOT call renderRound() — that would race with a
+  // first-interaction tap on a tile.
+  onFirstGesture(() => speakIntro());
+</script>

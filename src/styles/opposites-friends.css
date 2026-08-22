@@ -1,0 +1,600 @@
+/* Opposites Friends — preschool contrast vocabulary (added 2026-08-22).
+   "This one is big — which one is small?" One prompt card on top, three
+   picture cards below, tap the opposite.
+
+   Sibling of Letter Friends / Feeling Friends (same UI grammar) and of
+   Animal Sounds / Feeling Friends (same revised wrong-answer feedback).
+   Different skill: holding two contrasting words against each other.
+
+   Uses `StoryLayout` with `theme='oppositesfriends'`, so the body selector
+   is `body.story[data-theme='oppositesfriends']`. Every `of-*` class scopes
+   under it and therefore cannot collide with the sibling games.
+
+   Two things copied deliberately from `feeling-friends.css`, because it is
+   the only sibling that gets them right:
+
+   - **The per-round scene tokens are read where they are set.** The other
+     preschool stylesheets declare `--st-bg` on their `.X-stage` element but
+     only ever read it on `body`; a custom property set on a descendant
+     can't reach an ancestor, so in those games the rotating scene has never
+     actually painted. Here `.of-stage` both sets and reads it.
+   - **Dark mode redefines `--st-bg`.** Skipping that is what leaves the
+     sibling games on a pale light-mode gradient with near-white text.
+
+   Reduced motion: every animation has a
+   `@media (prefers-reduced-motion: reduce)` fallback.
+*/
+
+/* ── Scene-theme background tokens ─────────────────────────────────── */
+
+body.story[data-theme='oppositesfriends'] {
+  --st-bg: linear-gradient(135deg, #fff6e5 0%, #ffedd0 100%);
+
+  /* Card surface tokens — translucent white card per word. */
+  --of-tile-bg: rgba(255, 255, 255, 0.94);
+  --of-tile-border: rgba(255, 255, 255, 0.45);
+  --of-tile-bg-hover: rgba(255, 255, 255, 1);
+  --of-tile-text: #3b2a06;
+
+  --of-tile-border-correct: #2e7d32;
+  --of-tile-fill-correct: rgba(76, 175, 80, 0.22);
+
+  --of-tile-border-glow: #f59e0b;
+  --of-tile-fill-glow: rgba(245, 158, 11, 0.2);
+
+  /* Wrong-tap error tokens. Same muted rose as Animal Sounds and Feeling
+     Friends — it has to read as "not that one" to a 3yo, not as danger,
+     and matching the siblings keeps the feedback language consistent. */
+  --of-tile-border-wrong: #e23d5a;
+  --of-tile-fill-wrong: rgba(226, 61, 90, 0.16);
+
+  /* Prompt card — solid, higher contrast than the cards below, because it
+     is the question of the round. */
+  --of-prompt-bg: #ffffff;
+  --of-prompt-text: #3b2a06;
+  --of-accent: #f59e0b; /* contrast/vocabulary accent — amber. */
+  --of-prompt-border: rgba(80, 55, 5, 0.12);
+  --of-prompt-shadow: 0 8px 24px rgba(80, 55, 5, 0.18);
+
+  --of-caption-bg: rgba(255, 255, 255, 0.94);
+  --of-caption-text: #3b2a06;
+  --of-caption-shadow: 0 8px 24px rgba(80, 55, 5, 0.18);
+}
+
+/* Six per-theme backgrounds shared with the rest of the preschool family
+   (pond / orchard / sea / garden / meadow / jungle). Theme drives the
+   background ambience only; the word pool is theme-independent. */
+body.story[data-theme='oppositesfriends'] .of-stage[data-scene='pond'] {
+  --st-bg: linear-gradient(180deg, #b8e0ff 0%, #6fb6e6 60%, #4a8c4a 100%);
+}
+body.story[data-theme='oppositesfriends'] .of-stage[data-scene='orchard'] {
+  --st-bg: linear-gradient(180deg, #ffe6c8 0%, #ffb88c 50%, #88b94a 100%);
+}
+body.story[data-theme='oppositesfriends'] .of-stage[data-scene='sea'] {
+  --st-bg: linear-gradient(180deg, #b3e8ec 0%, #4dc4cf 60%, #f4d97a 100%);
+}
+body.story[data-theme='oppositesfriends'] .of-stage[data-scene='garden'] {
+  --st-bg: linear-gradient(180deg, #fff4b8 0%, #ffd666 60%, #6fbf3a 100%);
+}
+body.story[data-theme='oppositesfriends'] .of-stage[data-scene='meadow'] {
+  --st-bg: linear-gradient(180deg, #d6f5c8 0%, #9bd96f 55%, #5aa83a 100%);
+}
+body.story[data-theme='oppositesfriends'] .of-stage[data-scene='jungle'] {
+  --st-bg: linear-gradient(180deg, #c2f0d8 0%, #5cbf8a 55%, #2f7d52 100%);
+}
+
+body.story[data-theme='oppositesfriends'] {
+  background: var(--st-bg);
+}
+
+/* ── Layout shell ─────────────────────────────────────────────────── */
+
+body.story[data-theme='oppositesfriends'] .of-shell {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 16px 20px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: calc(100vh - 36px);
+}
+
+body.story[data-theme='oppositesfriends'] .of-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Dark ink on the pale page in light mode, white in dark mode. */
+body.story[data-theme='oppositesfriends'] .of-title {
+  margin: 0;
+  font-size: clamp(1.6em, 4vw, 2.2em);
+  color: #6b4708;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+body.dark-mode.story[data-theme='oppositesfriends'] .of-title {
+  color: #fff4e0;
+  text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+body.story[data-theme='oppositesfriends'] .of-progress-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.85);
+  color: #3b2a06;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.95em;
+}
+
+body.story[data-theme='oppositesfriends'] .of-progress-bar {
+  width: 80px;
+  height: 8px;
+  background: rgba(80, 55, 5, 0.15);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+body.story[data-theme='oppositesfriends'] .of-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--of-accent);
+  border-radius: 999px;
+  transition: width 0.4s ease-out;
+}
+
+/* ── Stage — prompt on top, 3 word cards below ────────────────────── */
+
+/* The scene panel. Paints the round's `data-scene` gradient under a veil
+   that is transparent in light mode and dims the scene in dark mode. The
+   veil is a stacked background layer rather than a `filter`, because a
+   filter would also dim the white cards inside. */
+body.story[data-theme='oppositesfriends'] .of-stage {
+  position: relative;
+  background:
+    linear-gradient(
+      rgba(30, 20, 2, var(--of-scene-veil, 0)),
+      rgba(30, 20, 2, var(--of-scene-veil, 0))
+    ),
+    var(--st-bg);
+  border-radius: 24px;
+  padding: 24px 16px;
+  min-height: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.32);
+}
+
+/* The question of the round. Tappable so the child can hear it again
+   without hunting for the footer button. */
+body.story[data-theme='oppositesfriends'] .of-prompt {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 16px 40px;
+  border-radius: 24px;
+  background: var(--of-prompt-bg);
+  color: var(--of-prompt-text);
+  border: 2px solid var(--of-prompt-border);
+  box-shadow: var(--of-prompt-shadow);
+  cursor: pointer;
+  font-family: inherit;
+  max-width: 720px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body.story[data-theme='oppositesfriends'] .of-prompt:active {
+  transform: scale(0.98);
+}
+
+/* The "tap me" invitation pulses on the picture, never on the card itself:
+   a 3yo aiming at a large tap target should not have that target moving
+   under their finger. (Learned on Animal Sounds, where a pulsing card also
+   made the element permanently unstable for Playwright.) */
+body.story[data-theme='oppositesfriends'] .of-prompt-emoji {
+  font-size: 68px;
+  line-height: 1.1;
+  animation: ofPromptPulse 2.4s ease-in-out infinite;
+}
+
+body.story[data-theme='oppositesfriends'] .of-prompt-text {
+  font-size: clamp(1.5em, 5vw, 2.4em);
+  font-weight: 800;
+  color: var(--of-accent);
+  line-height: 1.15;
+  text-align: center;
+}
+
+body.story[data-theme='oppositesfriends'] .of-prompt-hint {
+  font-size: 0.95em;
+  font-weight: 600;
+  color: rgba(80, 55, 5, 0.7);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+@keyframes ofPromptPulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.06); }
+}
+
+/* The three word cards below the prompt. */
+body.story[data-theme='oppositesfriends'] .of-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  align-items: stretch;
+  width: 100%;
+  max-width: 720px;
+  gap: 12px;
+}
+
+body.story[data-theme='oppositesfriends'] .of-tile {
+  position: relative; /* anchors the wrong-tap ✗ badge */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 190px;
+  padding: 18px 12px;
+  background: var(--of-tile-bg);
+  border: 3px solid var(--of-tile-border);
+  border-radius: 20px;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--of-tile-text);
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s ease;
+  animation: ofFlyIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation-delay: var(--of-i, 0s);
+}
+
+body.story[data-theme='oppositesfriends'] .of-tile:hover {
+  background: var(--of-tile-bg-hover);
+  transform: translateY(-2px);
+}
+
+body.story[data-theme='oppositesfriends'] .of-tile:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+body.story[data-theme='oppositesfriends'] .of-tile:disabled {
+  cursor: default;
+  opacity: 0.85;
+}
+
+body.story[data-theme='oppositesfriends'] .of-tile-emoji {
+  font-size: 84px;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+}
+
+body.story[data-theme='oppositesfriends'] .of-tile-name {
+  font-size: 1.05em;
+  font-weight: 700;
+  color: var(--of-tile-text);
+  pointer-events: none;
+}
+
+body.story[data-theme='oppositesfriends'] .of-tile.of-tile--correct {
+  background: var(--of-tile-fill-correct);
+  border-color: var(--of-tile-border-correct);
+  animation: ofBounce 0.5s ease-out;
+}
+
+body.story[data-theme='oppositesfriends'] .of-tile.of-tile--reveal {
+  background: var(--of-tile-fill-glow);
+  border-color: var(--of-tile-border-glow);
+  animation: ofPulseRing 1.4s ease-in-out infinite;
+}
+
+/* Wrong-tap feedback (rule revised 2026-08-17): 250ms kinesthetic shake
+   PLUS a red tint, paired with `playWrong()` in the controller. The tint
+   persists for the rest of the round so the child can see which card they
+   chose while the spoken correction plays. The round still always resolves
+   by revealing the right card, and no score is shown. */
+body.story[data-theme='oppositesfriends'] .of-tile.of-tile--wrong {
+  background: var(--of-tile-fill-wrong);
+  border-color: var(--of-tile-border-wrong);
+  animation: ofShake 250ms ease-in-out;
+}
+
+/* A small ✗ badge on the wrongly-tapped card. Sized and coloured to read
+   as "not this one" rather than as a punishment mark. */
+body.story[data-theme='oppositesfriends'] .of-tile.of-tile--wrong::after {
+  content: '✗';
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  font-size: 1.5em;
+  font-weight: 800;
+  color: var(--of-tile-border-wrong);
+  pointer-events: none;
+}
+
+@keyframes ofFlyIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-30px) scale(0.4);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(6px) scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes ofBounce {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.06); }
+  60%  { transform: scale(0.98); }
+  100% { transform: scale(1); }
+}
+
+@keyframes ofPulseRing {
+  0%, 100% {
+    box-shadow:
+      0 4px 12px rgba(80, 55, 5, 0.15),
+      0 0 0 0 rgba(245, 158, 11, 0.55);
+  }
+  50% {
+    box-shadow:
+      0 4px 12px rgba(80, 55, 5, 0.15),
+      0 0 0 12px rgba(245, 158, 11, 0);
+  }
+}
+
+@keyframes ofShake {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-7px); }
+  40%      { transform: translateX( 7px); }
+  60%      { transform: translateX(-5px); }
+  80%      { transform: translateX( 4px); }
+}
+
+/* ── Caption — accessibility/parent-readable mirror of TTS narration ─── */
+
+body.story[data-theme='oppositesfriends'] .of-caption {
+  background: var(--of-caption-bg);
+  color: var(--of-caption-text);
+  border-radius: 16px;
+  padding: 12px 18px;
+  font-size: clamp(1em, 2.4vw, 1.2em);
+  font-weight: 600;
+  text-align: center;
+  box-shadow: var(--of-caption-shadow);
+  max-width: 720px;
+  margin: 0 auto;
+  min-height: 1.4em;
+  animation: ofCaptionIn 0.4s ease-out;
+}
+
+@keyframes ofCaptionIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Footer row — Replay + Next ────────────────────────────────────── */
+
+body.story[data-theme='oppositesfriends'] .of-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+body.story[data-theme='oppositesfriends'] .of-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 22px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(255, 255, 255, 0.92);
+  color: #3b2a06;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 1em;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(80, 55, 5, 0.15);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+body.story[data-theme='oppositesfriends'] .of-action:hover {
+  transform: translateY(-1px);
+  background: #ffffff;
+}
+
+body.story[data-theme='oppositesfriends'] .of-action:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+body.story[data-theme='oppositesfriends'] .of-action--primary {
+  background: var(--of-accent);
+  color: #ffffff;
+}
+
+body.story[data-theme='oppositesfriends'] .of-action--primary:hover {
+  background: #d97706;
+}
+
+/* ── Session-complete overlay — appears after the 8th round ───────── */
+
+body.story[data-theme='oppositesfriends'] .of-done {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(60, 40, 4, 0.55);
+  z-index: 50;
+  padding: 20px;
+}
+
+body.story[data-theme='oppositesfriends'] .of-done.of-done--show {
+  display: flex;
+}
+
+body.story[data-theme='oppositesfriends'] .of-done-card {
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 32px 28px;
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+  color: #3b2a06;
+  box-shadow: 0 24px 80px rgba(60, 40, 4, 0.4);
+  animation: ofDoneIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes ofDoneIn {
+  from { opacity: 0; transform: scale(0.7) translateY(20px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+body.story[data-theme='oppositesfriends'] .of-done-emoji {
+  font-size: 72px;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+body.story[data-theme='oppositesfriends'] .of-done-title {
+  margin: 0 0 8px;
+  font-size: 1.6em;
+  color: #b45309;
+}
+
+body.story[data-theme='oppositesfriends'] .of-done-text {
+  margin: 0 0 24px;
+  font-size: 1.1em;
+  color: #555;
+}
+
+body.story[data-theme='oppositesfriends'] .of-done-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ── Reduced motion fallback ──────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  body.story[data-theme='oppositesfriends'] .of-prompt,
+  body.story[data-theme='oppositesfriends'] .of-prompt-emoji,
+  body.story[data-theme='oppositesfriends'] .of-tile,
+  body.story[data-theme='oppositesfriends'] .of-caption,
+  body.story[data-theme='oppositesfriends'] .of-tile.of-tile--correct,
+  body.story[data-theme='oppositesfriends'] .of-tile.of-tile--reveal,
+  body.story[data-theme='oppositesfriends'] .of-tile.of-tile--wrong,
+  body.story[data-theme='oppositesfriends'] .of-done-card {
+    animation: none;
+  }
+  body.story[data-theme='oppositesfriends'] .of-tile:hover {
+    transform: none;
+  }
+  body.story[data-theme='oppositesfriends'] {
+    transition: none;
+  }
+}
+
+/* ── Dark mode ────────────────────────────────────────────────────── */
+
+body.dark-mode.story[data-theme='oppositesfriends'] {
+  /* The page background HAS to be redefined here — see the header note.
+     Skipping it is what leaves the sibling games on their light gradient
+     with near-white text on translucent-white cards. */
+  --st-bg: linear-gradient(135deg, #241a06 0%, #33260b 100%);
+  --of-scene-veil: 0.68;
+  --of-tile-bg: rgba(255, 255, 255, 0.08);
+  --of-tile-bg-hover: rgba(255, 255, 255, 0.16);
+  --of-tile-border: rgba(255, 226, 173, 0.3);
+  --of-tile-fill-correct: rgba(46, 125, 50, 0.35);
+  --of-tile-fill-glow: rgba(245, 158, 11, 0.34);
+  --of-tile-fill-wrong: rgba(226, 61, 90, 0.3);
+  --of-tile-text: #fff4e0;
+  --of-prompt-bg: #3d2d0c;
+  --of-prompt-text: #fff4e0;
+  --of-prompt-border: rgba(255, 226, 173, 0.18);
+  --of-caption-bg: rgba(46, 34, 9, 0.92);
+  --of-caption-text: #fff4e0;
+}
+
+body.dark-mode.story[data-theme='oppositesfriends'] .of-prompt-text {
+  /* Amber-500 on the dark card is too dim to read; lift to amber-300. */
+  color: #fcd34d;
+}
+
+body.dark-mode.story[data-theme='oppositesfriends'] .of-prompt-hint {
+  color: rgba(255, 226, 173, 0.7);
+}
+
+body.dark-mode.story[data-theme='oppositesfriends'] .of-done-card {
+  background: #3d2d0c;
+  color: #fff4e0;
+}
+
+body.dark-mode.story[data-theme='oppositesfriends'] .of-done-title {
+  color: #fcd34d;
+}
+
+body.dark-mode.story[data-theme='oppositesfriends'] .of-done-text {
+  color: #e5d4b0;
+}
+
+body.dark-mode.story[data-theme='oppositesfriends'] .of-action {
+  background: #4a3810;
+  color: #fff4e0;
+}
+
+body.dark-mode.story[data-theme='oppositesfriends'] .of-action--primary {
+  background: var(--of-accent);
+  color: #3b2a06;
+}
+
+/* ── Responsive — stack cards on small phones ─────────────────────── */
+
+@media (max-width: 600px) {
+  body.story[data-theme='oppositesfriends'] .of-tiles {
+    grid-template-columns: 1fr;
+  }
+  body.story[data-theme='oppositesfriends'] .of-tile {
+    min-height: 120px;
+    flex-direction: row;
+    gap: 16px;
+  }
+  body.story[data-theme='oppositesfriends'] .of-tile-emoji {
+    font-size: 60px;
+  }
+  body.story[data-theme='oppositesfriends'] .of-prompt-emoji {
+    font-size: 52px;
+  }
+  body.story[data-theme='oppositesfriends'] .of-shell {
+    padding: 12px 12px 60px;
+    gap: 14px;
+  }
+  body.story[data-theme='oppositesfriends'] .of-stage {
+    min-height: auto;
+  }
+}

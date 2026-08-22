@@ -120,6 +120,10 @@ import {
   STATS_KEY as FEELING_FRIENDS_KEY,
   loadFeelingFriendsStats,
 } from '@/data/feeling-friends';
+import {
+  STATS_KEY as OPPOSITES_FRIENDS_KEY,
+  loadOppositesFriendsStats,
+} from '@/data/opposites-friends';
 
 import { loadQuizState } from '@/lib/quiz';
 import { loadLearned } from '@/lib/progress';
@@ -563,6 +567,15 @@ export const STATS_REGISTRY: readonly StatsRegistryEntry[] = [
     storageKey: ANIMAL_SOUNDS_KEY,
     family: 'preschool-cognitive',
     load: loadAnimalSoundsStats,
+  }),
+  preschoolStatsEntry({
+    id: 'opposites-friends',
+    title: 'Opposites Friends',
+    emoji: '🔄',
+    hrefPath: 'games/opposites-friends-game',
+    storageKey: OPPOSITES_FRIENDS_KEY,
+    family: 'preschool-cognitive',
+    load: loadOppositesFriendsStats,
   }),
 
   // Family A4 — preschool-social

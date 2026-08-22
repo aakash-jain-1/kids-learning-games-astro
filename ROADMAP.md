@@ -10,7 +10,7 @@ and the bootstrap context in [CONTEXT.md](CONTEXT.md).
 > date and a link to its PROGRESS.md changelog entry rather than deleting
 > it, so the "why did we pick this next?" trail survives.
 
-## Domain coverage snapshot (as of 2026-08-17)
+## Domain coverage snapshot (as of 2026-08-22)
 
 | Domain | Coverage | Games |
 |---|---|---|
@@ -18,6 +18,7 @@ and the bootstrap context in [CONTEXT.md](CONTEXT.md).
 | Literacy — letter recognition | Partial (1) | Letter Friends (uppercase recognition only) |
 | Literacy — phonological awareness (sounds, rhyme) | Partial (1) | Sound Friends (beginning sounds; rhyme still open) |
 | Cognitive — sorting / categorization | Partial (1) | Sorting Friends (single-attribute sort: habitat / kind / size) |
+| Cognitive — contrast / vocabulary | Partial (1) | Opposites Friends (10 opposite pairs, asked both directions) |
 | Cognitive — temporal sequencing (days / time) | Partial (2) | Days Parade (learn/meet all 7 days), Week Friends (days of the week — "what comes next?") |
 | Social-emotional (emotions / empathy) | Partial (1) | Feeling Friends (name the feeling on a face; infer it from a situation) |
 | Listening / auditory discrimination | Partial (1) | Animal Sounds (match a call to the animal that makes it) |
@@ -33,17 +34,17 @@ tap — see CONTEXT.md §5 rule 8); every game from C onward adopts it. The rank
 letters below are the original payoff ranking; the **build order** is the
 ascending-risk sequence in
 [docs/GAME-DESIGNS-2026-08.md](docs/GAME-DESIGNS-2026-08.md) §7, which is why
-Opposites Friends (I) goes before Rhyme Time (D).
+Opposites Friends (I) went before Rhyme Time (D). **Rhyme Time is next.**
 
 | # | Game | Domain | Core skill / mechanic | Status |
 |---|---|---|---|---|
 | A | **Sound Friends** | Literacy (phonics) | Beginning sounds — "Apple starts with /a/", tap the letter. Builds on Letter Friends + alphabet mnemonics; SATPIN-tiered. | **Done 2026-06-06** ([PROGRESS.md](PROGRESS.md)) |
 | B | **Sorting Friends** | Cognitive | Single-attribute categorization — "which ones live in the sea?" Tap all items in a category (habitat / kind / size). Most knowledge-rich; filled the biggest gap. | **Done 2026-06-06** ([PROGRESS.md](PROGRESS.md)) |
 | C | **Animal Sounds** | Science / listening | "Who says moo?" Tap the animal that makes the sound. Reuses animal data; joyful + world knowledge. | **Done 2026-08-17** ([PROGRESS.md](PROGRESS.md)) |
-| D | **Rhyme Time** | Literacy (phonological awareness) | "What rhymes with cat? hat / dog / sun." Audio-first; recognition emerges at 3, production ~4. | Queued — designed, see [docs/GAME-DESIGNS-2026-08.md](docs/GAME-DESIGNS-2026-08.md) |
+| D | **Rhyme Time** | Literacy (phonological awareness) | "What rhymes with cat? hat / dog / sun." Audio-first; recognition emerges at 3, production ~4. | **Queued (next)** — designed, see [docs/GAME-DESIGNS-2026-08.md](docs/GAME-DESIGNS-2026-08.md) |
 | E | **Feeling Friends** | Social-emotional | "Show me happy" — tap the face / read a feeling. Opened the SEL domain, and the `preschool-social` stats family with it. Built to the agreed scope: tiers 1–2 face recognition + tier 3 situational vignettes. | **Done 2026-08-17** ([PROGRESS.md](PROGRESS.md)) |
 | F | **Memory Match** | Cognitive (working memory) | Flip cards to find matching pairs. New mechanic; reuses any card deck (animals / shapes / colors). | Queued — designed |
-| I | **Opposites Friends** | Cognitive (contrast / vocabulary) | "Big — which one is small?" Tap the opposite. Generalises the More Friends contrast to 10 pairs. Its `flashcards.ts` Strong/Light pair blocker is fixed (2026-08-17), so it is the cheapest of the four left. | **Queued (next)** — designed |
+| I | **Opposites Friends** | Cognitive (contrast / vocabulary) | "Big — which one is small?" Tap the opposite. Generalises the More Friends contrast to 10 pairs, asked in both directions. Shipped with declared meaning-collision groups (`big/heavy/strong`, `small/light/weak`) so no wrong tap is ever defensible. | **Done 2026-08-22** ([PROGRESS.md](PROGRESS.md)) |
 | G | **Week Friends** (Days of the Week) | Cognitive (temporal sequencing) | "What day comes next?" Run of days + "?" slot, tap the next day. Sunday-first like the song; errorless "let's sing the days" reveal. User-requested. | **Done 2026-06-17** ([PROGRESS.md](PROGRESS.md)) |
 | H | **Days Parade** (Learn the Days) | Cognitive (temporal — foundation) | Meet/learn all 7 days first: tap each to hear it, "Sing the days" walk in order, "Today is…" badge, collect-them-all. The prequel to Week Friends (learn → then sequence). User-requested. | **Done 2026-06-17** ([PROGRESS.md](PROGRESS.md)) |
 

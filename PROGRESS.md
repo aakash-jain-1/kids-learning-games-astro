@@ -417,7 +417,139 @@ before deciding.
 
 ## Changelog
 
-### 2026-08-17 (latest) — feat(games): Feeling Friends — first social-emotional game, and the seventh stats family (`preschool-social`)
+### 2026-08-22 (latest) — feat(games): Opposites Friends — 26th game, third of the six-game arc; plus a clip-playback bug that made Animal Sounds narrate over itself
+
+Two things shipped together: the next game in the August arc, and a fix for a
+real audio bug the user reported in the game that shipped before it.
+
+---
+
+#### 1. `fix(audio)`: interrupted clips left live listeners on a cached element
+
+**The report.** "In Animal Sounds, some sounds are not playing correctly."
+
+**What it wasn't.** The seventeen vendored clips are fine. Re-probed all of
+them: every one is mono 44.1kHz, RMS-normalised to −18.5 dBFS, peaks between
+−3 and −7 dBFS, no leading silence, and no two files are duplicates. Five sit
+at exactly 2.500s (`bee`, `chicken`, `duck`, `frog`, `wolf`) because that is
+the mastering cap, not because they are broken.
+
+**What it was.** `src/lib/clip.ts` caches one `HTMLAudioElement` per URL so a
+replayed prompt is instant. `playClip` attaches `ended` / `error` listeners
+and removes them in `finish()` — but `stopClip()` only paused the element, so
+an **interrupted** clip never settled and never detached. Those listeners are
+not inert: the element is reused, so they fire the *next* time that clip
+reaches `ended`, running an abandoned round's `onEnd` alongside the current
+one.
+
+In Animal Sounds every wrong answer goes through `stopClip()` and then replays
+the same call inside the guided correction, which is exactly the shape that
+triggers it. The stale callback was `speakIntro`'s `onEnd`, so the previous
+prompt's narration ("Who says moo?") fired on top of the correction, and
+because `speak()` cancels whatever is in flight the two phrases chopped each
+other up. To a listener that is "the sound didn't play right".
+
+**The fix.** `playClip` now publishes its own `detach()` as a module-level
+`abortCurrent`, and `stopClip()` calls it before pausing. Interrupting is
+deliberate — the caller has already moved on — so neither `onEnd` nor
+`onError` fires, which also means no spurious speech fallback. Because
+`playClip` calls `stopClip()` first, this also guarantees a cached element
+never accumulates a second listener pair.
+
+Worth noting for whoever picks up the next audio bug: the suite could not
+have caught this. The specs run with `sound: false`, and Playwright's bundled
+Chromium has no MP3 codec, so `tests/animal-sounds.spec.ts` asserts that clips
+are *requested*, not that they play. This was found by reading the interrupt
+paths, and the clips were cleared by `ffprobe` / `volumedetect` rather than by
+listening.
+
+---
+
+#### 2. `feat(games)`: Opposites Friends
+
+**What it is.** §3 of `docs/GAME-DESIGNS-2026-08.md`, built as designed, and
+the third of the six. A target word shows with its picture ("Hot"), three
+cards sit below it, and the child taps the opposite. Eight rounds over ten
+pairs, `StoryLayout` with the new `oppositesfriends` theme (amber `#f59e0b`),
+storage `opposites_friends_stats_v1`. **Game count 25 → 26.** Filed under
+`preschool-cognitive` — same round-and-first-try shape as its siblings, so no
+new stats family and the dashboard stays at seven.
+
+**Both directions, deliberately.** Each round picks a pair and *then* picks a
+direction, so `big → small` and `small → big` are equally likely. Asking one
+fixed direction would let the child learn "the ant card is the answer" rather
+than the relation, which is the whole skill.
+
+**Content is the shipped Flashcards deck, with two local pins.** Identity and
+the spoken fact are read out of the `opposites` deck by card name, so the two
+games can't drift, and a rename over there throws at build rather than
+rendering blank cards. What is pinned locally:
+
+- **The picture, where the deck's emoji can't carry the concept.** The deck
+  renders Big / Small as 🔆 / 🔅, the high- and low-brightness symbols. That
+  is fine in a browse deck where the word is printed under the card, but here
+  the picture *is* the question for a child who cannot read, and two nearly
+  identical sun glyphs carry nothing. Overridden to 🐘 / 🐜 — which are also
+  the subjects of those two cards' own facts, so picture and narration agree.
+  `fast` moved 🏃 → 🐆 for the same reason (its fact is about a cheetah, and
+  its partner `slow` is a turtle). Every other word keeps the deck emoji.
+- **A `hint` per word** — the reusable rule spoken during the correction
+  ("small means little, so look for the tiniest one"), so a miss teaches
+  something that transfers to the next round.
+
+This is the Q3 pair-bug's payoff: the deck used to encode Strong/Light as a
+pair, which is false. Authoring Weak + Heavy (done 2026-08-17) is what made
+ten clean pairs available, and this game is the first consumer of them.
+
+**The distractor rule is where the pedagogy actually lives.** A forced-choice
+opposites game is only honest if exactly one card is defensible. Two guards:
+
+- **Meaning collisions.** `big / heavy / strong` and `small / light / weak`
+  are one idea at each end — physical magnitude. Asked for the opposite of
+  *big*, a child tapping *light* (a feather) is not really mistaken, so no
+  member of the answer's or the target's group is allowed in the tray at all.
+- **Tiered near-misses.** At tiers 1–2 the two distractors come from different
+  dimensions, so the only complete pair on screen is the one being asked
+  about. At tier 3 they are drawn *as* a pair where possible, so the tray
+  holds two full opposite-pairs and the child has to track which dimension the
+  question was about. That is the end-of-session difficulty, and it needs no
+  new content.
+
+Tiers otherwise walk from pairs you can see (big/small, hot/cold, up/down,
+day/night) through action and sound (happy/sad, fast/slow, loud/quiet) to the
+abstract end (heavy/light, strong/weak, new/old). A session also prefers pairs
+it hasn't used yet, so eight rounds cover eight dimensions rather than
+repeating one.
+
+**Third adopter of the revised wrong-answer rule** (CONTEXT.md §5 rule 8):
+red tint + `playWrong()` + 250ms shake + a spoken correction that ends by
+revealing the answer. Still no score, still no failed round.
+
+**It also copies the two things only Feeling Friends gets right**, rather than
+inheriting the sibling bugs:
+
+- Dark mode redefines `--st-bg`, so the page is actually dark instead of
+  painting near-white text on a pale light-mode gradient. Verified by
+  screenshot in both modes.
+- The per-round scene tokens are read on `.of-stage`, which is where they are
+  set. The other preschool stylesheets set `--st-bg` on their stage element
+  but read it on `body`, and a custom property on a descendant can't reach an
+  ancestor — which is why their rotating scene has never actually painted.
+
+**Tests.** `tests/opposites-friends.spec.ts`, 11 specs. Beyond the family's
+usual SSR / gating / correct / wrong-then-reveal coverage, two are specific to
+this game: one asserts the round is a *real* pair and that no card crowds the
+answer's meaning, and one walks all eight rounds of a **randomised** session
+re-asserting those invariants each round, so the generator itself is under
+test rather than just the seeded first round. Suite is **181 in 20 files**, up
+from 170 in 19.
+
+**Tooling note.** The suite was run with `PW_CHANNEL=chrome`: this box is
+Windows again (CONTEXT.md §3 claimed macOS as of 2026-08-17 — corrected), and
+bundled Chromium is not installed here. That is exactly the escape hatch's
+purpose.
+
+### 2026-08-17 — feat(games): Feeling Friends — first social-emotional game, and the seventh stats family (`preschool-social`)
 
 **What it is.** §2 of `docs/GAME-DESIGNS-2026-08.md`, built as designed. Eight
 feelings (happy, sad, angry, scared, sleepy, excited, love, caring), eight
