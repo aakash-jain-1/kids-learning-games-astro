@@ -6,8 +6,15 @@
 > win. Keep it short and current — see the update rule in
 > `.cursor/rules/maintain-context.mdc`.
 >
-> **Last verified against the codebase**: 2026-08-23 (**both ends of the wording
-> pass are done.** Winning now names the doing: eight "*X* champion!" headings,
+> **Last verified against the codebase**: 2026-08-23 (**being told you were
+> wrong no longer requires being able to see animation.** In the 13 games with a
+> written quiz, `.quiz-opt--wrong` was made purely of shake — and reduced motion
+> cuts animation to 0.01ms, leaving the tapped button pixel-identical to options
+> the child never touched, with only a green ring on some *other* button to go
+> on. It now carries a dashed slate ring as well, which keeps that flow's
+> deliberate no-red rule (§5 rule 8's documented exemption, now named at both
+> sites instead of each comment quietly contradicting the other). Also **both
+> ends of the wording pass are done.** Winning now names the doing: eight "*X* champion!" headings,
 > "You're a rhyming star!", "Geometric genius!" and "What a memory!" were the
 > same copy-pasted trait label with the game's noun swapped in, and are now
 > "Great looking!", "Great counting!", "Great remembering!" and so on — process
@@ -251,6 +258,30 @@ data file + a layout-specific themed CSS block. A parent dashboard lives at
     hold face up long enough to encode, get *named* ("A pig and a lion. Not a
     pair yet."), and turn back. Before applying rule 8 to a new game, check
     that the tap it punishes is actually a mistake.
+
+    **The `mountQuiz` modal is the other deliberate exception (2026-08-23).**
+    Thirteen browse games — the grid and card-machine ones, plus Routines and
+    Woodcutter — put a written multiple-choice quiz behind the 🧠 pill. It is
+    text-only with no narration, so its audience is a child who can *read*,
+    not the 3–4 year olds rule 8 was revised for, and it keeps the gentler
+    2026-05-20 feedback: shake plus a green ring on the right answer, no red,
+    no tone. No preschool run-mode game mounts a quiz. Two rules, two
+    audiences — but they were contradicting each other silently in comments
+    for months, so both sites now name the other.
+
+    What the exemption does **not** cover is *perceivability*. "No colour on
+    wrong" had become "no static anything on wrong": the mark was made purely
+    of shake, and `global.css` cuts animation to 0.01ms under
+    `prefers-reduced-motion`, so a wrong tap left the tapped button
+    pixel-identical to options the child never touched — the only signal left
+    being a green ring on a *different* button, which is roughly what being
+    right looks like too. `.quiz-opt--wrong` now also carries a dashed slate
+    ring (solid green for the answer, so the two differ in line style as well
+    as hue). The same measurement found the green itself at 2.28:1 on the
+    white panel; light mode now uses green-700. Held by
+    `tests/quiz-feedback.spec.ts`, which compares the tapped button against
+    its untouched siblings with motion emulated off — comparing it to its own
+    earlier self would pass on the disabled-dimming that every option gets.
 9. **The Astro repo is the source of truth on *patterns*** (the vanilla repo
    is treated as a spec of intent, not a template to copy).
 10. **Shared chrome carries its own contrast.** A primitive in `global.css`

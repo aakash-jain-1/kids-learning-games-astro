@@ -417,7 +417,63 @@ before deciding.
 
 ## Changelog
 
-### 2026-08-23 (latest) — fix(a11y): praise the doing, not the doer (§5 rule 14)
+### 2026-08-23 (latest) — fix(a11y): the quiz's wrong-answer mark was made entirely of motion
+
+Started out to close what looked like the last rule-8 gap: 13 games put a
+written quiz behind the 🧠 pill, and a wrong answer there gets a shake and a
+green ring on the right option — no red tint, no error tone, no speech.
+
+It isn't a gap. `src/lib/quiz.ts` documents that as a deliberate 2026-05-20
+decision, and checking it out properly says it was the right one for that
+screen: the quiz is **text-only with no narration**, so anyone using it can
+read, which is not the 3–4 year old audience rule 8 was revised for. None of the
+preschool run-mode games mount a quiz. Two rules, two audiences. The actual
+problem was that each was documented as if the other didn't exist, so `quiz.ts`
+said "no red, research consensus" while `story.css` said the opposite four
+directories away. Both now name the other as the exemption.
+
+Underneath that, though, was a real defect that holds either way. "No colour on
+wrong" had quietly become **"no static anything on wrong"**:
+
+```css
+.quiz-opt--wrong { animation: quiz-shake 250ms ease-in-out; }   /* and nothing else */
+```
+
+`global.css` cuts every animation to `0.01ms !important` under
+`prefers-reduced-motion: reduce`. So for a child who asked for less motion, a
+wrong tap did **nothing at all** to the button they tapped — measured
+pixel-identical to options they never touched across four games, comparing every
+static property. The only signal left was a green ring appearing on a *different*
+button, and a correct answer is also "a green ring appears", so the two outcomes
+differed only in *which* button lit up.
+
+A first probe seemed to show the tapped button was distinguishable. That was
+`:hover` — Playwright parks the cursor on whatever it clicked, and under reduced
+motion the "difference" was a 1px hover lift. A tablet has no cursor. Clearing
+hover and focus before measuring is what turned the result to IDENTICAL, and the
+spec does the same.
+
+Fixed by giving `--wrong` a static ring alongside the shake — **dashed slate**,
+not red, so the gentleness decision survives intact while the mark stops
+depending on motion. Dashed vs the answer's solid green means the two also
+differ in line style, not just hue, for anyone whose colour vision would
+otherwise have to carry it.
+
+Measuring the panel to pick that slate turned up a second thing: at
+`#22c55e` the **green reveal was 2.28:1 on the white light-mode panel** — the
+mark whose entire job is teaching the right answer was the faintest thing on
+screen. Light mode now uses green-700 (5.01:1); dark mode keeps the brighter
+green, which already read 6.96–8.27 on its panels. Slate-500 was the one
+candidate clearing 3:1 in both modes (4.76 light, 3.33–3.96 dark).
+
+`tests/quiz-feedback.spec.ts` holds both. It compares the tapped button against
+its *untouched siblings* rather than its own earlier self, because every option
+dims while the feedback window is open and a change they all share says nothing
+about which one the child picked; it keeps a third assertion that two untouched
+options match each other, so the first can't pass on incidental styling.
+Reverting the CSS makes it name the affected games one by one.
+
+### 2026-08-23 — fix(a11y): praise the doing, not the doer (§5 rule 14)
 
 The other end of the same wording pass. Having made a wrong answer say so, the
 right answer turned out to have the opposite problem: **the completion screens

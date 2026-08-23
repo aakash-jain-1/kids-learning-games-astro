@@ -197,14 +197,21 @@ export const mountQuiz = (cfg: QuizControllerConfig): QuizController => {
    *   - On wrong:   a 250ms shake on the tapped button (`--wrong`) + a
    *                 600ms green-ring pulse on the actual correct option
    *                 (`--reveal`) so the child sees what was right.
-   * No red, no desaturation, no negative tone — research consensus is
-   * that shame-coded feedback (red flash, buzzer) reduces willingness
-   * to try in early-elementary learners and is actively harmful at
-   * preschool ages. The shake reads kinesthetically as "not this one"
-   * without negative valence; the reveal celebrates the correct answer.
-   * See PROGRESS.md → 2026-05-20 entry. The preschool-math triad
-   * (Counting Friends, More Friends, Number Friends) does NOT use
-   * `mountQuiz` — its errorless guided-count flow is page-local. */
+   * No red, no desaturation, no negative tone — shame-coded feedback
+   * (red flash, buzzer) is the thing this flow deliberately avoids, and
+   * that still holds: this quiz is the documented exemption to §5 rule 8,
+   * which governs the preschool games' own answer loops. The reveal
+   * celebrates the correct answer rather than condemning the miss. The
+   * preschool-math triad (Counting Friends, More Friends, Number
+   * Friends) does NOT use `mountQuiz` — its errorless guided-count flow
+   * is page-local. See PROGRESS.md → 2026-05-20 entry.
+   *
+   * Amended 2026-08-23: "no colour" turned out to mean "no *static*
+   * anything", so `--wrong` was made entirely of motion and vanished
+   * under `prefers-reduced-motion` — measured pixel-identical to an
+   * untouched option in four games. It now also carries a dashed slate
+   * ring, which keeps the no-red rule while surviving a child who asked
+   * for less motion. The tone decision was right; the carrier wasn't. */
   const ADVANCE_MS_CORRECT = 450;
   const ADVANCE_MS_WRONG = 700;
 

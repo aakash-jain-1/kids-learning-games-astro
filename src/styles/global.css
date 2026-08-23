@@ -346,16 +346,42 @@ body.dark-mode .build-info {
                    (so the child sees what the right answer was)
 
    Age-safe by design: NO red, NO desaturation, NO negative tone. The
-   shake says "not this one" kinesthetically without shame-coding; the
-   reveal says "here is the right one" by celebrating the answer. The
-   preschool-math triad (Counting/More/Number Friends) keeps its own
-   errorless guided-count flow — these rules don't apply there because
-   those games don't use `.quiz-opt`. See PROGRESS.md → 2026-05-20
-   "T-extra: wrong-answer feedback" entry. */
+   reveal says "here is the right one" by celebrating the answer rather
+   than condemning the miss. That decision stands — it is the documented
+   exemption to §5 rule 8, which governs the preschool games' own loops
+   (the preschool-math triad keeps its errorless guided-count flow and
+   doesn't use `.quiz-opt` at all). See PROGRESS.md → 2026-05-20.
+
+   What that decision got wrong was the *carrier*, not the tone. Until
+   2026-08-23 the shake was the only thing `--wrong` did, so the mark on
+   the child's own choice was made entirely of motion — and the global
+   `prefers-reduced-motion` rule below cuts every animation to 0.01ms.
+   Measured across four games on that date, a wrong tap under reduced
+   motion left the tapped button *pixel-identical* to options the child
+   never touched: the sole remaining signal was a green ring appearing on
+   some other button, which is also what a correct answer looks like.
+   Being told you were wrong should not be a thing only people who can
+   see animation get to know.
+
+   So `--wrong` now carries a static ring too. Slate rather than red
+   keeps the no-shame rule; dashed rather than solid means the two marks
+   differ in line style as well as hue, so "yours" and "right" stay
+   distinguishable without relying on colour vision. Slate-500 is the one
+   value clearing 3:1 on both the white light-mode panel (4.76) and the
+   dark panels (3.33–3.96). Held by `tests/quiz-feedback.spec.ts`. */
 .quiz-opt--correct,
 .quiz-opt--reveal {
-  outline: 3px solid #22c55e;
+  /* Green-700 on the white panel: #22c55e measured 2.28:1 there, i.e. the
+     mark that teaches the right answer was the faintest thing on screen.
+     Dark mode keeps the brighter green, which reads 6.96–8.27 on its
+     panels and would be muddy at green-700. */
+  outline: 3px solid #15803d;
   outline-offset: 2px;
+}
+
+body.dark-mode .quiz-opt--correct,
+body.dark-mode .quiz-opt--reveal {
+  outline-color: #22c55e;
 }
 
 .quiz-opt--correct {
@@ -367,6 +393,8 @@ body.dark-mode .build-info {
 }
 
 .quiz-opt--wrong {
+  outline: 3px dashed #64748b;
+  outline-offset: 2px;
   animation: quiz-shake 250ms ease-in-out;
 }
 
