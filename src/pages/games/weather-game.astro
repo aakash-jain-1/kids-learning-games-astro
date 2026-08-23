@@ -98,7 +98,7 @@ const initialBadge = seasonLabel(initialCard.season);
       >
         <div class="done-card">
           <div style="font-size:3em" aria-hidden="true">🎉</div>
-          <h2 id="doneTitle">Brilliant!</h2>
+          <h2 id="doneTitle">You learnt them all!</h2>
           <p id="doneMsg"></p>
           <button class="restart-btn" id="btnRestart" type="button">🔄 Play Again</button>
         </div>
@@ -260,7 +260,7 @@ const initialBadge = seasonLabel(initialCard.season);
   }
 
   function showDone(): void {
-    $('doneMsg').textContent = `Brilliant! You learnt all ${cards.length} types of weather!`;
+    $('doneMsg').textContent = `You learnt all ${cards.length} types of weather!`;
     $('doneOverlay').classList.add('show');
     launchConfetti(WEATHER_COLORS);
   }
@@ -337,7 +337,7 @@ const initialBadge = seasonLabel(initialCard.season);
           resultEmojiEl: quizResEmoji,
           resultTextEl: quizResText,
           messages: {
-            perfect: 'Brilliant! Perfect score!',
+            perfect: 'Perfect score! You knew every one!',
             great: 'Great work, weather watcher!',
             keepReading: 'Look at the cards once more and try again!',
           },

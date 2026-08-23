@@ -141,7 +141,7 @@ const TOTAL_ROUNDS = 8;
     <div class="mf-done" id="mfDone" role="dialog" aria-live="polite" aria-labelledby="mfDoneTitle">
       <div class="mf-done-card">
         <div class="mf-done-emoji" aria-hidden="true">🌟</div>
-        <h2 class="mf-done-title" id="mfDoneTitle">More champion!</h2>
+        <h2 class="mf-done-title" id="mfDoneTitle">Great comparing!</h2>
         <p class="mf-done-text" id="mfDoneText">
           You compared {TOTAL_ROUNDS} groups of friends today!
         </p>
@@ -507,7 +507,7 @@ const TOTAL_ROUNDS = 8;
       doneText.textContent = `${meta.label} mode — bigger groups to compare!`;
       narrate(`Wow! You reached Stage ${currentStage}! ${meta.label} mode! Bigger groups to compare!`);
     } else {
-      doneTitle.textContent = 'More champion!';
+      doneTitle.textContent = 'Great comparing!';
       doneText.textContent = `You compared ${TOTAL_ROUNDS} groups of friends today!`;
       narrate(`Wow! You compared ${TOTAL_ROUNDS} groups of friends today! Great job!`);
     }

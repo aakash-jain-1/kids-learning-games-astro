@@ -159,7 +159,7 @@ const TOTAL_ROUNDS = 8;
     <div class="cf-done" id="cfDone" role="dialog" aria-live="polite" aria-labelledby="cfDoneTitle">
       <div class="cf-done-card">
         <div class="cf-done-emoji" aria-hidden="true">🌟</div>
-        <h2 class="cf-done-title" id="cfDoneTitle">Counting champion!</h2>
+        <h2 class="cf-done-title" id="cfDoneTitle">Great counting!</h2>
         <p class="cf-done-text" id="cfDoneText">
           You counted with {TOTAL_ROUNDS} groups of friends today!
         </p>
@@ -646,7 +646,7 @@ const TOTAL_ROUNDS = 8;
       doneText.textContent = `${meta.label} mode — new friends and bigger numbers to count!`;
       narrate(`Wow! You reached Stage ${currentStage}! ${meta.label} mode! New friends to count with!`);
     } else {
-      doneTitle.textContent = 'Counting champion!';
+      doneTitle.textContent = 'Great counting!';
       doneText.textContent = `You counted with ${TOTAL_ROUNDS} groups of friends today!`;
       narrate(`Wow! You counted with ${TOTAL_ROUNDS} groups of friends today! Great job!`);
     }

@@ -6,8 +6,14 @@
 > win. Keep it short and current — see the update rule in
 > `.cursor/rules/maintain-context.mdc`.
 >
-> **Last verified against the codebase**: 2026-08-23 (**a wrong answer now says
-> so.** Every game opened its correction with "Hmm!" — which a three-year-old
+> **Last verified against the codebase**: 2026-08-23 (**both ends of the wording
+> pass are done.** Winning now names the doing: eight "*X* champion!" headings,
+> "You're a rhyming star!", "Geometric genius!" and "What a memory!" were the
+> same copy-pasted trait label with the game's noun swapped in, and are now
+> "Great looking!", "Great counting!", "Great remembering!" and so on — process
+> praise rather than a title, which is the split Cimpian et al. (2007) measured
+> on four-year-olds (§5 rule 14, held by `tests/praise.spec.ts`). And **a wrong
+> answer now says so.** Every game opened its correction with "Hmm!" — which a three-year-old
 > hears as the game thinking, not as "that isn't the one" — and two went
 > straight into "Let's count them together!", so the only signals were a red
 > tint and a tone, neither of which is language. Corrections now open with a
@@ -386,6 +392,25 @@ data file + a layout-specific themed CSS block. A parent dashboard lives at
     answers). Held by `tests/invariants.spec.ts`, which asserts the sound-on and
     sound-off halves as a pair — the muted case doubles as the control proving
     the "was it judged" detector fires.
+
+14. **Praise the doing, not the doer.** A completion screen names what the child
+    did — "Great looking!", "Great counting!", "Great remembering!" — and never
+    hands out a title. Thirteen strings across eleven games broke this on
+    2026-08-23: eight "*X* champion!" headings copy-pasted with the noun swapped,
+    plus "You're a rhyming star!", "Geometric genius!", "What a memory!",
+    "alphabet star" and a bare "Brilliant!". Person praise makes a later failure
+    evidence about the child; process praise commends the effort in that one
+    episode, and Cimpian et al. (2007) demonstrated the split on **four-year-olds
+    specifically** — the age this app is for — with the effect strongest in
+    academically relevant settings, i.e. letters and counting. The subtitle still
+    carries the tally, so nothing was lost but the label. Interjections aimed at
+    the feat survive ("Amazing! You explored all ten objects!"); an interjection
+    left standing alone as the whole verdict does not, because the only thing it
+    can attach to is the child. Words and reasoning live in
+    `PERSON_PRAISE_WORDS` (`src/data/preschool-narration.ts`), held by
+    `tests/praise.spec.ts` — which checks the markup *and* the strings assigned
+    from script, since the staged maths games and every quiz result overwrite
+    their heading on the last round and a DOM-only test would never see them.
 
 ## 6. LocalStorage keys (state shapes)
 

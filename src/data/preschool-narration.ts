@@ -1,10 +1,11 @@
 /**
  * Shared narration fragments for the preschool games.
  *
- * One phrase lives here so far, and it is the one every game says when a child
- * gets something wrong. It is shared rather than restated per game because a
- * rule written out at fourteen call sites is a rule with nothing holding it —
- * see §5 rule 8 in CONTEXT.md for how that went last time.
+ * What lives here is the wording that has to be the same everywhere: how a game
+ * tells a child they were wrong, and how it is allowed to praise them for being
+ * right. Both are shared rather than restated per game because a rule written
+ * out at fourteen call sites is a rule with nothing holding it — see §5 rule 8
+ * in CONTEXT.md for how that went last time.
  */
 
 /**
@@ -67,3 +68,79 @@
  * seconds of speech, and the child is waiting to try again.
  */
 export const WRONG_LEAD = 'Not that one.';
+
+/**
+ * Praise words that describe the child instead of what the child just did.
+ *
+ * ── Why this exists ──
+ *
+ * Nine of the completion screens used to hand out a title: **"Letter
+ * champion!"**, "Counting champion!", "Sorting champion!", "You're a rhyming
+ * star!", "Geometric genius!", "What a memory!". They were copy-pasted from
+ * each other — the same word with the game's noun swapped in, which is the same
+ * drift shape as rule 8 and rule 12, just in prose instead of CSS.
+ *
+ * The distinction that matters is between praising the *doer* and praising the
+ * *doing*. Person praise ("you're a star") tells the child the performance was
+ * evidence about who they are, so a later failure is evidence too, and the
+ * documented response is to give up, feel bad, and treat ability as fixed.
+ * Process praise ("great looking") commends the effort or strategy in that one
+ * episode, and predicts persistence and a learning orientation instead.
+ * (Kamins & Dweck 1999; Gunderson et al. 2013.)
+ *
+ * This is not a general-audience finding being stretched to fit. Cimpian et al.
+ * (2007) ran exactly this contrast on **four-year-olds** and moved their
+ * motivation and their response to a subsequent setback — the age these games
+ * are for. The same literature notes person praise bites hardest in
+ * *academically relevant* settings, which letters, sounds and counting are.
+ *
+ * ── What replaced them ──
+ *
+ * Each game now names the thing the child actually did: "Great looking!" for
+ * finding a letter, "Great listening!" for hearing a first sound or a rhyme,
+ * "Great remembering!" for the days of the week and for Memory Match, "Great
+ * comparing!", "Great spotting!", "Great sorting!", "Great counting!". The
+ * subtitle underneath still carries the tally ("You found all 26 letters
+ * today!"), so nothing was lost — the trait label was the only casualty.
+ *
+ * Two of these were already right before the sweep and are worth keeping as the
+ * model: Animal Sounds' "Great listening!" and the line Where's Teddy speaks,
+ * "Wow! You found teddy every single time! Great looking!"
+ *
+ * Note the repeats are deliberate. Two games say "Great counting!" and two say
+ * "Great listening!" because the child really is doing the same thing in both,
+ * and an honest repeat beats a novel phrase that describes the wrong skill.
+ *
+ * ── Where the line is ──
+ *
+ * Not every excited word is a trait. "Amazing! You explored all ten objects in
+ * the Solar System!" and "Stellar! Perfect score!" both survive, because the
+ * interjection is aimed at the feat and the sentence after it names the doing.
+ * What gets replaced is an interjection standing *alone* as the whole verdict,
+ * with nothing for it to attach to but the child — which is why Weather's
+ * one-word "Brilliant!" heading became "You learnt them all!" while Solar
+ * System's "Amazing! …" was left as it was.
+ *
+ * "Brilliant" is on the list and "amazing" is not for a second reason: it
+ * denotes *cleverness* specifically, which is the exact attribution the
+ * research is about, where "amazing" and "stellar" denote how impressive the
+ * thing done was. Role names are also fine — "Great job, space explorer!"
+ * stays, because an explorer is someone who explored, not someone who is
+ * gifted.
+ *
+ * ── Using it ──
+ *
+ * This list is what `tests/praise.spec.ts` searches the completion screens for.
+ * Adding a word here adds it to the ban; the fix for a hit is always to say
+ * what the child did instead of what they are.
+ */
+export const PERSON_PRAISE_WORDS = [
+  'champion',
+  'genius',
+  'superstar',
+  'star',
+  'smart',
+  'clever',
+  'brilliant',
+  'what a memory',
+];

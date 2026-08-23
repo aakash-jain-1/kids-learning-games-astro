@@ -137,7 +137,7 @@ const TOTAL_ROUNDS = 8;
     <div class="nf-done" id="nfDone" role="dialog" aria-live="polite" aria-labelledby="nfDoneTitle">
       <div class="nf-done-card">
         <div class="nf-done-emoji" aria-hidden="true">🌟</div>
-        <h2 class="nf-done-title" id="nfDoneTitle">Number champion!</h2>
+        <h2 class="nf-done-title" id="nfDoneTitle">Great counting!</h2>
         <p class="nf-done-text" id="nfDoneText">
           You found {TOTAL_ROUNDS} number friends today!
         </p>
@@ -553,7 +553,7 @@ const TOTAL_ROUNDS = 8;
       doneText.textContent = `${meta.label} mode — bigger numbers to find!`;
       narrate(`Wow! You reached Stage ${currentStage}! ${meta.label} mode! Bigger numbers to find!`);
     } else {
-      doneTitle.textContent = 'Number champion!';
+      doneTitle.textContent = 'Great counting!';
       doneText.textContent = `You found ${TOTAL_ROUNDS} number friends today!`;
       narrate(`Wow! You found ${TOTAL_ROUNDS} number friends today! Great job!`);
     }

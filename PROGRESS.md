@@ -417,7 +417,71 @@ before deciding.
 
 ## Changelog
 
-### 2026-08-23 (latest) — fix(a11y): a wrong answer now says it was wrong
+### 2026-08-23 (latest) — fix(a11y): praise the doing, not the doer (§5 rule 14)
+
+The other end of the same wording pass. Having made a wrong answer say so, the
+right answer turned out to have the opposite problem: **the completion screens
+handed out titles.** Eight of them said "*X* champion!" — Letter, Sound, Week,
+Counting, Number, More, Pattern, Sorting — visibly one string copy-pasted with
+the game's noun swapped in, which is the drift shape of rules 8 and 12 again,
+this time in prose. Alongside them: "You're a rhyming star!", "Geometric
+genius!", "What a memory!", "Great job, alphabet star!", "Perfect score! You are
+a flashcard star!" and a bare "Brilliant!". Thirteen strings, eleven games.
+
+The distinction is between praising the *doer* and the *doing*. Person praise
+tells a child the performance was evidence about who they are, which makes the
+next failure evidence too; the documented response is to quit, feel worse, and
+treat ability as fixed. Process praise commends the effort or strategy in that
+one episode and predicts persistence instead. (Kamins & Dweck 1999; Gunderson et
+al. 2013.) This is not a general finding stretched to fit an audience —
+**Cimpian et al. (2007) ran the contrast on four-year-olds** and moved both
+motivation and response to a subsequent setback, and the same literature notes
+person praise bites hardest in academically relevant settings, which is exactly
+what letters, sounds and counting are.
+
+Each title now names what the child actually did:
+
+| game | was | is |
+| --- | --- | --- |
+| Letter Friends | Letter champion! | Great looking! |
+| Sound Friends / Rhyme Time | Sound champion! / You're a rhyming star! | Great listening! |
+| Week Friends | Week champion! | Great remembering! |
+| Counting / Number Friends | Counting champion! / Number champion! | Great counting! |
+| More Friends | More champion! | Great comparing! |
+| Pattern Sequences | Pattern champion! | Great spotting! |
+| Sorting Friends | Sorting champion! | Great sorting! |
+| Memory Match | …What a memory! | …Great remembering! |
+| Weather | Brilliant! | You learnt them all! |
+
+The subtitle underneath still carries the tally ("You found all 26 letters
+today!"), so nothing was lost but the label. Two screens were already right and
+were used as the model: Animal Sounds' "Great listening!" and the line Where's
+Teddy speaks, "Wow! You found teddy every single time! Great looking!" The
+repeats are deliberate — two games say "Great counting!" because the child is
+genuinely doing the same thing in both, and an honest repeat beats a novel
+phrase that names the wrong skill.
+
+Where the line sits, so it isn't re-litigated: interjections aimed at the feat
+stay ("Amazing! You explored all ten objects in the Solar System!", "Stellar!
+Perfect score!"), because the sentence after them names the doing. What goes is
+an interjection left standing *alone* as the entire verdict, which is why
+Weather's one-word "Brilliant!" heading changed and Solar System's "Amazing! …"
+did not. Role names stay too — "Great job, space explorer!" describes someone
+who explored, not someone who is gifted.
+
+`PERSON_PRAISE_WORDS` and the reasoning live in
+`src/data/preschool-narration.ts`, next to `WRONG_LEAD`, and
+**`tests/praise.spec.ts`** holds it. The spec checks two places because the
+praise lives in two: the SSR done-card markup, and the strings assigned from
+script — the four staged maths games each rewrite their own heading on the final
+round, and every quiz `messages` block only exists post-quiz, so a DOM-only test
+would have passed with `doneTitle.textContent = 'Counting champion!'` sitting
+two hundred lines under the heading it overwrites. Non-vacuity came free: the
+first run was against a stale `dist` and named all twelve pre-fix strings, and
+the source half caught a thirteenth ("Great job, alphabet star!") that the
+manual sweep had missed.
+
+### 2026-08-23 — fix(a11y): a wrong answer now says it was wrong
 
 Every game opened its correction with **"Hmm!"** — "Hmm! Let's look together.",
 "Hmm! Let's sing the days." Counting Friends and More Friends didn't even do
