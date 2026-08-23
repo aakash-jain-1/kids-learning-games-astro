@@ -641,5 +641,5 @@ const TOTAL_ROUNDS = 8;
   // the body) to kick off the intro narration. Kickoff does NOT call
   // renderRound() — that would race with a first-interaction tap on an
   // option. Same prophylactic fix the triad uses.
-  onFirstGesture(() => speakIntroSequence());
+  onFirstGesture(() => speakIntroSequence(), { asksFirst: '.nbp-opt' });
 </script>

@@ -6,7 +6,19 @@
 > win. Keep it short and current — see the update rule in
 > `.cursor/rules/maintain-context.mdc`.
 >
-> **Last verified against the codebase**: 2026-08-23 (**§5 rule 8 migration
+> **Last verified against the codebase**: 2026-08-23 (**the opening question is
+> now actually asked** — playing nine games end to end showed that if a child's
+> first touch lands on an answer tile, which is what a child does, the intro
+> narration was skipped entirely and the first words they heard were the
+> correction, "Hmm! Let's listen again." Round one was unanswerable by design
+> for a pre-reader. The first tap on an answer is now swallowed and asks the
+> question instead; the next tap is a real answer. That is **§5 rule 13**, held
+> by `tests/invariants.spec.ts`. Two other findings from the same playthrough
+> are **not** fixed and are judgement calls: a clean run of Where's Teddy is
+> ~7 min of narration alone across 25 rounds, and an interrupted run always
+> restarts from 1/25 — rounds survive, but `sessions` ("Full runs finished")
+> only increments on completion, so the longest games may never register one.
+> Earlier: **§5 rule 8 migration
 > closed** — the nine remaining games with a wrong answer now give the red
 > tint, the error tone and the spoken correction, so all 14 that have one
 > agree. Fixing it surfaced a second bug in the five games that *had* adopted
@@ -157,7 +169,9 @@ data file + a layout-specific themed CSS block. A parent dashboard lives at
    (single `kids_settings_v1` key), `audio.ts` (singleton `AudioContext` for
    synthesised tones), `speech.ts` (Web Speech wrapper — also owns
    `onFirstGesture`, the shared "speech is blocked until the first tap" hook
-   used by all 11 round-based games), `clip.ts` (playback for vendored
+   used by every round-based game, which since 2026-08-23 also turns that first
+   tap into the spoken question rather than a scored answer — see §5 rule 13,
+   and pass it your option selector via `{ asksFirst }`), `clip.ts` (playback for vendored
    recordings, with an `onError` fallback path so a missing clip degrades to
    speech), `achievements.ts` (toasts), `quiz.ts`
    (`mountQuiz` controller + `<gameId>_quiz_v1` state), `progress.ts`
@@ -306,6 +320,31 @@ data file + a layout-specific themed CSS block. A parent dashboard lives at
     Solid, fully opaque replacements are a different thing and are fine —
     Memory Match's matched card and Week Friends' revealed slot both do it on
     purpose.
+13. **Ask the question before scoring the answer.** Browsers block speech until
+    a user gesture, so every game defers its opening narration to the first tap.
+    That deferral used to skip the intro whenever the tap landed on *any*
+    interactive control — correct for a replay button, wrong for an answer tile,
+    and an answer tile is what a child taps first, because it is the big
+    colourful thing in the middle of the screen. Measured across nine games on
+    2026-08-23, the opening question was therefore never spoken:
+
+    | first touch lands on | what the child heard first |
+    | --- | --- |
+    | an answer tile (what actually happens) | "Hmm! Let's listen again." |
+    | inert page background | "Listen! Who makes that sound?" |
+
+    Round one was unanswerable by design for a pre-reader — the caption is text
+    they cannot read, so they were asked to answer a question nobody had asked.
+    `onFirstGesture(speakIntro, { asksFirst: '<option selector>' })` now swallows
+    that first tap (capture phase, so the game's own handler never sees it) and
+    speaks the question instead; the next tap is a real answer. Nothing is
+    swallowed when narration would be silent anyway — sound off, or no speech
+    support — since then the tap would be lost for nothing. Animal Sounds is the
+    shape to copy: its "question" is the animal *clip*, which plays first, and
+    the spoken prompt follows it. Days Parade is exempt (it has no judged
+    answers). Held by `tests/invariants.spec.ts`, which asserts the sound-on and
+    sound-off halves as a pair — the muted case doubles as the control proving
+    the "was it judged" detector fires.
 
 ## 6. LocalStorage keys (state shapes)
 
@@ -343,7 +382,28 @@ this family stays at one for now.)
   Friends + Sorting Friends + Week Friends + Days Parade + Animal Sounds +
   Feeling Friends + Opposites Friends + Rhyme Time + Where's Teddy? +
   Memory Match). Total **29 games**, all live.
-- **Latest ship (2026-08-23)**: **Memory Match** — sixth and last of the
+- **Latest (2026-08-23) — played the games instead of testing them**, and the
+  first thing a child does turned out to be broken. See §5 rule 13: the opening
+  question was never spoken, because the first tap that unblocks speech was
+  landing on an answer tile and being scored. Fixed and pinned.
+
+  Two findings from the same playthrough are **open judgement calls**, not bugs:
+
+  - **Run length.** Timing the narration alone, with no mistakes and no thinking
+    time: Week Friends 53s (6 rounds), Animal Sounds 2.9 min (27), Letter
+    Friends 4.2 min (26), Sound Friends 5.2 min (26), **Where's Teddy? 7.0 min
+    (25)** — about 17s of speech per round before the child looks, decides,
+    taps, and an adult taps Next. Rule 11 ("a run covers every item") is what
+    made runs whole; nobody had measured what whole costs.
+  - **A run cannot be paused.** Reloading restarts at 1/27. `rounds` and
+    `correctFirstTry` survive, but `sessions` — the stat the dashboard labels
+    "Full runs finished" — only increments on completion, so a child who does
+    not sit through all 25–27 rounds in one go never sees the completion screen
+    and never registers a finished run.
+
+  Both were measured, neither was changed: the run-length shape is a product
+  decision (and rule 11 was an explicit ask), and resume is a feature.
+- **Previous ship (2026-08-23)**: **Memory Match** — sixth and last of the
   August arc, **which closes it**, and the first game whose skill is
   *remembering* rather than recognising or discriminating.
 

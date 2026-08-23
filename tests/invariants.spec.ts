@@ -280,3 +280,117 @@ test.describe('a game renders its first round without JavaScript', () => {
     });
   }
 });
+
+/**
+ * The opening question is asked before the child has to answer it.
+ *
+ * Browsers block speech until a gesture, so the intro is deferred to the first
+ * tap. That deferral used to skip the intro whenever the tap landed on any
+ * interactive control — sound reasoning for a replay button, wrong for an
+ * answer tile, and an answer tile is exactly what a child taps first. Measured
+ * across nine games on 2026-08-23, the question was never spoken at all: the
+ * first words a child heard were "Hmm! Let's listen again."
+ *
+ * So the first tap on an answer is now swallowed and asks the question instead.
+ * The pair of assertions below is deliberate:
+ *
+ *   sound ON  — the tap must NOT be judged, and something must be said or played
+ *   sound OFF — the tap MUST be judged, because nothing would be said and
+ *               swallowing it would just lose the child a tap
+ *
+ * The muted case is also the control: it proves the "was it judged" detector
+ * actually fires, so the sound-on assertion is not vacuously green.
+ */
+test.describe('the first tap asks the question instead of being judged', () => {
+  const LISTEN = `
+    (() => {
+      window.__spoke = []; window.__played = [];
+      const fake = { speaking:false, pending:false, cancel(){}, getVoices:()=>[],
+        speak(u){ window.__spoke.push(String((u&&u.text)||''));
+          setTimeout(()=>{try{u.onend&&u.onend(new Event('end'))}catch(e){}},30); } };
+      Object.defineProperty(window,'speechSynthesis',{get:()=>fake,configurable:true});
+      const play = HTMLMediaElement.prototype.play;
+      HTMLMediaElement.prototype.play = function () {
+        window.__played.push(this.currentSrc || this.src || 'clip');
+        return play.call(this);
+      };
+    })();
+  `;
+
+  const firstTap = async (
+    page: Page,
+    game: Game,
+    sound: boolean,
+  ): Promise<{ classChanged: boolean; heard: number }> => {
+    await page.addInitScript(LISTEN);
+    await page.goto(`games/${game.slug}-game.html`);
+    await page.evaluate(
+      (snd: boolean) =>
+        localStorage.setItem(
+          'kids_settings_v1',
+          JSON.stringify({ dark: false, sound: snd, autoSpeak: true, fontSize: 'medium' }),
+        ),
+      sound,
+    );
+    await page.reload();
+
+    const option = page.locator(game.option).first();
+    await expect(option).toBeVisible();
+
+    // Watched rather than sampled before/after: multi-select games (Sorting
+    // Friends) show their feedback and clear it again inside the window, so
+    // comparing the two ends says "nothing happened" when plenty did. A
+    // re-render that replaces the element counts too.
+    await page.evaluate((sel: string) => {
+      const el = document.querySelector(sel)!;
+      const w = window as unknown as { __touched: boolean; __watch: Element };
+      w.__touched = false;
+      w.__watch = el;
+      new MutationObserver(() => {
+        w.__touched = true;
+      }).observe(el, { attributes: true, attributeFilter: ['class', 'disabled'] });
+    }, game.option);
+
+    await option.click();
+    await page.waitForTimeout(900);
+
+    return {
+      classChanged: await page.evaluate(() => {
+        const w = window as unknown as { __touched: boolean; __watch: Element };
+        return w.__touched || !document.contains(w.__watch);
+      }),
+      heard: await page.evaluate(
+        () =>
+          (window as unknown as { __spoke: string[] }).__spoke.length +
+          (window as unknown as { __played: string[] }).__played.length,
+      ),
+    };
+  };
+
+  for (const game of GAMES) {
+    test(`${game.slug}: the very first tap is not scored as an answer`, async ({ page }) => {
+      const r = await firstTap(page, game, true);
+      expect(
+        r.classChanged,
+        `${game.slug}: the first tap was judged as an answer, but the question had not been ` +
+          `spoken yet — a pre-reader is guessing at something nobody asked`,
+      ).toBe(false);
+      expect(
+        r.heard,
+        `${game.slug}: the first tap was swallowed but nothing was asked, so the child got ` +
+          `silence and a tap that did nothing`,
+      ).toBeGreaterThan(0);
+    });
+  }
+
+  for (const game of GAMES) {
+    test(`${game.slug}: with sound off the first tap still counts`, async ({ page }) => {
+      const r = await firstTap(page, game, false);
+      expect(
+        r.classChanged,
+        `${game.slug}: the first tap was swallowed with sound off, so it bought the child ` +
+          `nothing — there was no question to hear`,
+      ).toBe(true);
+    });
+  }
+});

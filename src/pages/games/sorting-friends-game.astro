@@ -487,5 +487,5 @@ const ssrPrompt = `Find all the friends that ${SSR_FIRST_ROUND.promptLabel}!`;
   // the body) to kick off the intro narration. Kickoff does NOT call
   // renderRound() — that would race with a first-interaction tap on a
   // tile. Same prophylactic fix the rest of the family uses.
-  onFirstGesture(() => speakIntro());
+  onFirstGesture(() => speakIntro(), { asksFirst: '.sort-tile' });
 </script>

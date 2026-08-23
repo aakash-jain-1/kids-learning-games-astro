@@ -776,5 +776,5 @@ const TOTAL_ROUNDS = 8;
   // empirically on 2026-05-15 — every option-click test failed
   // because the SSR'd `data-n` values had been swapped out by a
   // freshly-randomized JS session before the click could resolve).
-  onFirstGesture(() => speakIntroSequence());
+  onFirstGesture(() => speakIntroSequence(), { asksFirst: '.cf-opt' });
 </script>

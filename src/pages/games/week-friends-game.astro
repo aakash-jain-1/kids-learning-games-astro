@@ -579,5 +579,5 @@ const ssrCaption = `${ssrRunDays.map((d) => d.name).join(', ')}… what day come
   // the body) to kick off the intro narration. Kickoff does NOT call
   // renderRound() — that would race with a first-interaction tap on an
   // option. Same prophylactic fix the rest of the family uses.
-  onFirstGesture(() => speakIntroSequence());
+  onFirstGesture(() => speakIntroSequence(), { asksFirst: '.week-opt' });
 </script>

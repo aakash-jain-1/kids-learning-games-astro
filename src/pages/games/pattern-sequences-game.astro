@@ -570,5 +570,5 @@ const TOTAL_ROUNDS = 8;
   // click event when the user's first interaction is a tap on an
   // option. Same prophylactic kickoff fix the rest of the
   // preschool-math triad now uses.
-  onFirstGesture(() => speakIntroSequence());
+  onFirstGesture(() => speakIntroSequence(), { asksFirst: '.ps-opt' });
 </script>

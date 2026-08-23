@@ -609,5 +609,5 @@ const ssrCaption = `${ssrTarget.sound}! Who says ${ssrTarget.sound.toLowerCase()
   // Speech is blocked until the first gesture, so the intro waits for it.
   // Deliberately does NOT call renderRound() — that would race with a
   // first-interaction tap on a tile.
-  onFirstGesture(() => speakIntro());
+  onFirstGesture(() => speakIntro(), { asksFirst: '.as-tile' });
 </script>

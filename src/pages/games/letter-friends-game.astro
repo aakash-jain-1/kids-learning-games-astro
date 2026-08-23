@@ -545,5 +545,5 @@ const ssrCaption = `Find ${SSR_FIRST_ROUND.target}! Show me the letter ${SSR_FIR
   // click event when the user's first interaction is a tap on a
   // tile. Same race that bit Counting Friends on 2026-05-15 — same
   // fix here, applied prophylactically.
-  onFirstGesture(() => speakIntroSequence());
+  onFirstGesture(() => speakIntroSequence(), { asksFirst: '.lf-tile' });
 </script>

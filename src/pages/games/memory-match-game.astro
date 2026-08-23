@@ -478,5 +478,5 @@ const ssrNarration = buildBoardNarration(SSR_BOARD);
   renderBoard();
 
   // Speech is blocked until the first gesture, so the intro waits for it.
-  onFirstGesture(() => narrate(currentIntro));
+  onFirstGesture(() => narrate(currentIntro), { asksFirst: '.mm-card' });
 </script>

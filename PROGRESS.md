@@ -417,7 +417,88 @@ before deciding.
 
 ## Changelog
 
-### 2026-08-23 (latest) — test: pin three cross-game invariants that were true but unheld
+### 2026-08-23 (latest) — fix(a11y): ask the question before scoring the answer (§5 rule 13)
+
+Played nine games end to end as a child would — tapping through whole runs with
+a harness that recorded every utterance in order — rather than asserting things
+about them. The first thing a child does turned out to be broken.
+
+**The opening question was never spoken.** Browsers block speech until a
+gesture, so every game defers its intro to the first tap via `onFirstGesture`.
+That hook skipped the intro whenever the tap landed on any interactive control,
+reasoning that the control's own handler narrates anyway. True of a replay
+button. Not true of an answer tile — and an answer tile is what a child taps
+first, because it is the big colourful thing in the middle of the screen.
+Measured across nine games:
+
+| first touch lands on | what the child heard first |
+| --- | --- |
+| an answer tile (what actually happens) | `"Hmm! Let's listen again."` |
+| inert page background | `"Listen! Who makes that sound?"` |
+
+So round one was unanswerable by design for a pre-reader: the caption is text
+they cannot read, and they were being asked to answer a question nobody had
+asked. The tap was then judged, and the first words they heard were a
+correction.
+
+The first tap on an answer is now swallowed — capture phase on `document`, so
+the game's own handler never sees it — and asks the question instead. The next
+tap is a real answer, made knowing what was asked. Games pass their option
+selector (`onFirstGesture(intro, { asksFirst: '.as-tile' })`); 15 games wired,
+Days Parade exempt since it has no judged answers. Animal Sounds is the nicest
+case and needed no special handling: its "question" is the animal *clip*, so the
+first tap plays the sheep and the spoken prompt follows it.
+
+Nothing is swallowed when narration would be silent anyway — sound off, or no
+speech support — because then the tap would be lost for nothing. That case is
+asserted too, and doubles as the control: it proves the "was it judged"
+detector fires, so the sound-on half is not vacuously green. Detection watches
+for *any* class mutation rather than comparing before/after, because Sorting
+Friends is multi-select and clears its feedback inside the window, which a
+before/after sample reads as "nothing happened".
+
+Sixteen existing tests failed on this change, all correctly: their first tap was
+now the asking tap. They spend it on the inert `h1` first, which is what a child
+does too.
+
+**Also fixed: the reduced-motion invariant was flaky on CI** (it failed
+animal-sounds, feeling-friends and opposites-friends on the previous push). It
+sampled positions across one 250ms window, which cannot tell motion from content
+arriving — the footer fetches a commit SHA and rewrites its own text when it
+lands. It now samples two consecutive intervals and counts only elements that
+move in *both*: an animation keeps moving, a reflow happens once. Verified
+against an injected 3s sliding animation (still caught) and a deliberately late
+footer rewrite (now ignored), so the assertion did not just get weaker.
+
+**Two findings left open**, both measured, neither a bug:
+
+- **Run length.** Narration alone, no mistakes, no thinking time: Week Friends
+  53s (6 rounds), Animal Sounds 2.9 min (27), Letter Friends 4.2 min (26),
+  Opposites Friends 4.7 min (20), Sound Friends 5.2 min (26), **Where's Teddy?
+  7.0 min (25)** — ~17s of speech per round before the child looks at three
+  scenes, decides, taps, and an adult taps Next. §5 rule 11 made runs whole;
+  nobody had measured what whole costs for a 3–4 year old.
+- **A run cannot be paused.** Reloading restarts at 1/27. `rounds` and
+  `correctFirstTry` survive, but `sessions` — labelled "Full runs finished" on
+  the dashboard — only increments on completion:
+
+  ```
+  before reload: 6 / 27   after reload: 1 / 27
+  animal_sounds_stats_v1 = {"sessions":0,"rounds":5,"correctFirstTry":3,...}
+  ```
+
+  So on the three longest games a child who does not finish in one sitting never
+  sees the completion screen and never registers a finished run.
+
+Two things checked and cleared rather than reported: Week Friends looked like it
+deadlocked after a wrong answer, but disabling the board is correct — progression
+moves to the Next button; and the harness's first stall was self-inflicted,
+firing speech `onend` synchronously, which re-entered the games' narration chains
+before they had finished setting up state.
+
+356 tests pass.
+
+### 2026-08-23 — test: pin three cross-game invariants that were true but unheld
 
 A sweep for rules that had drifted the way §5 rule 8 did. The post-mortem on
 rule 8 was not "someone forgot" — it was that the rule had been **restated in

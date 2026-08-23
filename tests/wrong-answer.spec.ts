@@ -143,6 +143,13 @@ const openGame = async (page: Page, slug: string): Promise<void> => {
     content: '* { transition: none !important; animation: none !important; }',
   });
   await page.waitForTimeout(300);
+
+  // Spend the "first tap asks the question" gesture on inert chrome, so the
+  // taps this suite makes are judged as answers. A child does the same thing —
+  // their first tap asks, and every tap after it is an answer. Without this,
+  // the first tap here is swallowed and no game ever reports a wrong answer.
+  await page.locator('h1').first().click();
+  await page.waitForTimeout(150);
 };
 
 const tones = (page: Page): Promise<number[]> =>

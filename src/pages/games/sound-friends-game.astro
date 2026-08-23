@@ -512,5 +512,5 @@ const ssrCaption = `${ssrItem.word}! What does ${ssrItem.word} start with?`;
   // the body) to kick off the intro narration. Kickoff does NOT call
   // renderRound() — that would race with a first-interaction tap on a
   // tile. Same prophylactic fix the rest of the family uses.
-  onFirstGesture(() => speakIntroSequence());
+  onFirstGesture(() => speakIntroSequence(), { asksFirst: '.sf-tile' });
 </script>

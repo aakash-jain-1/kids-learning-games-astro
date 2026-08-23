@@ -662,5 +662,5 @@ const TOTAL_ROUNDS = 8;
   // click event when the user's first interaction is a tap on a
   // group. Same race that bit Counting Friends on 2026-05-15 — same
   // fix here, applied prophylactically.
-  onFirstGesture(() => speakIntroSequence());
+  onFirstGesture(() => speakIntroSequence(), { asksFirst: '.nf-group' });
 </script>

@@ -608,6 +608,11 @@ test.describe('parent stats dashboard (T6)', () => {
     await page.goto('games/counting-friends-game.html');
     await page.locator('#cfOptions .cf-opt').first().waitFor({ state: 'visible', timeout: 5_000 });
 
+    // The first tap on an answer asks the question rather than being scored,
+    // so spend that gesture on the inert heading first — otherwise the tap
+    // below is swallowed and no round is ever played.
+    await page.locator('h1').first().click();
+
     const a = await page.locator('#cfGroupA .cf-item').count();
     const b = await page.locator('#cfGroupB .cf-item').count();
     const expected = a + b;
