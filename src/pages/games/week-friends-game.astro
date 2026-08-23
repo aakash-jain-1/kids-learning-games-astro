@@ -161,6 +161,9 @@ const ssrCaption = `${ssrRunDays.map((d) => d.name).join(', ')}… what day come
     type PreschoolTheme,
   } from '@/data/week-friends';
   import { recordPlay, todayLocal } from '@/lib/retention';
+  import { loadRun, saveRun, clearRun, listenForReset } from '@/lib/run-state';
+
+  const RUN_KEY = 'week_friends_run_v1';
 
   // Indigo-leaning palette to match the Week Friends theme accent
   // (--week-accent #5c6bc0). The cognitive family dot on /stats stays
@@ -231,6 +234,19 @@ const ssrCaption = `${ssrRunDays.map((d) => d.name).join(', ')}… what day come
 
   let rounds: DayRound[] = buildRounds();
   let roundIdx = 0;
+
+  /**
+   * Pick up an unfinished run rather than starting the child over at round 1.
+   *
+   * Null when there is nothing sensible to resume — no saved run, one that is
+   * stale, or one already finished — in which case the SSR'd round 0 stands.
+   */
+  const resumed = loadRun<DayRound>(RUN_KEY, TOTAL_ROUNDS);
+  if (resumed) {
+    rounds = resumed.run;
+    roundIdx = resumed.idx;
+  }
+  listenForReset();
   let answered = false;
   let currentNarration: RoundNarration | null = null;
   /** Most recent post-answer phrase, cached so Replay re-narrates it. */
@@ -474,11 +490,15 @@ const ssrCaption = `${ssrRunDays.map((d) => d.name).join(', ')}… what day come
       return;
     }
     roundIdx++;
+    saveRun(RUN_KEY, rounds, roundIdx);
     startRound();
   };
 
   const showRunComplete = (): void => {
     cancelSpeech();
+    // Finished: nothing to come back to, and a stored run parked on its last
+    // round would drop the next visit onto the end of a run already seen.
+    clearRun(RUN_KEY);
     const stats = loadWeekFriendsStats();
     saveWeekFriendsStats({
       ...stats,
@@ -494,6 +514,7 @@ const ssrCaption = `${ssrRunDays.map((d) => d.name).join(', ')}… what day come
   const onPlayAgain = (): void => {
     playTap();
     doneEl.classList.remove('week-done--show');
+    clearRun(RUN_KEY);
     rounds = generateRun();
     roundIdx = 0;
     startRound();
@@ -579,5 +600,8 @@ const ssrCaption = `${ssrRunDays.map((d) => d.name).join(', ')}… what day come
   // the body) to kick off the intro narration. Kickoff does NOT call
   // renderRound() — that would race with a first-interaction tap on an
   // option. Same prophylactic fix the rest of the family uses.
+  // Resuming: the SSR'd DOM shows round 0, which is not where the child is.
+  if (resumed) renderRound();
+
   onFirstGesture(() => speakIntroSequence(), { asksFirst: '.week-opt' });
 </script>

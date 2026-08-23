@@ -142,6 +142,9 @@ const ssrCaption = `${ssrItem.word}! What does ${ssrItem.word} start with?`;
     type PreschoolTheme,
   } from '@/data/sound-friends';
   import { recordPlay, todayLocal } from '@/lib/retention';
+  import { loadRun, saveRun, clearRun, listenForReset } from '@/lib/run-state';
+
+  const RUN_KEY = 'sound_friends_run_v1';
 
   // Pink-leaning palette to match the literacy family accent (shared
   // with Letter Friends), distinct from the math triad's green.
@@ -210,6 +213,20 @@ const ssrCaption = `${ssrItem.word}! What does ${ssrItem.word} start with?`;
 
   let run: SoundRound[] = buildRun();
   let roundIdx = 0;
+
+  /**
+   * Pick up an unfinished run rather than starting the child over at round 1.
+   *
+   * Null when there is nothing sensible to resume — no saved run, one that is
+   * stale, or one that was already finished — in which case the SSR'd round 0
+   * stands as before.
+   */
+  const resumed = loadRun<SoundRound>(RUN_KEY, TOTAL_ROUNDS);
+  if (resumed) {
+    run = resumed.run;
+    roundIdx = resumed.idx;
+  }
+  listenForReset();
   let answered = false;
   let currentNarration: RoundNarration | null = null;
   /** Most recent post-answer phrase, cached so Replay re-narrates it. */
@@ -407,10 +424,14 @@ const ssrCaption = `${ssrItem.word}! What does ${ssrItem.word} start with?`;
       return;
     }
     roundIdx++;
+    saveRun(RUN_KEY, run, roundIdx);
     startRound();
   };
 
   const showRunComplete = (): void => {
+    // Finished: nothing to come back to, and a stored run parked on its last
+    // round would drop the next visit onto the end of a run already seen.
+    clearRun(RUN_KEY);
     cancelSpeech();
     const stats = loadSoundFriendsStats();
     saveSoundFriendsStats({
@@ -427,6 +448,7 @@ const ssrCaption = `${ssrItem.word}! What does ${ssrItem.word} start with?`;
   const onPlayAgain = (): void => {
     playTap();
     doneEl.classList.remove('sf-done--show');
+    clearRun(RUN_KEY);
     run = generateRun();
     roundIdx = 0;
     startRound();
@@ -512,5 +534,8 @@ const ssrCaption = `${ssrItem.word}! What does ${ssrItem.word} start with?`;
   // the body) to kick off the intro narration. Kickoff does NOT call
   // renderRound() — that would race with a first-interaction tap on a
   // tile. Same prophylactic fix the rest of the family uses.
+  // Resuming: the SSR'd DOM shows round 0, which is not where the child is.
+  if (resumed) renderRound();
+
   onFirstGesture(() => speakIntroSequence(), { asksFirst: '.sf-tile' });
 </script>

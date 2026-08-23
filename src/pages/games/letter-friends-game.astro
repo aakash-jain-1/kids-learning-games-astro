@@ -149,6 +149,9 @@ const ssrCaption = `Find ${SSR_FIRST_ROUND.target}! Show me the letter ${SSR_FIR
     type PreschoolTheme,
   } from '@/data/letterfriends';
   import { recordPlay, todayLocal } from '@/lib/retention';
+  import { loadRun, saveRun, clearRun, listenForReset } from '@/lib/run-state';
+
+  const RUN_KEY = 'letter_friends_run_v1';
 
   // Confetti palette — pink-leaning to match the literacy family
   // accent (--lf-target-accent #ef476f). Distinct from the
@@ -220,6 +223,20 @@ const ssrCaption = `Find ${SSR_FIRST_ROUND.target}! Show me the letter ${SSR_FIR
   // ── State ──────────────────────────────────────────────────────────
   let run: LetterRound[] = buildRun();
   let roundIdx = 0;
+
+  /**
+   * Pick up an unfinished run rather than starting the child over at round 1.
+   *
+   * Null when there is nothing sensible to resume — no saved run, one that is
+   * stale, or one that was already finished — in which case the SSR'd round 0
+   * stands as before.
+   */
+  const resumed = loadRun<LetterRound>(RUN_KEY, TOTAL_ROUNDS);
+  if (resumed) {
+    run = resumed.run;
+    roundIdx = resumed.idx;
+  }
+  listenForReset();
   let answered = false;
   let currentNarration: RoundNarration | null = null;
   /**
@@ -434,10 +451,14 @@ const ssrCaption = `Find ${SSR_FIRST_ROUND.target}! Show me the letter ${SSR_FIR
       return;
     }
     roundIdx++;
+    saveRun(RUN_KEY, run, roundIdx);
     startRound();
   };
 
   const showRunComplete = (): void => {
+    // Finished: nothing to come back to, and a stored run parked on its last
+    // round would drop the next visit onto the end of a run already seen.
+    clearRun(RUN_KEY);
     cancelSpeech();
     const stats = loadLetterFriendsStats();
     saveLetterFriendsStats({
@@ -457,6 +478,7 @@ const ssrCaption = `Find ${SSR_FIRST_ROUND.target}! Show me the letter ${SSR_FIR
   const onPlayAgain = (): void => {
     playTap();
     doneEl.classList.remove('lf-done--show');
+    clearRun(RUN_KEY);
     run = generateRun();
     roundIdx = 0;
     startRound();
@@ -545,5 +567,8 @@ const ssrCaption = `Find ${SSR_FIRST_ROUND.target}! Show me the letter ${SSR_FIR
   // click event when the user's first interaction is a tap on a
   // tile. Same race that bit Counting Friends on 2026-05-15 — same
   // fix here, applied prophylactically.
+  // Resuming: the SSR'd DOM shows round 0, which is not where the child is.
+  if (resumed) renderRound();
+
   onFirstGesture(() => speakIntroSequence(), { asksFirst: '.lf-tile' });
 </script>

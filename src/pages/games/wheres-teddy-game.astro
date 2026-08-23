@@ -152,8 +152,10 @@ const ssrNarration = buildNarration(SSR_FIRST_ROUND);
     type PreschoolTheme,
   } from '@/data/wheres-teddy';
   import { recordPlay, todayLocal } from '@/lib/retention';
+  import { loadRun, saveRun, clearRun, listenForReset } from '@/lib/run-state';
 
   const GAME_ID = 'wheres-teddy';
+  const RUN_KEY = 'wheres_teddy_run_v1';
   // Violet: the one hue not already spoken for by the literacy pink, the
   // math green, the listening sky, the social indigo, the opposites amber
   // or the sorting teal.
@@ -228,6 +230,21 @@ const ssrNarration = buildNarration(SSR_FIRST_ROUND);
 
   let run: TeddyRound[] = buildRun();
   let roundIdx = 0;
+
+  /**
+   * Pick up an unfinished run rather than starting over at 1/25.
+   *
+   * A full run is ~7 minutes of narration, which a 3yo often doesn't finish in
+   * one sitting — and until this, closing the tab meant they never would. Null
+   * when there's nothing sensible to resume (fresh, stale, or already
+   * finished), in which case the SSR'd round 0 stands.
+   */
+  const resumed = loadRun<TeddyRound>(RUN_KEY, TOTAL_ROUNDS);
+  if (resumed) {
+    run = resumed.run;
+    roundIdx = resumed.idx;
+  }
+  listenForReset();
   let answered = false;
   let currentNarration: RoundNarration | null = null;
   /** Most recent post-answer phrase, cached so Replay re-narrates it. */
@@ -426,11 +443,15 @@ const ssrNarration = buildNarration(SSR_FIRST_ROUND);
       return;
     }
     roundIdx++;
+    saveRun(RUN_KEY, run, roundIdx);
     startRound();
   };
 
   const showRunComplete = (): void => {
     cancelSpeech();
+    // The run is done — nothing left to come back to, and leaving it stored
+    // would drop the next visit onto the final round of a finished run.
+    clearRun(RUN_KEY);
     const stats = loadWheresTeddyStats();
     saveWheresTeddyStats({
       ...stats,
@@ -449,6 +470,7 @@ const ssrNarration = buildNarration(SSR_FIRST_ROUND);
   const onPlayAgain = (): void => {
     playTap();
     doneEl.classList.remove('wt-done--show');
+    clearRun(RUN_KEY);
     run = generateRun();
     roundIdx = 0;
     startRound();
@@ -535,10 +557,17 @@ const ssrNarration = buildNarration(SSR_FIRST_ROUND);
   // ── Initial state binding ──────────────────────────────────────────
   // The SSR'd DOM is round 0; we don't re-render it. Bind JS state so
   // subsequent logic — scene clicks, replay, etc. — has the references.
-  currentNarration = buildNarration(run[0]!);
-  progressText.textContent = `1 / ${TOTAL_ROUNDS}`;
-  progressFill.style.width = `${(1 / TOTAL_ROUNDS) * 100}%`;
-  progressPill.setAttribute('aria-label', `Round 1 of ${TOTAL_ROUNDS}`);
+  //
+  // Unless we're resuming, in which case round 0 is not where the child is
+  // and the DOM does have to be rewritten.
+  if (resumed) {
+    renderRound();
+  } else {
+    currentNarration = buildNarration(run[0]!);
+    progressText.textContent = `1 / ${TOTAL_ROUNDS}`;
+    progressFill.style.width = `${(1 / TOTAL_ROUNDS) * 100}%`;
+    progressPill.setAttribute('aria-label', `Round 1 of ${TOTAL_ROUNDS}`);
+  }
 
   // Speech is blocked until the first gesture, so the intro waits for it.
   // Deliberately does NOT call renderRound() — that would race with a

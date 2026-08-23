@@ -148,6 +148,9 @@ const ssrCaption = `${ssrTarget.sound}! Who says ${ssrTarget.sound.toLowerCase()
     type PreschoolTheme,
   } from '@/data/animal-sounds';
   import { recordPlay, todayLocal } from '@/lib/retention';
+  import { loadRun, saveRun, clearRun, listenForReset } from '@/lib/run-state';
+
+  const RUN_KEY = 'animal_sounds_run_v1';
 
   const GAME_ID = 'animal-sounds';
   // Sky-leaning palette matching the science/listening accent, distinct
@@ -215,6 +218,20 @@ const ssrCaption = `${ssrTarget.sound}! Who says ${ssrTarget.sound.toLowerCase()
   // ── State ──────────────────────────────────────────────────────────
   let run: AnimalSoundRound[] = buildRun();
   let roundIdx = 0;
+
+  /**
+   * Pick up an unfinished run rather than starting the child over at round 1.
+   *
+   * Null when there is nothing sensible to resume — no saved run, one that is
+   * stale, or one that was already finished — in which case the SSR'd round 0
+   * stands as before.
+   */
+  const resumed = loadRun<AnimalSoundRound>(RUN_KEY, TOTAL_ROUNDS);
+  if (resumed) {
+    run = resumed.run;
+    roundIdx = resumed.idx;
+  }
+  listenForReset();
   let answered = false;
   /**
    * Two phrasings of the round's script: one for when the real recording
@@ -472,10 +489,14 @@ const ssrCaption = `${ssrTarget.sound}! Who says ${ssrTarget.sound.toLowerCase()
       return;
     }
     roundIdx++;
+    saveRun(RUN_KEY, run, roundIdx);
     startRound();
   };
 
   const showRunComplete = (): void => {
+    // Finished: nothing to come back to, and a stored run parked on its last
+    // round would drop the next visit onto the end of a run already seen.
+    clearRun(RUN_KEY);
     cancelSpeech();
     stopClip();
     const stats = loadAnimalSoundsStats();
@@ -496,6 +517,7 @@ const ssrCaption = `${ssrTarget.sound}! Who says ${ssrTarget.sound.toLowerCase()
   const onPlayAgain = (): void => {
     playTap();
     doneEl.classList.remove('as-done--show');
+    clearRun(RUN_KEY);
     run = generateRun();
     roundIdx = 0;
     startRound();
@@ -604,10 +626,16 @@ const ssrCaption = `${ssrTarget.sound}! Who says ${ssrTarget.sound.toLowerCase()
         .filter((c): c is string => c !== null),
     );
   };
-  warmAhead(0);
+  // From wherever the child actually is — on a resumed run, warming from 0
+  // would fetch clips for rounds they finished days ago and leave the next
+  // one cold.
+  warmAhead(roundIdx);
 
   // Speech is blocked until the first gesture, so the intro waits for it.
   // Deliberately does NOT call renderRound() — that would race with a
   // first-interaction tap on a tile.
+  // Resuming: the SSR'd DOM shows round 0, which is not where the child is.
+  if (resumed) renderRound();
+
   onFirstGesture(() => speakIntro(), { asksFirst: '.as-tile' });
 </script>

@@ -164,6 +164,9 @@ const ssrRime = lookupFamily(ssrTarget.family).rime;
     type PreschoolTheme,
   } from '@/data/rhyme-time';
   import { recordPlay, todayLocal } from '@/lib/retention';
+  import { loadRun, saveRun, clearRun, listenForReset } from '@/lib/run-state';
+
+  const RUN_KEY = 'rhyme_time_run_v1';
 
   const GAME_ID = 'rhyme-time';
   // Pink-leaning palette shared with the literacy family (Sound Friends,
@@ -241,6 +244,20 @@ const ssrRime = lookupFamily(ssrTarget.family).rime;
 
   let run: RhymeRound[] = buildRun();
   let roundIdx = 0;
+
+  /**
+   * Pick up an unfinished run rather than starting the child over at round 1.
+   *
+   * Null when there is nothing sensible to resume — no saved run, one that is
+   * stale, or one that was already finished — in which case the SSR'd round 0
+   * stands as before.
+   */
+  const resumed = loadRun<RhymeRound>(RUN_KEY, TOTAL_ROUNDS);
+  if (resumed) {
+    run = resumed.run;
+    roundIdx = resumed.idx;
+  }
+  listenForReset();
   let answered = false;
   let currentNarration: RoundNarration | null = null;
   /** Most recent post-answer phrase, cached so Replay re-narrates it. */
@@ -448,10 +465,14 @@ const ssrRime = lookupFamily(ssrTarget.family).rime;
       return;
     }
     roundIdx++;
+    saveRun(RUN_KEY, run, roundIdx);
     startRound();
   };
 
   const showRunComplete = (): void => {
+    // Finished: nothing to come back to, and a stored run parked on its last
+    // round would drop the next visit onto the end of a run already seen.
+    clearRun(RUN_KEY);
     cancelSpeech();
     const stats = loadRhymeTimeStats();
     saveRhymeTimeStats({
@@ -468,6 +489,7 @@ const ssrRime = lookupFamily(ssrTarget.family).rime;
   const onPlayAgain = (): void => {
     playTap();
     doneEl.classList.remove('rt-done--show');
+    clearRun(RUN_KEY);
     run = generateRun();
     roundIdx = 0;
     startRound();
@@ -562,5 +584,8 @@ const ssrRime = lookupFamily(ssrTarget.family).rime;
   // Speech is blocked until the first gesture, so the intro waits for it.
   // Deliberately does NOT call renderRound() — that would race with a
   // first-interaction tap on a tile.
+  // Resuming: the SSR'd DOM shows round 0, which is not where the child is.
+  if (resumed) renderRound();
+
   onFirstGesture(() => speakIntro(), { asksFirst: '.rt-tile' });
 </script>

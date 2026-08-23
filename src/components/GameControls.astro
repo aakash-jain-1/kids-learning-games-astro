@@ -148,6 +148,16 @@ const { quiz = true, reset = true } = Astro.props;
 
     confirmBtn?.addEventListener('click', () => {
       playTap();
+      // Announce the restart before reloading, so anything that persists
+      // in-session state can drop it. Run-mode games store their unfinished
+      // run so a child can come back to it (lib/run-state.ts), and without
+      // this the pill would reload straight back into round 18 of 27 —
+      // "Start over?" answered with "no".
+      //
+      // Dispatched synchronously: listeners run to completion before the
+      // reload below is reached.
+      document.dispatchEvent(new CustomEvent('kids:reset'));
+
       // Restart the current session via a fresh page load. Saved progress
       // (LocalStorage) survives; in-session state resets to the start.
       location.reload();

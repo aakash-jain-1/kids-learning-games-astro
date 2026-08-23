@@ -417,7 +417,63 @@ before deciding.
 
 ## Changelog
 
-### 2026-08-23 (latest) — fix(a11y): ask the question before scoring the answer (§5 rule 13)
+### 2026-08-23 (latest) — feat(games): an unfinished run is resumed, not thrown away
+
+The second half of "a child can start a game and finish it". Playing the games
+end to end measured what §5 rule 11 costs now that a run covers every item:
+Where's Teddy is 25 rounds and about **seven minutes of narration alone**, before
+the child looks at three scenes, decides, taps, and an adult taps Next. A 3-4
+year old does not reliably sit through that in one go.
+
+Until now, they never got to:
+
+```
+before reload: 6 / 27   after reload: 1 / 27
+animal_sounds_stats_v1 = {"sessions":0,"rounds":5,"correctFirstTry":3,...}
+```
+
+Per-round stats survived, but `sessions` — what the dashboard shows as "Full
+runs finished" — only increments on completion. So on the three longest games a
+child could play twenty rounds a day for a week and still show zero finished
+runs, having never once seen the completion screen.
+
+`lib/run-state.ts` stores the run in progress under `<game>_run_v1`, written on
+each round advance and cleared on completion and on Play Again. It stores the
+**generated run itself**, not a seed: the run is already plain JSON, whereas a
+seed would have to keep meaning the same thing through every future change to
+the generator. A stored run is discarded rather than migrated when its length no
+longer matches `TOTAL_ROUNDS` (the content changed), when it is older than 48h
+(coming back the next morning is finishing what you started; coming back three
+weeks later is a confusing cold start at 18/27), or when the index is out of
+range.
+
+**Reset had to be fixed in the same change**, and this is the part worth
+remembering. `GameControls` documents the pill as "a fresh page reload — saved
+progress survives, in-session state resets to the start", and that was true
+precisely *because* the round index only ever lived in memory. Persisting it
+would have silently turned "Start over?" → confirm → **round 18 of 27** in every
+run-mode game: the pill would still have looked like it worked, since the page
+really did reload. The pill now dispatches `kids:reset` before reloading and
+`run-state.ts` clears up on it, so the component keeps its documented meaning
+without knowing any game's key.
+
+Eight run-mode games wired. **Memory Match is exempt on merit**, not
+convenience: its in-run state is a board plus a set of matched cards rather than
+a round index, and a half-solved board is worthless to a child who has lost the
+memory of where the cards were — which is the entire skill. Starting the board
+again is correct. The six generated-question games are exempt for the same
+reason they are exempt from rule 11: there is no finite set to come back to.
+
+`tests/resume.spec.ts` asserts three things per game, because each broke
+differently while building it — a partial run resumes, Reset still starts over,
+and a *finished* run does not resume (or Play Again lands on the last round of a
+run the child already saw through). Plus a control that clears the stored run
+and asserts the game does restart, so none of the above can pass just because a
+page failed to advance.
+
+374 tests pass.
+
+### 2026-08-23 — fix(a11y): ask the question before scoring the answer (§5 rule 13)
 
 Played nine games end to end as a child would — tapping through whole runs with
 a harness that recorded every utterance in order — rather than asserting things

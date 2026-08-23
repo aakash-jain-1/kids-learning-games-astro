@@ -6,18 +6,21 @@
 > win. Keep it short and current — see the update rule in
 > `.cursor/rules/maintain-context.mdc`.
 >
-> **Last verified against the codebase**: 2026-08-23 (**the opening question is
+> **Last verified against the codebase**: 2026-08-23 (**a child can now start a
+> game and finish it.** Two fixes from one playthrough session. **Runs resume**:
+> the longest are ~7 min of narration across 25 rounds, and reloading used to
+> restart at 1/25, so the completion screen was arguably unreachable and
+> "Full runs finished" stayed at zero — `lib/run-state.ts` now stores the
+> unfinished run, and Reset had to be taught to clear it or "Start over?" would
+> have meant "carry on". And **the opening question is
 > now actually asked** — playing nine games end to end showed that if a child's
 > first touch lands on an answer tile, which is what a child does, the intro
 > narration was skipped entirely and the first words they heard were the
 > correction, "Hmm! Let's listen again." Round one was unanswerable by design
 > for a pre-reader. The first tap on an answer is now swallowed and asks the
 > question instead; the next tap is a real answer. That is **§5 rule 13**, held
-> by `tests/invariants.spec.ts`. Two other findings from the same playthrough
-> are **not** fixed and are judgement calls: a clean run of Where's Teddy is
-> ~7 min of narration alone across 25 rounds, and an interrupted run always
-> restarts from 1/25 — rounds survive, but `sessions` ("Full runs finished")
-> only increments on completion, so the longest games may never register one.
+> by `tests/invariants.spec.ts`. Still open and a product call rather than a
+> defect: whether 25–27 rounds is the right size for a 3–4 year old at all.
 > Earlier: **§5 rule 8 migration
 > closed** — the nine remaining games with a wrong answer now give the red
 > tint, the error tone and the spoken correction, so all 14 that have one
@@ -293,7 +296,22 @@ data file + a layout-specific themed CSS block. A parent dashboard lives at
       to prevent. Use `generateRun(rand, startWith)`: the pinned question becomes
       the ordering's first choice, nothing is removed, so no gap exists.
     - **Preload.** Warm a rolling window ahead of the current round, not the
-      whole run, or start-up cost grows with the content.
+      whole run, or start-up cost grows with the content. Warm from the round
+      the child is actually on, not from 0 — on a resumed run those differ.
+    - **A long run must be resumable** (added 2026-08-23, after measuring what
+      rule 11 costs: 25 rounds of Where's Teddy is ~7 min of narration alone).
+      Store the run via `lib/run-state.ts`, clear it on completion, on Play
+      Again, and on Reset. Getting Reset right is not optional: it is a plain
+      `location.reload()`, so persisting the round index without clearing turns
+      "Start over?" into "carry on from round 18". Held by
+      `tests/resume.spec.ts`.
+
+      **Memory Match is exempt**, and not for convenience: its in-run state is a
+      board plus a set of matched cards, not a round index, and a half-solved
+      board is worthless to a child who has lost the memory of where things
+      were — which *is* the skill. Starting the board again is the correct
+      behaviour. The six generated-question games are exempt for the same
+      reason they are exempt from rule 11: nothing finite to return to.
 12. **Layer a feedback tint over the option; never assign it.** Applies to
     *every* state — `--wrong`, `--correct`, `--reveal` — not just rule 8.
     Every tint token in these games is translucent (0.16–0.22), so
@@ -359,6 +377,15 @@ data file + a layout-specific themed CSS block. A parent dashboard lives at
   The staged preschool-math games (Counting / More / Number Friends + Number
   Bond Pop) also carry `{ stage, bestStage }` (1..3) for their auto-advancing
   stages (added 2026-06-03; Number Bond Pop adopted them at ship 2026-06-06).
+- `<game>_run_v1` — an **unfinished run**, so a child comes back to it rather
+  than starting over (added 2026-08-23; `lib/run-state.ts`). Envelope is
+  `{ v, run, idx, savedAt }`, holding the generated run itself rather than a
+  seed — the run is already plain JSON, whereas a seed would have to keep
+  meaning the same thing through every future change to the generator.
+  Written on each round advance, **cleared on completion, on Play Again, and on
+  Reset**. Discarded rather than migrated when `run.length !== TOTAL_ROUNDS`
+  (content changed), when older than 48h, or when `idx` is out of range. Live in
+  the eight run-mode games. See §5 rule 11 for who is exempt and why.
 - `kids_play_history_v1` — sitewide `Record<YYYY-MM-DD, gameId[]>` for the
   `/stats` activity chart (30-day rolling window).
 
@@ -387,22 +414,23 @@ this family stays at one for now.)
   question was never spoken, because the first tap that unblocks speech was
   landing on an answer tile and being scored. Fixed and pinned.
 
-  Two findings from the same playthrough are **open judgement calls**, not bugs:
+  The same playthrough measured **how long a whole run takes**, which nobody had
+  done when rule 11 made runs cover everything. Narration alone, no mistakes, no
+  thinking time: Week Friends 53s (6 rounds), Animal Sounds 2.9 min (27), Letter
+  Friends 4.2 min (26), Sound Friends 5.2 min (26), **Where's Teddy? 7.0 min
+  (25)** — about 17s of speech per round before the child looks, decides, taps,
+  and an adult taps Next.
 
-  - **Run length.** Timing the narration alone, with no mistakes and no thinking
-    time: Week Friends 53s (6 rounds), Animal Sounds 2.9 min (27), Letter
-    Friends 4.2 min (26), Sound Friends 5.2 min (26), **Where's Teddy? 7.0 min
-    (25)** — about 17s of speech per round before the child looks, decides,
-    taps, and an adult taps Next. Rule 11 ("a run covers every item") is what
-    made runs whole; nobody had measured what whole costs.
-  - **A run cannot be paused.** Reloading restarts at 1/27. `rounds` and
-    `correctFirstTry` survive, but `sessions` — the stat the dashboard labels
-    "Full runs finished" — only increments on completion, so a child who does
-    not sit through all 25–27 rounds in one go never sees the completion screen
-    and never registers a finished run.
+  **Runs are now resumable** as a result (§5 rule 11, `lib/run-state.ts`,
+  `tests/resume.spec.ts`). Before this, reloading restarted at 1/27 and
+  `sessions` — "Full runs finished" on the dashboard — only incremented on
+  completion, so on the three longest games a child who never sat through all
+  25–27 rounds in one go never saw the completion screen and never registered a
+  finished run. Wiring it also had to fix Reset, which is a plain
+  `location.reload()` and would otherwise have carried on from the saved run.
 
-  Both were measured, neither was changed: the run-length shape is a product
-  decision (and rule 11 was an explicit ask), and resume is a feature.
+  Still open, and a product decision rather than a defect: whether 25–27 rounds
+  is the right size for a 3–4 year old at all.
 - **Previous ship (2026-08-23)**: **Memory Match** — sixth and last of the
   August arc, **which closes it**, and the first game whose skill is
   *remembering* rather than recognising or discriminating.
