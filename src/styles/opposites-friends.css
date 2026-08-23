@@ -287,14 +287,20 @@ body.story[data-theme='oppositesfriends'] .of-tile-name {
   pointer-events: none;
 }
 
+/* Tints are layered over the tile, never assigned to `background` — see the
+   note beside `--st-wrong-*` in story.css for what assigning them did. */
 body.story[data-theme='oppositesfriends'] .of-tile.of-tile--correct {
-  background: var(--of-tile-fill-correct);
+  background:
+    linear-gradient(var(--of-tile-fill-correct), var(--of-tile-fill-correct)),
+    var(--of-tile-bg);
   border-color: var(--of-tile-border-correct);
   animation: ofBounce 0.5s ease-out;
 }
 
 body.story[data-theme='oppositesfriends'] .of-tile.of-tile--reveal {
-  background: var(--of-tile-fill-glow);
+  background:
+    linear-gradient(var(--of-tile-fill-glow), var(--of-tile-fill-glow)),
+    var(--of-tile-bg);
   border-color: var(--of-tile-border-glow);
   animation: ofPulseRing 1.4s ease-in-out infinite;
 }

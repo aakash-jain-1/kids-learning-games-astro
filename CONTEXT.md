@@ -15,7 +15,11 @@
 > window onto the page gradient and read teal rather than red. The tint is now
 > a shared token layered over each option's own surface, and
 > `tests/wrong-answer.spec.ts` checks rendered pixels and the audio graph
-> rather than CSS values. Earlier: **Memory Match shipped —
+> rather than CSS values. Chasing that shape further found it in **seven more
+> games on the success path** — `--correct` and `--reveal`, which fire every
+> round rather than only on mistakes — so it is now **§5 rule 12** with
+> `tests/feedback-opacity.spec.ts` measuring each option's rendered alpha
+> against its own resting value. Earlier: **Memory Match shipped —
 > the August arc is complete**, 6 of 6, **29 games**, and the first game whose
 > skill is *remembering* rather than recognising. It answers the arc's last
 > open design question (Q5) by dissolving it: the board growth the design doc
@@ -183,12 +187,7 @@ data file + a layout-specific themed CSS block. A parent dashboard lives at
     the old rule was documented at every site as if it were still the rule.
 
     The tint is one shared pair of tokens, `--st-wrong-border` /
-    `--st-wrong-fill` in `story.css`, and it must be **layered over the
-    option's own surface**, not assigned to `background`. The five original
-    adopters assigned it, and since the fill is only 16% opaque their
-    near-white tiles became translucent windows onto the page gradient — the
-    wrongly-tapped tile read teal while its border read red. Write it as
-    `linear-gradient(var(--st-wrong-fill), var(--st-wrong-fill)), var(--x-tile-bg)`.
+    `--st-wrong-fill` in `story.css`.
 
     Enforced by `tests/wrong-answer.spec.ts`, which measures **rendered
     pixels and the Web Audio graph**, not CSS values — the games disagree
@@ -278,6 +277,32 @@ data file + a layout-specific themed CSS block. A parent dashboard lives at
       the ordering's first choice, nothing is removed, so no gap exists.
     - **Preload.** Warm a rolling window ahead of the current round, not the
       whole run, or start-up cost grows with the content.
+12. **Layer a feedback tint over the option; never assign it.** Applies to
+    *every* state — `--wrong`, `--correct`, `--reveal` — not just rule 8.
+    Every tint token in these games is translucent (0.16–0.22), so
+    `background: var(--tint)` **replaces** the option's surface and turns it
+    into a window onto the page gradient behind it. Measured: tiles sitting at
+    0.93 alpha dropped to ~0.33, and the "feedback colour" became whatever the
+    gradient was doing at that spot — Animal Sounds' wrongly-tapped tile came
+    out *teal*, and the picture lost the surface it was meant to sit on. Write:
+
+    ```css
+    background:
+      linear-gradient(var(--tint), var(--tint)),
+      var(--x-tile-bg);
+    ```
+
+    Found 2026-08-23 in twelve places: five games on `--wrong`, then seven on
+    `--correct`/`--reveal` (Animal Sounds, Feeling Friends, Opposites Friends,
+    Rhyme Time, Letter Friends, Sound Friends, Week Friends) — the success
+    path, which fires every round rather than only on mistakes. Enforced by
+    `tests/feedback-opacity.spec.ts`, which measures each option's rendered
+    alpha against **its own resting value**, so games with a deliberately
+    translucent surface (Pattern Sequences, Magnitude Comparison, Number
+    Friends, Number Bond Pop, all near 0.35) pass without being special-cased.
+    Solid, fully opaque replacements are a different thing and are fine —
+    Memory Match's matched card and Week Friends' revealed slot both do it on
+    purpose.
 
 ## 6. LocalStorage keys (state shapes)
 

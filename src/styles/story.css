@@ -74,6 +74,36 @@ body.story {
   --st-wrong-border: #e23d5a;
   --st-wrong-fill: rgba(226, 61, 90, 0.16);
 
+  /**
+   * ── How to apply ANY feedback tint (wrong, correct, reveal) ──
+   *
+   * LAYER it over the option's own surface. Never assign it to
+   * `background`:
+   *
+   *     background:                                    ✅
+   *       linear-gradient(var(--tint), var(--tint)),
+   *       var(--x-tile-bg);
+   *
+   *     background: var(--tint);                       ❌
+   *
+   * Every tint here is translucent by design — 0.16 to 0.22 — so
+   * assigning it *replaces* the tile's surface and the option becomes a
+   * window onto the page gradient behind it. Measured: a tile sitting at
+   * 0.93 alpha drops to ~0.33. It does not read as "tinted", it reads as
+   * a hole, and whatever the gradient happens to be doing at that point
+   * on the board becomes the feedback colour. Animal Sounds' wrongly-
+   * tapped tile came out *teal*.
+   *
+   * This caught seven games on `--correct`/`--reveal` and five on
+   * `--wrong`, both found on 2026-08-23. `tests/feedback-opacity.spec.ts`
+   * now measures the alpha directly, so it cannot come back quietly.
+   *
+   * Games whose option surface is translucent *on purpose* (Pattern
+   * Sequences, Magnitude Comparison, Number Friends, Number Bond Pop sit
+   * around 0.35) are fine either way — their tints raise the alpha rather
+   * than dropping it — but layering is still the shape to copy.
+   */
+
   /* Page background — starts in the warm-cream/sunrise default and
      can be morphed per scene by the page script setting `--st-bg`. */
   --st-bg: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);

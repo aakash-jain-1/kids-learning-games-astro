@@ -417,7 +417,55 @@ before deciding.
 
 ## Changelog
 
-### 2026-08-23 (latest) — fix(a11y): finish the §5 rule 8 migration, and fix the tint in the five games that already had it
+### 2026-08-23 (latest) — fix(ui): the feedback tint was hollowing out the option, on the success path too (§5 rule 12)
+
+Follow-up to the rule 8 migration below, which found this shape on `--wrong`
+in five games. It turned out to be a *class* of bug, not five instances, and
+the larger half was on the path that fires every round.
+
+**Seven games did it on `--correct` and `--reveal`**: Animal Sounds, Feeling
+Friends, Opposites Friends, Rhyme Time, Letter Friends, Sound Friends, Week
+Friends. Same one line, `background: var(--x-tile-fill-correct)`, where the
+token is `rgba(76, 175, 80, 0.22)`. That doesn't tint the tile, it **replaces**
+it — so a tile resting at 0.93 alpha dropped to 0.33 and became a window onto
+the page gradient behind the board. The celebration colour a child saw was
+whichever way the gradient happened to be going at that spot, and the animal
+or letter on the tile lost the white surface it was drawn to sit on.
+
+It hid better on the success path than on the wrong one. Animal Sounds' board
+sits over a teal-to-sand gradient, and 22% green over teal still looks vaguely
+green, so nothing looked obviously broken — whereas 16% *red* over the same
+teal looked exactly as wrong as it was. Which is why chasing the shape mattered
+more than chasing the symptom.
+
+Fixed by layering, and written down as **§5 rule 12** rather than left as a
+fixed bug, since two days produced twelve instances of it:
+
+```css
+background:
+  linear-gradient(var(--tint), var(--tint)),
+  var(--x-tile-bg);
+```
+
+**`tests/feedback-opacity.spec.ts`** measures each option's rendered alpha —
+ancestors forced transparent, then screenshotted with `omitBackground` so the
+PNG's alpha channel *is* the option's coverage — and compares each state
+against **that option's own resting value**. Two consequences worth keeping:
+
+- Games whose surface is translucent **on purpose** need no exemption. Pattern
+  Sequences, Magnitude Comparison, Number Friends and Number Bond Pop rest near
+  0.35 and their states *raise* alpha, so a relative bar passes them for the
+  right reason instead of an allowlist.
+- Fully opaque replacements are correctly ignored. Memory Match's matched card
+  (`#eafbe7`) and Week Friends' revealed slot (the day's own colour) both
+  replace the background deliberately, and neither is this bug.
+
+The suite also asserts each state actually **changes** the rendering, so a
+stale class name in the spec's table can't pass by doing nothing — and it was
+checked by reintroducing the bug in Animal Sounds and confirming a failure
+before restoring it.
+
+### 2026-08-23 — fix(a11y): finish the §5 rule 8 migration, and fix the tint in the five games that already had it
 
 Rule 8 — a wrong tap gets a shake, a **red tint**, an error tone and a spoken
 correction — was adopted on 2026-08-17 and then reached exactly five games.

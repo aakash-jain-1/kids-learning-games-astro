@@ -290,14 +290,20 @@ body.story[data-theme='letterfriends'] .lf-tile:disabled {
   opacity: 0.85;
 }
 
+/* Tints are layered over the tile, never assigned to `background` — see the
+   note beside `--st-wrong-*` in story.css for what assigning them did. */
 body.story[data-theme='letterfriends'] .lf-tile.lf-tile--correct {
-  background: var(--lf-tile-fill-correct);
+  background:
+    linear-gradient(var(--lf-tile-fill-correct), var(--lf-tile-fill-correct)),
+    var(--lf-tile-bg);
   border-color: var(--lf-tile-border-correct);
   animation: lfBounce 0.5s ease-out;
 }
 
 body.story[data-theme='letterfriends'] .lf-tile.lf-tile--reveal {
-  background: var(--lf-tile-fill-glow);
+  background:
+    linear-gradient(var(--lf-tile-fill-glow), var(--lf-tile-fill-glow)),
+    var(--lf-tile-bg);
   border-color: var(--lf-tile-border-glow);
   animation: lfPulseRing 1.4s ease-in-out infinite;
 }

@@ -324,14 +324,20 @@ body.story[data-theme='weekfriends'] .week-opt-name {
   pointer-events: none;
 }
 
+/* Tints are layered over the option, never assigned to `background` — see the
+   note beside `--st-wrong-*` in story.css for what assigning them did. */
 body.story[data-theme='weekfriends'] .week-opt.week-opt--correct {
-  background: var(--week-opt-fill-correct);
+  background:
+    linear-gradient(var(--week-opt-fill-correct), var(--week-opt-fill-correct)),
+    var(--week-opt-bg);
   border-color: var(--week-opt-border-correct);
   animation: weekBounce 0.5s ease-out;
 }
 
 body.story[data-theme='weekfriends'] .week-opt.week-opt--reveal {
-  background: var(--week-opt-fill-correct);
+  background:
+    linear-gradient(var(--week-opt-fill-correct), var(--week-opt-fill-correct)),
+    var(--week-opt-bg);
   border-color: var(--week-opt-border-correct);
   animation: weekPulseRing 1.4s ease-in-out infinite;
 }

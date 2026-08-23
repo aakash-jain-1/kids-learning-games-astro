@@ -295,14 +295,20 @@ body.story[data-theme='animalsounds'] .as-tile-name {
   pointer-events: none;
 }
 
+/* Tints are layered over the tile, never assigned to `background` — see the
+   note beside `--st-wrong-*` in story.css for what assigning them did. */
 body.story[data-theme='animalsounds'] .as-tile.as-tile--correct {
-  background: var(--as-tile-fill-correct);
+  background:
+    linear-gradient(var(--as-tile-fill-correct), var(--as-tile-fill-correct)),
+    var(--as-tile-bg);
   border-color: var(--as-tile-border-correct);
   animation: asBounce 0.5s ease-out;
 }
 
 body.story[data-theme='animalsounds'] .as-tile.as-tile--reveal {
-  background: var(--as-tile-fill-glow);
+  background:
+    linear-gradient(var(--as-tile-fill-glow), var(--as-tile-fill-glow)),
+    var(--as-tile-bg);
   border-color: var(--as-tile-border-glow);
   animation: asPulseRing 1.4s ease-in-out infinite;
 }
