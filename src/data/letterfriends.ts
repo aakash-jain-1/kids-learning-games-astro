@@ -98,7 +98,7 @@
  * - **Errorless wrong-tap flow** matches the established preschool
  *   pattern. On a wrong tap: cancel speech, kinesthetic shake on
  *   the tapped tile (250ms, no color shift, no negative tone),
- *   narrate "Hmm! Let's look together." then "This is {tapped}.
+ *   narrate "Not that one. Let's look together." then "This is {tapped}.
  *   {Tapped} is for {tappedWord}.", then "We're looking for
  *   {target}. {Target} is for {targetWord}.", then reveal the
  *   correct tile with a pulsing ring. No score penalty, no red X.
@@ -112,6 +112,7 @@
  */
 
 import { ALL_CARDS as ALPHABET_CARDS } from '@/data/alphabets';
+import { WRONG_LEAD } from '@/data/preschool-narration';
 import {
   THEMES,
   THEME_BY_KEY,
@@ -413,7 +414,7 @@ export const generateRun = (
  * Phases:
  *   - `intro` — "Find A! Show me the letter A. A is for Apple."
  *   - `correct` — Right-tap celebration: "Yes! A! A is for Apple!"
- *   - `rerun` — Wrong-tap intro: "Hmm! Let's look together."
+ *   - `rerun` — Wrong-tap intro: "Not that one. Let's look together."
  *   - `rerunDoneWrong(tappedLetter)` — narrate the wrong tap:
  *     "This is B. B is for Ball. We're looking for A."
  *   - `rerunDoneRight` — narrate the target with the picture
@@ -440,7 +441,7 @@ export const buildNarration = (round: LetterRound): RoundNarration => {
   return {
     intro: `Find ${targetMeta.letter}! Show me the letter ${targetMeta.letter}. ${targetMeta.letter} is for ${targetMeta.word}.`,
     correct: `Yes! ${targetMeta.letter}! ${targetMeta.letter} is for ${targetMeta.word}!`,
-    rerun: `Hmm! Let's look together.`,
+    rerun: `${WRONG_LEAD} Let's look together.`,
     rerunDoneWrong: (tappedLetter: LetterId): string => {
       const tapped = lookupLetter(tappedLetter);
       return `This is ${tapped.letter}. ${tapped.letter} is for ${tapped.word}. We're looking for ${targetMeta.letter}.`;

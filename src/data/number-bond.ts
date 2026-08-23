@@ -54,6 +54,7 @@ import {
   type PreschoolTheme,
   type ThemeMeta,
 } from '@/lib/preschool-themes';
+import { WRONG_LEAD } from '@/data/preschool-narration';
 import {
   type StageId,
   STAGE_META,
@@ -266,7 +267,7 @@ export const generateSession = (
  * Phases:
  *   - `intro` — "We have three ducks. How many more to make five?"
  *   - `correct` — "Yes! Three and two make five!"
- *   - `rerun` — wrong-tap intro: "Hmm! Let's count what we need."
+ *   - `rerun` — wrong-tap intro: "Not that one. Let's count what we need."
  *   - `rerunDone` — after counting the empty cells: "We need two more!
  *     Three and two make five."
  *   - `fillStep(n)` — counting-on as each empty cell fills: "four", "five".
@@ -290,7 +291,7 @@ export const buildNarration = (round: BondRound): RoundNarration => {
   return {
     intro: `We have ${haveWord} ${haveNoun}. How many more to make ${wholeWord}?`,
     correct: `Yes! ${cap(haveWord)} and ${gapWord} make ${wholeWord}!`,
-    rerun: `Hmm! Let's count what we need.`,
+    rerun: `${WRONG_LEAD} Let's count what we need.`,
     rerunDone: `We need ${gapWord} more! ${cap(haveWord)} and ${gapWord} make ${wholeWord} ${wholeNoun}.`,
     fillStep: (n: number): string => numberWord(n),
   };

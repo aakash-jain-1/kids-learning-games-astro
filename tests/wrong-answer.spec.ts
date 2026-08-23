@@ -100,15 +100,27 @@ const GAMES: readonly GameSpec[] = [
 ];
 
 /**
- * Record the frequency of every oscillator the page starts.
+ * Record the frequency of every oscillator the page starts, and every phrase
+ * it speaks.
  *
- * Hooked at `start()` rather than at creation because `audio.ts` sets
- * `frequency.value` after `createOscillator()` returns.
+ * The oscillator is hooked at `start()` rather than at creation because
+ * `audio.ts` sets `frequency.value` after `createOscillator()` returns.
+ * Speech is stubbed rather than observed so `onEnd` resolves promptly — a real
+ * headless browser has no voices, and the games then wait out a watchdog.
  */
 const HOOK = `
   (() => {
     const w = window;
     w.__tones = [];
+    w.__spoke = [];
+    const fake = {
+      speaking: false, pending: false, cancel() {}, getVoices: () => [],
+      speak(u) {
+        w.__spoke.push(String((u && u.text) || ''));
+        setTimeout(() => { try { u.onend && u.onend(new Event('end')); } catch (e) {} }, 25);
+      },
+    };
+    Object.defineProperty(w, 'speechSynthesis', { get: () => fake, configurable: true });
     const Ctor = w.AudioContext || w.webkitAudioContext;
     if (!Ctor) return;
     const orig = Ctor.prototype.createOscillator;
@@ -200,6 +212,11 @@ const tapUntilWrong = async (page: Page, spec: GameSpec): Promise<number | null>
   for (let i = 0; i < count; i++) {
     if (i > 0) await openGame(page, spec.slug);
 
+    // Drop anything said by the intro, so what's captured is the response to
+    // this tap and nothing else.
+    await page.evaluate(() => {
+      (window as unknown as { __spoke: string[] }).__spoke.length = 0;
+    });
     await page.locator(spec.option).nth(i).click();
 
     // Read immediately: the multi-select games drop the class after ~450ms.
@@ -216,6 +233,17 @@ const tapUntilWrong = async (page: Page, spec: GameSpec): Promise<number | null>
   return null;
 };
 
+/**
+ * The words a wrong tap must open with, before any explanation.
+ *
+ * Kept as a literal rather than imported from `@/data/preschool-narration` on
+ * purpose: importing it would assert that the games agree with each other,
+ * which they would even if the phrase quietly became "Hmm!" again. The point
+ * is that a child is *told* they were wrong, so the expected words are written
+ * out here where changing them is a visible decision.
+ */
+const WRONG_LEAD = 'Not that one.';
+
 test.describe('§5 rule 8 — a wrong tap is corrected, in every game that has one', () => {
   for (const spec of GAMES) {
     test(`${spec.slug}: a wrong tap sounds the error tone`, async ({ page }) => {
@@ -229,6 +257,35 @@ test.describe('§5 rule 8 — a wrong tap is corrected, in every game that has o
         played,
         `${spec.slug}: no ${WRONG_HZ}Hz error tone — playWrong() is not wired into the wrong branch`,
       ).toContain(WRONG_HZ);
+    });
+
+    /**
+     * The verification judgment, in words.
+     *
+     * Every game used to open its correction with "Hmm!", and two went
+     * straight into teaching. A red tint and a tone are the only other signals
+     * that anything was wrong, and neither is language: a three-year-old hears
+     * "Hmm! Let's count them together" as the game thinking, then being
+     * helpful. Reviews of corrective feedback with 3-11 year olds find the
+     * explicit right/wrong judgment in ~85% of studied conditions, paired with
+     * the correct answer — these games had the second half and not the first.
+     */
+    test(`${spec.slug}: a wrong tap says so, out loud`, async ({ page }) => {
+      await openGame(page, spec.slug);
+
+      const idx = await tapUntilWrong(page, spec);
+      expect(idx, `${spec.slug}: no option was ever treated as wrong`).not.toBeNull();
+
+      const spoke = await page.evaluate(
+        () => (window as unknown as { __spoke: string[] }).__spoke.slice(),
+      );
+      expect(spoke.length, `${spec.slug}: a wrong tap said nothing at all`).toBeGreaterThan(0);
+
+      expect(
+        spoke[0],
+        `${spec.slug}: the correction opens with "${spoke[0] ?? ''}" — a child is taught at ` +
+          `without first being told the answer was wrong`,
+      ).toContain(WRONG_LEAD);
     });
 
     /**

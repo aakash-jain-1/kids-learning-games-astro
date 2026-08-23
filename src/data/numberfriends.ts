@@ -60,6 +60,7 @@ import {
   type PreschoolTheme,
   type ThemeMeta,
 } from '@/lib/preschool-themes';
+import { WRONG_LEAD } from '@/data/preschool-narration';
 import {
   type StageId,
   themesForStage,
@@ -257,7 +258,7 @@ export const generateSession = (
  * Phases:
  *   - `intro` — "Show me three ducks! Find three ducks."
  *   - `correct` — Right-tap celebration: "Yes! Three ducks!"
- *   - `rerun` — Wrong-tap intro: "Hmm! Let's count them together."
+ *   - `rerun` — Wrong-tap intro: "Not that one. Let's count them together."
  *   - `rerunDoneWrong(tappedSize)` — count of tapped wrong group:
  *     "Four ducks! That was four, not three."
  *   - `rerunDoneRight(targetSize, theme)` — count of correct group:
@@ -286,7 +287,7 @@ export const buildNarration = (round: HuntRound): RoundNarration => {
   return {
     intro: `Show me ${targetWord} ${targetNoun}! Find ${targetWord} ${targetNoun}.`,
     correct: `Yes! ${cap(targetWord)} ${targetNoun}!`,
-    rerun: `Hmm! Let's count them together.`,
+    rerun: `${WRONG_LEAD} Let's count them together.`,
     rerunDoneWrong: (tappedSize: number): string => {
       const w = numberWord(tappedSize);
       const n = nounFor(tappedSize, theme);

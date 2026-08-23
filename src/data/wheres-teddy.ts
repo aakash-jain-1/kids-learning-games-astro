@@ -55,6 +55,7 @@ import {
   type PreschoolTheme,
   type ThemeMeta,
 } from '@/lib/preschool-themes';
+import { WRONG_LEAD } from '@/data/preschool-narration';
 
 export { THEMES, THEME_BY_KEY } from '@/lib/preschool-themes';
 export type { PreschoolTheme, ThemeMeta } from '@/lib/preschool-themes';
@@ -461,7 +462,7 @@ export const buildNarration = (round: TeddyRound): RoundNarration => {
   return {
     intro: `Which ${o} is ${rel.phrase} the ${l}?`,
     correct: `Yes! That ${o} is ${rel.phrase} the ${l}.`,
-    rerun: "Hmm! Let's look at them again.",
+    rerun: `${WRONG_LEAD} Let's look at them again.`,
     wrongIs: (tapped: Relation): string =>
       `That ${o} is ${lookupRelation(tapped).phrase} the ${l}. ` +
       `We're looking for the ${o} ${rel.phrase} the ${l}.`,

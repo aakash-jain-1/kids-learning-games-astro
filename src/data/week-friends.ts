@@ -75,6 +75,7 @@ import {
   type PreschoolTheme,
   type ThemeMeta,
 } from '@/lib/preschool-themes';
+import { WRONG_LEAD } from '@/data/preschool-narration';
 
 export type { PreschoolTheme, ThemeMeta };
 export { THEMES, THEME_BY_KEY };
@@ -292,7 +293,7 @@ export const generateRun = (rand: () => number = Math.random): DayRound[] => {
  * Narration script for one round (mirrors Pattern Sequences' shape):
  *   - `intro` — "Sunday, Monday… what day comes next?"
  *   - `correct` — "Yes! Tuesday comes after Monday!"
- *   - `rerun` — wrong-tap intro: "Hmm! Let's sing the days."
+ *   - `rerun` — wrong-tap intro: "Not that one. Let's sing the days."
  *   - `dayWord(i)` — the day name, spoken per item during the guided
  *      run walk on a wrong tap ("Sunday… Monday…").
  *   - `reveal` — "Tuesday! Tuesday comes after Monday."
@@ -312,7 +313,7 @@ export const buildNarration = (round: DayRound): RoundNarration => {
   return {
     intro: `${runNames.join(', ')}… what day comes next?`,
     correct: `Yes! ${targetName} comes after ${lastShown}!`,
-    rerun: `Hmm! Let's sing the days.`,
+    rerun: `${WRONG_LEAD} Let's sing the days.`,
     reveal: `${targetName}! ${targetName} comes after ${lastShown}.`,
     dayWord: (index: number): string => lookupDay(index).name,
   };

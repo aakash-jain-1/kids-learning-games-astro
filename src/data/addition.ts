@@ -41,6 +41,7 @@ import {
   cap as _cap,
   nounFor as _nounFor,
 } from '@/lib/preschool-themes';
+import { WRONG_LEAD } from '@/data/preschool-narration';
 import {
   type StageId,
   themesForStage,
@@ -252,7 +253,7 @@ export const buildNarration = (round: Round): RoundNarration => {
     addition: `Then ${bWord} more ${bNoun} come!`,
     question: `How many ${sumNoun} in all?`,
     correct: `Yes! ${cap(sumWord)} ${sumNoun}! ${cap(aWord)} and ${bWord} make ${sumWord}.`,
-    rerun: `Let's count them together!`,
+    rerun: `${WRONG_LEAD} Let's count them together!`,
     rerunDone: `${cap(sumWord)} ${sumNoun}! ${cap(aWord)} and ${bWord} make ${sumWord}.`,
   };
 };

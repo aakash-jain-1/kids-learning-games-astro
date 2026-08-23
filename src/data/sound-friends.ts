@@ -66,6 +66,7 @@
  */
 
 import { ALL_CARDS as ALPHABET_CARDS } from '@/data/alphabets';
+import { WRONG_LEAD } from '@/data/preschool-narration';
 import {
   THEMES,
   THEME_BY_KEY,
@@ -334,7 +335,7 @@ export const generateRun = (
  * Phases:
  *   - `intro` — "Apple! Apple starts with A. A says ah. Find the letter A!"
  *   - `correct` — "Yes! Apple starts with A! Ah, ah, Apple!"
- *   - `rerun` — "Hmm! Let's listen. Apple starts with ah."
+ *   - `rerun` — "Not that one. Let's listen. Apple starts with ah."
  *   - `rerunDoneWrong(tapped)` — "This is B. B says buh. We need A."
  *   - `rerunDoneRight` — "Look! Apple starts with A. Ah, Apple."
  *
@@ -355,7 +356,7 @@ export const buildNarration = (round: SoundRound): RoundNarration => {
   return {
     intro: `${word}! ${word} starts with ${letter}. ${letter} says ${sound}. Find the letter ${letter}!`,
     correct: `Yes! ${word} starts with ${letter}! ${sound}, ${sound}, ${word}!`,
-    rerun: `Hmm! Let's listen. ${word} starts with ${sound}.`,
+    rerun: `${WRONG_LEAD} Let's listen. ${word} starts with ${sound}.`,
     rerunDoneWrong: (tappedLetter: LetterId): string => {
       const tapped = lookupLetter(tappedLetter);
       return `This is ${tapped.letter}. ${tapped.letter} says ${tapped.sound}. We need ${letter}.`;

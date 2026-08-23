@@ -47,7 +47,7 @@
  *   crowd the visual space.
  *
  * - **Errorless wrong-tap flow.** Cancel speech → kinesthetic 250 ms
- *   shake on tapped wrong option → narrate "Hmm! Let's look at the
+ *   shake on tapped wrong option → narrate "Not that one. Let's look at the
  *   pattern" → walk through the sequence highlighting each item and
  *   speaking its color ("red... blue... red... blue... red...") →
  *   reveal the correct option with a pulsing ring → narrate the
@@ -75,6 +75,7 @@ import {
   type PreschoolTheme,
   type ThemeMeta,
 } from '@/lib/preschool-themes';
+import { WRONG_LEAD } from '@/data/preschool-narration';
 
 export type { PreschoolTheme, ThemeMeta };
 export { THEMES, THEME_BY_KEY };
@@ -277,7 +278,7 @@ export const generateSession = (
  * Phases (mirrors the triad's `RoundNarration` shape):
  *   - `intro` — "What comes next? Look at the pattern!"
  *   - `correct` — Right-tap celebration: "Yes! Red!"
- *   - `rerun` — Wrong-tap intro: "Hmm! Let's look at the pattern."
+ *   - `rerun` — Wrong-tap intro: "Not that one. Let's look at the pattern."
  *   - `colorWord(c)` — used during the wrong-tap walk-through to
  *     speak each item: "Red... blue... red..."
  *   - `reveal` — Wrong-tap conclusion: "Red! It was red."
@@ -306,7 +307,7 @@ export const buildNarration = (round: PatternRound): RoundNarration => {
   return {
     intro: `What comes next? Look at the pattern!`,
     correct: `Yes! ${cap1(correctWord)}!`,
-    rerun: `Hmm! Let's look at the pattern.`,
+    rerun: `${WRONG_LEAD} Let's look at the pattern.`,
     reveal: `${cap1(correctWord)}! It was ${correctWord}.`,
     colorWord: (c: PatternColor): string => COLOR_LABEL[c],
   };

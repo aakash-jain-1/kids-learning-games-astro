@@ -73,6 +73,7 @@
  */
 
 import { DECKS } from '@/data/flashcards';
+import { WRONG_LEAD } from '@/data/preschool-narration';
 import {
   THEMES,
   type PreschoolTheme,
@@ -549,7 +550,7 @@ export const buildNarration = (round: RhymeRound): RoundNarration => {
   return {
     intro: `${target.name}. What rhymes with ${t}? Listen — ${options[0]}, ${options[1]}, or ${options[2]}?`,
     correct: `Yes! ${target.name} and ${answer.name} rhyme! ${family.fact}`,
-    rerun: "Hmm! Let's listen again.",
+    rerun: `${WRONG_LEAD} Let's listen again.`,
     wrongIs: (tapped: RhymeWordId): string => {
       const w = lookupWord(tapped);
       return `${t} and ${w.name.toLowerCase()} end with different sounds. We want the one that rhymes with ${t}.`;

@@ -66,6 +66,7 @@
  */
 
 import { ALL_CARDS as ANIMAL_CARDS } from '@/data/animals';
+import { WRONG_LEAD } from '@/data/preschool-narration';
 import { ALL_CARDS as BIRD_CARDS } from '@/data/birds';
 import {
   THEMES,
@@ -527,7 +528,7 @@ export const generateRun = (
  * Phases:
  *   - `intro`    — asks the question ("Who says that?")
  *   - `correct`  — "Yes! The cow says moo! Cows give us milk!"
- *   - `rerun`    — "Hmm! Let's listen again."
+ *   - `rerun`    — "Not that one. Let's listen again."
  *   - `wrongIs`  — "That's the cat. The cat says meow."
  *   - `reveal`   — "The cow says moo."
  */
@@ -573,8 +574,8 @@ export const buildNarration = (
       : `${call}! Who says ${lc(call)}? Listen again — ${lc(call)}!`,
     correct: `Yes! The ${lc(target.name)} says ${lc(call)}! ${target.fact}`,
     rerun: withClip
-      ? "Hmm! Let's listen again."
-      : `Hmm! Let's listen again. ${call}!`,
+      ? `${WRONG_LEAD} Let's listen again.`
+      : `${WRONG_LEAD} Let's listen again. ${call}!`,
     wrongIs: (tapped: AnimalId): string => {
       const other = lookupAnimal(tapped);
       return `That's the ${lc(other.name)}. The ${lc(other.name)} says ${lc(other.sound)}.`;

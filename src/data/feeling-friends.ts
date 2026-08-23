@@ -53,6 +53,7 @@
  */
 
 import { DECKS } from '@/data/flashcards';
+import { WRONG_LEAD } from '@/data/preschool-narration';
 import {
   THEMES,
   type PreschoolTheme,
@@ -477,7 +478,7 @@ export const buildNarration = (round: FeelingRound): RoundNarration => {
   return {
     intro,
     correct,
-    rerun: "Hmm! Let's look at the faces together.",
+    rerun: `${WRONG_LEAD} Let's look at the faces together.`,
     wrongIs: (tapped: FeelingId): string => {
       const t = lookupFeeling(tapped);
       return `That's the ${t.name.toLowerCase()} face — ${t.cue}. We're looking for ${lower}.`;

@@ -6,8 +6,16 @@
 > win. Keep it short and current — see the update rule in
 > `.cursor/rules/maintain-context.mdc`.
 >
-> **Last verified against the codebase**: 2026-08-23 (**a child can now start a
-> game and finish it.** Two fixes from one playthrough session. **Runs resume**:
+> **Last verified against the codebase**: 2026-08-23 (**a wrong answer now says
+> so.** Every game opened its correction with "Hmm!" — which a three-year-old
+> hears as the game thinking, not as "that isn't the one" — and two went
+> straight into "Let's count them together!", so the only signals were a red
+> tint and a tone, neither of which is language. Corrections now open with a
+> shared **"Not that one."** (§5 rule 8, `src/data/preschool-narration.ts`),
+> which is the *verification judgment* the feedback literature puts in ~85% of
+> studied conditions and these games were missing while doing the harder half —
+> naming the choice, the answer, and why — perfectly well. Also: **a child can
+> now start a game and finish it.** Two fixes from one playthrough session. **Runs resume**:
 > the longest are ~7 min of narration across 25 rounds, and reloading used to
 > restart at 1/25, so the completion screen was arguably unreachable and
 > "Full runs finished" stayed at zero — `lib/run-state.ts` now stores the
@@ -190,7 +198,22 @@ data file + a layout-specific themed CSS block. A parent dashboard lives at
    libs were extracted exactly when a second game needed them.
 6. **Base-path aware links** via `import.meta.env.BASE_URL`, never hardcoded.
 7. **Event wiring in TypeScript** (`addEventListener`), never `onclick=`.
-8. **Guided wrong-answer feedback** for ages 3–4. A wrong tap gets a 250ms
+8. **Say that it was wrong, then teach.** A correction opens with `WRONG_LEAD`
+   from `src/data/preschool-narration.ts` — currently **"Not that one."** —
+   before any explanation. Until 2026-08-23 every game opened with "Hmm!" and
+   two (Counting Friends, More Friends) went straight into "Let's count them
+   together!", so the only signals that an answer was wrong were a red tint and
+   a 220Hz tone, neither of which is language. A three-year-old hears "Hmm!" as
+   the game *thinking*, and the sentence after it starts teaching, which reads
+   as agreement. Reviews of corrective feedback with 3–11 year olds put an
+   explicit right/wrong judgment in ~85% of studied conditions, paired with the
+   correct answer — these games had the second half and were missing the first.
+   Shared, not restated per game, and held by `tests/wrong-answer.spec.ts`
+   ("a wrong tap says so, out loud"), which asserts the *first* spoken phrase.
+   The wording rationale — why not a bare "No", why not "Not quite" — is in the
+   module. Everything below still applies after the lead:
+
+   **Guided wrong-answer feedback** for ages 3–4. A wrong tap gets a 250ms
    kinesthetic shake, a **red error tint**, a short error tone (`playWrong()`
    from `@/lib/audio`), and a spoken correction that always ends by revealing
    the right answer. Rounds are never failed and no score is shown to the

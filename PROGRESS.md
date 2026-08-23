@@ -417,7 +417,69 @@ before deciding.
 
 ## Changelog
 
-### 2026-08-23 (latest) — feat(games): an unfinished run is resumed, not thrown away
+### 2026-08-23 (latest) — fix(a11y): a wrong answer now says it was wrong
+
+Every game opened its correction with **"Hmm!"** — "Hmm! Let's look together.",
+"Hmm! Let's sing the days." Counting Friends and More Friends didn't even do
+that; they went straight to "Let's count them together!" as though nothing had
+happened.
+
+"Hmm" is not a verification. To a three-year-old it reads as the game
+*thinking*, and the sentence right after it starts teaching, which reads as
+agreement. That left the red tint and the 220Hz tone as the only signals that
+an answer was wrong, and neither of those is language.
+
+The feedback literature is unusually direct about this. In a review of 44
+studies of corrective feedback with children aged 3–11, **85% of the feedback
+conditions included an explicit verification judgment** ("that answer is
+right/wrong") and 67% also supplied the correct answer; the effective conditions
+were the ones that went *beyond* verification rather than skipping it. (Ruzek et
+al., "A developmental perspective on feedback", 2023.) These games were already
+doing the hard half well — naming what the child picked, then the answer, then
+why — and were missing the cheap half that makes it a correction at all.
+
+Corrections now open with a shared `WRONG_LEAD`, currently **"Not that one."**,
+in `src/data/preschool-narration.ts`. Fourteen games; the phrase lives in one
+place because a rule written out at fourteen call sites is a rule with nothing
+holding it (§5 rule 8, and how it drifted for five months last time).
+
+Before and after, Letter Friends:
+
+```
+Hmm! Let's look together.                          ->  Not that one. Let's look together.
+This is A. A is for Apple. We're looking for I.        This is A. A is for Apple. We're looking for I.
+Look! This is I. I is for Ice Cream.                   Look! This is I. I is for Ice Cream.
+```
+
+On the wording, two alternatives were considered and rejected, both recorded in
+the module:
+
+- **A bare "No."** carries the verification, but for this age "no" is
+  overwhelmingly a *behaviour* word — the one that stops you touching the
+  socket. Using it for a wrong tap borrows that weight and tells a child they
+  did something naughty by guessing, which is the opposite of what a game built
+  on guessing wants. Keep the negation, drop the reprimand.
+- **"Not quite."** is warm and is named in the literature as ordinary parental
+  corrective feedback, but it implies the child was close, and most of the time
+  they weren't. Right for a near miss, mildly dishonest for a wild guess.
+
+"Not that one." is concrete — it points at the tile under the child's finger,
+and matches what they can see, since the red tint and the ✗ are on that tile and
+nowhere else — and it judges the *choice*, not the child, which is the
+distinction that separates corrective feedback that helps from the kind that
+does harm (Kamins & Dweck 1999).
+
+`tests/wrong-answer.spec.ts` gains "a wrong tap says so, out loud" for all 14
+games, asserting the **first** spoken phrase rather than any stylesheet or data
+value. Verified non-vacuous by putting "Hmm!" back in Pattern Sequences and
+watching it fail. The expected words are written out in the spec rather than
+imported from the data module on purpose: importing would only assert that the
+games agree with each other, which they would even if the phrase quietly became
+"Hmm!" again.
+
+388 tests pass.
+
+### 2026-08-23 — feat(games): an unfinished run is resumed, not thrown away
 
 The second half of "a child can start a game and finish it". Playing the games
 end to end measured what §5 rule 11 costs now that a run covers every item:

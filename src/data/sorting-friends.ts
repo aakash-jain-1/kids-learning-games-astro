@@ -59,6 +59,7 @@ import {
   type PreschoolTheme,
   type ThemeMeta,
 } from '@/lib/preschool-themes';
+import { WRONG_LEAD } from '@/data/preschool-narration';
 
 export type { PreschoolTheme, ThemeMeta };
 export { THEMES, THEME_BY_KEY };
@@ -335,7 +336,7 @@ export const generateSession = (rand: () => number = Math.random): SortRound[] =
  * - `intro` — "Find all the friends that live in the sea! Tap the ones
  *    that belong."
  * - `correctItem(tile)` — "Yes! A fish lives in the sea!"
- * - `wrongItem(tile)` — "Hmm, a dog lives on land, not the sea. Try
+ * - `wrongItem(tile)` — "Not that one. A dog lives on land, not the sea. Try
  *    another!" (errorless — names the right home, no scolding)
  * - `complete(n)` — "Hooray! You found all 3 sea friends!"
  */
@@ -370,7 +371,7 @@ export const buildNarration = (round: SortRound): RoundNarration => {
       // Name the tile's own correct home if we can find it; otherwise a
       // generic "belongs somewhere else" still reads kindly.
       const home = findClauseForItem(tile.id) ?? 'belongs somewhere else';
-      return `Hmm, a ${lc(tile.label)} ${home}, not ${shortTarget(round.category)}. Try another!`;
+      return `${WRONG_LEAD} A ${lc(tile.label)} ${home}, not ${shortTarget(round.category)}. Try another!`;
     },
     complete: (found: number): string => `Hooray! You found all ${found} ${groupNoun} friends!`,
   };
