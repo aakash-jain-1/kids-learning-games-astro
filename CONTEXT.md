@@ -19,7 +19,10 @@
 > games on the success path** — `--correct` and `--reveal`, which fire every
 > round rather than only on mistakes — so it is now **§5 rule 12** with
 > `tests/feedback-opacity.spec.ts` measuring each option's rendered alpha
-> against its own resting value. Earlier: **Memory Match shipped —
+> against its own resting value. A sweep for rules that drifted the same way —
+> restated per-site with no cross-game test — found three more (mute,
+> reduced motion, SSR'd first round); all three were being honoured, and
+> `tests/invariants.spec.ts` now pins them. Earlier: **Memory Match shipped —
 > the August arc is complete**, 6 of 6, **29 games**, and the first game whose
 > skill is *remembering* rather than recognising. It answers the arc's last
 > open design question (Q5) by dissolving it: the board growth the design doc
@@ -692,6 +695,14 @@ this family stays at one for now.)
     Birds, Hindi, Numbers and Shapes, where the idle pills are the least
     readable thing on the page (Hindi's worst — the gradient goes cream
     behind them). Tokens exist, so each is a four-line block.
+  - **A rule restated per-site is a rule with nothing holding it.** The
+    lesson from §5 rule 8, and worth applying to any *new* rule: if it ends up
+    asserted in a comment in every game that implements it, it will drift, and
+    each copy will read as a deliberate decision long after it stopped being
+    one. State it once in a shared file and hold it with a cross-game test.
+    The twelve per-game reduced-motion blocks are the surviving example —
+    seven have stale selector lists, and the rule is actually held by one
+    catch-all in `global.css`.
 - **Deferred design decision**: `StageLayout` carve (deferred 5x — the
   `body.story` scope already does the isolation work). Option C unified
   `DeckLayout` decided NO-GO. The vanilla repo is a no-touch zone.

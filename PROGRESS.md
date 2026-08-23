@@ -417,7 +417,55 @@ before deciding.
 
 ## Changelog
 
-### 2026-08-23 (latest) — fix(ui): the feedback tint was hollowing out the option, on the success path too (§5 rule 12)
+### 2026-08-23 (latest) — test: pin three cross-game invariants that were true but unheld
+
+A sweep for rules that had drifted the way §5 rule 8 did. The post-mortem on
+rule 8 was not "someone forgot" — it was that the rule had been **restated in
+a comment at every site that implemented it**, so each file read as
+self-evidently correct, while the only tests were per-game specs asserting the
+behaviour their own game already had. Nothing compared games to each other.
+
+Searched for that signature directly: comment prose across every per-game file,
+reduced to normalised 7-word sequences, reporting any that appear in four or
+more games. That surfaces rules-restated-per-site without needing to guess
+which keywords a rule might use. Three behavioural candidates had no cross-game
+test at all:
+
+1. "Speak only if the user has sound enabled" — 14 files
+2. "Every animation has a reduced-motion fallback" — 12 files
+3. "SSR a deterministic first round so the page never paints blank" — 14 files
+
+**All three were being honoured.** No new defect. `tests/invariants.spec.ts`
+now pins them, because "true today with nothing holding it" is exactly the
+state rule 8 was in five months before anyone noticed.
+
+Three things worth keeping from the sweep:
+
+- **The reduced-motion rule is not held by the twelve stylesheets that claim
+  it.** Each enumerates its animated selectors by name, and seven of those
+  lists are stale — none names its own `--wrong` shake. Motion is actually
+  stopped by a single catch-all in `global.css` that collapses
+  `animation-duration` for `*`. The per-game blocks are decoration that reads
+  like enforcement, which is the same illusion that hid rule 8. Left in place
+  (harmless, and some do more than `animation: none`), but the test asserts
+  *behaviour* rather than any stylesheet's opinion.
+- **The first version of the audit was wrong**, and wrong in the direction
+  that produces a false alarm: it flagged seven games by checking whether
+  `animationName` was set, which stays set under `reduce` because the reset
+  works by collapsing the duration. Re-checking against "does the element
+  actually move" cleared all sixteen.
+- **`test.use({ reducedMotion: 'reduce' })` at describe level silently did not
+  apply**, so every game failed while a standalone check said all were fine.
+  Caught by a `matchMedia` guard asserting the emulation is live; the spec now
+  calls `page.emulateMedia()` per page and keeps the guard.
+
+Each block was checked against a deliberately broken page before being
+committed — mute against a page with sound on, motion against an injected 3s
+animation — since a green assertion about something already true is the
+easiest kind of test to write wrong. Rules 2, 6 and 7 (no per-game settings
+keys, base-path-aware links, no `onclick=`) were also checked and are clean.
+
+### 2026-08-23 — fix(ui): the feedback tint was hollowing out the option, on the success path too (§5 rule 12)
 
 Follow-up to the rule 8 migration below, which found this shape on `--wrong`
 in five games. It turned out to be a *class* of bug, not five instances, and

@@ -1,0 +1,259 @@
+import { test, expect, type Page } from '@playwright/test';
+
+/**
+ * Cross-game invariants that were true but untested.
+ *
+ * Added 2026-08-23 after a sweep prompted by §5 rule 8, which had drifted for
+ * five months. The post-mortem on that was not "someone forgot" — it was that
+ * the rule had been **restated in a comment at every site that implemented
+ * it**, so each file looked self-evidently correct, while the only tests were
+ * per-game specs asserting the behaviour their own game already had. Nothing
+ * compared games to each other, so nine of them kept the superseded rule and
+ * no signal ever fired.
+ *
+ * The sweep looked for the same signature elsewhere: a rule asserted in many
+ * per-game files with no cross-game test behind it. Three came up, and — good
+ * news — all three were actually being honoured:
+ *
+ *   1. "Speak only if the user has sound enabled" (14 files)
+ *   2. "Every animation has a reduced-motion fallback" (12 files)
+ *   3. "SSR a deterministic first round so the page never paints blank" (14)
+ *
+ * They are pinned here because "true today with nothing holding it" is
+ * precisely the state rule 8 was in.
+ *
+ * One finding worth keeping from the sweep: the reduced-motion rule is NOT
+ * held by the twelve stylesheets that claim it. Each enumerates its animated
+ * selectors by name, and seven of those lists had gone stale — none mentions
+ * its own `--wrong` shake. Motion is actually stopped by a single catch-all in
+ * `global.css` that neutralises `animation-duration` for `*`. The per-game
+ * blocks are decoration that reads like enforcement, which is the same
+ * illusion that hid rule 8. The test below therefore checks the *behaviour*
+ * (does anything move) rather than any stylesheet's opinion about it.
+ *
+ * Each block here was checked against a deliberately broken page before being
+ * committed — mute against a page with sound on, motion against an injected
+ * 3s animation, SSR against the option count — because a green assertion
+ * about something that was already true is the easiest kind of test to write
+ * and the easiest kind to write wrong.
+ */
+
+interface Game {
+  readonly slug: string;
+  /** Tappable options, also used as the "did SSR render a round" probe. */
+  readonly option: string;
+}
+
+const GAMES: readonly Game[] = [
+  { slug: 'animal-sounds', option: '.as-tile' },
+  { slug: 'feeling-friends', option: '.ff-tile' },
+  { slug: 'opposites-friends', option: '.of-tile' },
+  { slug: 'rhyme-time', option: '.rt-tile' },
+  { slug: 'letter-friends', option: '.lf-tile' },
+  { slug: 'sound-friends', option: '.sf-tile' },
+  { slug: 'week-friends', option: '.week-opt' },
+  { slug: 'pattern-sequences', option: '.ps-opt' },
+  { slug: 'counting-friends', option: '.cf-opt' },
+  { slug: 'magnitude-comparison', option: '.mf-group' },
+  { slug: 'number-friends', option: '.nf-group' },
+  { slug: 'number-bond-pop', option: '.nbp-opt' },
+  { slug: 'sorting-friends', option: '.sort-tile' },
+  { slug: 'wheres-teddy', option: '.wt-scene' },
+  { slug: 'memory-match', option: '.mm-card' },
+];
+
+/**
+ * Record every utterance and every oscillator the page starts.
+ *
+ * Speech is hooked at `speechSynthesis.speak` and audio at `oscillator.start`
+ * — the two places a child actually hears something — rather than at the
+ * `narrate()` / `playTap()` wrappers, which are per-game code and are exactly
+ * what the gate could be missing from.
+ */
+const HOOK = `
+  (() => {
+    window.__spoke = [];
+    window.__tones = [];
+    const s = window.speechSynthesis;
+    if (s) {
+      const orig = s.speak.bind(s);
+      s.speak = (u) => { window.__spoke.push(String((u && u.text) || '')); return orig(u); };
+    }
+    const Ctor = window.AudioContext || window.webkitAudioContext;
+    if (Ctor) {
+      const oc = Ctor.prototype.createOscillator;
+      Ctor.prototype.createOscillator = function () {
+        const osc = oc.call(this);
+        const st = osc.start.bind(osc);
+        osc.start = (...a) => { window.__tones.push(Math.round(osc.frequency.value)); return st(...a); };
+        return osc;
+      };
+    }
+  })();
+`;
+
+interface Heard {
+  readonly spoke: number;
+  readonly tones: number[];
+}
+
+const playWithSound = async (page: Page, game: Game, sound: boolean): Promise<Heard> => {
+  await page.addInitScript(HOOK);
+  await page.goto(`games/${game.slug}-game.html`);
+  await page.evaluate((snd: boolean) => {
+    localStorage.setItem(
+      'kids_settings_v1',
+      // autoSpeak ON deliberately: it is the setting most likely to talk over
+      // a mute, since it narrates without being asked.
+      JSON.stringify({ dark: false, sound: snd, autoSpeak: true, fontSize: 'medium' }),
+    );
+  }, sound);
+  await page.reload();
+  await page.waitForTimeout(400);
+
+  const count = await page.locator(game.option).count();
+  for (let i = 0; i < Math.min(count, 2); i++) {
+    await page.locator(game.option).nth(i).click({ timeout: 5000 }).catch(() => {});
+    await page.waitForTimeout(400);
+  }
+
+  return page.evaluate(() => ({
+    spoke: (window as unknown as { __spoke: string[] }).__spoke.length,
+    tones: (window as unknown as { __tones: number[] }).__tones.slice(),
+  }));
+};
+
+test.describe('muting the app actually mutes it', () => {
+  for (const game of GAMES) {
+    test(`${game.slug}: says nothing and plays nothing when sound is off`, async ({
+      page,
+    }) => {
+      const heard = await playWithSound(page, game, false);
+
+      expect(
+        heard.spoke,
+        `${game.slug} narrated ${heard.spoke} time(s) with sound off`,
+      ).toBe(0);
+      expect(
+        heard.tones,
+        `${game.slug} played tone(s) ${heard.tones.join(', ')} with sound off`,
+      ).toEqual([]);
+    });
+  }
+
+  /**
+   * Without this the whole block above passes on a browser that simply never
+   * speaks — which is every headless CI runner, since they have no system TTS
+   * voice. The hooks sit at `speechSynthesis.speak`, which is called
+   * regardless of whether a voice exists to render it, so this stays
+   * meaningful on CI.
+   */
+  test('control: the same hooks DO fire when sound is on', async ({ page }) => {
+    const heard = await playWithSound(page, GAMES[0]!, true);
+
+    expect(
+      heard.spoke,
+      'nothing was spoken even with sound ON, so the mute assertions above prove nothing',
+    ).toBeGreaterThan(0);
+    expect(
+      heard.tones.length,
+      'no tone was played even with sound ON, so the mute assertions above prove nothing',
+    ).toBeGreaterThan(0);
+  });
+});
+
+test.describe('reduced motion is honoured', () => {
+  for (const game of GAMES) {
+    test(`${game.slug}: nothing animates under prefers-reduced-motion`, async ({
+      page,
+    }) => {
+      // Set on the page rather than via `test.use({ reducedMotion })`: at
+      // describe level that was silently not applied here, and every game
+      // "failed" while the standalone check said they were all fine. The
+      // matchMedia guard below is what caught it, and is why it stays.
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      await page.goto(`games/${game.slug}-game.html`);
+      await expect(page.locator(game.option).first()).toBeVisible();
+
+      expect(
+        await page.evaluate(
+          () => matchMedia('(prefers-reduced-motion: reduce)').matches,
+        ),
+        'reduced motion is not being emulated, so this test would prove nothing',
+      ).toBe(true);
+
+      // Put the round into its most animated state — the feedback classes are
+      // where the shakes, bounces and infinite pulse rings live.
+      await page.evaluate((sel: string) => {
+        const els = document.querySelectorAll(sel);
+        const base = sel.replace('.', '');
+        els[0]?.classList.add(`${base}--correct`);
+        els[1]?.classList.add(`${base}--wrong`);
+        els[2]?.classList.add(`${base}--reveal`);
+      }, game.option);
+
+      const moving = await page.evaluate(async () => {
+        const nodes = [...document.querySelectorAll<HTMLElement>('*')].filter((el) => {
+          const r = el.getBoundingClientRect();
+          return r.width > 0 && r.height > 0;
+        });
+
+        // A named animation is not itself a violation: the reset in
+        // global.css leaves `animation-name` in place and collapses the
+        // duration instead. Only a duration long enough to be perceived is.
+        const longRunning = nodes
+          .filter((el) => {
+            const cs = getComputedStyle(el);
+            if (cs.animationName === 'none') return false;
+            const d = cs.animationDuration;
+            const ms = d.endsWith('ms') ? parseFloat(d) : parseFloat(d) * 1000;
+            return ms > 1;
+          })
+          .map((el) => `${el.tagName.toLowerCase()}.${String(el.className).slice(0, 40)}`);
+
+        const before = nodes.map((el) => {
+          const r = el.getBoundingClientRect();
+          return `${r.x.toFixed(1)},${r.y.toFixed(1)},${r.width.toFixed(1)}`;
+        });
+        await new Promise((r) => setTimeout(r, 250));
+        const shifted = nodes
+          .filter((el, i) => {
+            const r = el.getBoundingClientRect();
+            return `${r.x.toFixed(1)},${r.y.toFixed(1)},${r.width.toFixed(1)}` !== before[i];
+          })
+          .map((el) => `${el.tagName.toLowerCase()}.${String(el.className).slice(0, 40)}`);
+
+        return { longRunning, shifted: [...new Set(shifted)] };
+      }, );
+
+      expect(
+        moving.longRunning,
+        `${game.slug}: still running a perceptible animation under reduced motion`,
+      ).toEqual([]);
+      expect(
+        moving.shifted,
+        `${game.slug}: element(s) moved on screen under reduced motion`,
+      ).toEqual([]);
+    });
+  }
+});
+
+test.describe('a game renders its first round without JavaScript', () => {
+  test.use({ javaScriptEnabled: false });
+
+  for (const game of GAMES) {
+    test(`${game.slug}: SSRs a playable round, not a blank shell`, async ({ page }) => {
+      await page.goto(`games/${game.slug}-game.html`);
+
+      // Two options is the floor: one game (More Friends) compares a pair, the
+      // rest offer three or more.
+      await expect(
+        page.locator(game.option),
+        `${game.slug} SSR'd no options, so the page paints blank until JS lands`,
+      ).not.toHaveCount(0);
+      expect(await page.locator(game.option).count()).toBeGreaterThanOrEqual(2);
+
+      await expect(page.locator('h1')).toBeVisible();
+    });
+  }
+});
