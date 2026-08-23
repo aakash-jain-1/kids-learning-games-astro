@@ -172,8 +172,20 @@ test.describe('reduced motion is honoured', () => {
       // "failed" while the standalone check said they were all fine. The
       // matchMedia guard below is what caught it, and is why it stays.
       await page.emulateMedia({ reducedMotion: 'reduce' });
+
+      // The footer fetches a commit SHA from the GitHub API and rewrites its
+      // own text when it lands, which reflows it. That is asynchronous
+      // content, not motion, but it is indistinguishable from motion to the
+      // "did anything move" check below — and on CI it arrived mid-measure
+      // and failed three games. Blocked rather than exempted by selector, so
+      // the check stays general and stops depending on the network.
+      await page.route(/api\.github\.com/, (r) => r.abort());
+
       await page.goto(`games/${game.slug}-game.html`);
       await expect(page.locator(game.option).first()).toBeVisible();
+      await page.waitForLoadState('load').catch(() => {});
+      // Let any remaining first-paint settling finish before the baseline.
+      await page.waitForTimeout(400);
 
       expect(
         await page.evaluate(
@@ -211,17 +223,28 @@ test.describe('reduced motion is honoured', () => {
           })
           .map((el) => `${el.tagName.toLowerCase()}.${String(el.className).slice(0, 40)}`);
 
-        const before = nodes.map((el) => {
+        // Sampled over two consecutive intervals, and only elements that
+        // moved in BOTH count. An animation keeps moving; a one-off reflow
+        // moves once. That distinction matters because the footer rewrites
+        // its own text when a GitHub fetch lands, and on CI that arrived
+        // mid-measurement and failed three games for a layout shift that has
+        // nothing to do with motion.
+        const box = (el: Element): string => {
           const r = el.getBoundingClientRect();
           return `${r.x.toFixed(1)},${r.y.toFixed(1)},${r.width.toFixed(1)}`;
-        });
+        };
+        const name = (el: Element): string =>
+          `${el.tagName.toLowerCase()}.${String(el.className).slice(0, 40)}`;
+
+        const a = nodes.map(box);
         await new Promise((r) => setTimeout(r, 250));
+        const b = nodes.map(box);
+        await new Promise((r) => setTimeout(r, 250));
+        const c = nodes.map(box);
+
         const shifted = nodes
-          .filter((el, i) => {
-            const r = el.getBoundingClientRect();
-            return `${r.x.toFixed(1)},${r.y.toFixed(1)},${r.width.toFixed(1)}` !== before[i];
-          })
-          .map((el) => `${el.tagName.toLowerCase()}.${String(el.className).slice(0, 40)}`);
+          .filter((_, i) => a[i] !== b[i] && b[i] !== c[i])
+          .map(name);
 
         return { longRunning, shifted: [...new Set(shifted)] };
       }, );
