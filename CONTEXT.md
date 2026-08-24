@@ -6,11 +6,13 @@
 > win. Keep it short and current — see the update rule in
 > `.cursor/rules/maintain-context.mdc`.
 >
-> **Last verified against the codebase**: 2026-08-24 (**Counting Friends left
-> three buttons at full strength that silently swallowed every tap** for the
-> length of its guided count — the converse of the §5 rule 10 corollary, and
-> the second defect found by chasing "the child acts before the game is ready".
-> The first was **§5 rule 17: answering now ends the round's script.** Counting Friends and Magnitude Comparison kept
+> **Last verified against the codebase**: 2026-08-24 (**an "early action" sweep
+> — the child acting before the game is ready — found three defects across four
+> surfaces.** "Say it again" left the old script running alongside the new one,
+> so every remaining line was said twice; Counting Friends left three buttons at
+> full strength that silently swallowed every tap for the length of its guided
+> count (the converse of the §5 rule 10 corollary); and **§5 rule 17: answering
+> now ends the round's script.** Counting Friends and Magnitude Comparison kept
 > narrating after a child answered, so a leftover beat landed in the middle of
 > the correction and then asked the question they had just answered — found by
 > chasing a test flake, which turned out to be the app misbehaving rather than
@@ -579,8 +581,19 @@ data file + a layout-specific themed CSS block. A parent dashboard lives at
     old who knows the answer taps the moment the options appear, so this is
     ordinary use rather than an edge case.
 
+    **Replay counts as a trigger too.** The first version of this guard bumped
+    on answers and round changes but not on "Say it again" — whose whole job is
+    to restart the script — so the new chain captured the same generation as
+    the one still in flight and both ran, in lockstep, saying every remaining
+    line twice. `cancelSpeech()` does not help: it stops the sentence being
+    spoken, not the continuations scheduled behind it. That distinction is the
+    root of this rule, of the `settleSpeech` bugs, and of anything else that
+    tries to reason about narration by looking only at what is audible now.
+
     Held by `tests/answer-stops-the-story.spec.ts`, which answers over each
-    game's script and asserts no intro line arrives afterwards. Only the two
+    game's script and asserts no intro line arrives afterwards, and separately
+    counts lines after a replay, since a second live chain shows up as
+    arithmetic. Only the two
     games above narrate in steps, and they are **named** in the spec rather
     than detected, so flattening one of those scripts fails loudly instead of
     quietly turning its test into a tautology. The other twelve say their round

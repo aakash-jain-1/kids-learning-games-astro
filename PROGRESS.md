@@ -417,7 +417,41 @@ before deciding.
 
 ## Changelog
 
-### 2026-08-24 (latest) — fix(a11y): three buttons that looked tappable and did nothing
+### 2026-08-24 (latest) — fix(a11y): "Say it again" made the round stutter
+
+The third defect from the early-action sweep, and the one that shows the rule 17
+guard was only half a fix. `introRun` was bumped on every answer and every round
+change — but not on Replay, which is the one control whose whole job is to
+restart the script. So the new chain captured the *same* generation as the one
+still in flight, both passed the guard, and both ran. In lockstep:
+
+```
+"Look! Two apples hang on a tree."
+"Then two more apples come!"
+"Then two more apples come!"
+"How many apples in all?"
+"How many apples in all?"
+```
+
+`cancelSpeech()` is called on replay and does nothing for this: it stops the
+sentence being spoken, not the continuations already scheduled behind it. That
+distinction is the whole bug, and it is the same one behind rule 17 and behind
+`settleSpeech` — a pending chain is invisible to anything that only looks at
+what is currently happening.
+
+Both chained games now bump `introRun` in the replay handler. Held by a second
+test in `answer-stops-the-story.spec.ts`, which counts lines rather than reading
+them: a clean restart is "what was already said, plus one script", so a second
+copy shows up as arithmetic. Confirmed to fail — 6 lines where 4 is clean for
+Counting Friends, 4 where 3 is clean for Magnitude Comparison.
+
+**The sweep is now closed.** Four surfaces, three defects. Tapping Next the
+instant it lights up is clean in all 14 games. Settings changed mid-round is
+clean *by construction* rather than by luck: `getSettings()` re-reads storage on
+every call and `speak()` checks it per utterance, so muting silences the next
+line without any per-game handling.
+
+### 2026-08-24 — fix(a11y): three buttons that looked tappable and did nothing
 
 Continuing the thread that rule 17 came from — the child acting before the game
 is ready — into the surfaces rule 17 didn't cover.

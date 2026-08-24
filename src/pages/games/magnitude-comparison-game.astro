@@ -573,6 +573,11 @@ const TOTAL_ROUNDS = 8;
   replayBtn.addEventListener('click', () => {
     playTap();
     cancelSpeech();
+    // Abandon the script already in flight before starting another one.
+    // `cancelSpeech` only stops the sentence being spoken, not the chain's
+    // pending continuations, so without this both scripts ran and "Which side
+    // has more apples?" was asked twice. See `introRun`.
+    introRun++;
     if (!answered) {
       speakIntroSequence();
     } else {

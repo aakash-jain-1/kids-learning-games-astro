@@ -731,6 +731,13 @@ const TOTAL_ROUNDS = 8;
   replayBtn.addEventListener('click', () => {
     playTap();
     cancelSpeech();
+    // Abandon the script already in flight before starting another one.
+    // `cancelSpeech` only stops the sentence being spoken; the chain's pending
+    // continuations survive it, so without this the old and new scripts both
+    // ran and every remaining line was said twice — "Then two more apples
+    // come!", "Then two more apples come!", "How many apples in all?", "How
+    // many apples in all?". See `introRun`.
+    introRun++;
     // Rebuild the round from scratch — same content, fresh fly-in
     // animations, fresh tap-count state, fresh narration. Simplest
     // implementation that reads as "play it again from the top."

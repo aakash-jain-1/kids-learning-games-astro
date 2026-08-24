@@ -193,4 +193,60 @@ test.describe('answering ends the round, and the game stops telling its story', 
       ).toEqual([]);
     });
   }
+
+  /**
+   * The same invariant from the other trigger: only one script at a time.
+   *
+   * "Say it again" restarts the round's narration, and `cancelSpeech()` only
+   * stops the sentence being spoken — the chain's pending continuations survive
+   * it. So the restarted script and the original both ran, in lockstep, and a
+   * child who tapped Replay heard the rest of the round stuttered:
+   *
+   *     "Look! Two apples hang on a tree."
+   *     "Then two more apples come!"
+   *     "Then two more apples come!"
+   *     "How many apples in all?"
+   *     "How many apples in all?"
+   *
+   * The `introRun` guard added for the answer case did not cover this, because
+   * Replay bumped nothing — the second chain captured the same generation as
+   * the first, so both passed the check.
+   */
+  for (const slug of CHAINED) {
+    test(`${slug}: replay restarts the script instead of running a second copy`, async ({
+      page,
+    }) => {
+      test.slow();
+
+      await openGame(page, slug);
+      await page.locator('h1').first().click();
+      await settle(page);
+      const scriptLength = (await spoken(page)).length;
+      expect(
+        scriptLength,
+        `${slug} is listed as narrating in steps but said ${scriptLength} line(s)`,
+      ).toBeGreaterThan(1);
+
+      await openGame(page, slug);
+      await page.locator('h1').first().click();
+      await waitForFirstLine(page);
+      const saidBeforeReplay = await spokenCount(page);
+      await page
+        .locator('[id$="ReplayBtn"]')
+        .first()
+        .click({ force: true })
+        .catch(() => {});
+      await settle(page);
+      const total = await spokenCount(page);
+
+      // What was already said, plus one clean run of the script.
+      const expected = saidBeforeReplay + scriptLength;
+      expect(
+        total,
+        `${slug}: replay spoke ${total} lines where a clean restart is ${expected} ` +
+          `(${saidBeforeReplay} already said + ${scriptLength} for the script). The ` +
+          `previous script was still running, so the round is heard twice over.`,
+      ).toBeLessThanOrEqual(expected);
+    });
+  }
 });
