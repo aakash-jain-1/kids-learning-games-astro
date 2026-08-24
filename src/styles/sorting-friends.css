@@ -330,6 +330,19 @@ body.story[data-theme='sortingfriends'] .sort-tile.sort-tile--wrong {
   border-color: var(--st-wrong-border);
   animation: sortShake 250ms ease-in-out;
 }
+/* The ✗ that makes "wrong" readable without colour vision — see the note
+   beside `--st-wrong-*` in story.css for the measurements. */
+body.story[data-theme='sortingfriends'] .sort-tile.sort-tile--wrong::after {
+  content: '✗';
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  font-size: 1.35em;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--st-wrong-border);
+  pointer-events: none;
+}
 
 @keyframes sortFlyIn {
   0% {

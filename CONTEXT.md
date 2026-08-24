@@ -6,8 +6,15 @@
 > win. Keep it short and current — see the update rule in
 > `.cursor/rules/maintain-context.mdc`.
 >
-> **Last verified against the codebase**: 2026-08-23 (**nothing a child needs
-> is made of movement any more** — §5 rule 15. Sweeping for the shape behind the
+> **Last verified against the codebase**: 2026-08-23 (**nothing a child needs is
+> made of movement or of hue alone.** §5 rule 16: right and wrong were ~24 ΔE
+> apart for normal colour vision and under 7 under simulated deuteranopia in
+> nine of the fourteen games, with ten having no non-colour difference
+> whatsoever — every wrong option now carries the `✗` badge the four original
+> adopters already had. One thing that fix does *not* reach: Pattern Sequences
+> is itself a colour-matching puzzle, so a red-green colour-blind child still
+> can't play it; that needs shapes in the circles and is a content call. Before
+> that, **nothing a child needs is made of movement any more** — §5 rule 15. Sweeping for the shape behind the
 > quiz bug below found that every guided walk-through marks its current item
 > with a class added before `narrate()` and removed on its `onEnd`, and in Week
 > Friends, Days Parade and Pattern Sequences that class was a bare `animation:`
@@ -487,6 +494,35 @@ data file + a layout-specific themed CSS block. A parent dashboard lives at
     second test deletes nothing but fails on allowlist entries whose CSS is
     gone, since an allowlist that outlives its subject is how a guard quietly
     stops guarding.
+
+16. **Right and wrong never differ by hue alone.** Red-versus-green is the one
+    pair a colour-blind eye can't resolve, and about 1 boy in 12 has some form
+    of it. Measured across all 14 games with a wrong answer on 2026-08-23: a
+    wrong option and a correct one sit ~24 ΔE apart for normal colour vision,
+    and under simulated deuteranopia that **collapses to under 7 in nine of
+    them**. Ten had no other difference between the two states at all. Rule 8
+    does give a wrong tap three more channels — shake, tone, spoken correction
+    — but all three vanish together with sound off and reduced motion, and none
+    of them marks *which tile on screen* was which afterwards. The four
+    original adopters already had the answer: a **`✗` badge** in `::after` on
+    the wrong option. The other ten now copy it, which needed
+    `position: relative` on several base rules (no offsets, so nothing moves).
+    Rationale and measurements live beside `--st-wrong-*` in `story.css`.
+
+    Held by `tests/colour-independence.spec.ts`, which is mechanism-agnostic:
+    it asks whether the two states differ *once hue is discarded*, not whether
+    there is a ✗, so Sorting Friends passes on lightness alone and a future
+    game could use a shape or border style instead. The obvious metric — mean
+    luminance difference — was tried and **rejected on evidence**: suppressing
+    the badge moved it from 1.89 to 1.64, because a small glyph barely shifts a
+    whole-tile average. What works is the *fraction of pixels differing
+    strongly* in luminance: 0.22–0.55% with the badge, exactly 0.00% without.
+
+    **Still open:** Pattern Sequences asks the child to continue a sequence of
+    *coloured circles* (red, blue, green). The badge fixes its feedback, but
+    the puzzle itself is a colour-discrimination task, so a red-green
+    colour-blind child cannot play it at all. The standard fix is a shape or
+    pattern inside each circle. That is a content decision, not a defect.
 
 ## 6. LocalStorage keys (state shapes)
 

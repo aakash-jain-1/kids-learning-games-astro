@@ -70,6 +70,26 @@ body.story {
    * picture or glyph on that tile fully legible, because the spoken
    * correction is still talking about it. The border carries the signal;
    * the fill only locates it.
+   *
+   * ── Why red is never the only difference ──
+   *
+   * Red-versus-green is the one pair a colour-blind eye cannot resolve,
+   * and roughly 1 boy in 12 has some form of it. Measured on 2026-08-23
+   * across all 14 games: a wrong tile and a correct one sit ~24 ΔE apart
+   * for normal colour vision, and **under simulated deuteranopia that
+   * collapses to under 7 in nine of them** — near enough the same colour.
+   * Ten games had no other difference between the two states at all.
+   *
+   * So every `--wrong` state also carries a **`✗` badge** in `::after`,
+   * which is the channel that survives. The four original adopters had
+   * this from the start; the rule is that a new game copies it, and
+   * `tests/colour-independence.spec.ts` fails if a game's wrong and
+   * correct states differ by hue alone. The badge needs
+   * `position: relative` on the option, which is why several base rules
+   * carry it with no offsets.
+   *
+   * The tint is not redundant — it is what a child with ordinary colour
+   * vision reads first, and it locates the badge. Both channels, always.
    */
   --st-wrong-border: #e23d5a;
   --st-wrong-fill: rgba(226, 61, 90, 0.16);

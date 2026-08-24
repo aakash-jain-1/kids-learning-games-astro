@@ -161,7 +161,31 @@ const openGame = async (page: Page, slug: string): Promise<void> => {
   // their first tap asks, and every tap after it is an answer. Without this,
   // the first tap here is swallowed and no game ever reports a wrong answer.
   await page.locator('h1').first().click();
-  await page.waitForTimeout(150);
+  await settleSpeech(page);
+};
+
+/**
+ * Wait until the page has stopped talking.
+ *
+ * The gesture above makes the game speak its intro, but it does so
+ * *asynchronously* — Animal Sounds plays the animal clip first and narrates
+ * after it. This used to be a flat `waitForTimeout(150)`, which raced: when
+ * the intro landed after `tapUntilWrong` had cleared the log it was captured
+ * as the response to the tap, and "the correction opens with…" then asserted
+ * against "Listen! Who makes that sound?". The suite passed or failed on how
+ * fast the machine was — it broke on an unrelated stylesheet change that moved
+ * first paint by a few milliseconds.
+ */
+const settleSpeech = async (page: Page): Promise<void> => {
+  let last = -1;
+  for (let i = 0; i < 25; i++) {
+    const n = await page.evaluate(
+      () => (window as unknown as { __spoke: string[] }).__spoke.length,
+    );
+    if (n === last) return;
+    last = n;
+    await page.waitForTimeout(120);
+  }
 };
 
 const tones = (page: Page): Promise<number[]> =>

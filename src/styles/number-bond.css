@@ -293,6 +293,8 @@ body.story[data-theme='numberbond'] .nbp-options {
 }
 
 body.story[data-theme='numberbond'] .nbp-opt {
+  /* Containing block for the ✗ badge below; no offsets, so nothing moves. */
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -356,6 +358,19 @@ body.story[data-theme='numberbond'] .nbp-opt.nbp-opt--wrong {
     var(--nbp-panel-bg);
   border-color: var(--st-wrong-border);
   animation: nbpShake 250ms ease-in-out;
+}
+/* The ✗ that makes "wrong" readable without colour vision — see the note
+   beside `--st-wrong-*` in story.css for the measurements. */
+body.story[data-theme='numberbond'] .nbp-opt.nbp-opt--wrong::after {
+  content: '✗';
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  font-size: 1.35em;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--st-wrong-border);
+  pointer-events: none;
 }
 
 body.story[data-theme='numberbond'] .nbp-item {

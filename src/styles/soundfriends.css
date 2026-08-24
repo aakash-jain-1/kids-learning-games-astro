@@ -233,6 +233,8 @@ body.story[data-theme='soundfriends'] .sf-tiles {
 }
 
 body.story[data-theme='soundfriends'] .sf-tile {
+  /* Containing block for the ✗ badge below; no offsets, so nothing moves. */
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -302,6 +304,19 @@ body.story[data-theme='soundfriends'] .sf-tile.sf-tile--wrong {
     var(--sf-tile-bg);
   border-color: var(--st-wrong-border);
   animation: sfShake 250ms ease-in-out;
+}
+/* The ✗ that makes "wrong" readable without colour vision — see the note
+   beside `--st-wrong-*` in story.css for the measurements. */
+body.story[data-theme='soundfriends'] .sf-tile.sf-tile--wrong::after {
+  content: '✗';
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  font-size: 1.35em;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--st-wrong-border);
+  pointer-events: none;
 }
 
 body.story[data-theme='soundfriends'] .sf-tile-glyph {

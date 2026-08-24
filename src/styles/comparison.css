@@ -203,6 +203,8 @@ body.story[data-theme='comparison'] .mf-groups {
 }
 
 body.story[data-theme='comparison'] .mf-group {
+  /* Containing block for the ✗ badge below; no offsets, so nothing moves. */
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -266,6 +268,19 @@ body.story[data-theme='comparison'] .mf-group.mf-group--wrong {
     var(--mf-panel-bg);
   border-color: var(--st-wrong-border);
   animation: mfShake 250ms ease-in-out;
+}
+/* The ✗ that makes "wrong" readable without colour vision — see the note
+   beside `--st-wrong-*` in story.css for the measurements. */
+body.story[data-theme='comparison'] .mf-group.mf-group--wrong::after {
+  content: '✗';
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  font-size: 1.35em;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--st-wrong-border);
+  pointer-events: none;
 }
 
 body.story[data-theme='comparison'] .mf-vs {

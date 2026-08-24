@@ -330,6 +330,8 @@ body.story[data-theme='addition'] .cf-options {
 }
 
 body.story[data-theme='addition'] .cf-opt {
+  /* Containing block for the ✗ badge below; no offsets, so nothing moves. */
+  position: relative;
   /* 132×132 tap target — well above the ≥88px floor for ages ≤4. */
   width: 132px;
   height: 132px;
@@ -434,6 +436,19 @@ body.story[data-theme='addition'] .cf-opt.cf-opt--wrong {
     var(--cf-btn-bg);
   border-color: var(--st-wrong-border);
   animation: cfShake 250ms ease-in-out;
+}
+/* The ✗ that makes "wrong" readable without colour vision — see the note
+   beside `--st-wrong-*` in story.css for the measurements. */
+body.story[data-theme='addition'] .cf-opt.cf-opt--wrong::after {
+  content: '✗';
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  font-size: 1.35em;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--st-wrong-border);
+  pointer-events: none;
 }
 
 @keyframes cfBounce {

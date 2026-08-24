@@ -432,6 +432,19 @@ body.story[data-theme='wheresteddy'] .wt-scene--wrong {
     var(--wt-scene-bg);
   animation: wt-shake 0.25s ease;
 }
+/* The ✗ that makes "wrong" readable without colour vision — see the note
+   beside `--st-wrong-*` in story.css for the measurements. */
+body.story[data-theme='wheresteddy'] .wt-scene--wrong::after {
+  content: '✗';
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  font-size: 1.35em;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--st-wrong-border);
+  pointer-events: none;
+}
 
 @keyframes wt-pop {
   0%   { transform: scale(1); }

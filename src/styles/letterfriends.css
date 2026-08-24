@@ -254,6 +254,8 @@ body.story[data-theme='letterfriends'] .lf-tiles {
 }
 
 body.story[data-theme='letterfriends'] .lf-tile {
+  /* Containing block for the ✗ badge below; no offsets, so nothing moves. */
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -325,6 +327,19 @@ body.story[data-theme='letterfriends'] .lf-tile.lf-tile--wrong {
     var(--lf-tile-bg);
   border-color: var(--st-wrong-border);
   animation: lfShake 250ms ease-in-out;
+}
+/* The ✗ that makes "wrong" readable without colour vision — see the note
+   beside `--st-wrong-*` in story.css for the measurements. */
+body.story[data-theme='letterfriends'] .lf-tile.lf-tile--wrong::after {
+  content: '✗';
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  font-size: 1.35em;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--st-wrong-border);
+  pointer-events: none;
 }
 
 body.story[data-theme='letterfriends'] .lf-tile-glyph {

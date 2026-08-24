@@ -289,6 +289,8 @@ body.story[data-theme='weekfriends'] .week-options {
 }
 
 body.story[data-theme='weekfriends'] .week-opt {
+  /* Containing block for the ✗ badge below; no offsets, so nothing moves. */
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -371,6 +373,19 @@ body.story[data-theme='weekfriends'] .week-opt.week-opt--wrong {
     var(--week-opt-bg);
   border-color: var(--st-wrong-border);
   animation: weekShake 250ms ease-in-out;
+}
+/* The ✗ that makes "wrong" readable without colour vision — see the note
+   beside `--st-wrong-*` in story.css for the measurements. */
+body.story[data-theme='weekfriends'] .week-opt.week-opt--wrong::after {
+  content: '✗';
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  font-size: 1.35em;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--st-wrong-border);
+  pointer-events: none;
 }
 
 /* ── Keyframes ─────────────────────────────────────────────────────── */

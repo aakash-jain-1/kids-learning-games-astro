@@ -417,7 +417,74 @@ before deciding.
 
 ## Changelog
 
-### 2026-08-23 (latest) — fix(a11y): the guided walk-throughs were invisible with motion off (§5 rule 15)
+### 2026-08-23 (latest) — fix(a11y): right and wrong were the same picture in two colours (§5 rule 16)
+
+Same sweep, one channel over: after motion, colour. Red-versus-green is the one
+pair a colour-blind eye cannot resolve, and roughly one boy in twelve has some
+form of red-green deficiency.
+
+Measured across all 14 games that have a wrong answer, applying `--wrong` and
+`--correct` to the same element and simulating dichromacy with the Machado et
+al. (2009) matrices:
+
+| | ΔE normal | ΔE deuteranopia | non-colour channel |
+| --- | --- | --- | --- |
+| animal-sounds | 23.9 | 4.3 | ✗ badge |
+| week-friends | 24.5 | 4.2 | **none** |
+| letter-friends | 25.6 | 5.3 | **none** |
+| sorting-friends | 16.5 | 10.1 | **none** |
+
+~24 ΔE apart for normal colour vision, **under 7 in nine of the fourteen** once
+deuteranopia is simulated — near enough the same colour — and **ten of the
+fourteen had no other difference between the two states at all**.
+
+Rule 8 does give a wrong tap three further channels (shake, error tone, spoken
+correction), and that was the reason to think this was covered. It isn't: all
+three are gone at once for a child with sound off and reduced motion, which is
+not an exotic combination, and none of them marks *which tile on screen* was
+which after the fact — which is exactly what the reveal is for.
+
+The four original adopters already had the answer, a **`✗` badge** in `::after`
+on the wrong option, so this is a consistency fix rather than an invention: the
+other ten now carry the same badge. Eight needed `position: relative` on their
+base rule to hang it from (no offsets, so nothing moves). The rationale and the
+numbers live in one place, beside `--st-wrong-*` in `story.css`, rather than
+being restated ten times.
+
+**The obvious test was wrong, and measuring said so.** Mean luminance difference
+between the two states seemed like the natural check — discard hue, see if
+anything is left. Suppressing the badge moved it from 1.89 to 1.64 on Animal
+Sounds, because a small glyph barely shifts a whole-tile average while the red
+and green tints already differ slightly in lightness. It would have passed
+whether or not the fix existed. What discriminates is the *fraction of pixels
+that differ strongly* in luminance — a hue change moves the whole surface a
+little, a mark drawn on top moves a few pixels a lot: 0.22–0.55% with the badge,
+exactly 0.00% without it.
+
+`tests/colour-independence.spec.ts` is deliberately mechanism-agnostic — it asks
+whether the states differ once hue is discarded, not whether there is a ✗. So
+Sorting Friends passes on lightness alone, which is a perfectly good channel,
+and a future game could use a shape instead without touching the spec. It checks
+wrong against *both* correct and reveal, since reveal is the one that shares the
+screen with it, and carries a control asserting two identical renders read zero.
+
+**Open, and a content decision rather than a defect:** Pattern Sequences asks the
+child to continue a sequence of red, blue and green circles. The badge fixes its
+feedback, but the puzzle itself is a colour-discrimination task, so a red-green
+colour-blind child cannot play that game at all. The standard fix is a shape or
+pattern inside each circle.
+
+Also fixed, and caused by this change: `wrong-answer.spec.ts` spent its "first
+tap asks the question" gesture on the `h1` and then waited a flat 150ms. The
+intro is spoken *asynchronously* in response to that gesture — Animal Sounds
+plays the animal clip first and narrates after it — so when it landed after
+`tapUntilWrong` cleared the speech log it was captured as the response to the
+tap, and the assertion compared "the correction" against "Listen! Who makes that
+sound?". The suite was passing on timing; adding a stylesheet rule moved first
+paint by a few milliseconds and it started failing. It now waits for speech to
+go quiet rather than guessing.
+
+### 2026-08-23 — fix(a11y): the guided walk-throughs were invisible with motion off (§5 rule 15)
 
 Swept for the bug shape found in the quiz the same day: **a selector whose
 entire visual contribution is an `animation`**, in a codebase where every
