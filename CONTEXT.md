@@ -6,8 +6,11 @@
 > win. Keep it short and current — see the update rule in
 > `.cursor/rules/maintain-context.mdc`.
 >
-> **Last verified against the codebase**: 2026-08-24 (**§5 rule 17: answering
-> now ends the round's script.** Counting Friends and Magnitude Comparison kept
+> **Last verified against the codebase**: 2026-08-24 (**Counting Friends left
+> three buttons at full strength that silently swallowed every tap** for the
+> length of its guided count — the converse of the §5 rule 10 corollary, and
+> the second defect found by chasing "the child acts before the game is ready".
+> The first was **§5 rule 17: answering now ends the round's script.** Counting Friends and Magnitude Comparison kept
 > narrating after a child answered, so a leftover beat landed in the middle of
 > the correction and then asked the question they had just answered — found by
 > chasing a test flake, which turned out to be the app misbehaving rather than
@@ -345,6 +348,20 @@ data file + a layout-specific themed CSS block. A parent dashboard lives at
     `tests/headings.spec.ts` is the enforcement, and it also holds the rule
     that **a `disabled` control must not render at full strength**, since a
     fully-saturated "Next round" reads as tappable for the whole time it isn't.
+
+    **And the converse (added 2026-08-24): a control that has stopped working
+    must be marked `disabled`, not merely ignored.** Counting Friends left its
+    three options enabled for the whole guided count, on the stated intention
+    that a child could then tap the right answer — but `answered` is set on the
+    wrong tap and `onOptionTap` returns on it *before* `playTap()`, so those
+    taps produced nothing whatsoever: no sound, no highlight, no
+    acknowledgement. Three buttons at full strength silently swallowing taps
+    for over a second, from the child least likely to wait. The comment
+    described an affordance the code did not have; the other twelve games
+    already disabled everything on a wrong tap. Held per-game by
+    `tests/wrong-answer.spec.ts` ("leaves no option looking tappable"), which
+    exempts the `transient` multi-select games, where a wrong tap does not end
+    the round.
 11. **A bounded set is played to completion — no sampled sessions.** Where the
     content is a finite set worth exhausting, a game runs through **every item
     exactly once**, tier-ordered, rather than sampling N rounds from the pool.

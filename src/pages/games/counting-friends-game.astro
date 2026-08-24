@@ -570,13 +570,21 @@ const TOTAL_ROUNDS = 8;
       nextBtn.disabled = false;
     } else {
       // Wrong — errorless rerun. Don't punish; run a guided count
-      // and then highlight the correct numeral. Keep options
-      // tappable in case the child wants to tap the right answer
-      // afterwards (matches the gentle "let's try the right one"
-      // affordance Khan Kids uses), but mark this round answered so
-      // a second wrong tap doesn't re-trigger the rerun.
+      // and then highlight the correct numeral.
+      //
+      // The options are disabled for the duration, as every other game does.
+      // They used to be left enabled, on the intention that a child could tap
+      // the right answer afterwards — but `answered` is set here and
+      // `onOptionTap` returns on it *before* `playTap()`, so those taps did
+      // nothing at all: no sound, no highlight, no acknowledgement. For the
+      // length of the guided count all three buttons rendered at full strength
+      // and silently swallowed every tap, which is the child most likely to be
+      // tapping. The comment described an affordance the code did not have.
       answered = true;
       firstTryCorrect = false;
+      for (const el of optionsEl.querySelectorAll<HTMLButtonElement>('.cf-opt')) {
+        el.disabled = true;
+      }
       // Add a 250ms kinesthetic shake on the tapped wrong button so
       // the child gets immediate visual confirmation that their tap
       // registered. Mirrors the `mountQuiz`-game pattern shipped
@@ -597,12 +605,11 @@ const TOTAL_ROUNDS = 8;
             setCaption(doneText);
             narrate(doneText, {
               onEnd: () => {
-                // Highlight the correct option and enable Next.
+                // Highlight the correct option and enable Next. Everything is
+                // already disabled above, so this only marks the answer.
                 for (const el of optionsEl.querySelectorAll<HTMLButtonElement>('.cf-opt')) {
                   if (Number(el.dataset.n) === round.sum) {
                     el.classList.add('cf-opt--reveal');
-                  } else {
-                    el.disabled = true;
                   }
                 }
                 bumpStats(false);

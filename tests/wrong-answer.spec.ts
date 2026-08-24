@@ -194,12 +194,22 @@ const settleSpeech = async (page: Page): Promise<void> => {
     await page.waitForTimeout(50);
   }
 
+  // Then wait out a real silence. "Unchanged between two samples 120ms apart"
+  // was not enough either: Counting Friends narrates its round as
+  // `intro → gap → addition → gap → question` with gaps of 200ms and up, so
+  // two consecutive samples routinely landed inside one gap and this returned
+  // mid-story. The pending beat then arrived in the window between
+  // `tapUntilWrong` clearing the log and its click, and was read as the
+  // correction. Four unchanged samples at 200ms — 800ms of quiet — clears the
+  // widest gap in the app (~210ms, the guided count) with room to spare.
   let last = -1;
-  for (let i = 0; i < 25; i++) {
+  let quiet = 0;
+  for (let i = 0; i < 60; i++) {
     const n = await len();
-    if (n === last) return;
+    quiet = n === last ? quiet + 1 : 0;
+    if (quiet >= 4) return;
     last = n;
-    await page.waitForTimeout(120);
+    await page.waitForTimeout(200);
   }
 };
 
@@ -351,6 +361,43 @@ test.describe('§5 rule 8 — a wrong tap is corrected, in every game that has o
         `${spec.slug}: the wrong state shifts redness by only ${shift.toFixed(1)}, so a child sees no red tint`,
       ).toBeGreaterThan(MIN_REDNESS_SHIFT);
     });
+
+    /**
+     * A control that has stopped working must stop looking like it works.
+     *
+     * Counting Friends left its three options enabled for the whole guided
+     * count on the stated intention that a child could then tap the right
+     * answer — but the handler returns on `answered` *before* `playTap()`, so
+     * those taps produced nothing at all: no sound, no highlight, no
+     * acknowledgement. Buttons at full strength silently swallowing taps, for
+     * over a second, from the child least likely to wait. The other twelve
+     * games already disabled everything on a wrong tap.
+     *
+     * `headings.spec.ts` asserts the same rule from the other side — no game
+     * renders a *disabled* control at full strength.
+     */
+    if (!spec.transient) {
+      test(`${spec.slug}: a wrong tap leaves no option looking tappable`, async ({ page }) => {
+        await openGame(page, spec.slug);
+
+        const idx = await tapUntilWrong(page, spec);
+        expect(idx, `${spec.slug}: no option was ever treated as wrong`).not.toBeNull();
+
+        const live = await page.evaluate(
+          (sel) =>
+            Array.from(document.querySelectorAll<HTMLButtonElement>(sel))
+              .map((el, i) => (el.disabled ? -1 : i))
+              .filter((i) => i >= 0),
+          spec.option,
+        );
+
+        expect(
+          live,
+          `${spec.slug}: option(s) ${live.join(', ')} are still enabled after the round ` +
+            `was answered, so they render at full strength while ignoring every tap`,
+        ).toEqual([]);
+      });
+    }
   }
 
   /**

@@ -417,7 +417,45 @@ before deciding.
 
 ## Changelog
 
-### 2026-08-24 (latest) — fix(a11y): two games kept telling the story after the child had answered (§5 rule 17)
+### 2026-08-24 (latest) — fix(a11y): three buttons that looked tappable and did nothing
+
+Continuing the thread that rule 17 came from — the child acting before the game
+is ready — into the surfaces rule 17 didn't cover.
+
+Two came back clean, which is worth recording so nobody re-runs them. Tapping
+"Next round" the instant it lights up carries nothing from the previous round
+into the next one, in all 14 games. And a second tap on an option during a
+correction is blocked by `answered` everywhere.
+
+That second result is what turned up the defect, because in Counting Friends the
+block was *all* that happened. Its wrong branch left the three options enabled,
+on a comment saying they stayed tappable "in case the child wants to tap the
+right answer afterwards" — but `answered` is set on the wrong tap and
+`onOptionTap` returns on it **before `playTap()`**, so a tap produced nothing at
+all: no sound, no highlight, no acknowledgement. For the length of the guided
+count, over a second, three buttons rendered at full strength and silently
+swallowed every tap — from the child least likely to sit still through being
+counted at. The comment described an affordance the code did not have. The other
+twelve games already disabled everything on a wrong tap, so this was one game
+out of step rather than a design.
+
+This is the converse of the rule `headings.spec.ts` has held since 2026-08-22:
+a `disabled` control must not render at full strength, and now, a control that
+has stopped working must be marked disabled rather than merely ignored.
+
+Held by `wrong-answer.spec.ts`, one test per game, exempting the `transient`
+multi-select games where a wrong tap doesn't end the round. Confirmed to fail:
+removing the fix reports "option(s) 0, 1, 2 are still enabled".
+
+**A note on the measurement, because the first one was wrong.** The exploratory
+sweep reported only 1 of 3 options as dead, and that was an artifact: it judged
+"did the tap do anything?" by diffing a snapshot before and after, while the
+guided count was still narrating — so the snapshot moved on its own and made
+swallowed taps look responsive. The real answer is 3 of 3, which only came out
+once the check became "is it `disabled`?", a question with no moving parts. A
+probe that shares a channel with the thing it measures will flatter it.
+
+### 2026-08-24 — fix(a11y): two games kept telling the story after the child had answered (§5 rule 17)
 
 A sweep for the defect behind the `affirmation.spec.ts` bug — a test measuring
 the machine rather than the app — that found a product defect instead.
@@ -492,9 +530,14 @@ original cap is documented as real but higher than 4. The lesson is the same
 one as the 348 failures: measure ambient load before concluding anything about
 concurrency.
 
-`settleSpeech` in `wrong-answer.spec.ts` also grew a first phase that waits for
-speech to *start*, since "unchanged between two samples" counted nothing-said-
-yet as settled.
+`settleSpeech` in `wrong-answer.spec.ts` was wrong in both directions and now
+does two things. It waits for speech to *start*, since "unchanged between two
+samples" counted nothing-said-yet as settled; and it waits out 800ms of real
+silence rather than one 120ms poll, since Counting Friends' gaps between beats
+are 200ms and up, so two consecutive samples routinely landed inside one gap and
+it returned mid-story. The pending beat then arrived between `tapUntilWrong`
+clearing the log and its click, and was read as the correction. Both mistakes
+have the same root: treating "I saw no change" as "nothing is coming".
 
 ### 2026-08-24 — test: the first full-suite run, and the one test that was measuring the machine
 
