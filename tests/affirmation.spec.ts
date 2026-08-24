@@ -100,53 +100,63 @@ test.describe('being right does not always sound the same', () => {
     });
     await page.reload();
 
-    const progress = (): Promise<string> =>
-      page
-        .locator('[id$="ProgressText"]')
-        .first()
-        .textContent()
-        .then((t) => (t ?? '').trim())
-        .catch(() => '');
+    // Spend the "first tap asks the question" gesture on inert chrome, so the
+    // scene taps below are judged as answers rather than swallowed.
+    await page.locator('h1').first().click();
 
+    const spokenCount = (): Promise<number> =>
+      page.evaluate(() => (window as unknown as { __spoke: string[] }).__spoke.length);
+
+    const nextBtn = page.locator('#wtNextBtn');
     const ROUNDS = 12;
-    for (let r = 0; r < ROUNDS; r++) {
-      const before = await progress();
-      const options = page.locator('.wt-scene');
-      const n = await options.count();
-      let moved = false;
+    const leads: string[] = [];
 
-      for (let i = 0; i < n && !moved; i++) {
-        await options.nth(i).click({ force: true }).catch(() => {});
-        await page.waitForTimeout(400);
-        const next = page.locator('[id$="NextBtn"]:not([disabled])').first();
-        if ((await next.count()) && (await next.isVisible().catch(() => false))) {
-          await next.click().catch(() => {});
-          await page.waitForTimeout(250);
-          moved = true;
-        }
-        if (!moved && (await progress()) !== before) moved = true;
-      }
-      if (!moved) break;
+    for (let r = 0; r < ROUNDS; r++) {
+      // The round states its own answer: the stage carries the relation being
+      // asked for and each scene carries the one it shows. Answering correctly
+      // on purpose keeps the test about the affirmation and nothing else.
+      const correctIdx = await page.evaluate(() => {
+        const target = document.getElementById('wtStage')?.dataset.target;
+        const scenes = Array.from(document.querySelectorAll<HTMLElement>('.wt-scene'));
+        return scenes.findIndex((s) => s.dataset.rel === target);
+      });
+      expect(
+        correctIdx,
+        `round ${r + 1}: no scene shows the relation the prompt asked for`,
+      ).toBeGreaterThanOrEqual(0);
+
+      const before = await spokenCount();
+      await page.locator('.wt-scene').nth(correctIdx).click();
+      // A correct answer is what enables "Next round", so this waits on the
+      // game agreeing that the tap was right. Every wait here is a real state
+      // transition: the first cut slept 400ms per tap and gave up on a round
+      // that had not repainted yet, which measured how loaded the machine was
+      // and starved this sample down to a couple of lines under a full run.
+      await expect(nextBtn).toBeEnabled({ timeout: 15_000 });
+
+      const said = await page.evaluate(
+        (n) => (window as unknown as { __spoke: string[] }).__spoke.slice(n),
+        before,
+      );
+      const lead = said.map((line) => AFFIRMATIONS.find((a) => line.startsWith(a))).find(Boolean);
+      expect(
+        lead,
+        `round ${r + 1}: a correct answer opened with none of the four ` +
+          `affirmations. It said ${JSON.stringify(said)}`,
+      ).toBeTruthy();
+      leads.push(lead as string);
+
+      await nextBtn.click();
+      await expect(nextBtn).toBeDisabled({ timeout: 15_000 });
     }
 
-    const spoke = await page.evaluate(
-      () => (window as unknown as { __spoke: string[] }).__spoke.slice(),
-    );
-    const leads = spoke
-      .map((line) => AFFIRMATIONS.find((a) => line.startsWith(a)))
-      .filter(Boolean);
-
-    // Non-vacuity: if the run never got a correct answer there is nothing to
-    // measure, and "0 distinct" would otherwise read as a pass or a confusing
-    // failure rather than a broken test.
-    expect(
-      leads.length,
-      'the playthrough never reached a correct answer, so this measured nothing',
-    ).toBeGreaterThan(3);
+    // One affirmation per round, every round, so a short sample now means a
+    // broken test rather than a slow machine.
+    expect(leads, 'the playthrough did not reach every round').toHaveLength(ROUNDS);
 
     expect(
       new Set(leads).size,
-      `${leads.length} correct answers were all greeted with "${leads[0]}". ` +
+      `all ${leads.length} correct answers were greeted with "${leads[0]}". ` +
         `A full run here is 25 rounds.`,
     ).toBeGreaterThan(1);
   });

@@ -6,7 +6,11 @@
 > win. Keep it short and current — see the update rule in
 > `.cursor/rules/maintain-context.mdc`.
 >
-> **Last verified against the codebase**: 2026-08-23 (**every correct answer in
+> **Last verified against the codebase**: 2026-08-24 (**first full-suite run:
+> 401 passed in ~7m**. An earlier attempt showed 348 failures that were pure
+> machine load, not code — local workers are now capped at 2, and
+> `affirmation.spec.ts` no longer drives its playthrough on fixed sleeps, so it
+> stops reporting on how busy the box is. Before that: **every correct answer in
 > the app opened with the same word** — "Yes" led 96 spoken lines, 17.6% of all
 > speech, and in the recognition games "Yes" plus wrong taps came to exactly the
 > round count, so it was every single one. Four affirmations now rotate, seeded
@@ -166,12 +170,15 @@ static output; only interactive islands ship JavaScript.
   Note `preview` serves `dist/`, so the suite tests the **last build** — rebuild
   before trusting a run. Bundled Chromium also has no MP3 codec, so playback
   can't be asserted there; only that clips are requested and served.
-  **Local workers are capped at 4** (CI stays at 1). Workers aren't CPU-bound
-  here — every game page pulls its Fluent 3D art from jsDelivr and specs
-  navigate with `waitUntil: 'load'` — so past ~4 browsers the CDN throttles and
-  specs fail on navigation timeout *while showing a fully rendered page*. If you
-  ever see that failure shape in specs you didn't touch, suspect concurrency,
-  not the game.
+  **Local workers are capped at 2** (CI stays at 1; was 4 until the suite
+  roughly doubled). Workers aren't CPU-bound here — every game page pulls its
+  Fluent 3D art from jsDelivr and specs navigate with `waitUntil: 'load'` — so
+  past the cap the CDN throttles and specs fail on navigation or screenshot
+  timeout *while showing a fully rendered page*. Fewer workers are measurably
+  **faster** (2 → 0 failures in 8.7m; 4 → 4 failures in 11.7m). If you ever see
+  a mass failure in specs you didn't touch, and they pass when run alone,
+  suspect load — check the *runtime* of a spec you trust, not the failure count.
+  A full clean run is **401 specs in ~7m**.
 - **CI**: `.github/workflows/deploy.yml` runs `test → build → deploy` to GH
   Pages on push to `main` (Playwright is a **hard deploy gate**).
   `test.yml` runs the suite independently for badge/PR feedback.
@@ -755,9 +762,9 @@ this family stays at one for now.)
   rolling window (27 clips up front is ~800KB before the first question); the
   clip set was re-levelled on EBU R128 LUFS rather than RMS (§3); and **Animal
   Sounds got the dark-mode + scene-token fixes**, so the counts below drop from
-  11 to 10. Incidentally, `playwright.config.ts` now caps local workers at 4
+  11 to 10. Incidentally, `playwright.config.ts` capped local workers at 4
   (§3) after the longer run test exposed CDN-throttling failures in ten
-  unrelated specs.
+  unrelated specs — since lowered again to 2 as the suite grew.
 - **Prior ship (2026-08-22, same day)**: **Rhyme Time** — third preschool-literacy
   game and the fourth of the six-game August arc. A word shows with its
   picture ("Dog"); three picture cards below, tap the one that rhymes. It is

@@ -417,7 +417,49 @@ before deciding.
 
 ## Changelog
 
-### 2026-08-23 (latest) — fix(content): every correct answer in the app opened with the same word
+### 2026-08-24 (latest) — test: the first full-suite run, and the one test that was measuring the machine
+
+Nine commits of a11y and narration work had only ever been checked against
+targeted subsets. Run end to end, the suite came back **53 passed, 348 failed**,
+which looked like a catastrophe and was not: `wrong-answer.spec.ts` had failed
+almost in its entirety, and every one of those specs passed when run alone.
+`headings.spec.ts` took 28.7s in the bad run and 11.1s immediately after. The
+machine had been buried under browsers and preview servers left behind by a
+day's worth of throwaway harness scripts. Re-run on a quiet box: **401 passed in
+7.1m**, down from 13.3m. Nothing in the app was wrong.
+
+Worth stating plainly, because the failure count invited exactly the wrong
+conclusion: a mass failure confined to specs that pass individually is a
+resource story, not a code story. The tell is the runtime, not the count.
+
+**Two contributors to the load, both fixed.** Workers drop 4 → 2 (`playwright
+.config.ts`): the suite has roughly doubled since 4 was chosen, and the a11y
+sweeps walk every game several times over screenshotting options in three
+states, so it saturates the throttled CDN again. Measured: 4 workers → 4
+failures in 11.7m, 2 workers → 0 in 8.7m. Fewer workers being *faster* is the
+tell that the bottleneck was never CPU. And `headings.spec.ts` joins
+`dark-mode.spec.ts` in `test.slow()` — its contrast walk visits all 29 games in
+both modes inside a single test and uses ~29s of a 30s budget even unloaded.
+
+**The one real defect.** `affirmation.spec.ts` kept failing after the box was
+quiet. Its playthrough tapped scenes blindly, slept a flat 400ms, and treated
+"nothing moved" as end-of-run — so on a busy machine it abandoned the run early,
+collected two or three affirmations, and tripped its own non-vacuity guard. It
+was reporting on how loaded the machine was. A previous pass had papered over
+this by deduping the spoken lines, which treated the symptom.
+
+It now answers correctly *on purpose*: the round states its own answer in the
+DOM (`#wtStage[data-target]` against each scene's `data-rel`), so the test picks
+the right scene, waits for "Next round" to become enabled — the game's own
+signal that the tap was right — reads the affirmation spoken since that click,
+and waits for the button to go disabled again as the round boundary. Every wait
+is a real state transition. That yields exactly one affirmation per round, so
+the guard tightens from "more than 3" to `toHaveLength(12)`: a short sample is
+now a broken test rather than a slow machine. Runtime dropped 9.2s → 6.5s.
+Confirmed still able to fail — pinning `rightLead` to one entry gives "all 12
+correct answers were greeted with 'Yes!'".
+
+### 2026-08-23 — fix(content): every correct answer in the app opened with the same word
 
 The second finding from the same playthrough. Reading back every line spoken
 across the 14 games with a wrong answer: **"Yes" opened 96 of them, 17.6% of all

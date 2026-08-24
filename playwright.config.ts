@@ -63,7 +63,16 @@ export default defineConfig({
   //
   // Four is also just faster in wall-clock terms (1.9m vs 5.7m), since the
   // extra workers were mostly queueing on the same throttled CDN.
-  workers: process.env.CI ? 1 : 4,
+  //
+  // Lowered again to 2 on 2026-08-23, for the same reason and with the same
+  // shape of evidence. The suite has roughly doubled since four was chosen —
+  // the a11y sweeps alone walk every game several times over, screenshotting
+  // options in three feedback states — so it is back to saturating the CDN.
+  // Measured over the full suite: 4 workers gave 4 failures in 11.7m, and the
+  // failures were navigation and screenshot *timeouts* scattered across specs
+  // that pass alone, not assertions. 2 workers gave 0 in 8.7m. Fewer workers
+  // being faster is the tell that the bottleneck was never the CPU.
+  workers: process.env.CI ? 1 : 2,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
 
   use: {

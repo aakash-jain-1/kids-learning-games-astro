@@ -118,6 +118,12 @@ const gamePaths = async (page: Page): Promise<string[]> => {
 };
 
 test.describe('page titles stay legible and disabled controls look disabled', () => {
+  // The contrast walk visits all 29 games in both modes inside one test and
+  // takes ~29s of the default 30s budget even with the machine to itself, so it
+  // fails on whichever page it happens to be on when a parallel worker gets
+  // busy. Same shape as the dark-mode walk.
+  test.beforeEach(() => test.slow());
+
   test('every game title clears the large-text contrast floor in both modes', async ({
     page,
   }) => {
