@@ -6,7 +6,15 @@
 > win. Keep it short and current — see the update rule in
 > `.cursor/rules/maintain-context.mdc`.
 >
-> **Last verified against the codebase**: 2026-08-23 (**being told you were
+> **Last verified against the codebase**: 2026-08-23 (**nothing a child needs
+> is made of movement any more** — §5 rule 15. Sweeping for the shape behind the
+> quiz bug below found that every guided walk-through marks its current item
+> with a class added before `narrate()` and removed on its `onEnd`, and in Week
+> Friends, Days Parade and Pattern Sequences that class was a bare `animation:`
+> over a stylesheet that disables animation under `prefers-reduced-motion`. So
+> the one thing pairing a spoken word with the card it names rendered *nothing*
+> for those children — measured identical before and after applying it. All
+> three now carry a static ring. That came out of: **being told you were
 > wrong no longer requires being able to see animation.** In the 13 games with a
 > written quiz, `.quiz-opt--wrong` was made purely of shake — and reduced motion
 > cuts animation to 0.01ms, leaving the tapped button pixel-identical to options
@@ -442,6 +450,34 @@ data file + a layout-specific themed CSS block. A parent dashboard lives at
     `tests/praise.spec.ts` — which checks the markup *and* the strings assigned
     from script, since the staged maths games and every quiz result overwrite
     their heading on the last round and a DOM-only test would never see them.
+
+15. **State is never carried by motion alone.** If a class tells the child
+    something — which item is being spoken about, which answer was wrong — it
+    must render something *static*. Every stylesheet here already disables its
+    animations under `prefers-reduced-motion`, so a class made only of
+    `animation:` renders as literally nothing for those users. Found twice on
+    2026-08-23: `.quiz-opt--wrong` (see rule 8's exemption above), and then a
+    sweep for the same shape — selectors whose union of declarations across
+    *all* rules is animation-only — turned up 26 candidates, 6 of them real.
+    Every guided walk-through in the app is written as
+
+    ```js
+    item.classList.add('week-card--pulse');
+    narrate(day, { onEnd: () => item.classList.remove('week-card--pulse') });
+    ```
+
+    so the class is on screen exactly while the word is spoken and is the only
+    thing pairing a word a pre-reader can't read with the card it names. That
+    pairing is the lesson. Counting/Number/More Friends already added a static
+    `--counted` ring alongside; Week Friends, Days Parade and Pattern Sequences
+    were animation-only and went blank. They now carry a two-tone ring (white
+    inner, dark outer) which survives any card colour and either page
+    background. Held by `tests/motion-independence.spec.ts`, which keeps the
+    three already-correct games as controls — without them a fix that measured
+    nothing would look like a pass. Note the two specs compare in opposite
+    directions on purpose: here an element against *itself* (the days are
+    different colours, so siblings aren't comparable), in the quiz against its
+    *siblings* (the options are identical and all dim together).
 
 ## 6. LocalStorage keys (state shapes)
 

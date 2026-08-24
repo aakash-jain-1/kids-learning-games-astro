@@ -223,8 +223,20 @@ body.story[data-theme='weekfriends'] .week-card-name {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
 }
 
-/* The card pulses while the "sing the days" walk narrates it. */
+/* The card the walk-through is naming *right now*.
+   The ring is the load-bearing part, not the pulse: this class is added
+   before `narrate(day)` and removed on its `onEnd`, so it is the only thing
+   pairing the word a pre-reader hears with the card it belongs to. Until
+   2026-08-23 it was a bare `animation:`, and the reduced-motion block below
+   sets `animation: none` — so for a child who asked for less motion the
+   class rendered nothing at all and the pairing was silently lost.
+   Two-tone so it survives any `--week-card-color` and either page: the
+   white ring separates it from the card, the dark ring from the page. */
 body.story[data-theme='weekfriends'] .week-card.week-card--pulse {
+  box-shadow:
+    0 0 0 3px #fff,
+    0 0 0 6px rgba(20, 24, 60, 0.55),
+    0 4px 12px rgba(20, 24, 60, 0.2);
   animation: weekPulse 0.5s ease-in-out;
 }
 

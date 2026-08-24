@@ -233,10 +233,18 @@ body.story[data-theme='patterns'] .ps-circle[data-color='blue']   { color: var(-
 body.story[data-theme='patterns'] .ps-circle[data-color='yellow'] { color: var(--ps-color-yellow); }
 body.story[data-theme='patterns'] .ps-circle[data-color='green']  { color: var(--ps-color-green); }
 
-/* Pulse highlight for the wrong-tap walk-through — applied
-   sequentially to each `.ps-circle` while the narration speaks
-   that item's color. Same shape as `nf-item--pulse`. */
+/* Highlight for the wrong-tap walk-through — applied sequentially to each
+   `.ps-circle` while the narration speaks that item's colour. Same shape as
+   `nf-item--pulse`, but note the triad pairs its pulse with a static
+   `--counted` ring and this did not: it was animation-only, and the
+   reduced-motion block below sets `animation: none`, so the circle being
+   named was indistinguishable from the rest of the sequence. The ring is
+   what carries it now; the pulse is decoration on top. */
 body.story[data-theme='patterns'] .ps-circle.ps-circle--pulse {
+  box-shadow:
+    0 0 0 3px #fff,
+    0 0 0 6px rgba(20, 30, 70, 0.55),
+    var(--ps-circle-shadow);
   animation: psPulse 0.6s ease-out;
 }
 

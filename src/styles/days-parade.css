@@ -235,7 +235,15 @@ body.story[data-theme='daysparade'] .dp-card--active {
   box-shadow: 0 0 0 3px var(--dp-accent), 0 8px 20px rgba(11, 78, 71, 0.3);
 }
 
+/* The card being sung right now. See the matching note in week-friends.css:
+   the ring, not the bounce, is what pairs the spoken day with the card, and
+   the reduced-motion block below kills the bounce. Two-tone so it holds up
+   over any `--dp-card-color` and either page background. */
 body.story[data-theme='daysparade'] .dp-card--singing {
+  box-shadow:
+    0 0 0 3px #fff,
+    0 0 0 6px rgba(11, 78, 71, 0.55),
+    0 4px 12px rgba(11, 78, 71, 0.22);
   animation: dpBounce 0.5s ease-out;
 }
 

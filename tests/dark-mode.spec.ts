@@ -122,6 +122,12 @@ const setMode = async (page: Page, dark: boolean): Promise<void> => {
 test.use({ viewport: { width: 1200, height: 800 } });
 
 test.describe('StoryLayout page background', () => {
+  // Each of these walks all 13 story games in a single test and takes ~20s of
+  // the default 30s budget on its own, so it tips over the moment the machine
+  // is busy with other workers. Observed failing on a `page.goto` mid-run
+  // while passing in 20s when run alone.
+  test.beforeEach(() => test.slow());
+
   test('dark mode actually darkens the page on every story game', async ({ page }) => {
     const tooLight: string[] = [];
 

@@ -417,7 +417,67 @@ before deciding.
 
 ## Changelog
 
-### 2026-08-23 (latest) — fix(a11y): the quiz's wrong-answer mark was made entirely of motion
+### 2026-08-23 (latest) — fix(a11y): the guided walk-throughs were invisible with motion off (§5 rule 15)
+
+Swept for the bug shape found in the quiz the same day: **a selector whose
+entire visual contribution is an `animation`**, in a codebase where every
+stylesheet disables its animations under `prefers-reduced-motion`. Such a class
+renders as nothing for those users, however much it is doing conceptually.
+
+The scan aggregates declarations *per selector across every rule*, which matters
+— the quiz bug looked fine rule-by-rule, since `.quiz-opt--correct` got its
+green outline from one rule and its pop from another while `--wrong` only ever
+appeared in the animation rule. Only the union shows which states are made
+purely of movement. It returned 26 selectors; most were decorative `.pop` and
+`.flash` on card art that swaps content anyway.
+
+Six were not decorative, and they are all the same line of code:
+
+```js
+item.classList.add('week-card--pulse');
+narrate(day, { onEnd: () => item.classList.remove('week-card--pulse') });
+```
+
+The class is on screen for exactly as long as the word is being spoken. For a
+child who cannot read the caption, it is the only thing connecting the word they
+hear to the card it belongs to — the pairing *is* the lesson. Counting, Number
+and More Friends add a static `--counted` ring alongside the pulse and were
+fine. **Week Friends, Days Parade and Pattern Sequences were animation-only**,
+and their stylesheets each name the class explicitly in a
+`@media (prefers-reduced-motion: reduce) { … animation: none }` block — so the
+motion was carefully switched off and nothing was left behind it. Measured, the
+element was identical before and after applying the class.
+
+| | motion allowed | reduced motion |
+| --- | --- | --- |
+| Week Friends / Days Parade / Patterns | pulse visible | **nothing** |
+| Counting / Number / More Friends | pulse + ring | ring survives |
+
+Fixed with a two-tone ring — white inner, dark outer — layered *before* the
+existing drop shadow rather than replacing it. Two tones because these cards are
+deliberately every colour of the rainbow and the pages come in light and dark:
+whichever tone disappears, the other one carries. 3px/6px so it never reaches
+the 12px gap to the neighbouring card.
+
+A first probe compared item[0] against item[1] and produced confident nonsense —
+Tuesday is a different colour from Monday, and the pattern circles differ by
+design, so it was reporting the palette. Comparing an element against *itself*,
+with and without the class, is the honest measurement here. That is the opposite
+of what `quiz-feedback.spec.ts` does, and deliberately: there the options are
+identical to each other and the whole row dims together while the feedback
+window is open, so self-comparison would report the dimming.
+
+`tests/motion-independence.spec.ts` keeps the three already-correct games as
+controls rather than dropping them — if they ever stop showing a difference the
+spec is measuring nothing and the other three would pass for the wrong reason.
+It also asserts the same marks in the motion-allowed direction, so a fix that
+only applied inside the reduced-motion query couldn't sneak through.
+
+Unrelated flake fixed in passing: the three `dark-mode.spec.ts` tests each walk
+all 13 story games in a single test and use ~20s of the default 30s budget, so
+they tip over whenever the machine is busy. Marked `test.slow()`.
+
+### 2026-08-23 — fix(a11y): the quiz's wrong-answer mark was made entirely of motion
 
 Started out to close what looked like the last rule-8 gap: 13 games put a
 written quiz behind the 🧠 pill, and a wrong answer there gets a shake and a
