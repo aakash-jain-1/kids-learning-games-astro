@@ -47,7 +47,13 @@ jobs:
   test:
     name: Playwright (chromium)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Covers install + browsers + build + tests. The tests are the part that
+    # grows: 26 minutes of serial test time as of 2026-08-24, run 4-wide (see
+    # the workers note in `playwright.config.ts`). 15 minutes was silently
+    # outgrown and every run came back "cancelled", which looks like a CI
+    # fault rather than a budget one — so this is set with room to notice the
+    # next time rather than to trip.
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4

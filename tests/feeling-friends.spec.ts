@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { passChapterBreak } from './helpers';
 
 /**
  * Feeling Friends — preschool SOCIAL-EMOTIONAL smoke suite
@@ -192,6 +193,7 @@ test.describe('feeling friends (preschool social-emotional — show me happy)', 
       await page.locator(`#ffTile${correctIdx}`).click();
       await expect(page.locator('#ffNextBtn')).toBeEnabled();
       await page.locator('#ffNextBtn').click();
+      await passChapterBreak(page);
     }
 
     expect(labels.slice().sort(), 'every feeling should be asked by name once').toEqual(

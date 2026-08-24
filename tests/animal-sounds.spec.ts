@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { passChapterBreak } from './helpers';
 
 /**
  * Animal Sounds — preschool SCIENCE / listening smoke suite
@@ -173,6 +174,7 @@ test.describe('animal sounds (preschool listening — who says moo?)', () => {
       await page.locator(`#asTile${correctIdx}`).click();
       await expect(page.locator('#asNextBtn')).toBeEnabled();
       await page.locator('#asNextBtn').click();
+      await passChapterBreak(page);
     }
 
     const duplicates = seen.filter((a, i) => seen.indexOf(a) !== i);
@@ -262,6 +264,7 @@ test.describe('animal sounds (preschool listening — who says moo?)', () => {
       await page.locator(`#asTile${correctIdx}`).click();
       await expect(page.locator('#asNextBtn')).toBeEnabled();
       await page.locator('#asNextBtn').click();
+      await passChapterBreak(page);
     }
 
     const distinct = new Set(seen);

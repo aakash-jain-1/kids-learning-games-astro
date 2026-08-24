@@ -145,3 +145,22 @@ export const expectModalOpen = async (overlay: Locator): Promise<void> => {
 export const expectModalClosed = async (overlay: Locator): Promise<void> => {
   await expect(overlay).not.toHaveClass(/(^|\s)show(\s|$)/);
 };
+
+/**
+ * Press "Keep going" if pressing Next opened a chapter break.
+ *
+ * The seven long games pause every ~6 rounds so a child can stop (§5 rule 11,
+ * `lib/chapters.ts`). A spec walking a whole run is doing the one thing the
+ * pause exists to make unnecessary, so it just carries on — but it has to say
+ * so, because the break is a real modal and everything behind it is inert.
+ *
+ * Call it after every Next in a full-run walk. `showModal` happens inside the
+ * Next handler, so by the time the click resolves the panel is either up or
+ * was never coming; there is nothing to wait for.
+ */
+export const passChapterBreak = async (page: Page): Promise<void> => {
+  const panel = page.locator('#stBreak');
+  if (!(await panel.isVisible())) return;
+  await page.locator('#stBreakGo').click();
+  await expect(panel).toBeHidden();
+};

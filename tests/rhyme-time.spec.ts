@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { passChapterBreak } from './helpers';
 
 /**
  * Rhyme Time — preschool LITERACY (rhyme recognition) smoke suite
@@ -418,6 +419,7 @@ test.describe('rhyme time (preschool literacy — find the rhyme)', () => {
       await page.locator(`#rtTile${correctIdx}`).click();
       await expect(page.locator('#rtNextBtn')).toBeEnabled();
       await page.locator('#rtNextBtn').click();
+      await passChapterBreak(page);
     }
 
     expect(asked.slice().sort(), 'every word should get a turn as the prompt').toEqual(

@@ -417,7 +417,130 @@ before deciding.
 
 ## Changelog
 
-### 2026-08-24 (latest) — fix(a11y): "Say it again" made the round stutter
+### 2026-08-24 (latest) — fix(ci): the suite outgrew its budget, and every run came back "cancelled"
+
+Reported as infrastructure — *"2 cancelled and 2 skipped checks"*, both Playwright
+jobs "Cancelled after 15m", build and deploy skipped. It was not infrastructure.
+GitHub reports a job that exceeds `timeout-minutes` as **cancelled**, so a suite
+that had simply grown too big for its budget was indistinguishable from a runner
+hiccup, and had been for at least one push.
+
+**Measured rather than guessed.** A full local run with `--reporter=json` gives
+the number that matters, which is not the wall clock:
+
+```
+456 tests    26.0 min of serial test time    3.6 min wall at 8 workers
+```
+
+CI pinned itself to `workers: 1`, and the job's 15 minutes has to cover `npm ci`,
+`playwright install`, `npm run build` *and* the tests — call it 12 minutes of
+test budget against 26 minutes of test, on a runner slower than the box that
+produced the 26. There was no version of that run which finished. The deploy
+gate is a second copy of the same job, so the site stopped shipping at the same
+moment for the same reason.
+
+The single-worker choice had a stated rationale — "deterministic, and the runner
+has little to gain from fanning out" — which was true when the suite was small
+and quietly stopped being true. **CI now runs 4-wide**, which is not merely
+"more": four is the same concurrency ceiling the local-workers comment arrives
+at from the other direction (past roughly four browsers, jsDelivr throttles the
+Fluent 3D art and specs fail on navigation timeout while showing a fully
+rendered page), and a GitHub-hosted `ubuntu-latest` runner is 4 vCPU. Both jobs
+go to `timeout-minutes: 30`, chosen with room to notice the next time rather
+than to sit just past the current number.
+
+Worth recording for next time: **the slowest two files are 7.2 of the 26
+minutes** — `addition.spec.ts` at 229s and `invariants.spec.ts` at 203s. Nothing
+is pathological (456 tests at 3.4s average is ordinary for browser tests), but
+those are where the time is if the budget ever needs winning back rather than
+raising.
+
+### 2026-08-24 — feat(chapters): long runs get somewhere to stop (§5 rule 11)
+
+The other half of "a child can start a game and finish it". Resuming (2026-08-23)
+let a child come back to an unfinished run; it did not give them anywhere to
+**stop**. §5 rule 11 made a run cover its whole set and the measured bill was
+seven minutes of narration for Where's Teddy's 25 rounds — before the child
+looks at three scenes, decides, taps, and an adult taps Next. A 3–4 year old
+does not sit through that in one go, so the completion screen at the end of the
+longest games was something they might simply never see. The run had a finish
+line and no rest stops.
+
+**Chapters are rest stops, and nothing else.** Every 5–7 rounds the game pauses
+on a star row, a count, and "You can keep going, or stop for now". The
+constraint that shaped the whole design: **the run does not change.** Chapters
+change when the child is *asked* to continue, never what is asked, so rule 11's
+coverage guarantee survives intact. The plans, derived rather than authored:
+
+```
+animal-sounds      27  6+6+5+5+5   breaks after 6, 12, 17, 22
+letter-friends     26  7+7+6+6     breaks after 7, 14, 20
+sound-friends      26  7+7+6+6     breaks after 7, 14, 20
+wheres-teddy       25  7+6+6+6     breaks after 7, 13, 19
+opposites-friends  20  7+7+6       breaks after 7, 14
+feeling-friends    20  7+7+6       breaks after 7, 14
+rhyme-time         18  6+6+6       breaks after 6, 12
+```
+
+Six rounds is roughly 40 seconds of narration in the quickest game (Animal
+Sounds, 6.4s/round) and 100 in the slowest (Where's Teddy, 16.8s) — one to two
+minutes of listening plus thinking time. The remainder is spent on the
+*earliest* chapters, so a run never ends on a stub; finishing on "just one more
+round" reads as an afterthought, and the last chapter is the one carrying the
+completion celebration. Runs under 12 rounds get no chapters at all: Week
+Friends is 6 and takes 53 seconds, and cutting that up would interrupt a sitting
+rather than end one.
+
+**One primitive, not seven copies.** `lib/chapters.ts` holds the plan (pure,
+so the arithmetic is testable without a browser) plus the panel wiring;
+`components/ChapterBreak.astro` is the markup and `story.css` the styling, both
+theme-agnostic. The per-game diff is 20 lines and identical in all seven, which
+is the point — seven hand-rolled overlays is seven chances for one to drift out
+of dark mode, exactly as the `--st-bg` bug did across ten themes in August.
+
+**Three details that were not obvious:**
+
+- **The run is saved before the panel opens.** Closing the tab *at* a break is
+  the case the break exists to make safe, so the stored index has to be the next
+  chapter's first round, not the one just finished. Saving afterwards resumes
+  a child onto a round they already answered — confirmed by moving the call and
+  watching the test report `7 / 25` where `8 / 25` was expected.
+- **It is a real `<dialog>` opened with `showModal()`, not a styled div.** The
+  first cut was a `<div role="dialog" aria-modal="true">`, which is a promise
+  the markup cannot keep: the Next and "Say it again" buttons behind the scrim
+  stayed focusable and tappable-looking while silently doing nothing — the
+  §5 rule 10 corollary, and precisely the defect this session fixed in Counting
+  Friends. `showModal()` makes the round behind genuinely inert and brings
+  Escape and focus restoration with it, so the JS got shorter too. Games on a
+  browser without `<dialog>` fall back to no chapters at all rather than to a
+  break that silently fails to open — the game *returns* after asking for one,
+  so a no-op `show()` would strand the child on a finished round.
+- **The last round never breaks.** The completion screen owns the end of a run;
+  a "keep going?" in front of the confetti would be the same reward for the
+  first chapter as for the last.
+
+**The panel is opaque on purpose.** It first reused `--st-card-bg`, which is
+deliberately translucent at 0.92 so scene panels sit over their artwork — and
+in dark mode the caption underneath showed straight through the card. Filled vs
+hollow stars are a *shape* difference with gold layered on top, not a hue
+difference, for the same reason wrong answers carry a ✗ (§5 rule 16).
+
+**Tests.** `tests/chapters.spec.ts`, 26 of them. The plan tests are the ones
+that matter most: chapters sum to the whole run, every round belongs to exactly
+one chapter, no chapter is more than a round off target, and no run breaks on
+its own last round — i.e. rule 11's guarantee re-asserted from the chapter side.
+Three behavioural tests play Where's Teddy end to end: the pause lands after
+exactly 7, 13, 19 and nowhere else; the last round finishes instead of pausing;
+and stopping at a break comes back to `8 / 25`. Confirmed non-vacuous three
+ways — no breaks at all fails two tests, `show()` instead of `showModal()` fails
+the inertness check, and saving after the break fails the resume check.
+
+The rollout also broke eight existing tests, all of them full-run walkers
+stalling at the first break — which was the feature working. They now call
+`passChapterBreak(page)` after each Next; it is a helper rather than seven
+copies for the same reason the panel is.
+
+### 2026-08-24 — fix(a11y): "Say it again" made the round stutter
 
 The third defect from the early-action sweep, and the one that shows the rule 17
 guard was only half a fix. `introRun` was bumped on every answer and every round

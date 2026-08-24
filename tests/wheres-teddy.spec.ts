@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { passChapterBreak } from './helpers';
 
 /**
  * Where's Teddy? — preschool COGNITIVE (spatial / positional words) smoke
@@ -294,6 +295,7 @@ test.describe("where's teddy (preschool cognitive — spatial words)", () => {
       await page.locator(`#wtScene${correctIdx}`).click();
       await expect(page.locator('#wtNextBtn')).toBeEnabled();
       await page.locator('#wtNextBtn').click();
+      await passChapterBreak(page);
     }
 
     expect(

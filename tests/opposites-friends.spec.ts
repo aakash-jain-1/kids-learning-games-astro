@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { passChapterBreak } from './helpers';
 
 /**
  * Opposites Friends — preschool COGNITIVE (contrast vocabulary) smoke suite
@@ -334,6 +335,7 @@ test.describe('opposites friends (preschool cognitive — find the opposite)', (
       await page.locator(`#ofTile${correctIdx}`).click();
       await expect(page.locator('#ofNextBtn')).toBeEnabled();
       await page.locator('#ofNextBtn').click();
+      await passChapterBreak(page);
     }
 
     expect(asked.slice().sort(), 'a run should ask each pair both ways, once each').toEqual(

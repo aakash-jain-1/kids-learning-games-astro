@@ -511,6 +511,158 @@ body.dark-mode.story[data-theme='woodcutter'] {
   margin-top: 10px;
 }
 
+/* ── Chapter break ──────────────────────────────────────────────── */
+/**
+ * Theme-agnostic on purpose. The seven games that show this overlay each
+ * paint their own completion panel in their own palette, and that is where
+ * the drift risk lives — this one leans entirely on `--st-card-*`, which
+ * every theme already sets and dark mode already flips.
+ */
+/* The UA's own dialog chrome (border, white background, centred box) is all
+   in the way here — the scrim comes from `::backdrop` and the panel is the
+   card inside. `[open]` rather than a class so the element's own state is the
+   only source of truth about whether the break is up. */
+.st-break {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  border: none;
+  padding: 20px;
+  background: transparent;
+  overflow: hidden;
+}
+
+.st-break[open] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.st-break::backdrop {
+  background: rgba(20, 16, 32, 0.55);
+}
+
+/**
+ * Opaque, unlike `--st-card-bg`, which is deliberately translucent so scene
+ * panels sit over their artwork. A modal wants the opposite: at 0.92 the
+ * caption under the card showed through it in dark mode.
+ */
+.st-break-card {
+  background: #ffffff;
+  color: #333;
+  border-radius: 28px;
+  padding: 30px 28px;
+  text-align: center;
+  max-width: 420px;
+  box-shadow: var(--st-card-shadow);
+  animation: st-break-pop 0.4s ease;
+}
+
+body.dark-mode.story .st-break-card {
+  background: #211b26;
+  color: #f0e6dc;
+}
+
+@keyframes st-break-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/**
+ * The stars are how a child who cannot read sees how much is left (§5 rule
+ * 15's cousin: the count is not carried by the sentence alone). Filled vs
+ * hollow is a shape difference, not a hue difference, so it survives both
+ * colour blindness (§5 rule 16) and greyscale printing.
+ */
+.st-break-stars {
+  margin: 0 0 6px;
+  font-size: 1.9em;
+  line-height: 1;
+  letter-spacing: 0.08em;
+}
+
+/* Gold is the reward; filled-vs-hollow is the information. Keeping those on
+   separate channels is the same reason wrong answers carry a ✗ (§5 rule 16). */
+.st-break-star--on {
+  color: #e08600;
+}
+
+.st-break-title {
+  margin: 6px 0;
+  font-size: 1.7em;
+  color: var(--st-done-accent);
+}
+
+.st-break-text {
+  margin: 0 0 20px;
+  font-size: 1.05em;
+  opacity: 0.85;
+}
+
+.st-break-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.st-break-btn {
+  font-family: inherit;
+  font-size: 1.05em;
+  font-weight: 700;
+  padding: 14px 26px;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  /* Rule 10: the child's fingertip, not a mouse pointer. */
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.st-break-btn--go {
+  background: var(--st-done-accent);
+  color: #23180c;
+}
+
+.st-break-btn--go:hover {
+  filter: brightness(1.08);
+}
+
+/**
+ * Visibly the quieter of the two, because "keep going" is what most taps
+ * want — but still a full-size button, not a text link. Stopping is a
+ * legitimate answer to the question the panel just asked, and burying it
+ * would make the offer dishonest.
+ */
+.st-break-btn--stop {
+  background: transparent;
+  color: var(--st-card-text);
+  box-shadow: inset 0 0 0 2px currentColor;
+  opacity: 0.75;
+}
+
+.st-break-btn--stop:hover {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .st-break-card {
+    animation: none;
+  }
+}
+
 /* ── Mobile tightening ──────────────────────────────────────────── */
 @media (max-width: 600px) {
   .story-title {

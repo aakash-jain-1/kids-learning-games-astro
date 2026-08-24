@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { passChapterBreak } from './helpers';
 
 /**
  * Sound Friends — preschool-LITERACY beginning-sounds smoke suite
@@ -232,6 +233,7 @@ test.describe('sound friends (preschool beginning sounds)', () => {
       await page.locator(`#sfTile${correctIdx}`).click();
       await expect(page.locator('#sfNextBtn')).toBeEnabled();
       await page.locator('#sfNextBtn').click();
+      await passChapterBreak(page);
     }
 
     const duplicates = asked.filter((l, i) => asked.indexOf(l) !== i);

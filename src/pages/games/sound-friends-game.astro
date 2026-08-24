@@ -1,6 +1,7 @@
 ---
 import StoryLayout from '@/layouts/StoryLayout.astro';
 import GameControls from '@/components/GameControls.astro';
+import ChapterBreak from '@/components/ChapterBreak.astro';
 import '@/styles/soundfriends.css';
 
 import { generateRun, TOTAL_ROUNDS } from '@/data/sound-friends';
@@ -121,6 +122,8 @@ const ssrCaption = `${ssrItem.word}! What does ${ssrItem.word} start with?`;
         </div>
       </div>
     </div>
+
+    <ChapterBreak total={TOTAL_ROUNDS} />
   </main>
 </StoryLayout>
 
@@ -143,6 +146,7 @@ const ssrCaption = `${ssrItem.word}! What does ${ssrItem.word} start with?`;
   } from '@/data/sound-friends';
   import { recordPlay, todayLocal } from '@/lib/retention';
   import { loadRun, saveRun, clearRun, listenForReset } from '@/lib/run-state';
+  import { mountChapterBreak } from '@/lib/chapters';
 
   const RUN_KEY = 'sound_friends_run_v1';
 
@@ -417,14 +421,30 @@ const ssrCaption = `${ssrItem.word}! What does ${ssrItem.word} start with?`;
     requestAnimationFrame(() => speakIntroSequence());
   };
 
+  const chapterBreak = mountChapterBreak({
+    total: TOTAL_ROUNDS,
+    onContinue: () => startRound(),
+    narrate,
+    playTap,
+  });
+
   const onNext = (): void => {
     playTap();
     if (roundIdx >= TOTAL_ROUNDS - 1) {
       showRunComplete();
       return;
     }
+    const justFinished = roundIdx;
     roundIdx++;
+    // Saved *before* the break, so putting the tablet down at the pause
+    // resumes at the top of the next chapter rather than replaying the last
+    // round of the one just finished.
     saveRun(RUN_KEY, run, roundIdx);
+    if (chapterBreak.endsChapter(justFinished)) {
+      cancelSpeech();
+      chapterBreak.show(justFinished + 1);
+      return;
+    }
     startRound();
   };
 

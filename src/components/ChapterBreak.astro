@@ -1,0 +1,48 @@
+---
+/**
+ * The pause between chapters (see `lib/chapters.ts` for why runs have them).
+ *
+ * Shared rather than per-game because there is nothing game-specific about
+ * "you have done seven, you may stop here" — and because seven copies of an
+ * overlay is seven chances for one of them to drift out of dark mode, as the
+ * `--st-bg` bug did across ten themes in August.
+ *
+ * Deliberately *not* the completion panel with different words. Each game's
+ * own `--done` overlay keeps the big "you did it": finishing the whole run has
+ * to stay the thing that feels different, or the reward for the last chapter
+ * is the same as the reward for the first.
+ *
+ * A real `<dialog>` rather than a styled `<div>`, because this one has to be
+ * modal in fact and not just in aria: `showModal()` makes the round behind it
+ * inert, so the Next and "Say it again" buttons under the scrim stop being
+ * focusable instead of merely looking tappable and swallowing taps (§5 rule
+ * 10's corollary). It also brings Escape and focus restoration with it.
+ */
+import { chapterSizes } from '@/lib/chapters';
+
+interface Props {
+  /** Rounds in a full run — the chapter plan is derived from it. */
+  total: number;
+}
+
+const { total } = Astro.props;
+const chapters = chapterSizes(total).length;
+
+const base = import.meta.env.BASE_URL;
+const home = `${base}${base.endsWith('/') ? '' : '/'}`;
+---
+
+<dialog class="st-break" id="stBreak" aria-labelledby="stBreakTitle" data-chapters={chapters}>
+  <div class="st-break-card">
+    <p class="st-break-stars" id="stBreakStars" role="img" aria-label={`0 of ${chapters} parts done`}>
+    </p>
+    <h2 class="st-break-title" id="stBreakTitle">Nice work!</h2>
+    <p class="st-break-text">You can keep going, or stop for now.</p>
+    <div class="st-break-actions">
+      <button class="st-break-btn st-break-btn--go" id="stBreakGo" type="button" autofocus>
+        Keep going
+      </button>
+      <a class="st-break-btn st-break-btn--stop" id="stBreakStop" href={home}>Stop for now</a>
+    </div>
+  </div>
+</dialog>

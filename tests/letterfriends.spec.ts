@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { passChapterBreak } from './helpers';
 
 /**
  * Letter Friends — preschool-LITERACY uppercase-letter recognition
@@ -155,6 +156,7 @@ test.describe('letter friends (preschool letter recognition)', () => {
       await page.locator(`#lfTile${correctIdx}`).click();
       await expect(page.locator('#lfNextBtn')).toBeEnabled();
       await page.locator('#lfNextBtn').click();
+      await passChapterBreak(page);
     }
 
     const duplicates = seen.filter((l, i) => seen.indexOf(l) !== i);

@@ -1,6 +1,7 @@
 ---
 import StoryLayout from '@/layouts/StoryLayout.astro';
 import GameControls from '@/components/GameControls.astro';
+import ChapterBreak from '@/components/ChapterBreak.astro';
 import '@/styles/rhyme-time.css';
 
 import {
@@ -142,6 +143,8 @@ const ssrRime = lookupFamily(ssrTarget.family).rime;
         </div>
       </div>
     </div>
+
+    <ChapterBreak total={TOTAL_ROUNDS} />
   </main>
 </StoryLayout>
 
@@ -165,6 +168,7 @@ const ssrRime = lookupFamily(ssrTarget.family).rime;
   } from '@/data/rhyme-time';
   import { recordPlay, todayLocal } from '@/lib/retention';
   import { loadRun, saveRun, clearRun, listenForReset } from '@/lib/run-state';
+  import { mountChapterBreak } from '@/lib/chapters';
 
   const RUN_KEY = 'rhyme_time_run_v1';
 
@@ -458,14 +462,30 @@ const ssrRime = lookupFamily(ssrTarget.family).rime;
     requestAnimationFrame(() => speakIntro());
   };
 
+  const chapterBreak = mountChapterBreak({
+    total: TOTAL_ROUNDS,
+    onContinue: () => startRound(),
+    narrate,
+    playTap,
+  });
+
   const onNext = (): void => {
     playTap();
     if (roundIdx >= TOTAL_ROUNDS - 1) {
       showRunComplete();
       return;
     }
+    const justFinished = roundIdx;
     roundIdx++;
+    // Saved *before* the break, so putting the tablet down at the pause
+    // resumes at the top of the next chapter rather than replaying the last
+    // round of the one just finished.
     saveRun(RUN_KEY, run, roundIdx);
+    if (chapterBreak.endsChapter(justFinished)) {
+      cancelSpeech();
+      chapterBreak.show(justFinished + 1);
+      return;
+    }
     startRound();
   };
 

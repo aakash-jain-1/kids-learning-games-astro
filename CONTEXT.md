@@ -6,7 +6,15 @@
 > win. Keep it short and current — see the update rule in
 > `.cursor/rules/maintain-context.mdc`.
 >
-> **Last verified against the codebase**: 2026-08-24 (**an "early action" sweep
+> **Last verified against the codebase**: 2026-08-24 (**long runs now have
+> chapters.** §5 rule 11 made a run cover its whole set, and measuring that
+> found the bill: 25 rounds of Where's Teddy is ~7 minutes of narration before
+> the child even looks at a scene. Resuming let a child come back; it still gave
+> them nowhere to *stop*, so on the longest games the completion screen was
+> something they might never reach. The seven long games now pause every 5–7
+> rounds — stars, a count, "keep going, or stop for now" — via `lib/chapters.ts`
+> and a shared `<dialog>`. The run is unchanged; only the asking is. Before
+> that: **an "early action" sweep
 > — the child acting before the game is ready — found three defects across four
 > surfaces.** "Say it again" left the old script running alongside the new one,
 > so every remaining line was said twice; Counting Friends left three buttons at
@@ -180,8 +188,14 @@ static output; only interactive islands ship JavaScript.
   Note `preview` serves `dist/`, so the suite tests the **last build** — rebuild
   before trusting a run. Bundled Chromium also has no MP3 codec, so playback
   can't be asserted there; only that clips are requested and served.
-  **Local workers scale with the machine — half the cores, capped at 8** (CI
-  stays at 1). The cap exists because workers aren't purely CPU-bound here:
+  **Local workers scale with the machine — half the cores, capped at 8; CI
+  runs 4-wide.** CI was single-worker until 2026-08-24, when the suite quietly
+  outgrew it: 456 tests is **26 minutes of serial test time**, against a
+  15-minute job budget that also has to cover install, browsers and build. The
+  symptom was every run coming back "cancelled after 15m" — which reads like a
+  CI fault rather than a suite that got too big — and because the deploy gate
+  is the same job, nothing shipped either. Now 4 workers and a 30-minute cap.
+  The cap exists because workers aren't purely CPU-bound here:
   every game page pulls its Fluent 3D art from jsDelivr and specs navigate with
   `waitUntil: 'load'`, so enough concurrent browsers will throttle the CDN and
   fail specs on navigation timeout *while showing a fully rendered page*.
@@ -191,7 +205,7 @@ static output; only interactive islands ship JavaScript.
   On a quiet 20-core box, all green: 8 workers 2.6m, 6 workers 2.9m, 2 workers
   7.1m. If you ever see a mass failure in specs you didn't touch that pass when
   run alone, suspect load — and check the *runtime* of a spec you trust, not
-  the failure count. A full clean run is **415 specs in ~2.7m**.
+  the failure count. A full clean run is **456 specs in ~3.6m** at 8 workers.
 - **CI**: `.github/workflows/deploy.yml` runs `test → build → deploy` to GH
   Pages on push to `main` (Playwright is a **hard deploy gate**).
   `test.yml` runs the suite independently for badge/PR feedback.
@@ -431,6 +445,24 @@ data file + a layout-specific themed CSS block. A parent dashboard lives at
       were — which *is* the skill. Starting the board again is the correct
       behaviour. The six generated-question games are exempt for the same
       reason they are exempt from rule 11: nothing finite to return to.
+    - **A long run must have chapters** (added 2026-08-24). Resuming gave a run
+      somewhere to *return to*; chapters give it somewhere to **stop**. Any run
+      of 12+ rounds is cut into sittings of 5–7 by `lib/chapters.ts`, and the
+      shared `components/ChapterBreak.astro` pauses at each boundary with a star
+      row, a count, and "keep going, or stop for now". Seven games:
+      Animal Sounds 6+6+5+5+5, Letter and Sound Friends 7+7+6+6, Where's Teddy
+      7+6+6+6, Opposites and Feeling Friends 7+7+6, Rhyme Time 6+6+6.
+
+      **The run itself does not change** — that is the whole constraint. Chapters
+      change when the child is *asked* to continue, never what is asked, so rule
+      11's coverage guarantee is untouched. Three things this had to get right:
+      the run is saved *before* the panel opens, so stopping at a break returns
+      to the top of the next chapter and not the round just finished; the break
+      is a real `<dialog>` opened with `showModal()`, so the round behind it is
+      inert rather than merely covered (§5 rule 10's corollary); and the last
+      round of a run never breaks, because the completion screen owns the end.
+      Held by `tests/chapters.spec.ts`. A spec that walks a whole run must call
+      `passChapterBreak(page)` after each Next.
 12. **Layer a feedback tint over the option; never assign it.** Applies to
     *every* state — `--wrong`, `--correct`, `--reveal` — not just rule 8.
     Every tint token in these games is translucent (0.16–0.22), so

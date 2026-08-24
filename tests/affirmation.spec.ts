@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { passChapterBreak } from './helpers';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -147,6 +148,10 @@ test.describe('being right does not always sound the same', () => {
       leads.push(lead as string);
 
       await nextBtn.click();
+      // Round 7 of Where's Teddy ends a chapter, and until the break is
+      // dismissed the next round has not started — so Next never goes
+      // disabled and the round boundary below never arrives.
+      await passChapterBreak(page);
       await expect(nextBtn).toBeDisabled({ timeout: 15_000 });
     }
 

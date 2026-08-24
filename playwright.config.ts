@@ -48,8 +48,21 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  // CI stays single-worker: deterministic, and the runner has little to
-  // gain from fanning out.
+  // CI used to be single-worker, on the reasoning that it was deterministic
+  // and a small runner had little to gain from fanning out. That stopped
+  // being true as the suite grew, and the failure was total rather than
+  // gradual: measured 2026-08-24, the 456 tests are **26 minutes of serial
+  // test time** (3.6 min wall at 8 workers on a 20-core box). The workflow
+  // allows 15 minutes for install, browsers, build *and* tests, so every run
+  // hit the wall and GitHub reported it as "cancelled after 15m" — which
+  // reads like an infrastructure hiccup rather than what it was, the suite
+  // outgrowing its budget. The deploy gate is the same job, so nothing
+  // shipped either.
+  //
+  // Four is deliberate and not just "more": it is the concurrency ceiling
+  // the CDN paragraph below arrives at from the opposite direction, and a
+  // GitHub-hosted `ubuntu-latest` runner is 4 vCPU. Retries are still 2, so
+  // a genuinely flaky test costs 3x its own duration and nothing else's.
   //
   // Locally this used to be `undefined`, i.e. Playwright's default of half
   // the machine's cores — 10 on a 20-core box. That is too many, because a
@@ -80,7 +93,7 @@ export default defineConfig({
   // 8 on this box, 2 on a 4-core laptop, never enough to thrash a small one.
   // If you ever see navigation timeouts on fully-rendered pages, check the
   // machine is otherwise idle *before* reaching for this number.
-  workers: process.env.CI ? 1 : Math.min(8, Math.max(2, Math.ceil(cpus().length / 2))),
+  workers: process.env.CI ? 4 : Math.min(8, Math.max(2, Math.ceil(cpus().length / 2))),
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
 
   use: {
