@@ -112,7 +112,7 @@
  */
 
 import { ALL_CARDS as ALPHABET_CARDS } from '@/data/alphabets';
-import { WRONG_LEAD } from '@/data/preschool-narration';
+import { WRONG_LEAD, rightLead } from '@/data/preschool-narration';
 import {
   THEMES,
   THEME_BY_KEY,
@@ -440,7 +440,7 @@ export const buildNarration = (round: LetterRound): RoundNarration => {
 
   return {
     intro: `Find ${targetMeta.letter}! Show me the letter ${targetMeta.letter}. ${targetMeta.letter} is for ${targetMeta.word}.`,
-    correct: `Yes! ${targetMeta.letter}! ${targetMeta.letter} is for ${targetMeta.word}!`,
+    correct: `${rightLead(targetMeta.letter)} ${targetMeta.letter}! ${targetMeta.letter} is for ${targetMeta.word}!`,
     rerun: `${WRONG_LEAD} Let's look together.`,
     rerunDoneWrong: (tappedLetter: LetterId): string => {
       const tapped = lookupLetter(tappedLetter);

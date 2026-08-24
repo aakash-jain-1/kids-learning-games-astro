@@ -66,7 +66,7 @@
  */
 
 import { ALL_CARDS as ANIMAL_CARDS } from '@/data/animals';
-import { WRONG_LEAD } from '@/data/preschool-narration';
+import { WRONG_LEAD, rightLead } from '@/data/preschool-narration';
 import { ALL_CARDS as BIRD_CARDS } from '@/data/birds';
 import {
   THEMES,
@@ -617,7 +617,7 @@ export const buildNarration = (
     intro: withClip
       ? CLIP_INTROS[i % CLIP_INTROS.length]!
       : `${call}! Who says ${lc(call)}? Listen again — ${lc(call)}!`,
-    correct: `Yes! The ${lc(target.name)} says ${lc(call)}! ${target.fact}`,
+    correct: `${rightLead(target.name)} The ${lc(target.name)} says ${lc(call)}! ${target.fact}`,
     rerun: withClip
       ? `${WRONG_LEAD} ${CLIP_RERUNS[i % CLIP_RERUNS.length]!}`
       : `${WRONG_LEAD} ${CLIP_RERUNS[i % CLIP_RERUNS.length]!} ${call}!`,

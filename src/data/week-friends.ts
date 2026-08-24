@@ -75,7 +75,7 @@ import {
   type PreschoolTheme,
   type ThemeMeta,
 } from '@/lib/preschool-themes';
-import { WRONG_LEAD } from '@/data/preschool-narration';
+import { WRONG_LEAD, rightLead } from '@/data/preschool-narration';
 
 export type { PreschoolTheme, ThemeMeta };
 export { THEMES, THEME_BY_KEY };
@@ -312,7 +312,7 @@ export const buildNarration = (round: DayRound): RoundNarration => {
   const targetName = lookupDay(round.target).name;
   return {
     intro: `${runNames.join(', ')}… what day comes next?`,
-    correct: `Yes! ${targetName} comes after ${lastShown}!`,
+    correct: `${rightLead(targetName)} ${targetName} comes after ${lastShown}!`,
     rerun: `${WRONG_LEAD} Let's sing the days.`,
     reveal: `${targetName}! ${targetName} comes after ${lastShown}.`,
     dayWord: (index: number): string => lookupDay(index).name,

@@ -417,7 +417,58 @@ before deciding.
 
 ## Changelog
 
-### 2026-08-23 (latest) — fix(content): Animal Sounds asked the same question 27 times
+### 2026-08-23 (latest) — fix(content): every correct answer in the app opened with the same word
+
+The second finding from the same playthrough. Reading back every line spoken
+across the 14 games with a wrong answer: **"Yes" opened 96 of them, 17.6% of all
+speech**, half as common again as the next word. The arithmetic left no wriggle
+room — in the recognition games, "Yes" lines plus wrong taps came to exactly the
+round count:
+
+| game | "Yes" lines | wrong taps | rounds |
+| --- | --- | --- | --- |
+| Animal Sounds | 12 | 15 | 27 |
+| Where's Teddy? | 17 | 8 | 25 |
+| Feeling Friends | 8 | 12 | 20 |
+| Rhyme Time | 7 | 11 | 18 |
+
+Not *most* correct answers. Every one, in every game, for a run of up to 27
+rounds. As with the Animal Sounds prompt, nothing was broken — "Yes!" is the
+right word, it was just the only word.
+
+`RIGHT_LEADS` in `data/preschool-narration.ts` now holds four: "Yes!", "That's
+it!", "You got it!", "That's right!". Every one has to be an unambiguous
+*verification*, for the same reason `WRONG_LEAD` does — the explicit right/wrong
+judgment is what makes feedback a correction rather than a lesson, and that
+applies to being right too. So warm noises that confirm nothing ("Ooh!",
+"Nice!") are out, and so is anything describing the child ("Clever!"), per rule
+14.
+
+**Seeded, not counted.** The rotation keys off something the round already
+contains — the animal, the letter, the day — rather than a round index. Every
+game's `buildNarration(round)` signature is untouched, the SSR'd first round and
+the client agree without threading a counter through thirteen games, and the
+choice becomes a property of the content, so the cow gets the same affirmation
+every time. The trade is that consecutive rounds can collide, about one pair in
+four, which is roughly how often a person repeats themselves — and a long way
+from four in four.
+
+Animal Sounds' *question* is the one place this can't work, for a reason worth
+recording: while a clip plays, the prompt may not name the animal or say its
+call, so there is no round-specific content to seed from. It rotates by index.
+
+Verified by replaying seven games: Where's Teddy, Sound Friends and Sorting
+Friends now use all four, the rest three of four over a partial run.
+
+`tests/affirmation.spec.ts` holds it from both ends, because either alone is
+weak. The source scan is precise about the regression that would actually happen
+— someone writes `Yes!` into a new game and it is never seen again — but says
+nothing about what a child hears. The playthrough proves the rotation reaches
+speech, but only for the game it plays. Both confirmed to fail: pinning
+`rightLead` to one entry fails the second, restoring a hard-coded `Yes!` in
+`patterns.ts` fails the first.
+
+### 2026-08-23 — fix(content): Animal Sounds asked the same question 27 times
 
 Found by playing all 14 games with a wrong answer end to end and reading the
 transcripts back, rather than by any test. The headline number: **27 rounds, one

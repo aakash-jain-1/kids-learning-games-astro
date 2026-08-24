@@ -60,7 +60,7 @@ import {
   type PreschoolTheme,
   type ThemeMeta,
 } from '@/lib/preschool-themes';
-import { WRONG_LEAD } from '@/data/preschool-narration';
+import { WRONG_LEAD, rightLead } from '@/data/preschool-narration';
 import {
   type StageId,
   themesForStage,
@@ -286,7 +286,7 @@ export const buildNarration = (round: HuntRound): RoundNarration => {
 
   return {
     intro: `Show me ${targetWord} ${targetNoun}! Find ${targetWord} ${targetNoun}.`,
-    correct: `Yes! ${cap(targetWord)} ${targetNoun}!`,
+    correct: `${rightLead(`${targetWord}${targetNoun}`)} ${cap(targetWord)} ${targetNoun}!`,
     rerun: `${WRONG_LEAD} Let's count them together.`,
     rerunDoneWrong: (tappedSize: number): string => {
       const w = numberWord(tappedSize);

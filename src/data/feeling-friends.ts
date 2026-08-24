@@ -53,7 +53,7 @@
  */
 
 import { DECKS } from '@/data/flashcards';
-import { WRONG_LEAD } from '@/data/preschool-narration';
+import { WRONG_LEAD, rightLead } from '@/data/preschool-narration';
 import {
   THEMES,
   type PreschoolTheme,
@@ -472,8 +472,8 @@ export const buildNarration = (round: FeelingRound): RoundNarration => {
 
   const correct =
     round.kind === 'situation'
-      ? `Yes! They feel ${lower}. ${target.coping}`
-      : `Yes! That's the ${lower} face! ${target.coping}`;
+      ? `${rightLead(lower)} They feel ${lower}. ${target.coping}`
+      : `${rightLead(lower)} That's the ${lower} face! ${target.coping}`;
 
   return {
     intro,

@@ -54,7 +54,7 @@ import {
   type PreschoolTheme,
   type ThemeMeta,
 } from '@/lib/preschool-themes';
-import { WRONG_LEAD } from '@/data/preschool-narration';
+import { WRONG_LEAD, rightLead } from '@/data/preschool-narration';
 import {
   type StageId,
   themesForStage,
@@ -280,7 +280,7 @@ export const buildNarration = (round: CompRound): RoundNarration => {
   return {
     intro: `Look! ${cap(leftWord)} ${leftNoun} on this side, ${rightWord} ${rightNoun} on this side.`,
     question: `Which side has more ${theme.plural}?`,
-    correct: `Yes! ${cap(bigWord)} is more than ${smallWord}!`,
+    correct: `${rightLead(`${bigWord}${smallWord}`)} ${cap(bigWord)} is more than ${smallWord}!`,
     rerun: `${WRONG_LEAD} Let's count them together!`,
     rerunDone: `${cap(bigWord)} is more than ${smallWord}. This side has more!`,
   };

@@ -6,8 +6,13 @@
 > win. Keep it short and current — see the update rule in
 > `.cursor/rules/maintain-context.mdc`.
 >
-> **Last verified against the codebase**: 2026-08-23 (**Animal Sounds asked the
-> same question 27 times** — found by playing all 14 games through and reading
+> **Last verified against the codebase**: 2026-08-23 (**every correct answer in
+> the app opened with the same word** — "Yes" led 96 spoken lines, 17.6% of all
+> speech, and in the recognition games "Yes" plus wrong taps came to exactly the
+> round count, so it was every single one. Four affirmations now rotate, seeded
+> off the round's own content so no `buildNarration` signature had to change;
+> see `RIGHT_LEADS` in `data/preschool-narration.ts`. Same playthrough found
+> that **Animal Sounds asked the same question 27 times** — found by playing all 14 games through and reading
 > the transcripts, not by a test: 27 rounds and one distinct prompt, where
 > Where's Teddy manages 25 across 25. Six intros and three corrections now
 > rotate by round index. The constraint that caused it still holds — while a

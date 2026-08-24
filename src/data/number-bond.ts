@@ -54,7 +54,7 @@ import {
   type PreschoolTheme,
   type ThemeMeta,
 } from '@/lib/preschool-themes';
-import { WRONG_LEAD } from '@/data/preschool-narration';
+import { WRONG_LEAD, rightLead } from '@/data/preschool-narration';
 import {
   type StageId,
   STAGE_META,
@@ -290,7 +290,7 @@ export const buildNarration = (round: BondRound): RoundNarration => {
 
   return {
     intro: `We have ${haveWord} ${haveNoun}. How many more to make ${wholeWord}?`,
-    correct: `Yes! ${cap(haveWord)} and ${gapWord} make ${wholeWord}!`,
+    correct: `${rightLead(`${haveWord}${gapWord}`)} ${cap(haveWord)} and ${gapWord} make ${wholeWord}!`,
     rerun: `${WRONG_LEAD} Let's count what we need.`,
     rerunDone: `We need ${gapWord} more! ${cap(haveWord)} and ${gapWord} make ${wholeWord} ${wholeNoun}.`,
     fillStep: (n: number): string => numberWord(n),

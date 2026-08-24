@@ -59,7 +59,7 @@ import {
   type PreschoolTheme,
   type ThemeMeta,
 } from '@/lib/preschool-themes';
-import { WRONG_LEAD } from '@/data/preschool-narration';
+import { WRONG_LEAD, rightLead } from '@/data/preschool-narration';
 
 export type { PreschoolTheme, ThemeMeta };
 export { THEMES, THEME_BY_KEY };
@@ -366,7 +366,7 @@ export const buildNarration = (round: SortRound): RoundNarration => {
 
   return {
     intro: `Find all the friends that ${promptLabel}! Tap the ones that belong.`,
-    correctItem: (tile: SortTile): string => `Yes! A ${lc(tile.label)} ${clause}!`,
+    correctItem: (tile: SortTile): string => `${rightLead(tile.label)} A ${lc(tile.label)} ${clause}!`,
     wrongItem: (tile: SortTile): string => {
       // Name the tile's own correct home if we can find it; otherwise a
       // generic "belongs somewhere else" still reads kindly.

@@ -144,3 +144,74 @@ export const PERSON_PRAISE_WORDS = [
   'brilliant',
   'what a memory',
 ];
+
+/**
+ * How a game says "that's the one" before it explains why.
+ *
+ * ── Why this exists ──
+ *
+ * The mirror image of `WRONG_LEAD`, found the same way: by playing all 14 games
+ * that have a wrong answer end to end and reading back every line spoken, in
+ * order. **"Yes" opened 96 of them — 17.6% of all speech in the app**, half as
+ * common again as the next word. The arithmetic left no room for doubt: in the
+ * recognition games the count of "Yes" lines plus the count of wrong taps came
+ * to exactly the round count (Animal Sounds 12 + 15 = 27, Where's Teddy
+ * 17 + 8 = 25, Feeling Friends 8 + 12 = 20). Not *most* correct answers. Every
+ * single one, in every game, for a run of up to 27 rounds.
+ *
+ * Nothing about that is broken, which is why no test had anything to say about
+ * it. "Yes!" is the right word. It is just the *only* word.
+ *
+ * ── What these have in common ──
+ *
+ * Each one is an unambiguous verification. That constraint is not negotiable
+ * and comes from the same research as `WRONG_LEAD`: the explicit right/wrong
+ * judgment is the part that makes feedback a correction rather than a lesson,
+ * and it applies to being right just as much as to being wrong. So warm noises
+ * that don't actually confirm anything — "Ooh!", "Nice!" — are not on this
+ * list.
+ *
+ * Each is also about the *answer*, never the child, per §5 rule 14. "Clever!"
+ * and "Good girl!" verify just as well and are exactly the attribution that
+ * research is about, so they're excluded for the same reason the words in
+ * `PERSON_PRAISE_WORDS` are.
+ *
+ * And each has to read naturally in front of whatever the game says next,
+ * across all fourteen: "…! The cow says moo!", "…! A is for Apple!", "…! Three
+ * is more than two!"
+ *
+ * ── Why it is seeded, not counted ──
+ *
+ * The rotation is keyed off something the round already contains — the animal,
+ * the letter, the day — rather than a round counter. That keeps every game's
+ * `buildNarration(round)` signature untouched, and it means the server-rendered
+ * first round and the client agree without threading an index through
+ * thirteen games. It also makes the choice a property of the content: the cow
+ * gets the same affirmation every time, which is steadier for a child than a
+ * fresh shuffle on each play.
+ *
+ * The trade is that consecutive rounds can land on the same lead, since the
+ * seeds are unrelated. With four leads that is about one pair in four, which is
+ * roughly how often a person repeats themselves anyway — and it is a long way
+ * from where this started, at four in four.
+ *
+ * Animal Sounds' *question* is the one place this can't be used, and for an
+ * interesting reason: while a clip is playing the prompt may not name the
+ * animal or say its call, so there is no round-specific content to seed from.
+ * It rotates by round index instead.
+ */
+export const RIGHT_LEADS = ['Yes!', "That's it!", 'You got it!', "That's right!"] as const;
+
+/**
+ * Pick an affirmation from `RIGHT_LEADS`, stably, for a given round.
+ *
+ * `seed` should be something that identifies the round — the target's name, the
+ * letter, the number. Anything stable will do; it only has to be the same on
+ * the server and the client for the round that gets pre-rendered.
+ */
+export const rightLead = (seed: string | number): string => {
+  const s = String(seed);
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return RIGHT_LEADS[h % RIGHT_LEADS.length]!;
+};

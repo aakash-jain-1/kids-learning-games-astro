@@ -75,7 +75,7 @@ import {
   type PreschoolTheme,
   type ThemeMeta,
 } from '@/lib/preschool-themes';
-import { WRONG_LEAD } from '@/data/preschool-narration';
+import { WRONG_LEAD, rightLead } from '@/data/preschool-narration';
 
 export type { PreschoolTheme, ThemeMeta };
 export { THEMES, THEME_BY_KEY };
@@ -306,7 +306,7 @@ export const buildNarration = (round: PatternRound): RoundNarration => {
   const correctWord = COLOR_LABEL[round.correctColor];
   return {
     intro: `What comes next? Look at the pattern!`,
-    correct: `Yes! ${cap1(correctWord)}!`,
+    correct: `${rightLead(correctWord)} ${cap1(correctWord)}!`,
     rerun: `${WRONG_LEAD} Let's look at the pattern.`,
     reveal: `${cap1(correctWord)}! It was ${correctWord}.`,
     colorWord: (c: PatternColor): string => COLOR_LABEL[c],

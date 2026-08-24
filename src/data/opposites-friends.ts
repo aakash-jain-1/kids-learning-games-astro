@@ -42,7 +42,7 @@
  */
 
 import { DECKS } from '@/data/flashcards';
-import { WRONG_LEAD } from '@/data/preschool-narration';
+import { WRONG_LEAD, rightLead } from '@/data/preschool-narration';
 import {
   THEMES,
   type PreschoolTheme,
@@ -501,7 +501,7 @@ export const buildNarration = (round: OppositeRound): RoundNarration => {
 
   return {
     intro: `This one is ${t}. Which one is ${a}?`,
-    correct: `Yes! ${target.name} and ${answer.name} are opposites. ${answer.fact}`,
+    correct: `${rightLead(target.name)} ${target.name} and ${answer.name} are opposites. ${answer.fact}`,
     rerun: `${WRONG_LEAD} Let's look at them together.`,
     wrongIs: (tapped: OppositeId): string => {
       const w = lookupWord(tapped);
