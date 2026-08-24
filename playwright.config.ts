@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import { cpus } from 'node:os';
 
 /**
  * Playwright configuration for the Astro POC.
@@ -64,15 +65,22 @@ export default defineConfig({
   // Four is also just faster in wall-clock terms (1.9m vs 5.7m), since the
   // extra workers were mostly queueing on the same throttled CDN.
   //
-  // Lowered again to 2 on 2026-08-23, for the same reason and with the same
-  // shape of evidence. The suite has roughly doubled since four was chosen —
-  // the a11y sweeps alone walk every game several times over, screenshotting
-  // options in three feedback states — so it is back to saturating the CDN.
-  // Measured over the full suite: 4 workers gave 4 failures in 11.7m, and the
-  // failures were navigation and screenshot *timeouts* scattered across specs
-  // that pass alone, not assertions. 2 workers gave 0 in 8.7m. Fewer workers
-  // being faster is the tell that the bottleneck was never the CPU.
-  workers: process.env.CI ? 1 : 2,
+  // **That reasoning was over-applied, and the correction is worth keeping.**
+  // On 2026-08-23 this was lowered again to 2, on the same shape of evidence:
+  // 4 workers gave 4 failures in 11.7m, 2 gave 0 in 8.7m. Both runs were taken
+  // on a machine quietly buried under leftover browsers and preview servers
+  // from a day of throwaway harness scripts, so the measurement was
+  // confounded — worker count was not the variable, ambient load was. Measured
+  // again the next day on a quiet 20-core box, all green: 8 workers 2.6m,
+  // 6 workers 2.9m, 2 workers 7.1m. The cap of 2 was costing 4.5 minutes a run
+  // and buying nothing.
+  //
+  // So: scale with the machine, but keep a ceiling, because the CDN ceiling
+  // above is real even if it is higher than 4. Half the cores capped at 8 —
+  // 8 on this box, 2 on a 4-core laptop, never enough to thrash a small one.
+  // If you ever see navigation timeouts on fully-rendered pages, check the
+  // machine is otherwise idle *before* reaching for this number.
+  workers: process.env.CI ? 1 : Math.min(8, Math.max(2, Math.ceil(cpus().length / 2))),
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
 
   use: {

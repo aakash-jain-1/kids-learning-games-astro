@@ -177,11 +177,26 @@ const openGame = async (page: Page, slug: string): Promise<void> => {
  * first paint by a few milliseconds.
  */
 const settleSpeech = async (page: Page): Promise<void> => {
+  const len = (): Promise<number> =>
+    page.evaluate(() => (window as unknown as { __spoke: string[] }).__spoke.length);
+
+  // Wait for the intro to *start*. Settling on "unchanged between two samples"
+  // alone is too weak, because it counts nothing-said-yet as settled: on a busy
+  // machine both early samples read 0, this returns before the game has opened
+  // its mouth, `tapUntilWrong` clears the log, and the intro then lands after
+  // the tap and is read as the correction. That is the same race the block
+  // above describes, narrowed rather than closed — it resurfaced once in a full
+  // run at 8 workers ("counting-friends: a wrong tap says so, out loud"), while
+  // passing 6/6 when run alone.
+  //
+  // A game with no intro to speak just spends the 2s budget and carries on.
+  for (let i = 0; i < 40 && (await len()) === 0; i++) {
+    await page.waitForTimeout(50);
+  }
+
   let last = -1;
   for (let i = 0; i < 25; i++) {
-    const n = await page.evaluate(
-      () => (window as unknown as { __spoke: string[] }).__spoke.length,
-    );
+    const n = await len();
     if (n === last) return;
     last = n;
     await page.waitForTimeout(120);

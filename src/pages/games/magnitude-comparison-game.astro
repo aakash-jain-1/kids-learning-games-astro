@@ -222,6 +222,15 @@ const TOTAL_ROUNDS = 8;
   let session: CompRound[] = [readSSRRound(), ...generateSession(Math.random, currentStage).slice(1)];
   let roundIdx = 0;
   let answered = false;
+  /**
+   * Generation counter for the intro narration chain — same defect and same
+   * fix as Counting Friends. The chain is `intro → gap → question`, scheduled
+   * from `onEnd`; the tap handler guards on `answered` but the pending
+   * continuation did not, so a child who answered while the game was still
+   * talking was then asked "Which side has more?" about the question they had
+   * just answered. Bumped on every answer and every round change.
+   */
+  let introRun = 0;
   let firstTryCorrect = false;
   /** First-try-correct count THIS session — drives auto stage advancement. */
   let sessionFirstTry = 0;
@@ -317,6 +326,7 @@ const TOTAL_ROUNDS = 8;
     groupRightEl.classList.remove('mf-group--correct', 'mf-group--reveal', 'mf-group--wrong');
 
     answered = false;
+    introRun++;
     firstTryCorrect = false;
     currentNarration = buildNarration(round);
     nextBtn.disabled = true;
@@ -333,11 +343,15 @@ const TOTAL_ROUNDS = 8;
     // last item lands at 0.6 + (left+right-1)*0.12 ≈ ≤1.5s.
     const flyInMs = 600 + Math.max(0, round.left + round.right - 1) * 120;
 
+    const run = introRun;
+
     setCaption(n.intro);
     narrate(n.intro, {
       onEnd: () => {
+        if (run !== introRun) return;
         const wait = Math.max(150, flyInMs - 700);
         setTimeout(() => {
+          if (run !== introRun) return;
           setCaption(n.question);
           narrate(n.question);
         }, wait);
@@ -395,6 +409,9 @@ const TOTAL_ROUNDS = 8;
     if (answered) return;
     const round = session[roundIdx]!;
     playTap();
+    // The child has answered, so the rest of the round's script is no longer
+    // wanted — see `introRun`.
+    introRun++;
 
     const tappedEl = side === 'left' ? groupLeftEl : groupRightEl;
     const correctEl = round.bigger === 'left' ? groupLeftEl : groupRightEl;

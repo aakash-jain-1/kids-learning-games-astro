@@ -6,11 +6,16 @@
 > win. Keep it short and current — see the update rule in
 > `.cursor/rules/maintain-context.mdc`.
 >
-> **Last verified against the codebase**: 2026-08-24 (**first full-suite run:
-> 401 passed in ~7m**. An earlier attempt showed 348 failures that were pure
-> machine load, not code — local workers are now capped at 2, and
-> `affirmation.spec.ts` no longer drives its playthrough on fixed sleeps, so it
-> stops reporting on how busy the box is. Before that: **every correct answer in
+> **Last verified against the codebase**: 2026-08-24 (**§5 rule 17: answering
+> now ends the round's script.** Counting Friends and Magnitude Comparison kept
+> narrating after a child answered, so a leftover beat landed in the middle of
+> the correction and then asked the question they had just answered — found by
+> chasing a test flake, which turned out to be the app misbehaving rather than
+> the test. Also: the suite's **first full run, 415 passing in ~2.7m**, after an
+> attempt that showed 348 failures which were pure machine load. Local workers
+> now scale with the machine rather than sitting at a hand-picked number, and
+> `affirmation.spec.ts` no longer drives its playthrough on fixed sleeps.
+> Before that: **every correct answer in
 > the app opened with the same word** — "Yes" led 96 spoken lines, 17.6% of all
 > speech, and in the recognition games "Yes" plus wrong taps came to exactly the
 > round count, so it was every single one. Four affirmations now rotate, seeded
@@ -170,15 +175,18 @@ static output; only interactive islands ship JavaScript.
   Note `preview` serves `dist/`, so the suite tests the **last build** — rebuild
   before trusting a run. Bundled Chromium also has no MP3 codec, so playback
   can't be asserted there; only that clips are requested and served.
-  **Local workers are capped at 2** (CI stays at 1; was 4 until the suite
-  roughly doubled). Workers aren't CPU-bound here — every game page pulls its
-  Fluent 3D art from jsDelivr and specs navigate with `waitUntil: 'load'` — so
-  past the cap the CDN throttles and specs fail on navigation or screenshot
-  timeout *while showing a fully rendered page*. Fewer workers are measurably
-  **faster** (2 → 0 failures in 8.7m; 4 → 4 failures in 11.7m). If you ever see
-  a mass failure in specs you didn't touch, and they pass when run alone,
-  suspect load — check the *runtime* of a spec you trust, not the failure count.
-  A full clean run is **401 specs in ~7m**.
+  **Local workers scale with the machine — half the cores, capped at 8** (CI
+  stays at 1). The cap exists because workers aren't purely CPU-bound here:
+  every game page pulls its Fluent 3D art from jsDelivr and specs navigate with
+  `waitUntil: 'load'`, so enough concurrent browsers will throttle the CDN and
+  fail specs on navigation timeout *while showing a fully rendered page*.
+  A hard-coded cap of 4, then 2, was tried and **both were over-corrections**:
+  the runs that justified them were measured on a machine quietly buried under
+  leftover browsers and preview servers, so ambient load was the real variable.
+  On a quiet 20-core box, all green: 8 workers 2.6m, 6 workers 2.9m, 2 workers
+  7.1m. If you ever see a mass failure in specs you didn't touch that pass when
+  run alone, suspect load — and check the *runtime* of a spec you trust, not
+  the failure count. A full clean run is **415 specs in ~2.7m**.
 - **CI**: `.github/workflows/deploy.yml` runs `test → build → deploy` to GH
   Pages on push to `main` (Playwright is a **hard deploy gate**).
   `test.yml` runs the suite independently for badge/PR feedback.
@@ -541,6 +549,27 @@ data file + a layout-specific themed CSS block. A parent dashboard lives at
     colour-blind child cannot play it at all. The standard fix is a shape or
     pattern inside each circle. That is a content decision, not a defect.
 
+17. **Answering ends the round's script.** A round is narrated as a chain —
+    Counting Friends does `intro → gap → addition → gap → question`, each step
+    scheduled from the previous one's `onEnd`. Every tap handler guarded on
+    `answered`, but the continuations *already in flight* did not, so a child
+    who answered while the game was still talking heard the rest of the story
+    arrive after their correction: a leftover beat interleaved into the guided
+    count, and then "How many apples in all?" — the question they had just
+    answered. Two games did it, Counting Friends and Magnitude Comparison; both
+    now carry an `introRun` generation counter, bumped on every answer and
+    every round change, that each step checks before continuing. A three-year-
+    old who knows the answer taps the moment the options appear, so this is
+    ordinary use rather than an edge case.
+
+    Held by `tests/answer-stops-the-story.spec.ts`, which answers over each
+    game's script and asserts no intro line arrives afterwards. Only the two
+    games above narrate in steps, and they are **named** in the spec rather
+    than detected, so flattening one of those scripts fails loudly instead of
+    quietly turning its test into a tautology. The other twelve say their round
+    in one line and cannot leak; their tests are insurance against a chain
+    being added later without a guard.
+
 ## 6. LocalStorage keys (state shapes)
 
 - `kids_settings_v1` — global settings (dark, sound, autoSpeak, fontSize).
@@ -764,7 +793,8 @@ this family stays at one for now.)
   Sounds got the dark-mode + scene-token fixes**, so the counts below drop from
   11 to 10. Incidentally, `playwright.config.ts` capped local workers at 4
   (§3) after the longer run test exposed CDN-throttling failures in ten
-  unrelated specs — since lowered again to 2 as the suite grew.
+  unrelated specs — since replaced by a cores-based cap, both fixed numbers
+  having proved to be over-corrections (§3).
 - **Prior ship (2026-08-22, same day)**: **Rhyme Time** — third preschool-literacy
   game and the fourth of the six-game August arc. A word shows with its
   picture ("Dog"); three picture cards below, tap the one that rhymes. It is

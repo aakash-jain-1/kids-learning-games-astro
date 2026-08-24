@@ -149,6 +149,10 @@ test.describe('number bond pop (preschool decomposition)', () => {
         break;
       }
     }
+    // Without this the search failing is silent: `correctIdx` stays -1,
+    // `wrongIdx` becomes 0, and the test still taps an option that is wrong —
+    // so it passes while no longer knowing which option it tapped or why.
+    expect(correctIdx, 'no option fills the gap').toBeGreaterThanOrEqual(0);
     const wrongIdx = correctIdx === 0 ? 1 : 0;
 
     await page.locator(`#nbpOpt${wrongIdx}`).click();

@@ -417,7 +417,86 @@ before deciding.
 
 ## Changelog
 
-### 2026-08-24 (latest) — test: the first full-suite run, and the one test that was measuring the machine
+### 2026-08-24 (latest) — fix(a11y): two games kept telling the story after the child had answered (§5 rule 17)
+
+A sweep for the defect behind the `affirmation.spec.ts` bug — a test measuring
+the machine rather than the app — that found a product defect instead.
+
+**The sweep came back mostly negative, which is the useful part.** The suspicion
+was fixed `waitForTimeout` sleeps, 27 of them across 9 specs. Over-subscribing
+Playwright proved nothing (401 green at 6 workers), because the contention that
+matters is inside the page, so the sleeps were measured directly under CPU
+throttling instead. They have between 10x and 100x headroom:
+
+| what the sleep waits for | budget | 1x | 4x | 8x |
+| --- | --- | --- | --- | --- |
+| Animal Sounds caption updates | 120ms | 3 | 11 | 15 |
+| Letter Friends celebration tone | 200ms | 1 | 4 | 10 |
+| a tap reaches speech | 400ms | 1 | 3 | 3 |
+| the wrong tint finishes transitioning | 420ms | 32 | 126 | 221 |
+
+So the affirmation bug was never "a fixed sleep". It was a sleep whose *timeout
+was read as a semantic signal* — "nothing moved, so the run must be over" —
+which silently truncated the sample. Scanning for that shape found the rest of
+the suite already defends against it: `quiz-feedback.spec.ts` has a coverage
+floor (`checked >= 12`), `resume.spec.ts` and `helpers.ts` throw on exhaustion.
+
+**What it did find** was `counting-friends: a wrong tap says so, out loud`
+failing about one full run in three while passing 6/6 alone. The captured line
+was "Then two more apples come!" — a story beat, not a correction. The flake was
+the app misbehaving. A round is narrated as a chain, each step scheduled from
+the previous one's `onEnd`; the tap handlers guard on `answered` but the
+continuations already in flight did not. Tapping early, a child hears:
+
+```
+[taps]  "Look! Two apples hang on a tree."
+        "Not that one. Let's count them together!"
+        "one"
+        "Then two more apples come!"      <- leftover story beat
+        "two"
+        "How many apples in all?"         <- asked after it was answered
+        "three" ... "four"
+```
+
+The guided count — the whole point of the errorless-rerun correction — is
+interrupted by the leftovers, and the round signs off by asking a question the
+child has already answered and been corrected on. Sweeping all 14 games the same
+way found one more, Magnitude Comparison, with "Which side has more apples?"
+landing after the answer. Both now carry an `introRun` generation counter,
+bumped on every answer and every round change, checked by each step before it
+continues. Bumping on round change matters too: it stops a stale chain talking
+into the *next* round.
+
+`tests/answer-stops-the-story.spec.ts` holds it, and two details are worth
+keeping. The two chained games are **named** rather than detected, because only
+they can leak — twelve games narrate in a single line, and without the list
+their tests would be tautologies nobody noticed. And the tap is anchored to the
+script rather than the clock: a first cut tapped at a flat 150ms, which raced
+Magnitude Comparison's second beat at ~175ms and failed its own non-vacuity
+check on a quick run — the identical mistake to the one being swept for.
+Confirmed to fail: with either guard removed it names the leaked lines exactly.
+
+Also here: four specs (`sound-friends`, `letterfriends`, `numberfriends`,
+`number-bond`) derived "the wrong tile" from a search whose success they never
+checked, so a renamed data attribute would have left them tapping index 0 and
+passing while no longer knowing what they tapped.
+
+**And a correction to yesterday's entry.** Dropping local workers 4 → 2 was an
+over-correction, and so was the drop to 4 before it. Both were measured on the
+polluted machine described below, so worker count was never the variable that
+was moving. Re-measured on a quiet 20-core box, all green: 8 workers 2.6m,
+6 workers 2.9m, 2 workers 7.1m. The cap of 2 was costing four and a half
+minutes a run and buying nothing. It now scales — half the cores, capped at 8,
+so a small laptop still gets 2 — and the CDN ceiling that motivated the
+original cap is documented as real but higher than 4. The lesson is the same
+one as the 348 failures: measure ambient load before concluding anything about
+concurrency.
+
+`settleSpeech` in `wrong-answer.spec.ts` also grew a first phase that waits for
+speech to *start*, since "unchanged between two samples" counted nothing-said-
+yet as settled.
+
+### 2026-08-24 — test: the first full-suite run, and the one test that was measuring the machine
 
 Nine commits of a11y and narration work had only ever been checked against
 targeted subsets. Run end to end, the suite came back **53 passed, 348 failed**,

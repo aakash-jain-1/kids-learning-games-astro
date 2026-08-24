@@ -251,6 +251,19 @@ const TOTAL_ROUNDS = 8;
   let roundIdx = 0;
   /** Whether the child has tapped a numeral button yet on the current round. */
   let answered = false;
+  /**
+   * Generation counter for the intro narration chain.
+   *
+   * The chain is `intro → gap → addition → gap → question`, with each step
+   * scheduled from the previous one's `onEnd`. The tap handlers guard on
+   * `answered`, but those already-scheduled continuations did not, so a child
+   * who answered while the game was still talking heard the rest of the story
+   * arrive *after* their correction — interleaved into the guided count, and
+   * ending by asking "How many in all?" about a question they had already
+   * answered. Bumped on every answer and every round change; each step stops
+   * if the value it started with is stale.
+   */
+  let introRun = 0;
   /** Whether the *first* answer this round was correct. Tracked for stats. */
   let firstTryCorrect = false;
   /** First-try-correct count THIS session — drives auto stage advancement. */
@@ -398,6 +411,7 @@ const TOTAL_ROUNDS = 8;
 
     // Reset per-round state.
     answered = false;
+    introRun++;
     firstTryCorrect = false;
     currentNarration = buildNarration(round);
     nextBtn.disabled = true;
@@ -421,12 +435,16 @@ const TOTAL_ROUNDS = 8;
     // Same for Group B. Group B items have stagger starting at index `a`.
     const bRevealMs = 600 + Math.max(0, round.b - 1) * 120;
 
+    const run = introRun;
+
     setCaption(n.intro);
     narrate(n.intro, {
       onEnd: () => {
+        if (run !== introRun) return;
         // Wait for Group A to finish its fly-in if narration was fast.
         const wait = Math.max(200, aRevealMs - 800);
         setTimeout(() => {
+          if (run !== introRun) return;
           // Start Group B fly-in. Items already exist in DOM; we just
           // restart their animations by toggling a class.
           // (Astro renders Group A and B in the same paint, so both
@@ -437,7 +455,9 @@ const TOTAL_ROUNDS = 8;
           setCaption(n.addition);
           narrate(n.addition, {
             onEnd: () => {
+              if (run !== introRun) return;
               setTimeout(() => {
+                if (run !== introRun) return;
                 setCaption(n.question);
                 narrate(n.question);
               }, Math.max(150, bRevealMs - 800));
@@ -527,6 +547,9 @@ const TOTAL_ROUNDS = 8;
     const n = Number(btn.dataset.n);
     if (Number.isNaN(n)) return;
     playTap();
+    // The child has answered, so the rest of the round's story is no longer
+    // wanted — see `introRun`.
+    introRun++;
 
     if (n === round.sum) {
       // Correct — celebrate, persist stats, enable Next.

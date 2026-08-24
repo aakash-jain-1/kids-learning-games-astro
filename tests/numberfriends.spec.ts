@@ -167,6 +167,10 @@ test.describe('number friends (preschool numeral recognition)', () => {
         break;
       }
     }
+    // Without this the search failing is silent: `correctIdx` stays -1,
+    // `wrongIdx` becomes 0, and the test still taps a group that is wrong — so
+    // it passes while no longer knowing which group it tapped or why.
+    expect(correctIdx, 'no group holds the target count').toBeGreaterThanOrEqual(0);
     const wrongIdx = correctIdx === 0 ? 1 : 0;
 
     await page.locator(`#nfGroup${wrongIdx}`).click();

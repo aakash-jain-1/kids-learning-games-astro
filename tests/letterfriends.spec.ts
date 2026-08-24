@@ -246,6 +246,10 @@ test.describe('letter friends (preschool letter recognition)', () => {
         break;
       }
     }
+    // Without this the search failing is silent: `correctIdx` stays -1,
+    // `wrongIdx` becomes 0, and the test still taps a tile that is wrong — so
+    // it passes while no longer knowing which tile it tapped or why.
+    expect(correctIdx, 'no tile shows the target letter').toBeGreaterThanOrEqual(0);
     const wrongIdx = correctIdx === 0 ? 1 : 0;
 
     await page.locator(`#lfTile${wrongIdx}`).click();
