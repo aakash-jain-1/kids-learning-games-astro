@@ -479,6 +479,15 @@ data file + a layout-specific themed CSS block. A parent dashboard lives at
     different colours, so siblings aren't comparable), in the quiz against its
     *siblings* (the options are identical and all dim together).
 
+    The same spec also **scans the stylesheets for the shape** rather than only
+    the six known instances, so a new animation-only class has to be justified
+    before it ships. Its allowlist takes one of two reasons per entry: the
+    class carries no information (a pop on artwork being swapped anyway), or a
+    static companion class always lands with it (`cf-pulse` + `cf-counted`). A
+    second test deletes nothing but fails on allowlist entries whose CSS is
+    gone, since an allowlist that outlives its subject is how a guard quietly
+    stops guarding.
+
 ## 6. LocalStorage keys (state shapes)
 
 - `kids_settings_v1` — global settings (dark, sound, autoSpeak, fontSize).

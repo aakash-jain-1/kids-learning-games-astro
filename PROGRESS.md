@@ -477,6 +477,30 @@ Unrelated flake fixed in passing: the three `dark-mode.spec.ts` tests each walk
 all 13 story games in a single test and use ~20s of the default 30s budget, so
 they tip over whenever the machine is busy. Marked `test.slow()`.
 
+**Follow-up, same day: the scan became the test.** The six cases above are a
+hand-written list, and a rule restated per site is the exact failure mode this
+project keeps rediscovering — a seventh walk-through would have shipped
+unguarded. `motion-independence.spec.ts` now also runs the stylesheet scan
+itself, so the *shape* is what's checked and a new animation-only class has to
+be justified before it can land.
+
+Its allowlist takes one of two reasons per entry, and nothing else counts:
+either the class carries no information (`.card-img.pop`, `.planet-art.flash` —
+a flourish on artwork that is being replaced anyway, where the new picture
+already tells the child everything the movement did), or a static companion
+class always lands in the same breath (`.cf-item.cf-pulse` is never applied
+without `cf-counted`). 23 entries, each with its reason in the source.
+
+Two guards against the guard rotting. The scan asserts it still *finds* more
+than 15 motion-only selectors, so a parsing regression can't make it pass by
+matching nothing. And a second test fails on allowlist entries whose selector no
+longer exists in the CSS, because an allowlist that outlives its subject would
+silently re-excuse the same class name if it ever came back.
+
+Both directions verified by breaking them: adding `.zz-fake--speaking { animation:
+… }` to a stylesheet fails the first by name, and adding a `.gone--stale` entry
+to the allowlist fails the second.
+
 ### 2026-08-23 — fix(a11y): the quiz's wrong-answer mark was made entirely of motion
 
 Started out to close what looked like the last rule-8 gap: 13 games put a
