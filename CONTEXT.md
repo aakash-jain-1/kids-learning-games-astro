@@ -6,8 +6,13 @@
 > win. Keep it short and current — see the update rule in
 > `.cursor/rules/maintain-context.mdc`.
 >
-> **Last verified against the codebase**: 2026-08-23 (**nothing a child needs is
-> made of movement or of hue alone.** §5 rule 16: right and wrong were ~24 ΔE
+> **Last verified against the codebase**: 2026-08-23 (**Animal Sounds asked the
+> same question 27 times** — found by playing all 14 games through and reading
+> the transcripts, not by a test: 27 rounds and one distinct prompt, where
+> Where's Teddy manages 25 across 25. Six intros and three corrections now
+> rotate by round index. The constraint that caused it still holds — while a
+> clip plays, the prompt may not name the animal or say its call. Before that,
+> **nothing a child needs is made of movement or of hue alone.** §5 rule 16: right and wrong were ~24 ΔE
 > apart for normal colour vision and under 7 under simulated deuteranopia in
 > nine of the fourteen games, with ten having no non-colour difference
 > whatsoever — every wrong option now carries the `✗` badge the four original

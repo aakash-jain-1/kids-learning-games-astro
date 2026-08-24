@@ -334,8 +334,8 @@ const ssrCaption = `${ssrTarget.sound}! Who says ${ssrTarget.sound.toLowerCase()
     }
 
     answered = false;
-    currentNarration = buildNarration(round, { withClip: true });
-    spokenNarration = buildNarration(round, { withClip: false });
+    currentNarration = buildNarration(round, { withClip: true, index: roundIdx });
+    spokenNarration = buildNarration(round, { withClip: false, index: roundIdx });
     lastPostAnswerText = '';
     nextBtn.disabled = true;
     replayBtn.disabled = false;
@@ -605,8 +605,8 @@ const ssrCaption = `${ssrTarget.sound}! Who says ${ssrTarget.sound.toLowerCase()
   // ── Initial state binding ──────────────────────────────────────────
   // The SSR'd DOM is round 0; we don't re-render it. Bind JS state so
   // subsequent logic — tile clicks, replay, etc. — has the references.
-  currentNarration = buildNarration(run[0]!, { withClip: true });
-  spokenNarration = buildNarration(run[0]!, { withClip: false });
+  currentNarration = buildNarration(run[0]!, { withClip: true, index: 0 });
+  spokenNarration = buildNarration(run[0]!, { withClip: false, index: 0 });
   progressText.textContent = `1 / ${TOTAL_ROUNDS}`;
   progressFill.style.width = `${(1 / TOTAL_ROUNDS) * 100}%`;
   progressPill.setAttribute('aria-label', `Round 1 of ${TOTAL_ROUNDS}`);

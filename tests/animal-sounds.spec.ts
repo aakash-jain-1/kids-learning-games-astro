@@ -204,6 +204,75 @@ test.describe('animal sounds (preschool listening — who says moo?)', () => {
    * so a mastering slip on a tier-3 animal would go unnoticed until a child
    * reached it.
    */
+  /**
+   * A 27-round run used to ask the identical question 27 times.
+   *
+   * Found by playing the whole game through and reading the transcript back
+   * rather than by any test: one distinct prompt for the longest sit in the
+   * app, where Where's Teddy manages 25 across 25 rounds. It stayed invisible
+   * because nothing was *broken* — the sentence is perfectly good, a child
+   * just hears it for the twenty-seventh time.
+   *
+   * The sameness had a real cause worth preserving: while a recording is
+   * playing, the prompt cannot name the animal or pronounce its call without
+   * handing over the answer, so the phrasings are all deliberately plain and
+   * animal-agnostic. This asserts they rotate, not what they say.
+   */
+  test('the prompt does not repeat itself round after round', async ({ page }) => {
+    test.setTimeout(180_000);
+
+    // Two things had to be arranged before this measured anything, both found
+    // by pinning the prompt to a constant and watching the test still pass:
+    //
+    //  1. The caption only carries the prompt once the round has *asked* it,
+    //     so the prompt card gets tapped first — that is `onReplay`, which
+    //     calls `speakIntro` and writes the string it speaks. Read cold, the
+    //     caption still holds the previous round's text, which varies by
+    //     animal regardless.
+    //  2. Sound has to be ON, and playback has to succeed. There are two
+    //     phrasings: with a clip the prompt must not name the animal or say
+    //     its call, and without one the voice *is* the call ("Moo! Who says
+    //     moo?"). The suite's default is `sound: false`, so every reading came
+    //     back as the second — which varies per animal however the first is
+    //     written. The repetition being fixed here only ever existed on the
+    //     clip path, which is the one a child with sound on hears.
+    await page.addInitScript(() => {
+      HTMLMediaElement.prototype.play = function (this: HTMLMediaElement) {
+        setTimeout(() => this.dispatchEvent(new Event('ended')), 10);
+        return Promise.resolve();
+      };
+    });
+    await page.evaluate(() => {
+      localStorage.setItem(
+        'kids_settings_v1',
+        JSON.stringify({ dark: false, sound: true, autoSpeak: false, fontSize: 'medium' }),
+      );
+    });
+    await page.reload();
+
+    const seen: string[] = [];
+    const ROUNDS = 12;
+    for (let round = 1; round <= ROUNDS; round++) {
+      await page.locator('#asPrompt').click();
+      await page.waitForTimeout(120);
+      const caption = (await page.locator('#asCaption').textContent())?.trim() ?? '';
+      if (caption) seen.push(caption);
+
+      const correctIdx = await findCorrectIdx(page);
+      await page.locator(`#asTile${correctIdx}`).click();
+      await expect(page.locator('#asNextBtn')).toBeEnabled();
+      await page.locator('#asNextBtn').click();
+    }
+
+    const distinct = new Set(seen);
+    expect(
+      distinct.size,
+      `${ROUNDS} rounds asked the same question ${seen.length} times: ` +
+        `"${seen[0]}". A run is 27 rounds — that is the sentence a child hears ` +
+        `every single time.`,
+    ).toBeGreaterThan(2);
+  });
+
   test('every animal in the run has a real clip served as audio', async ({ page }) => {
     for (const animal of EXPECTED_RUN) {
       const res = await page.request.get(`sounds/animals/${animal}.mp3`);

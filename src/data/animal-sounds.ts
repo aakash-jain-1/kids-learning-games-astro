@@ -544,6 +544,48 @@ export interface RoundNarration {
 const lc = (s: string): string => s.toLowerCase();
 
 /**
+ * Ways of asking "who was that?" when a recording is doing the asking.
+ *
+ * A full run is 27 rounds — the longest sit in the app at ~2.9 minutes — and
+ * until 2026-08-23 every one of them opened with the identical sentence,
+ * "Listen! Who makes that sound?". Playing the whole thing through and reading
+ * the transcript back is what made it obvious: 27 rounds, *one* distinct
+ * prompt, where Where's Teddy has 25 across 25 rounds and Sound Friends never
+ * repeats a line at all.
+ *
+ * The sameness had a real cause, which is why these are all so plain. When a
+ * clip is playing, the prompt cannot name the animal *or* pronounce its call
+ * without handing over the answer — the one thing a listening game must not
+ * do. So the variation available is in phrasing only, and every line here has
+ * to survive being attached to any of the 27 animals.
+ *
+ * Rotated by round index rather than shuffled, so the server-rendered first
+ * round matches the client, and so a child hears the same order each time
+ * rather than a fresh scramble.
+ */
+const CLIP_INTROS: readonly string[] = [
+  'Listen! Who makes that sound?',
+  "Who's that? Have a listen!",
+  'Listen carefully. Which animal is that?',
+  'Ooh, who could that be?',
+  'That sound — who is making it?',
+  'Have a listen. Who is it?',
+];
+
+/**
+ * Ways of saying "have another go" after the lead.
+ *
+ * `WRONG_LEAD` stays first and unchanged: §5 rule 8 requires a wrong tap to be
+ * *named* as wrong before anything else, and `tests/wrong-answer.spec.ts`
+ * asserts the correction opens with it. Only the invitation after it varies.
+ */
+const CLIP_RERUNS: readonly string[] = [
+  "Let's listen again.",
+  'Have another listen.',
+  "Let's hear it once more.",
+];
+
+/**
  * Build the narration for a round.
  *
  * `withClip` selects between two phrasings of the same script:
@@ -562,20 +604,23 @@ const lc = (s: string): string => s.toLowerCase();
  */
 export const buildNarration = (
   round: AnimalSoundRound,
-  opts: { readonly withClip?: boolean } = {},
+  opts: { readonly withClip?: boolean; readonly index?: number } = {},
 ): RoundNarration => {
   const withClip = opts.withClip ?? false;
   const target = lookupAnimal(round.target);
   const call = target.sound;
+  // Only the clip phrasings rotate. The spoken-prompt branch already varies
+  // per round, because there the call itself is the question.
+  const i = Math.max(0, opts.index ?? 0);
 
   return {
     intro: withClip
-      ? 'Listen! Who makes that sound?'
+      ? CLIP_INTROS[i % CLIP_INTROS.length]!
       : `${call}! Who says ${lc(call)}? Listen again — ${lc(call)}!`,
     correct: `Yes! The ${lc(target.name)} says ${lc(call)}! ${target.fact}`,
     rerun: withClip
-      ? `${WRONG_LEAD} Let's listen again.`
-      : `${WRONG_LEAD} Let's listen again. ${call}!`,
+      ? `${WRONG_LEAD} ${CLIP_RERUNS[i % CLIP_RERUNS.length]!}`
+      : `${WRONG_LEAD} ${CLIP_RERUNS[i % CLIP_RERUNS.length]!} ${call}!`,
     wrongIs: (tapped: AnimalId): string => {
       const other = lookupAnimal(tapped);
       return `That's the ${lc(other.name)}. The ${lc(other.name)} says ${lc(other.sound)}.`;

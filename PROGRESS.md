@@ -417,7 +417,53 @@ before deciding.
 
 ## Changelog
 
-### 2026-08-23 (latest) — fix(a11y): right and wrong were the same picture in two colours (§5 rule 16)
+### 2026-08-23 (latest) — fix(content): Animal Sounds asked the same question 27 times
+
+Found by playing all 14 games with a wrong answer end to end and reading the
+transcripts back, rather than by any test. The headline number: **27 rounds, one
+distinct prompt.** Every round of the longest sit in the app (~2.9 minutes)
+opened with "Listen! Who makes that sound?", and every correction was "Not that
+one. Let's listen again." — 15 times. For comparison, measured the same way:
+
+| game | rounds | distinct prompts |
+| --- | --- | --- |
+| Animal Sounds | 27 | **1** |
+| Where's Teddy? | 25 | 25 |
+| Feeling Friends | 20 | 20 |
+| Rhyme Time | 18 | 18 |
+
+Sound Friends does not repeat a single line in 77.
+
+Nothing was broken, which is why no test saw it — the sentence is perfectly
+good, a child just hears it for the twenty-seventh time. And the sameness had a
+real cause worth keeping: **while a recording is playing the prompt cannot name
+the animal or pronounce its call**, or it hands over the answer, which is the
+one thing a listening game must not do. So variation is available in phrasing
+only, and every line has to work attached to any of the 27 animals. Six intros
+and three corrections now rotate by round index — index, not shuffle, so the
+server-rendered first round matches the client and a child gets the same order
+each time rather than a fresh scramble. `WRONG_LEAD` stays pinned as the first
+words of every correction, per §5 rule 8.
+
+**The test took four tries to stop being vacuous**, and each failure was worth
+having:
+
+1. Reading `#asCaption` at the top of a round returns the *previous* round's
+   leftover text, which varies by animal regardless. Tapping the prompt card
+   first (`onReplay` → `speakIntro`) makes the caption the string being spoken.
+2. Headless audio can't play, so the game correctly fell back to the
+   no-clip phrasing — where the voice *is* the call, "Moo! Who says moo?" — and
+   that varies per animal however the clip branch is written. Resolving
+   `play()` keeps it on the branch under test.
+3. The suite's `beforeEach` sets `sound: false`, which takes the same fallback
+   for a different reason. The repetition only ever existed with sound on.
+4. Only then did pinning the prompt to a constant actually fail the test.
+
+Each of the first three passed happily against a prompt hard-coded to a single
+string. Worth remembering that "the test is green" and "the test can see the
+bug" are different claims.
+
+### 2026-08-23 — fix(a11y): right and wrong were the same picture in two colours (§5 rule 16)
 
 Same sweep, one channel over: after motion, colour. Red-versus-green is the one
 pair a colour-blind eye cannot resolve, and roughly one boy in twelve has some
