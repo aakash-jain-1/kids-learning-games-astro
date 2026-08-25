@@ -113,7 +113,16 @@ const playWithSound = async (page: Page, game: Game, sound: boolean): Promise<He
 
   const count = await page.locator(game.option).count();
   for (let i = 0; i < Math.min(count, 2); i++) {
-    await page.locator(game.option).nth(i).click({ timeout: 5000 }).catch(() => {});
+    const opt = page.locator(game.option).nth(i);
+    // Skip what the game has already switched off. Answering disables the
+    // whole row in most of these games, so the second option here is never
+    // clickable — and this used to click it anyway, wait out the full 5s
+    // actionability timeout, and swallow the error. That was 5 seconds per
+    // game, 14 games, for no assertion: a third of this file's runtime spent
+    // proving that a disabled button is disabled. Measured 2026-08-24 while
+    // working out why CI had outgrown its budget.
+    if (!(await opt.isEnabled())) continue;
+    await opt.click({ timeout: 5000 });
     await page.waitForTimeout(400);
   }
 

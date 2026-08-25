@@ -417,7 +417,49 @@ before deciding.
 
 ## Changelog
 
-### 2026-08-24 (latest) — fix(ci): the suite outgrew its budget, and every run came back "cancelled"
+### 2026-08-25 (latest) — perf(test): 5 seconds per game spent proving a disabled button is disabled
+
+Follow-up to the CI budget fix, which left a note saying the two slowest files
+were `addition.spec.ts` (229s) and `invariants.spec.ts` (203s). Re-measured in
+isolation, **`addition.spec.ts` is 29s** — its 229s was contention under an
+8-worker load, not its own cost. Worth recording as a method note: a per-test
+duration taken from a fully parallel run measures the machine as much as the
+test, and the two are easy to confuse.
+
+`invariants.spec.ts` was genuinely 194s, and profiling the mute block found the
+cost in a place neither guess predicted. Two hypotheses died first: the
+`goto` → `setItem` → `reload` shape (the reload is served from the browser's
+HTTP cache — 80ms, not a second page load), and CDN artwork (this game requests
+none, and blocking jsDelivr changed nothing). The actual phase timings:
+
+```
+goto (cold)                216ms
+setItem + reload            80ms
+click 0 (enabled=true)     105ms
+click 1 (enabled=false)   5012ms   <- TimeoutError, swallowed
+```
+
+`playWithSound` taps "up to 2" options to provoke sound. Answering disables the
+whole row — correct behaviour, and the §5 rule 10 corollary this session spent a
+day on — so the second tap can never land. It waited out the full 5s
+actionability timeout and `.catch(() => {})` threw the error away. Fourteen
+games, five seconds each, no assertion attached to any of it.
+
+Now it skips options the game has switched off. **194s → 141s**, all 76 tests
+still passing, and full-suite wall time 3.6m → 2.7m at 8 workers.
+
+The same guard was tried in `resume.spec.ts`, which has the identical
+click-and-swallow line, and **reverted after measuring** — 104s → 108s, i.e.
+nothing. Its inner loop waits for Next to enable and returns before a second
+click is ever attempted, so the line that looks expensive there never runs.
+Keeping the change would have meant keeping a comment claiming a saving that
+does not exist.
+
+The lesson is the swallow, not the timeout: `.catch(() => {})` on a click makes
+"this never happened" indistinguishable from "this worked", and the only symptom
+was five seconds nobody could account for.
+
+### 2026-08-24 — fix(ci): the suite outgrew its budget, and every run came back "cancelled"
 
 Reported as infrastructure — *"2 cancelled and 2 skipped checks"*, both Playwright
 jobs "Cancelled after 15m", build and deploy skipped. It was not infrastructure.

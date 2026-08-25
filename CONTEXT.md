@@ -205,7 +205,9 @@ static output; only interactive islands ship JavaScript.
   On a quiet 20-core box, all green: 8 workers 2.6m, 6 workers 2.9m, 2 workers
   7.1m. If you ever see a mass failure in specs you didn't touch that pass when
   run alone, suspect load — and check the *runtime* of a spec you trust, not
-  the failure count. A full clean run is **456 specs in ~3.6m** at 8 workers.
+  the failure count. A full clean run is **456 specs in ~2.7m** at 8 workers.
+  Beware reading per-test durations off a fully parallel run: `addition.spec.ts`
+  looked like the slowest file in the suite at 229s and is 29s on its own.
 - **CI**: `.github/workflows/deploy.yml` runs `test → build → deploy` to GH
   Pages on push to `main` (Playwright is a **hard deploy gate**).
   `test.yml` runs the suite independently for badge/PR feedback.
