@@ -92,6 +92,44 @@ export function chapterOf(
   return { n: sizes.length, of: sizes.length };
 }
 
+/**
+ * How a break announces the count, rotated by chapter.
+ *
+ * Measured by playing all seven games end to end (2026-08-25): the break was
+ * **one sentence, heard 19 times** across a single sweep of the seven games —
+ * "That's 7! You can keep going, or stop for now.", with only the number
+ * moving. It was the most repeated line in the app, and it was on the one
+ * screen whose whole job is to feel like a reward. For comparison the same
+ * sweep found Animal Sounds rotating six different questions for a line a
+ * child hears about five times.
+ *
+ * Only the celebration rotates. The offer that follows it is deliberately
+ * fixed, for the same reason `WRONG_LEAD` in `data/preschool-narration.ts` is a
+ * single constant: it is an instruction, not a flourish. It also echoes the two
+ * buttons under it, and a child learning that this panel always means the same
+ * thing is the point — you don't reword a button every time you show it.
+ *
+ * Indexed by chapter rather than hashed like `RIGHT_LEADS`, because here the
+ * repeat *is* the defect: a run has three or four breaks and consecutive ones
+ * must differ. Four covers every game without repeating except Animal Sounds,
+ * which has five chapters and so comes back round to the first.
+ */
+export const BREAK_LEADS: readonly ((n: number) => string)[] = [
+  (n) => `That's ${n}!`,
+  (n) => `${n} done!`,
+  (n) => `That's ${n} already!`,
+  (n) => `${n} so far!`,
+];
+
+/** The celebration for the break after `chapter` (1-based), covering `roundsDone` rounds. */
+export function breakLead(chapter: number, roundsDone: number): string {
+  const pick = BREAK_LEADS[(chapter - 1) % BREAK_LEADS.length]!;
+  return pick(roundsDone);
+}
+
+/** The offer under the celebration. Fixed on purpose — see `BREAK_LEADS`. */
+export const BREAK_OFFER = 'You can keep going, or stop for now.';
+
 // ── The panel ────────────────────────────────────────────────────────
 
 interface ChapterBreakOptions {
@@ -156,10 +194,11 @@ export function mountChapterBreak(opts: ChapterBreakOptions): ChapterBreakHandle
     starsEl.replaceChildren(filled, document.createTextNode('☆'.repeat(chapters - done)));
     starsEl.setAttribute('aria-label', `${done} of ${chapters} parts done`);
 
-    titleEl.textContent = `That's ${roundsDone}!`;
+    const lead = breakLead(done, roundsDone);
+    titleEl.textContent = lead;
 
     if (!panel.open) panel.showModal();
-    narrate?.(`That's ${roundsDone}! You can keep going, or stop for now.`);
+    narrate?.(`${lead} ${BREAK_OFFER}`);
   };
 
   return { endsChapter: (roundIdx) => ends.has(roundIdx), show };

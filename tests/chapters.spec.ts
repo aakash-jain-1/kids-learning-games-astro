@@ -3,6 +3,8 @@ import {
   chapterSizes,
   chapterEnds,
   chapterOf,
+  breakLead,
+  BREAK_LEADS,
   CHAPTER_TARGET,
   MIN_ROUNDS_FOR_CHAPTERS,
 } from '../src/lib/chapters';
@@ -55,6 +57,50 @@ test.describe('chapter plans', () => {
       expect(sizes.map((_, i) => seen.get(i + 1))).toEqual(sizes);
     });
   }
+
+  /**
+   * Playing all seven games end to end (2026-08-25) found the break saying one
+   * sentence 19 times a sweep, which is the opposite of a reward. These guard
+   * the fix at the level the defect actually had: not "the string is right" but
+   * "a child does not hear the same thing twice in a row".
+   */
+  test('no run says the same thing at two breaks running', () => {
+    for (const [game, total] of Object.entries(TOTALS)) {
+      const chapters = chapterSizes(total).length;
+      if (chapters < 2) continue;
+      const sizes = chapterSizes(total);
+
+      let roundsDone = 0;
+      const heard: string[] = [];
+      for (let c = 1; c < chapters; c++) {
+        roundsDone += sizes[c - 1]!;
+        heard.push(breakLead(c, roundsDone));
+      }
+      // Compare with the count masked out. The bug this replaces *did* produce
+      // different strings — "That's 7!" then "That's 13!" — and a plain
+      // inequality check would have passed against it happily. What a child
+      // hears repeat is the sentence, not the number inside it.
+      const shape = (s: string): string => s.replace(/\d+/g, 'N');
+      for (let i = 1; i < heard.length; i++) {
+        expect(
+          shape(heard[i]!),
+          `${game}: break ${i + 1} is the same sentence as break ${i}`,
+        ).not.toBe(shape(heard[i - 1]!));
+      }
+      // Every break still says how many rounds are done — the rotation varies
+      // the wrapper, never drops the count.
+      roundsDone = 0;
+      for (let c = 1; c < chapters; c++) {
+        roundsDone += sizes[c - 1]!;
+        expect(heard[c - 1]).toContain(String(roundsDone));
+      }
+    }
+  });
+
+  test('the leads are distinct, so rotating actually rotates', () => {
+    const rendered = BREAK_LEADS.map((f) => f(7));
+    expect(new Set(rendered).size, 'two leads render the same text').toBe(BREAK_LEADS.length);
+  });
 
   test('long runs are cut into sittings, short ones are left alone', () => {
     for (const [game, total] of Object.entries(TOTALS)) {
@@ -208,8 +254,8 @@ test.describe('chapter breaks in play', () => {
         sawBreakAfter.push(r);
         // The panel counts what was done, and the stars say how far in the run
         // that is — the pre-reader's half of the same message.
-        await expect(page.locator('#stBreakTitle')).toHaveText(`That's ${r}!`);
         const done = EXPECTED_BREAKS.indexOf(r) + 1;
+        await expect(page.locator('#stBreakTitle')).toHaveText(breakLead(done, r));
         await expect(page.locator('#stBreakStars')).toHaveText(
           '★'.repeat(done) + '☆'.repeat(4 - done),
         );

@@ -18,7 +18,7 @@
  * focusable instead of merely looking tappable and swallowing taps (§5 rule
  * 10's corollary). It also brings Escape and focus restoration with it.
  */
-import { chapterSizes } from '@/lib/chapters';
+import { BREAK_OFFER, chapterSizes } from '@/lib/chapters';
 
 interface Props {
   /** Rounds in a full run — the chapter plan is derived from it. */
@@ -37,7 +37,7 @@ const home = `${base}${base.endsWith('/') ? '' : '/'}`;
     <p class="st-break-stars" id="stBreakStars" role="img" aria-label={`0 of ${chapters} parts done`}>
     </p>
     <h2 class="st-break-title" id="stBreakTitle">Nice work!</h2>
-    <p class="st-break-text">You can keep going, or stop for now.</p>
+    <p class="st-break-text">{BREAK_OFFER}</p>
     <div class="st-break-actions">
       <button class="st-break-btn st-break-btn--go" id="stBreakGo" type="button" autofocus>
         Keep going

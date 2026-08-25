@@ -417,7 +417,62 @@ before deciding.
 
 ## Changelog
 
-### 2026-08-25 (latest) — perf(test): 5 seconds per game spent proving a disabled button is disabled
+### 2026-08-25 (latest) — fix(chapters): the reward screen was the most repeated line in the app
+
+Played all seven chaptered games end to end, the way the 2026-08-23 playthrough
+found three defects the suite could not see. The chapter machinery came out
+clean: breaks landed exactly where `chapterSizes` says in all seven (Where's
+Teddy 7/13/19, Animal Sounds 6/12/17/22, Letter and Sound Friends 7/14/20,
+Opposites and Feeling Friends 7/14, Rhyme Time 6/12), the last round always
+finished the run rather than pausing it, and every game reached `N / N` with its
+own completion line. Measured pacing: a chapter is **0.7–1.4 min of speech**,
+plus the child's own looking and tapping.
+
+What the transcripts showed instead was the wording. Every break, in every game,
+said:
+
+```
+That's 7!  You can keep going, or stop for now.
+That's 13! You can keep going, or stop for now.
+That's 19! You can keep going, or stop for now.
+```
+
+**One sentence, heard 19 times across a single sweep of the seven games** — the
+most repeated line in the app, on the one screen whose entire job is to feel
+earned. The same transcripts caught the contrast: Animal Sounds rotates six
+different questions for a line a child hears about five times. The break, which
+a child reaches by *working for it*, had one.
+
+Fixed by splitting the panel's two sentences, which are not the same kind of
+thing:
+
+- `BREAK_LEADS` — the celebration — rotates by chapter: "That's 7!", "13 done!",
+  "That's 19 already!", "22 so far!". Indexed rather than hashed like
+  `RIGHT_LEADS`, because here the repeat *is* the defect and consecutive breaks
+  must differ. Four covers every game except Animal Sounds' five chapters, which
+  comes back round to the first.
+- `BREAK_OFFER` — "You can keep going, or stop for now." — stays one constant,
+  for the same reason `WRONG_LEAD` is one: it is an instruction, it echoes the
+  two buttons under it, and you don't reword a button each time you show it.
+  `ChapterBreak.astro` now renders it from the constant so the spoken and
+  printed copy cannot drift.
+
+The guard is `no run says the same thing at two breaks running`, and writing it
+exposed how easy it would have been to write a useless one. The obvious test —
+consecutive titles differ — **passes against the bug**, because "That's 7!" and
+"That's 13!" *are* different strings. What repeats is the sentence, not the
+number in it, so the test compares with the digits masked out. Verified by
+restoring the old single-shape behaviour and watching it fail.
+
+Also checked visually, since this panel is shared across seven themes and the
+`--st-bg` bug once broke ten at once: the card renders correctly in light and
+dark on two different themes. One false alarm worth recording — the scrim looked
+missing in a screenshot, and measuring it disagreed: with the panel open a
+background pixel goes rgb(123, 213, 220) → rgb(66, 105, 117), computed
+`::backdrop` `rgba(20, 16, 32, 0.55)`, `:modal` true. The first screenshot had
+simply caught the card's 0.4s pop mid-animation.
+
+### 2026-08-25 — perf(test): 5 seconds per game spent proving a disabled button is disabled
 
 Follow-up to the CI budget fix, which left a note saying the two slowest files
 were `addition.spec.ts` (229s) and `invariants.spec.ts` (203s). Re-measured in

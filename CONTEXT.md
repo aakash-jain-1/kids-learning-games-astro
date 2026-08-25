@@ -6,7 +6,13 @@
 > win. Keep it short and current — see the update rule in
 > `.cursor/rules/maintain-context.mdc`.
 >
-> **Last verified against the codebase**: 2026-08-24 (**long runs now have
+> **Last verified against the codebase**: 2026-08-25 (**played the seven
+> chaptered games end to end.** The chapter machinery held — breaks landed
+> exactly on plan in all seven, and every run reached its own completion
+> screen — but the pause said *one sentence, 19 times a sweep*: "That's 7! You
+> can keep going, or stop for now." with only the number moving, on the one
+> screen whose job is to feel earned. The celebration now rotates by chapter
+> and the offer stays fixed. Before that: **long runs got
 > chapters.** §5 rule 11 made a run cover its whole set, and measuring that
 > found the bill: 25 rounds of Where's Teddy is ~7 minutes of narration before
 > the child even looks at a scene. Resuming let a child come back; it still gave
@@ -208,6 +214,11 @@ static output; only interactive islands ship JavaScript.
   the failure count. A full clean run is **456 specs in ~2.7m** at 8 workers.
   Beware reading per-test durations off a fully parallel run: `addition.spec.ts`
   looked like the slowest file in the suite at 229s and is 29s on its own.
+- **Don't hand-start `npm run preview` before the suite.** Astro's preview binds
+  IPv6 `[::1]` while the suite's baseURL is `127.0.0.1`, so Playwright reuses a
+  server the tests then cannot reach: every `goto` fails
+  `ERR_CONNECTION_REFUSED`, or the run hangs waiting for a server that will
+  never answer on the address it is probing. Let Playwright start its own.
 - **CI**: `.github/workflows/deploy.yml` runs `test → build → deploy` to GH
   Pages on push to `main` (Playwright is a **hard deploy gate**).
   `test.yml` runs the suite independently for badge/PR feedback.
@@ -465,6 +476,14 @@ data file + a layout-specific themed CSS block. A parent dashboard lives at
       round of a run never breaks, because the completion screen owns the end.
       Held by `tests/chapters.spec.ts`. A spec that walks a whole run must call
       `passChapterBreak(page)` after each Next.
+
+      **The break's celebration rotates; its offer does not** (added
+      2026-08-25, after playing all seven). `BREAK_LEADS` in `lib/chapters.ts`
+      is indexed by chapter — "That's 7!", "13 done!", "That's 19 already!" —
+      because a run has three or four breaks and consecutive ones repeating is
+      the defect. The sentence under it is the constant `BREAK_OFFER`, for the
+      same reason `WRONG_LEAD` is a constant: it is an instruction that echoes
+      the two buttons, not a flourish.
 12. **Layer a feedback tint over the option; never assign it.** Applies to
     *every* state — `--wrong`, `--correct`, `--reveal` — not just rule 8.
     Every tint token in these games is translucent (0.16–0.22), so
